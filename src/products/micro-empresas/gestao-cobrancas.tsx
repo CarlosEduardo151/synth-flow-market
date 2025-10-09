@@ -4,10 +4,11 @@ export const gestaoCobrancas: Product = {
   title: "Gestão de Cobranças Automatizada",
   slug: "gestao-cobrancas",
   price: 250000, // R$ 2.500,00 em centavos
+  rentalPrice: 125000, // R$ 1.250,00/mês em centavos
   category: "micro-empresas",
   images: ["/images/produtos/gestao-cobrancas.png"],
   short: "Sistema que automatiza o envio de boletos, PIX e cartões, com lembretes e relatórios para reduzir inadimplência.",
-  badges: ["Assinatura Mensal", "Reduz Inadimplência"],
+  badges: ["Compra/Aluguel", "Reduz Inadimplência"],
   features: [
     "Envio automático de boletos",
     "Integração com PIX",
@@ -18,9 +19,16 @@ export const gestaoCobrancas: Product = {
     "Notificações por email e WhatsApp",
     "Dashboard de pagamentos"
   ],
+  rentalAdvantages: [
+    "💰 Economia de 50% mensalmente",
+    "🔄 Flexibilidade total",
+    "🚀 Atualizações incluídas",
+    "🛠️ Suporte prioritário",
+    "📊 Relatórios detalhados"
+  ],
   inStock: true,
   delivery: "Ativação imediata após contratação",
-  specs: "Assinatura mensal - R$ 2.500/mês",
+  specs: "Compra R$ 2.500 ou Aluguel R$ 1.250/mês",
   content: `
 # Gestão de Cobranças Automatizada
 

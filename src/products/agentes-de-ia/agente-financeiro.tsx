@@ -4,10 +4,11 @@ export const agenteFinanceiro: Product = {
   title: "Agente Financeiro",
   slug: "agente-financeiro",
   price: 300000, // R$ 3.000,00 em centavos
+  rentalPrice: 150000, // R$ 1.500,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-financeiro.png"],
   short: "IA que monitora fluxo de caixa, gera alertas de despesas e faz previsões financeiras.",
-  badges: ["Assinatura Mensal", "Controle Total"],
+  badges: ["Compra/Aluguel", "Controle Total"],
   features: [
     "Monitoramento de fluxo de caixa",
     "Alertas de despesas",
@@ -18,9 +19,16 @@ export const agenteFinanceiro: Product = {
     "Integração bancária",
     "Relatórios executivos"
   ],
+  rentalAdvantages: [
+    "💰 Economia de 50% mensalmente",
+    "🔄 Flexibilidade total",
+    "🚀 Atualizações incluídas",
+    "🛠️ Suporte prioritário",
+    "📊 Relatórios ilimitados"
+  ],
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
-  specs: "Assinatura mensal - R$ 3.000/mês",
+  specs: "Compra R$ 3.000 ou Aluguel R$ 1.500/mês",
   content: `
 # Agente Financeiro
 

@@ -4,10 +4,11 @@ export const automacaoEmails: Product = {
   title: "Automação de E-mails com IA",
   slug: "automacao-emails",
   price: 180000, // R$ 1.800,00 em centavos
+  rentalPrice: 90000, // R$ 900,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/automacao-emails.png"],
   short: "Envio de campanhas personalizadas, segmentação de clientes e otimização automática de aberturas.",
-  badges: ["Assinatura Mensal", "Personalizado"],
+  badges: ["Compra/Aluguel", "Personalizado"],
   features: [
     "Campanhas personalizadas por IA",
     "Segmentação inteligente",
@@ -18,9 +19,16 @@ export const automacaoEmails: Product = {
     "Recuperação de carrinho",
     "Fluxos automatizados"
   ],
+  rentalAdvantages: [
+    "💰 Economia de 50% mensalmente",
+    "🔄 Flexibilidade total",
+    "🚀 Atualizações incluídas",
+    "🛠️ Suporte prioritário",
+    "📊 Relatórios detalhados"
+  ],
   inStock: true,
   delivery: "Ativação em 48 horas",
-  specs: "Assinatura mensal - R$ 1.800/mês",
+  specs: "Compra R$ 1.800 ou Aluguel R$ 900/mês",
   content: `
 # Automação de E-mails com IA
 

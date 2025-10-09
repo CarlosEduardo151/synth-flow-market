@@ -200,6 +200,48 @@ export type Database = {
         }
         Relationships: []
       }
+      order_installments: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          installment_number: number
+          order_id: string
+          paid_at: string | null
+          payment_proof_url: string | null
+          status: string
+          total_installments: number
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          installment_number: number
+          order_id: string
+          paid_at?: string | null
+          payment_proof_url?: string | null
+          status?: string
+          total_installments: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          installment_number?: number
+          order_id?: string
+          paid_at?: string | null
+          payment_proof_url?: string | null
+          status?: string
+          total_installments?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string
@@ -247,6 +289,8 @@ export type Database = {
           customer_phone: string | null
           discount_amount: number | null
           id: string
+          installment_count: number | null
+          installment_value: number | null
           payment_method: string | null
           payment_proof_url: string | null
           payment_receipt_url: string | null
@@ -264,6 +308,8 @@ export type Database = {
           customer_phone?: string | null
           discount_amount?: number | null
           id?: string
+          installment_count?: number | null
+          installment_value?: number | null
           payment_method?: string | null
           payment_proof_url?: string | null
           payment_receipt_url?: string | null
@@ -281,6 +327,8 @@ export type Database = {
           customer_phone?: string | null
           discount_amount?: number | null
           id?: string
+          installment_count?: number | null
+          installment_value?: number | null
           payment_method?: string | null
           payment_proof_url?: string | null
           payment_receipt_url?: string | null

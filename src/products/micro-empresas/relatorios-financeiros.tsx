@@ -4,10 +4,11 @@ export const relatoriosFinanceiros: Product = {
   title: "Relatórios Financeiros Automáticos",
   slug: "relatorios-financeiros",
   price: 200000, // R$ 2.000,00 em centavos
+  rentalPrice: 100000, // R$ 1.000,00/mês em centavos
   category: "micro-empresas",
   images: ["/images/produtos/relatorios-financeiros.png"],
   short: "Relatórios prontos de fluxo de caixa, despesas e lucros, sempre atualizados com base nas vendas.",
-  badges: ["Assinatura Mensal", "Sempre Atualizado"],
+  badges: ["Compra/Aluguel", "Sempre Atualizado"],
   features: [
     "Relatórios automáticos diários",
     "Fluxo de caixa em tempo real",
@@ -18,9 +19,16 @@ export const relatoriosFinanceiros: Product = {
     "Gráficos visuais",
     "Exportação em PDF/Excel"
   ],
+  rentalAdvantages: [
+    "💰 Economia de 50% mensalmente",
+    "🔄 Sem contratos de permanência",
+    "🚀 Atualizações automáticas",
+    "🛠️ Suporte contínuo",
+    "📊 Relatórios ilimitados"
+  ],
   inStock: true,
   delivery: "Ativação em 24 horas",
-  specs: "Assinatura mensal - R$ 2.000/mês",
+  specs: "Compra R$ 2.000 ou Aluguel R$ 1.000/mês",
   content: `
 # Relatórios Financeiros Automáticos
 

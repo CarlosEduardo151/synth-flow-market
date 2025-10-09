@@ -4,10 +4,11 @@ export const dashboardsPersonalizados: Product = {
   title: "Dashboards de Dados Personalizados",
   slug: "dashboards-personalizados",
   price: 300000, // R$ 3.000,00 em centavos
+  rentalPrice: 150000, // R$ 1.500,00/mês em centavos
   category: "micro-empresas",
   images: ["/images/produtos/dashboard-personalizados.png"],
   short: "Dashboards interativos e personalizados para pequenas empresas acompanharem métricas de vendas, clientes e finanças em tempo real.",
-  badges: ["Venda Única", "Manutenção Opcional"],
+  badges: ["Compra/Aluguel", "Dados em Tempo Real"],
   features: [
     "Dashboards totalmente personalizados",
     "Métricas de vendas em tempo real",
@@ -18,9 +19,16 @@ export const dashboardsPersonalizados: Product = {
     "Relatórios exportáveis",
     "Suporte técnico"
   ],
+  rentalAdvantages: [
+    "💰 Economia de 50% mensalmente",
+    "🔄 Flexibilidade total",
+    "🚀 Atualizações automáticas",
+    "🛠️ Customização contínua",
+    "📊 Suporte técnico incluído"
+  ],
   inStock: true,
   delivery: "Entrega em até 15 dias úteis",
-  specs: "Venda única com opção de manutenção mensal",
+  specs: "Compra R$ 3.000 ou Aluguel R$ 1.500/mês",
   content: `
 # Dashboards de Dados Personalizados
 
