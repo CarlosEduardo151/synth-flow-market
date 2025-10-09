@@ -12,6 +12,7 @@ import { ChevronRight, ArrowLeft, ShoppingCart, Info, Star, Check, AlertCircle, 
 import { useCart } from "@/contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { ProductContent } from "@/components/ProductContent";
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -430,10 +431,9 @@ export default function ProductPage() {
                     <DialogHeader>
                       <DialogTitle>Especificações técnicas</DialogTitle>
                     </DialogHeader>
-                    <div 
-                      className="prose prose-invert max-w-none"
-                      dangerouslySetInnerHTML={{ __html: product.specs || "" }}
-                    />
+                    {product.specs && (
+                      <ProductContent content={product.specs} />
+                    )}
                   </DialogContent>
                 </Dialog>
               </div>
@@ -461,10 +461,9 @@ export default function ProductPage() {
             <h2 className="text-3xl font-bold mb-8 text-center">
               Descrição completa
             </h2>
-            <div 
-              className="prose prose-invert prose-lg max-w-none space-y-6"
-              dangerouslySetInnerHTML={{ __html: product.content || "" }}
-            />
+            {product.content && (
+              <ProductContent content={product.content} />
+            )}
           </motion.div>
         </div>
       </section>

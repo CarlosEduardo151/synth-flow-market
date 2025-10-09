@@ -23,6 +23,7 @@ import {
 import { ProductCredentials } from '@/components/ProductCredentials';
 import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { ProductContent } from '@/components/ProductContent';
 
 interface ProductContent {
   id: string;
@@ -137,19 +138,6 @@ const ProductViewPage = () => {
       title: "Copiado!",
       description: "Conteúdo copiado para a área de transferência",
     });
-  };
-
-  const renderMarkdownContent = (content: string) => {
-    // Simple markdown renderer for basic formatting
-    return content
-      .replace(/### (.*)/g, '<h3 class="text-xl font-semibold mt-6 mb-3">$1</h3>')
-      .replace(/## (.*)/g, '<h2 class="text-2xl font-bold mt-8 mb-4">$1</h2>')
-      .replace(/# (.*)/g, '<h1 class="text-3xl font-bold mt-8 mb-6">$1</h1>')
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
-      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
-      .replace(/- (.*)/g, '<li class="ml-4">• $1</li>')
-      .replace(/\n\n/g, '<br><br>')
-      .replace(/\n/g, '<br>');
   };
 
   if (loading || isLoading) {
@@ -345,16 +333,15 @@ const ProductViewPage = () => {
               </CardHeader>
               <CardContent>
                 {content ? (
-                  <div className="prose prose-lg max-w-none dark:prose-invert">
-                    <div 
-                      dangerouslySetInnerHTML={{ 
-                        __html: content.content_type === 'markdown' 
-                          ? renderMarkdownContent(content.file_content)
-                          : content.file_content 
-                      }}
-                      className="space-y-4"
-                    />
-                  </div>
+                  content.content_type === 'markdown' ? (
+                    <ProductContent content={content.file_content} />
+                  ) : (
+                    <div className="prose prose-lg max-w-none dark:prose-invert">
+                      <div className="space-y-4">
+                        {content.file_content}
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <div className="text-center py-12">
                     <FileText className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
