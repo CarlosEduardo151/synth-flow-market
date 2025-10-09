@@ -1,0 +1,4 @@
+project_id = "agndhravgmcwpdjkozka"
+
+[functions.check-rental-expiry]
+verify_jwt = false
