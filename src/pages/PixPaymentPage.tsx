@@ -174,33 +174,31 @@ export default function PixPaymentPage() {
 
       if (updateError) throw updateError;
 
-      // Criar parcelas se houver mais de 1
-      if (installments > 1) {
-        const installmentsData = [];
-        const installmentValue = Math.round(getInstallmentValue());
+      // Sempre criar parcelas (mesmo que seja 1x)
+      const installmentsData = [];
+      const installmentValue = Math.round(getInstallmentValue());
+      
+      for (let i = 1; i <= installments; i++) {
+        const dueDate = new Date();
+        dueDate.setMonth(dueDate.getMonth() + (i - 1)); // Primeira parcela para o mês atual
         
-        for (let i = 1; i <= installments; i++) {
-          const dueDate = new Date();
-          dueDate.setMonth(dueDate.getMonth() + i);
-          
-          installmentsData.push({
-            order_id: orderId,
-            installment_number: i,
-            total_installments: installments,
-            amount: installmentValue,
-            due_date: dueDate.toISOString(),
-            status: i === 1 ? 'paid' : 'pending', // Primeira parcela já paga
-            payment_proof_url: i === 1 ? uploadData.path : null,
-            paid_at: i === 1 ? new Date().toISOString() : null
-          });
-        }
-
-        const { error: installmentsError } = await supabase
-          .from('order_installments')
-          .insert(installmentsData);
-
-        if (installmentsError) throw installmentsError;
+        installmentsData.push({
+          order_id: orderId,
+          installment_number: i,
+          total_installments: installments,
+          amount: installmentValue,
+          due_date: dueDate.toISOString(),
+          status: i === 1 ? 'paid' : 'pending', // Primeira parcela já paga
+          payment_proof_url: i === 1 ? uploadData.path : null,
+          paid_at: i === 1 ? new Date().toISOString() : null
+        });
       }
+
+      const { error: installmentsError } = await supabase
+        .from('order_installments')
+        .insert(installmentsData);
+
+      if (installmentsError) throw installmentsError;
 
       toast({
         title: "Pagamento enviado!",
