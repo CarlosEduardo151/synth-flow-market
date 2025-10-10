@@ -36,6 +36,7 @@ import AdminCustomersPage from "./pages/admin/AdminCustomersPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminRentalsPage from "./pages/admin/AdminRentalsPage";
+import AdminInstallmentsPage from "./pages/admin/AdminInstallmentsPage";
 
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
               <Route path="/admin/rentals" element={<AdminRentalsPage />} />
+              <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />

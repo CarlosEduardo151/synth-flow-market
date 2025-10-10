@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName: string, phone?: string, birthDate?: string, cpf?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
 }
@@ -38,10 +38,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, phone?: string, birthDate?: string, cpf?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -51,6 +51,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         },
       },
     });
+
+    // Update profile with additional data
+    if (!error && data.user) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({
+            phone: phone || null,
+            birth_date: birthDate || null,
+            cpf: cpf || null,
+          })
+          .eq('user_id', data.user.id);
+      } catch (profileError) {
+        console.error('Error updating profile:', profileError);
+      }
+    }
 
     // Create admin user if it's the specific email
     if (!error && (email === 'admin@loja.com' || email === 'caduxim0@gmail.com')) {

@@ -56,8 +56,11 @@ export default function AuthPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
+    const phone = formData.get('phone') as string;
+    const birthDate = formData.get('birthDate') as string;
+    const cpf = formData.get('cpf') as string;
 
-    const { error } = await signUp(email, password, fullName);
+    const { error } = await signUp(email, password, fullName, phone, birthDate, cpf);
 
     if (error) {
       toast({
@@ -142,6 +145,32 @@ export default function AuthPage() {
                         type="email" 
                         required 
                         placeholder="seu@email.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="signup-phone">Telefone</Label>
+                      <Input 
+                        id="signup-phone" 
+                        name="phone" 
+                        type="tel" 
+                        placeholder="(00) 00000-0000"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="signup-birthdate">Data de Nascimento</Label>
+                      <Input 
+                        id="signup-birthdate" 
+                        name="birthDate" 
+                        type="date" 
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="signup-cpf">CPF</Label>
+                      <Input 
+                        id="signup-cpf" 
+                        name="cpf" 
+                        type="text" 
+                        placeholder="000.000.000-00"
                       />
                     </div>
                     <div>

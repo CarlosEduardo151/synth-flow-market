@@ -93,6 +93,14 @@ const AdminDashboard = () => {
       link: '/admin/rentals',
       color: 'bg-purple-500',
       stats: `${rentalStats.activeRentals} ativos`
+    },
+    {
+      title: 'Parcelas',
+      description: 'Gerenciar parcelas de pagamento',
+      icon: DollarSign,
+      link: '/admin/installments',
+      color: 'bg-orange-500',
+      stats: 'Ver todas'
     }
   ];
 
