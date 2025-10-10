@@ -23,31 +23,48 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Create authenticated Supabase client
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      console.error('No authorization header');
+      throw new Error('Unauthorized: No authorization header');
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
         global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
+          headers: { Authorization: authHeader },
         },
       }
     );
 
-    // Verify admin permission
-    const { data: { user } } = await supabaseClient.auth.getUser();
-    if (!user) {
-      throw new Error('Unauthorized');
+    // Get authenticated user
+    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+    
+    if (userError || !user) {
+      console.error('Auth error:', userError);
+      throw new Error('Unauthorized: Invalid user');
     }
 
-    const { data: profile } = await supabaseClient
-      .from('profiles')
-      .select('role')
-      .eq('user_id', user.id)
-      .single();
+    console.log('User authenticated:', user.id);
 
-    if (!profile || profile.role !== 'admin') {
+    // Check if user is admin using the is_admin function
+    const { data: isAdminData, error: adminError } = await supabaseClient
+      .rpc('is_admin', { user_id: user.id });
+
+    if (adminError) {
+      console.error('Admin check error:', adminError);
+      throw new Error('Error checking admin status');
+    }
+
+    if (!isAdminData) {
+      console.error('User is not admin:', user.id);
       throw new Error('Unauthorized: Admin access required');
     }
+
+    console.log('Admin verified, processing notification request');
 
     const { type, email, subject, message }: NotificationRequest = await req.json();
 
@@ -60,13 +77,19 @@ const handler = async (req: Request): Promise<Response> => {
         .select('email')
         .not('email', 'is', null);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching profiles:', error);
+        throw error;
+      }
+      
       recipients = profiles.map(p => p.email).filter(Boolean);
+      console.log(`Found ${recipients.length} recipients for bulk notification`);
     } else if (type === 'specific') {
       if (!email) {
         throw new Error('Email is required for specific notification');
       }
       recipients = [email];
+      console.log(`Sending notification to specific email: ${email}`);
     }
 
     if (recipients.length === 0) {
@@ -74,6 +97,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Send emails
+    console.log(`Sending notifications to ${recipients.length} recipients`);
     const emailPromises = recipients.map(recipient =>
       resend.emails.send({
         from: "Notificações <onboarding@resend.dev>",
