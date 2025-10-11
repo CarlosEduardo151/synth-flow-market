@@ -5,3 +5,9 @@ verify_jwt = false
 
 [functions.send-notification]
 verify_jwt = true
+
+[functions.send-zapi-message]
+verify_jwt = true
+
+[functions.whatsapp-webhook]
+verify_jwt = false

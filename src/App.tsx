@@ -37,6 +37,7 @@ import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 import AdminRentalsPage from "./pages/admin/AdminRentalsPage";
 import AdminInstallmentsPage from "./pages/admin/AdminInstallmentsPage";
+import AdminWhatsAppLeadsPage from "./pages/admin/AdminWhatsAppLeadsPage";
 
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
@@ -88,6 +89,7 @@ const App = () => (
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
               <Route path="/admin/rentals" element={<AdminRentalsPage />} />
               <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
+              <Route path="/admin/whatsapp-leads" element={<AdminWhatsAppLeadsPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />

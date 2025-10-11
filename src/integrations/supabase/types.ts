@@ -639,6 +639,110 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_leads: {
+        Row: {
+          created_at: string | null
+          first_message: string | null
+          id: string
+          phone_number: string
+          product_slug: string
+          product_title: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          first_message?: string | null
+          id?: string
+          phone_number: string
+          product_slug: string
+          product_title: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          first_message?: string | null
+          id?: string
+          phone_number?: string
+          product_slug?: string
+          product_title?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      whatsapp_messages: {
+        Row: {
+          created_at: string | null
+          direction: string
+          id: string
+          lead_id: string | null
+          message: string
+          phone_number: string
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          direction: string
+          id?: string
+          lead_id?: string | null
+          message: string
+          phone_number: string
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          direction?: string
+          id?: string
+          lead_id?: string | null
+          message?: string
+          phone_number?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zapi_connections: {
+        Row: {
+          created_at: string | null
+          id: string
+          instance_id: string
+          is_active: boolean | null
+          phone_number: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instance_id: string
+          is_active?: boolean | null
+          phone_number: string
+          token: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instance_id?: string
+          is_active?: boolean | null
+          phone_number?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

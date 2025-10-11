@@ -20,7 +20,8 @@ import {
   TrendingUp,
   DollarSign,
   CheckCircle,
-  Calendar
+  Calendar,
+  MessageCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -93,6 +94,14 @@ const AdminDashboard = () => {
       link: '/admin/rentals',
       color: 'bg-purple-500',
       stats: `${rentalStats.activeRentals} ativos`
+    },
+    {
+      title: 'WhatsApp Leads',
+      description: 'Gerenciar leads e mensagens Z-API',
+      icon: MessageCircle,
+      link: '/admin/whatsapp-leads',
+      color: 'bg-green-600',
+      stats: 'Integração Z-API'
     },
     {
       title: 'Parcelas',

@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ShoppingCart, Info, Star } from "lucide-react";
+import { ShoppingCart, Info, Star, MessageCircle } from "lucide-react";
 import { Product, formatPrice } from "@/data/products";
 import { motion } from "framer-motion";
 import { useCart } from "@/contexts/CartContext";
 import { toast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { WhatsAppConnectDialog } from "./WhatsAppConnectDialog";
 
 interface ProductCardProps {
   product: Product;
@@ -13,6 +15,7 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
 
   const handleAddToCart = () => {
     addItem({
@@ -110,31 +113,50 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Botões de ação */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <Button 
+                variant="purchase" 
+                size="lg"
+                disabled={!product.inStock}
+                className="flex-1"
+                onClick={handleAddToCart}
+              >
+                <ShoppingCart className="w-4 h-4 mr-2" />
+                Comprar
+              </Button>
+              <Button 
+                variant="info" 
+                size="lg" 
+                asChild
+                className="flex-1"
+              >
+                <Link to={`/p/${product.slug}`}>
+                  <Info className="w-4 h-4 mr-2" />
+                  Detalhes
+                </Link>
+              </Button>
+            </div>
+            
             <Button 
-              variant="purchase" 
+              variant="outline" 
               size="lg"
-              disabled={!product.inStock}
-              className="flex-1"
-              onClick={handleAddToCart}
+              className="w-full border-green-500/50 hover:bg-green-500/10 hover:border-green-500"
+              onClick={() => setShowWhatsAppDialog(true)}
             >
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Comprar
-            </Button>
-            <Button 
-              variant="info" 
-              size="lg" 
-              asChild
-              className="flex-1"
-            >
-              <Link to={`/p/${product.slug}`}>
-                <Info className="w-4 h-4 mr-2" />
-                Detalhes
-              </Link>
+              <MessageCircle className="w-4 h-4 mr-2 text-green-500" />
+              Falar no WhatsApp
             </Button>
           </div>
         </div>
       </div>
+
+      <WhatsAppConnectDialog
+        open={showWhatsAppDialog}
+        onOpenChange={setShowWhatsAppDialog}
+        productSlug={product.slug}
+        productTitle={product.title}
+      />
     </motion.div>
   );
 }
