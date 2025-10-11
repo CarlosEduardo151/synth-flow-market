@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
 
 interface AuthContextType {
   user: User | null;
@@ -25,6 +26,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Show welcome notification on sign in
+        if (event === 'SIGNED_IN' && session?.user) {
+          const userName = session.user.user_metadata?.full_name || session.user.email?.split('@')[0];
+          toast.success(`Bem-vindo(a), ${userName}! 👋`, {
+            description: 'Login realizado com sucesso',
+          });
+        }
       }
     );
 

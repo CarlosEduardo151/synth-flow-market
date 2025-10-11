@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { Resend } from "https://esm.sh/resend@3.5.0";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -96,6 +96,38 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('No recipients found');
     }
 
+    // Get user IDs for recipients
+    console.log(`Processing notifications for ${recipients.length} recipients`);
+    
+    // Get user IDs from email addresses
+    const { data: userProfiles, error: profileError } = await supabaseClient
+      .from('profiles')
+      .select('user_id, email')
+      .in('email', recipients);
+
+    if (profileError) {
+      console.error('Error fetching user profiles:', profileError);
+      throw profileError;
+    }
+
+    // Create persistent notifications in database
+    const notificationsToInsert = userProfiles.map(profile => ({
+      user_id: profile.user_id,
+      subject: subject,
+      message: message,
+      type: 'info',
+      max_views: 3,
+    }));
+
+    const { error: insertError } = await supabaseClient
+      .from('persistent_notifications')
+      .insert(notificationsToInsert);
+
+    if (insertError) {
+      console.error('Error inserting notifications:', insertError);
+      throw insertError;
+    }
+
     // Send emails
     console.log(`Sending notifications to ${recipients.length} recipients`);
     const emailPromises = recipients.map(recipient =>
@@ -121,6 +153,7 @@ const handler = async (req: Request): Promise<Response> => {
     const failCount = results.filter(r => r.status === 'rejected').length;
 
     console.log(`Notifications sent: ${successCount} successful, ${failCount} failed`);
+    console.log(`Persistent notifications created for ${notificationsToInsert.length} users`);
 
     return new Response(
       JSON.stringify({

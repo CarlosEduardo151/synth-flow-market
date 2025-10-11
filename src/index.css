@@ -220,6 +220,54 @@
   animation: fadeInUp 0.6s ease-out;
 }
 
+/* iOS-style toast notifications */
+.ios-toast {
+  min-width: 360px;
+  padding: 16px 20px !important;
+  border: 1px solid hsl(var(--border) / 0.2) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: 0 10px 40px -10px hsl(var(--foreground) / 0.2),
+              0 0 0 1px hsl(var(--foreground) / 0.05) !important;
+  animation: slideDown 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards !important;
+}
+
+.ios-toast[data-type="success"] {
+  background: hsl(var(--success) / 0.1) !important;
+  border-color: hsl(var(--success) / 0.2) !important;
+}
+
+.ios-toast[data-type="error"] {
+  background: hsl(var(--destructive) / 0.1) !important;
+  border-color: hsl(var(--destructive) / 0.2) !important;
+}
+
+.ios-toast[data-type="warning"] {
+  background: hsl(var(--warning) / 0.1) !important;
+  border-color: hsl(var(--warning) / 0.2) !important;
+}
+
+.ios-toast[data-type="info"] {
+  background: hsl(var(--primary) / 0.1) !important;
+  border-color: hsl(var(--primary) / 0.2) !important;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+[data-sonner-toaster] {
+  --normal-bg: transparent !important;
+  --normal-border: transparent !important;
+}
+
 @layer base {
   * {
     @apply border-border;

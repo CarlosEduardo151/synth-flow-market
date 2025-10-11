@@ -73,12 +73,62 @@ export default function AdminOrdersPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
+      // Buscar informações do pedido
+      const { data: order, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Atualizar status do pedido
       const { error } = await supabase
         .from('orders')
         .update({ status: newStatus })
         .eq('id', orderId);
 
       if (error) throw error;
+
+      // Se o pedido foi confirmado e tem parcelas, criar as parcelas se ainda não existem
+      if (newStatus === 'confirmed' && order.installment_count > 1) {
+        // Verificar se já existem parcelas criadas
+        const { data: existingInstallments } = await supabase
+          .from('order_installments')
+          .select('id')
+          .eq('order_id', orderId)
+          .limit(1);
+
+        // Se não existem parcelas, criar
+        if (!existingInstallments || existingInstallments.length === 0) {
+          const installmentsData = [];
+          const installmentValue = order.installment_value || Math.round(order.total_amount / order.installment_count);
+          
+          for (let i = 1; i <= order.installment_count; i++) {
+            const dueDate = new Date();
+            dueDate.setMonth(dueDate.getMonth() + (i - 1));
+            
+            installmentsData.push({
+              order_id: orderId,
+              installment_number: i,
+              total_installments: order.installment_count,
+              amount: installmentValue,
+              due_date: dueDate.toISOString(),
+              status: i === 1 ? 'paid' : 'pending',
+              payment_proof_url: i === 1 ? order.payment_receipt_url : null,
+              paid_at: i === 1 ? new Date().toISOString() : null
+            });
+          }
+
+          const { error: installmentsError } = await supabase
+            .from('order_installments')
+            .insert(installmentsData);
+
+          if (installmentsError) {
+            console.error('Erro ao criar parcelas:', installmentsError);
+          }
+        }
+      }
 
       setOrders(orders.map(order => 
         order.id === orderId ? { ...order, status: newStatus } : order

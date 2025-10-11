@@ -18,6 +18,7 @@ import {
   Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { toast } from '@/components/ui/sonner';
 
 const CustomerDashboard = () => {
   const { user, loading } = useAuth();
@@ -47,6 +48,52 @@ const CustomerDashboard = () => {
         .single();
       
       setProfile(profileData);
+
+      // Show welcome notification
+      const userName = profileData?.full_name || user.email?.split('@')[0];
+      toast.success(`Olá, ${userName}! 👋`, {
+        description: 'Bem-vindo ao seu painel',
+      });
+
+      // Fetch and display persistent notifications
+      const { data: notifications, error: notifError } = await supabase
+        .from('persistent_notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (notifError) {
+        console.error('Error fetching notifications:', notifError);
+      } else if (notifications && notifications.length > 0) {
+        // Show notifications one at a time with proper delay
+        let delay = 2000; // Start after welcome message
+        
+        for (const notification of notifications) {
+          setTimeout(() => {
+            const toastType = notification.type === 'error' ? 'error' : 
+                            notification.type === 'warning' ? 'warning' :
+                            notification.type === 'success' ? 'success' : 'info';
+            
+            toast[toastType](notification.subject, {
+              description: notification.message,
+              duration: 5000, // Show each notification for 5 seconds
+            });
+
+            // Increment view count
+            supabase
+              .from('persistent_notifications')
+              .update({ 
+                view_count: notification.view_count + 1,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', notification.id)
+              .then(() => console.log(`Notification ${notification.id} view count updated`));
+          }, delay);
+          
+          delay += 6000; // Wait 6 seconds before showing next notification (5s display + 1s gap)
+        }
+      }
 
       // Fetch orders
       const { data: ordersData } = await supabase

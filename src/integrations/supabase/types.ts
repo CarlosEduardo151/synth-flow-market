@@ -240,7 +240,15 @@ export type Database = {
           total_installments?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "order_installments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_items: {
         Row: {
@@ -347,6 +355,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      persistent_notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          max_views: number
+          message: string
+          subject: string
+          type: string
+          updated_at: string
+          user_id: string | null
+          view_count: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_views?: number
+          message: string
+          subject: string
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+          view_count?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          max_views?: number
+          message?: string
+          subject?: string
+          type?: string
+          updated_at?: string
+          user_id?: string | null
+          view_count?: number
+        }
+        Relationships: []
       }
       product_credentials: {
         Row: {
