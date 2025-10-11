@@ -1,0 +1,7 @@
+project_id = "agndhravgmcwpdjkozka"
+
+[functions.check-rental-expiry]
+verify_jwt = false
+
+[functions.send-notification]
+verify_jwt = true

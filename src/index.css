@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Design system futurista para loja de IA - Todas as cores em HSL */
+
+@layer base {
+  :root {
+    /* Cores base futuristas */
+    --background: 222 84% 3%;
+    --foreground: 210 40% 98%;
+
+    /* Cards com glassmorphism */
+    --card: 220 20% 8%;
+    --card-foreground: 210 40% 98%;
+
+    /* Popover */
+    --popover: 220 20% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    /* Primary - azul cibernético */
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 84% 3%;
+    --primary-glow: 217 91% 70%;
+
+    /* Secondary - azul escuro */
+    --secondary: 220 25% 15%;
+    --secondary-foreground: 210 40% 90%;
+
+    /* Muted */
+    --muted: 220 15% 12%;
+    --muted-foreground: 215 15% 65%;
+
+    /* Accent - ciano tech */
+    --accent: 180 100% 70%;
+    --accent-foreground: 222 84% 3%;
+
+    /* Success - verde tech */
+    --success: 120 100% 60%;
+    --success-foreground: 222 84% 3%;
+
+    /* Warning - laranja tech */
+    --warning: 30 100% 60%;
+    --warning-foreground: 222 84% 3%;
+
+    /* Destructive */
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    /* Borders e inputs */
+    --border: 220 25% 20%;
+    --input: 220 25% 15%;
+    --ring: 217 91% 60%;
+
+    /* Gradientes futuristas */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(180 100% 70%));
+    --gradient-background: linear-gradient(180deg, hsl(222 84% 3%), hsl(220 50% 5%));
+    --gradient-card: linear-gradient(135deg, hsl(220 25% 8% / 0.8), hsl(220 30% 12% / 0.6));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60% / 0.2), hsl(180 100% 70% / 0.1));
+
+    /* Sombras com glow */
+    --shadow-glow: 0 0 40px hsl(217 91% 60% / 0.3);
+    --shadow-card: 0 8px 32px hsl(220 50% 2% / 0.5);
+    --shadow-button: 0 4px 16px hsl(217 91% 60% / 0.4);
+
+    /* Transições suaves */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s ease-out;
+
+    --radius: 1rem;
+  }
+
+  .light {
+    --background: 210 40% 98%;
+    --foreground: 222 84% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 4%;
+    --primary: 217 91% 50%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 180 100% 50%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 85% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 50%;
+    --gradient-background: linear-gradient(180deg, hsl(210 40% 98%), hsl(210 40% 95%));
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    background: var(--gradient-background);
+    min-height: 100vh;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  /* Padrão de linhas tech de fundo */
+  .bg-tech-lines {
+    background-image: 
+      linear-gradient(90deg, hsl(217 91% 60% / 0.1) 1px, transparent 1px),
+      linear-gradient(hsl(217 91% 60% / 0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: techLinesMove 20s linear infinite;
+  }
+
+  /* Glassmorphism para cards */
+  .glass {
+    background: hsl(220 25% 8% / 0.8);
+    backdrop-filter: blur(16px);
+    border: 1px solid hsl(220 30% 20% / 0.3);
+  }
+
+  /* Glow effects */
+  .glow-primary {
+    box-shadow: var(--shadow-glow);
+  }
+
+  .glow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    transition: var(--transition-smooth);
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+  }
+
+  .hover-glow:hover {
+    box-shadow: var(--shadow-glow);
+  }
+
+  /* Tech border animation */
+  .tech-border {
+    position: relative;
+    background: var(--gradient-card);
+    border-radius: var(--radius);
+  }
+
+  .tech-border::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    padding: 1px;
+    background: var(--gradient-primary);
+    border-radius: inherit;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: xor;
+    -webkit-mask-composite: xor;
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Loading animation */
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Animações */
+@keyframes techLinesMove {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 50px 50px;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 20px hsl(217 91% 60% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px hsl(217 91% 60% / 0.6);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+/* iOS-style toast notifications */
+.ios-toast {
+  min-width: 360px;
+  padding: 16px 20px !important;
+  border: 1px solid hsl(var(--border) / 0.2) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: 0 10px 40px -10px hsl(var(--foreground) / 0.2),
+              0 0 0 1px hsl(var(--foreground) / 0.05) !important;
+  animation: slideDown 0.35s cubic-bezier(0.21, 1.02, 0.73, 1) forwards !important;
+}
+
+.ios-toast[data-type="success"] {
+  background: hsl(var(--success) / 0.1) !important;
+  border-color: hsl(var(--success) / 0.2) !important;
+}
+
+.ios-toast[data-type="error"] {
+  background: hsl(var(--destructive) / 0.1) !important;
+  border-color: hsl(var(--destructive) / 0.2) !important;
+}
+
+.ios-toast[data-type="warning"] {
+  background: hsl(var(--warning) / 0.1) !important;
+  border-color: hsl(var(--warning) / 0.2) !important;
+}
+
+.ios-toast[data-type="info"] {
+  background: hsl(var(--primary) / 0.1) !important;
+  border-color: hsl(var(--primary) / 0.2) !important;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+[data-sonner-toaster] {
+  --normal-bg: transparent !important;
+  --normal-border: transparent !important;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
