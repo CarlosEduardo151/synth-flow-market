@@ -14,6 +14,168 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_customers: {
+        Row: {
+          address: string | null
+          cpf_cnpj: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          phone: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          phone: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_invoices: {
+        Row: {
+          amount: number
+          created_at: string | null
+          customer_id: string
+          due_date: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_link: string | null
+          payment_method: string | null
+          status: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          customer_id: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_link?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          customer_id?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_link?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "billing_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_payments: {
+        Row: {
+          amount: number
+          id: string
+          invoice_id: string
+          notes: string | null
+          paid_at: string | null
+          payment_method: string
+          payment_proof_url: string | null
+        }
+        Insert: {
+          amount: number
+          id?: string
+          invoice_id: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method: string
+          payment_proof_url?: string | null
+        }
+        Update: {
+          amount?: number
+          id?: string
+          invoice_id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_method?: string
+          payment_proof_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_reminders: {
+        Row: {
+          id: string
+          invoice_id: string
+          message: string
+          sent_at: string | null
+          status: string | null
+          type: string
+        }
+        Insert: {
+          id?: string
+          invoice_id: string
+          message: string
+          sent_at?: string | null
+          status?: string | null
+          type: string
+        }
+        Update: {
+          id?: string
+          invoice_id?: string
+          message?: string
+          sent_at?: string | null
+          status?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_reminders_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "billing_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_usages: {
         Row: {
           coupon_id: string
@@ -98,6 +260,181 @@ export type Database = {
           valid_from?: string
           valid_until?: string | null
           value?: number
+        }
+        Relationships: []
+      }
+      crm_customers: {
+        Row: {
+          business_type: string | null
+          company: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          last_contact_date: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          tags: string[] | null
+          total_purchases: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: string[] | null
+          total_purchases?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: string[] | null
+          total_purchases?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      crm_deals: {
+        Row: {
+          closed_at: string | null
+          created_at: string | null
+          customer_id: string
+          expected_close_date: string | null
+          id: string
+          notes: string | null
+          stage: string
+          status: string
+          title: string
+          updated_at: string | null
+          user_id: string
+          value: number
+        }
+        Insert: {
+          closed_at?: string | null
+          created_at?: string | null
+          customer_id: string
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          stage?: string
+          status?: string
+          title: string
+          updated_at?: string | null
+          user_id: string
+          value: number
+        }
+        Update: {
+          closed_at?: string | null
+          created_at?: string | null
+          customer_id?: string
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          stage?: string
+          status?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_interactions: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          description: string
+          id: string
+          subject: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          description: string
+          id?: string
+          subject?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          description?: string
+          id?: string
+          subject?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      custom_dashboards: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
+          user_id: string
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
+          user_id: string
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+          user_id?: string
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -197,6 +534,186 @@ export type Database = {
           rating?: number
           review_text?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      dashboard_data: {
+        Row: {
+          dashboard_id: string
+          data: Json
+          id: string
+          received_at: string | null
+        }
+        Insert: {
+          dashboard_id: string
+          data: Json
+          id?: string
+          received_at?: string | null
+        }
+        Update: {
+          dashboard_id?: string
+          data?: Json
+          id?: string
+          received_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_data_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "custom_dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_widgets: {
+        Row: {
+          config: Json | null
+          created_at: string | null
+          dashboard_id: string
+          id: string
+          metric_key: string
+          name: string
+          position: number | null
+          type: string
+        }
+        Insert: {
+          config?: Json | null
+          created_at?: string | null
+          dashboard_id: string
+          id?: string
+          metric_key: string
+          name: string
+          position?: number | null
+          type: string
+        }
+        Update: {
+          config?: Json | null
+          created_at?: string | null
+          dashboard_id?: string
+          id?: string
+          metric_key?: string
+          name?: string
+          position?: number | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_widgets_dashboard_id_fkey"
+            columns: ["dashboard_id"]
+            isOneToOne: false
+            referencedRelation: "custom_dashboards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landing_page_leads: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          landing_page_id: string
+          message: string | null
+          name: string
+          phone: string | null
+          source: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          landing_page_id: string
+          message?: string | null
+          name: string
+          phone?: string | null
+          source?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          landing_page_id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+          source?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_page_leads_landing_page_id_fkey"
+            columns: ["landing_page_id"]
+            isOneToOne: false
+            referencedRelation: "landing_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landing_pages: {
+        Row: {
+          business_segment: string | null
+          colors: Json | null
+          company_name: string
+          conversions: number | null
+          created_at: string | null
+          cta_text: string
+          cta_url: string | null
+          features: Json[] | null
+          headline: string
+          hero_image_url: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          slug: string
+          subheadline: string | null
+          testimonials: Json[] | null
+          updated_at: string | null
+          user_id: string
+          views: number | null
+          webhook_url: string | null
+        }
+        Insert: {
+          business_segment?: string | null
+          colors?: Json | null
+          company_name: string
+          conversions?: number | null
+          created_at?: string | null
+          cta_text?: string
+          cta_url?: string | null
+          features?: Json[] | null
+          headline: string
+          hero_image_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          slug: string
+          subheadline?: string | null
+          testimonials?: Json[] | null
+          updated_at?: string | null
+          user_id: string
+          views?: number | null
+          webhook_url?: string | null
+        }
+        Update: {
+          business_segment?: string | null
+          colors?: Json | null
+          company_name?: string
+          conversions?: number | null
+          created_at?: string | null
+          cta_text?: string
+          cta_url?: string | null
+          features?: Json[] | null
+          headline?: string
+          hero_image_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          slug?: string
+          subheadline?: string | null
+          testimonials?: Json[] | null
+          updated_at?: string | null
+          user_id?: string
+          views?: number | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -567,6 +1084,98 @@ export type Database = {
           zip_code?: string | null
         }
         Relationships: []
+      }
+      social_campaigns: {
+        Row: {
+          created_at: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string | null
+          type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          campaign_id: string | null
+          content: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          platforms: string[]
+          published_at: string | null
+          scheduled_for: string
+          status: string
+          updated_at: string | null
+          user_id: string
+          webhook_response: Json | null
+          webhook_url: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          platforms: string[]
+          published_at?: string | null
+          scheduled_for: string
+          status?: string
+          updated_at?: string | null
+          user_id: string
+          webhook_response?: Json | null
+          webhook_url?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          platforms?: string[]
+          published_at?: string | null
+          scheduled_for?: string
+          status?: string
+          updated_at?: string | null
+          user_id?: string
+          webhook_response?: Json | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "social_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ticket_messages: {
         Row: {
