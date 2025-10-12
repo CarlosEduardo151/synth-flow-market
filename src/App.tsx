@@ -39,6 +39,11 @@ import AdminRentalsPage from "./pages/admin/AdminRentalsPage";
 import AdminInstallmentsPage from "./pages/admin/AdminInstallmentsPage";
 import AdminWhatsAppLeadsPage from "./pages/admin/AdminWhatsAppLeadsPage";
 
+import CRMSystem from "./pages/systems/CRMSystem";
+import DashboardSystem from "./pages/systems/DashboardSystem";
+import BillingSystem from "./pages/systems/BillingSystem";
+import SocialPostsSystem from "./pages/systems/SocialPostsSystem";
+
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
 
@@ -77,6 +82,12 @@ const App = () => (
               <Route path="/meus-produtos/:slug" element={<ProductViewPage />} />
               <Route path="/customer" element={<CustomerDashboard />} />
               <Route path="/customer/tickets" element={<CustomerTicketsPage />} />
+
+              {/* rotas dos sistemas comprados */}
+              <Route path="/sistema/crm-simples" element={<CRMSystem />} />
+              <Route path="/sistema/dashboards-personalizados" element={<DashboardSystem />} />
+              <Route path="/sistema/gestao-cobrancas" element={<BillingSystem />} />
+              <Route path="/sistema/posts-sociais" element={<SocialPostsSystem />} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />

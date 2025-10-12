@@ -219,16 +219,29 @@ const MyProductsPage = () => {
                     <Separator />
 
                     <div className="flex gap-3">
-                      <Button
-                        asChild
-                        className="flex-1"
-                        disabled={expired || !product.is_active}
-                      >
-                        <Link to={`/meus-produtos/${product.product_slug}`}>
-                          <Eye className="h-4 w-4 mr-2" />
-                          Acessar Produto
-                        </Link>
-                      </Button>
+                      {['crm-simples', 'dashboards-personalizados', 'gestao-cobrancas', 'posts-sociais'].includes(product.product_slug) ? (
+                        <Button
+                          asChild
+                          className="flex-1"
+                          disabled={expired || !product.is_active}
+                        >
+                          <Link to={`/sistema/${product.product_slug}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Acessar Sistema
+                          </Link>
+                        </Button>
+                      ) : (
+                        <Button
+                          asChild
+                          className="flex-1"
+                          disabled={expired || !product.is_active}
+                        >
+                          <Link to={`/meus-produtos/${product.product_slug}`}>
+                            <Eye className="h-4 w-4 mr-2" />
+                            Acessar Produto
+                          </Link>
+                        </Button>
+                      )}
                     </div>
 
 

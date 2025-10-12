@@ -14,6 +14,132 @@ export type Database = {
   }
   public: {
     Tables: {
+      billing_clients: {
+        Row: {
+          cpf_cnpj: string | null
+          created_at: string | null
+          customer_product_id: string
+          email: string | null
+          id: string
+          name: string
+          phone: string
+          updated_at: string | null
+        }
+        Insert: {
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          customer_product_id: string
+          email?: string | null
+          id?: string
+          name: string
+          phone: string
+          updated_at?: string | null
+        }
+        Update: {
+          cpf_cnpj?: string | null
+          created_at?: string | null
+          customer_product_id?: string
+          email?: string | null
+          id?: string
+          name?: string
+          phone?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_clients_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      billing_invoices: {
+        Row: {
+          amount: number
+          client_id: string
+          created_at: string | null
+          due_date: string
+          id: string
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          updated_at: string | null
+          whatsapp_reminder_sent: boolean | null
+        }
+        Insert: {
+          amount: number
+          client_id: string
+          created_at?: string | null
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string | null
+          whatsapp_reminder_sent?: boolean | null
+        }
+        Update: {
+          amount?: number
+          client_id?: string
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string | null
+          whatsapp_reminder_sent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "billing_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      collection_settings: {
+        Row: {
+          auto_send_reminders: boolean | null
+          created_at: string | null
+          customer_product_id: string
+          days_before_due: number | null
+          id: string
+          updated_at: string | null
+          whatsapp_template: string | null
+        }
+        Insert: {
+          auto_send_reminders?: boolean | null
+          created_at?: string | null
+          customer_product_id: string
+          days_before_due?: number | null
+          id?: string
+          updated_at?: string | null
+          whatsapp_template?: string | null
+        }
+        Update: {
+          auto_send_reminders?: boolean | null
+          created_at?: string | null
+          customer_product_id?: string
+          days_before_due?: number | null
+          id?: string
+          updated_at?: string | null
+          whatsapp_template?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_settings_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       coupon_usages: {
         Row: {
           coupon_id: string
@@ -100,6 +226,100 @@ export type Database = {
           value?: number
         }
         Relationships: []
+      }
+      crm_customers: {
+        Row: {
+          business_type: string | null
+          company: string | null
+          created_at: string | null
+          customer_product_id: string
+          email: string | null
+          id: string
+          last_contact_date: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          tags: string[] | null
+          total_purchases: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          customer_product_id: string
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: string[] | null
+          total_purchases?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string | null
+          customer_product_id?: string
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          tags?: string[] | null
+          total_purchases?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_customers_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_interactions: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          description: string
+          id: string
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          description: string
+          id?: string
+          subject?: string | null
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          description?: string
+          id?: string
+          subject?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_products: {
         Row: {
@@ -199,6 +419,158 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      dashboard_configs: {
+        Row: {
+          created_at: string | null
+          customer_product_id: string
+          id: string
+          metrics: Json
+          name: string
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_product_id: string
+          id?: string
+          metrics?: Json
+          name: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_product_id?: string
+          id?: string
+          metrics?: Json
+          name?: string
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_configs_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dashboard_data: {
+        Row: {
+          dashboard_config_id: string
+          id: string
+          metadata: Json | null
+          metric_key: string
+          timestamp: string | null
+          value: number | null
+        }
+        Insert: {
+          dashboard_config_id: string
+          id?: string
+          metadata?: Json | null
+          metric_key: string
+          timestamp?: string | null
+          value?: number | null
+        }
+        Update: {
+          dashboard_config_id?: string
+          id?: string
+          metadata?: Json | null
+          metric_key?: string
+          timestamp?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_data_dashboard_config_id_fkey"
+            columns: ["dashboard_config_id"]
+            isOneToOne: false
+            referencedRelation: "dashboard_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_records: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string | null
+          customer_product_id: string
+          date: string
+          description: string | null
+          id: string
+          type: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string | null
+          customer_product_id: string
+          date: string
+          description?: string | null
+          id?: string
+          type: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string | null
+          customer_product_id?: string
+          date?: string
+          description?: string | null
+          id?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_records_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      landing_page_leads: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          landing_page_id: string
+          message: string | null
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          landing_page_id: string
+          message?: string | null
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          landing_page_id?: string
+          message?: string | null
+          name?: string
+          phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landing_page_leads_landing_page_id_fkey"
+            columns: ["landing_page_id"]
+            isOneToOne: false
+            referencedRelation: "user_landing_pages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       order_installments: {
         Row: {
@@ -568,6 +940,53 @@ export type Database = {
         }
         Relationships: []
       }
+      social_posts: {
+        Row: {
+          content: string
+          created_at: string | null
+          customer_product_id: string
+          id: string
+          image_url: string | null
+          platforms: string[]
+          published_at: string | null
+          scheduled_for: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          customer_product_id: string
+          id?: string
+          image_url?: string | null
+          platforms: string[]
+          published_at?: string | null
+          scheduled_for: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          customer_product_id?: string
+          id?: string
+          image_url?: string | null
+          platforms?: string[]
+          published_at?: string | null
+          scheduled_for?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ticket_messages: {
         Row: {
           attachment_url: string | null
@@ -638,6 +1057,65 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      user_landing_pages: {
+        Row: {
+          colors: Json | null
+          company_name: string
+          conversions: number | null
+          created_at: string | null
+          cta_text: string | null
+          customer_product_id: string
+          headline: string
+          hero_image_url: string | null
+          id: string
+          is_active: boolean | null
+          slug: string
+          subheadline: string | null
+          updated_at: string | null
+          views: number | null
+        }
+        Insert: {
+          colors?: Json | null
+          company_name: string
+          conversions?: number | null
+          created_at?: string | null
+          cta_text?: string | null
+          customer_product_id: string
+          headline: string
+          hero_image_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          slug: string
+          subheadline?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Update: {
+          colors?: Json | null
+          company_name?: string
+          conversions?: number | null
+          created_at?: string | null
+          cta_text?: string | null
+          customer_product_id?: string
+          headline?: string
+          hero_image_url?: string | null
+          id?: string
+          is_active?: boolean | null
+          slug?: string
+          subheadline?: string | null
+          updated_at?: string | null
+          views?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_landing_pages_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       whatsapp_leads: {
         Row: {
