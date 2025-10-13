@@ -6,8 +6,11 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, Users, ShoppingCart, RefreshCw } from 'lucide-react';
+import { TrendingUp, DollarSign, Users, ShoppingCart, RefreshCw, Settings, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/hooks/use-toast';
 
 interface DashboardConfig {
@@ -71,7 +74,7 @@ const DashboardSystem = () => {
   };
 
   const loadDashboard = async (productId: string) => {
-    const { data: configData, error: configError } = await supabase
+    const { data: configData } = await supabase
       .from('dashboard_configs')
       .select('*')
       .eq('customer_product_id', productId)
@@ -79,6 +82,16 @@ const DashboardSystem = () => {
 
     if (configData) {
       setConfig(configData);
+      
+      // Gerar webhook URL se não existir
+      if (!configData.webhook_url) {
+        const webhookUrl = `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/dashboard-webhook?config_id=${configData.id}`;
+        await supabase
+          .from('dashboard_configs')
+          .update({ webhook_url: webhookUrl })
+          .eq('id', configData.id);
+        setConfig({ ...configData, webhook_url: webhookUrl });
+      }
       
       const { data: dashboardData } = await supabase
         .from('dashboard_data')
@@ -98,26 +111,60 @@ const DashboardSystem = () => {
           customer_product_id: productId,
           name: 'Meu Dashboard',
           metrics: [
-            { key: 'vendas_total', name: 'Vendas Totais', type: 'number' },
-            { key: 'ticket_medio', name: 'Ticket Médio', type: 'number' },
-            { key: 'clientes_ativos', name: 'Clientes Ativos', type: 'number' }
+            { key: 'vendas_total', name: 'Vendas Totais', type: 'currency', enabled: true },
+            { key: 'ticket_medio', name: 'Ticket Médio', type: 'currency', enabled: true },
+            { key: 'clientes_ativos', name: 'Clientes Ativos', type: 'number', enabled: true },
+            { key: 'lucro_liquido', name: 'Lucro Líquido', type: 'currency', enabled: true },
+            { key: 'despesas_mensais', name: 'Despesas Mensais', type: 'currency', enabled: false }
           ]
         })
         .select()
         .single();
 
       if (newConfig) {
-        setConfig(newConfig);
+        const webhookUrl = `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/dashboard-webhook?config_id=${newConfig.id}`;
+        await supabase
+          .from('dashboard_configs')
+          .update({ webhook_url: webhookUrl })
+          .eq('id', newConfig.id);
+        
         // Inserir dados de exemplo
         await supabase.from('dashboard_data').insert([
           { dashboard_config_id: newConfig.id, metric_key: 'vendas_total', value: 15000, metadata: {} },
           { dashboard_config_id: newConfig.id, metric_key: 'ticket_medio', value: 250, metadata: {} },
-          { dashboard_config_id: newConfig.id, metric_key: 'clientes_ativos', value: 60, metadata: {} }
+          { dashboard_config_id: newConfig.id, metric_key: 'clientes_ativos', value: 60, metadata: {} },
+          { dashboard_config_id: newConfig.id, metric_key: 'lucro_liquido', value: 5000, metadata: {} }
         ]);
         await loadDashboard(productId);
       }
     }
   };
+
+  useEffect(() => {
+    if (!config) return;
+
+    // Realtime subscription para novos dados
+    const channel = supabase
+      .channel('dashboard-data-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'dashboard_data',
+          filter: `dashboard_config_id=eq.${config.id}`
+        },
+        (payload) => {
+          setData(prev => [payload.new as DashboardData, ...prev.slice(0, 99)]);
+          toast({ title: "Dados atualizados!", description: "Novos dados recebidos em tempo real" });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [config]);
 
   const refreshData = async () => {
     if (!config) return;
@@ -134,9 +181,45 @@ const DashboardSystem = () => {
     }
   };
 
+  const copyWebhookUrl = () => {
+    if (config?.webhook_url) {
+      navigator.clipboard.writeText(config.webhook_url);
+      toast({ title: "URL copiada!", description: "Cole no seu n8n" });
+    }
+  };
+
+  const toggleMetric = async (metricKey: string) => {
+    if (!config) return;
+    
+    const updatedMetrics = config.metrics.map((m: any) => 
+      m.key === metricKey ? { ...m, enabled: !m.enabled } : m
+    );
+    
+    await supabase
+      .from('dashboard_configs')
+      .update({ metrics: updatedMetrics })
+      .eq('id', config.id);
+    
+    setConfig({ ...config, metrics: updatedMetrics });
+    toast({ title: "Métricas atualizadas!" });
+  };
+
   const getMetricValue = (key: string) => {
     const metric = data.find(d => d.metric_key === key);
-    return metric ? metric.value : 0;
+    return metric ? Number(metric.value) : 0;
+  };
+
+  const isMetricEnabled = (key: string) => {
+    if (!config) return false;
+    const metric = config.metrics.find((m: any) => m.key === key);
+    return metric?.enabled ?? false;
+  };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value);
   };
 
   const salesData = [
@@ -170,56 +253,107 @@ const DashboardSystem = () => {
             <h1 className="text-3xl font-bold">Dashboard Personalizado</h1>
             <p className="text-muted-foreground mt-2">Acompanhe suas métricas em tempo real</p>
           </div>
-          <Button onClick={refreshData}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Atualizar Dados
-          </Button>
+          <div className="flex gap-2">
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Configurar Métricas
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Configurar Métricas</DialogTitle>
+                  <DialogDescription>Escolha quais métricas deseja acompanhar no seu dashboard</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 mt-4">
+                  {config?.metrics?.map((metric: any) => (
+                    <div key={metric.key} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={metric.key}
+                        checked={metric.enabled}
+                        onCheckedChange={() => toggleMetric(metric.key)}
+                      />
+                      <Label htmlFor={metric.key} className="cursor-pointer">
+                        {metric.name}
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Button onClick={refreshData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Atualizar
+            </Button>
+          </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Vendas Totais</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ {getMetricValue('vendas_total').toLocaleString('pt-BR')}</div>
-              <p className="text-xs text-muted-foreground">+20.1% em relação ao mês passado</p>
-            </CardContent>
-          </Card>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+          {isMetricEnabled('vendas_total') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Vendas Totais</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(getMetricValue('vendas_total'))}</div>
+                <p className="text-xs text-muted-foreground">Atualização em tempo real</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
-              <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">R$ {getMetricValue('ticket_medio').toLocaleString('pt-BR')}</div>
-              <p className="text-xs text-muted-foreground">+12% em relação ao mês passado</p>
-            </CardContent>
-          </Card>
+          {isMetricEnabled('ticket_medio') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Ticket Médio</CardTitle>
+                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(getMetricValue('ticket_medio'))}</div>
+                <p className="text-xs text-muted-foreground">Valor médio por venda</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{getMetricValue('clientes_ativos')}</div>
-              <p className="text-xs text-muted-foreground">+5 novos este mês</p>
-            </CardContent>
-          </Card>
+          {isMetricEnabled('clientes_ativos') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Clientes Ativos</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{getMetricValue('clientes_ativos')}</div>
+                <p className="text-xs text-muted-foreground">Base de clientes</p>
+              </CardContent>
+            </Card>
+          )}
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Taxa de Crescimento</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+18.5%</div>
-              <p className="text-xs text-muted-foreground">Crescimento mensal</p>
-            </CardContent>
-          </Card>
+          {isMetricEnabled('lucro_liquido') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
+                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(getMetricValue('lucro_liquido'))}</div>
+                <p className="text-xs text-muted-foreground">Lucro do período</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {isMetricEnabled('despesas_mensais') && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Despesas Mensais</CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(getMetricValue('despesas_mensais'))}</div>
+                <p className="text-xs text-muted-foreground">Gastos do mês</p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -274,16 +408,49 @@ const DashboardSystem = () => {
         {config?.webhook_url && (
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Integração via Webhook</CardTitle>
-              <CardDescription>Configure o n8n para enviar dados para este dashboard</CardDescription>
+              <CardTitle>Integração via Webhook (n8n)</CardTitle>
+              <CardDescription>Configure o n8n para enviar dados automaticamente para este dashboard</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="bg-muted p-4 rounded-md font-mono text-sm break-all">
-                POST {config.webhook_url}
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Endpoint do Webhook</Label>
+                <div className="flex gap-2 mt-2">
+                  <div className="bg-muted p-4 rounded-md font-mono text-sm break-all flex-1">
+                    {config.webhook_url}
+                  </div>
+                  <Button variant="outline" size="icon" onClick={copyWebhookUrl}>
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Envie dados no formato: {`{ "metric_key": "vendas_total", "value": 15000 }`}
-              </p>
+              
+              <div>
+                <Label>Formato dos Dados</Label>
+                <div className="bg-muted p-4 rounded-md font-mono text-xs mt-2">
+                  {`{
+  "metric_key": "vendas_total",
+  "value": 15000,
+  "metadata": {}
+}`}
+                </div>
+              </div>
+
+              <div>
+                <Label>Métricas Disponíveis</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  {config.metrics?.map((metric: any) => (
+                    <div key={metric.key} className="bg-muted p-2 rounded text-xs">
+                      <span className="font-mono">{metric.key}</span>
+                      <span className="text-muted-foreground ml-2">- {metric.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="text-xs text-muted-foreground">
+                <p>💡 <strong>Dica:</strong> No n8n, use um nó HTTP Request configurado como POST para este endpoint.</p>
+                <p className="mt-1">Os dados serão atualizados automaticamente no dashboard em tempo real.</p>
+              </div>
             </CardContent>
           </Card>
         )}
