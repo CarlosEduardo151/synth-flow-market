@@ -1672,6 +1672,30 @@ export type Database = {
         }
         Relationships: []
       }
+      tutorial_completions: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          product_slug: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          product_slug: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          product_slug?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       whatsapp_leads: {
         Row: {
           created_at: string | null
