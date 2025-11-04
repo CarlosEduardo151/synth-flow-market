@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Users, ShoppingCart, RefreshCw, Settings, Copy, Wallet, PiggyBank, BarChart3, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ProductTutorial } from '@/components/ProductTutorial';
+import { dashboardsPersonalizadosTutorial } from '@/data/tutorials/dashboards-personalizados';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -521,6 +523,13 @@ const DashboardSystem = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <ProductTutorial
+        productSlug="dashboards-personalizados"
+        productTitle="Dashboards de Dados Personalizados"
+        steps={dashboardsPersonalizadosTutorial}
+        onComplete={() => {}}
+      />
+      
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">

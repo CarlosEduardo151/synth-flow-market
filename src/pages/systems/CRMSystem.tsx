@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ProductTutorial } from '@/components/ProductTutorial';
+import { crmSimplesTutorial } from '@/data/tutorials/crm-simples';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -235,6 +237,13 @@ const CRMSystem = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <ProductTutorial
+        productSlug="crm-simples"
+        productTitle="CRM Simples para Microempresas"
+        steps={crmSimplesTutorial}
+        onComplete={() => {}}
+      />
+      
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">

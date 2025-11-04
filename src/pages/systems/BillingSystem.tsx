@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { ProductTutorial } from '@/components/ProductTutorial';
+import { gestaoCobrancasTutorial } from '@/data/tutorials/gestao-cobrancas';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -509,6 +511,13 @@ const BillingSystem = () => {
 
   return (
     <div className="min-h-screen bg-background">
+      <ProductTutorial
+        productSlug="gestao-cobrancas"
+        productTitle="Gestão de Cobranças Automatizada"
+        steps={gestaoCobrancasTutorial}
+        onComplete={() => {}}
+      />
+      
       <Header />
       <main className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-between mb-8">
