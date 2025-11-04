@@ -3,6 +3,8 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card } from '@/components/ui/card';
+import { ProductTutorial } from '@/components/ProductTutorial';
+import { fidelidadeDigitalTutorial } from '@/data/tutorials/fidelidade-digital';
 import { LoyaltyDashboard } from '@/components/loyalty/LoyaltyDashboard';
 import { LoyaltyClients } from '@/components/loyalty/LoyaltyClients';
 import { LoyaltyRewards } from '@/components/loyalty/LoyaltyRewards';
@@ -73,6 +75,13 @@ export default function LoyaltySystem() {
 
   return (
     <div className="min-h-screen bg-background">
+      <ProductTutorial
+        productSlug="fidelidade-digital"
+        productTitle="Sistema de Fidelidade Digital"
+        steps={fidelidadeDigitalTutorial}
+        onComplete={() => {}}
+      />
+      
       <Header />
       
       <main className="container mx-auto px-4 py-8">
