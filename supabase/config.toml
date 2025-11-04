@@ -1,0 +1,7 @@
+project_id = "agndhravgmcwpdjkozka"
+
+[functions.send_message]
+verify_jwt = false
+
+[functions.send_reply]
+verify_jwt = false

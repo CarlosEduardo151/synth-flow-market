@@ -1,0 +1,125 @@
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { ChatWidget } from "@/components/ChatWidget";
+
+import Index from "./pages/Index";
+import CategoryPage from "./pages/CategoryPage";
+import ProductPage from "./pages/ProductPage";
+import AuthPage from "./pages/AuthPage";
+import CartPage from "./pages/CartPage";
+import CheckoutPage from "./pages/CheckoutPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
+import PixPaymentPage from "./pages/PixPaymentPage";
+import MyOrdersPage from "./pages/MyOrdersPage";
+import MyProductsPage from "./pages/MyProductsPage";
+import ProductViewPage from "./pages/ProductViewPage";
+import Sobre from "./pages/Sobre";
+import Jornada from "./pages/Jornada";
+import CalendarioRomantico from "./pages/EncontroRomantico";
+import Termos from "./pages/TermosDeUso";
+import PoliticaPrivacidade from "./pages/PoliticaDePrivacidade";
+import SearchPage from "./pages/SearchPage";
+
+import AdminDashboard from "./pages/AdminDashboard";
+import CustomerDashboard from "./pages/CustomerDashboard";
+import CustomerTicketsPage from "./pages/CustomerTicketsPage";
+
+import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
+import AdminProductsPage from "./pages/admin/AdminProductsPage";
+import AdminCategoriesPage from "./pages/admin/AdminCategoriesPage";
+import AdminCouponsPage from "./pages/admin/AdminCouponsPage";
+import AdminCustomersPage from "./pages/admin/AdminCustomersPage";
+import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
+import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
+import AdminRentalsPage from "./pages/admin/AdminRentalsPage";
+import AdminInstallmentsPage from "./pages/admin/AdminInstallmentsPage";
+import AdminWhatsAppLeadsPage from "./pages/admin/AdminWhatsAppLeadsPage";
+
+import CRMSystem from "./pages/systems/CRMSystem";
+import DashboardSystem from "./pages/systems/DashboardSystem";
+import BillingSystem from "./pages/systems/BillingSystem";
+import SocialPostsSystem from "./pages/systems/SocialPostsSystem";
+import FinancialReportsSystem from "./pages/systems/FinancialReportsSystem";
+import LoyaltySystem from "./pages/systems/LoyaltySystem";
+import StarAPPSystem from "./pages/systems/StarAPPSystem";
+
+import NotFound from "./pages/NotFound";
+import { useState } from "react";
+
+const queryClient = new QueryClient();
+
+
+const App = () => (
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <CartProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <ChatWidget />
+          <BrowserRouter>
+
+            <Routes>
+              {/* rotas públicas */}
+              <Route path="/" element={<Index />} />
+              <Route path="/c/:slug" element={<CategoryPage />} />
+              <Route path="/p/:slug" element={<ProductPage />} />
+              <Route path="/auth" element={<AuthPage />} />
+              <Route path="/carrinho" element={<CartPage />} />
+              <Route path="/checkout" element={<CheckoutPage />} />
+              <Route path="/pix-payment/:orderId" element={<PixPaymentPage />} />
+              <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+              <Route path="/sobre" element={<Sobre />} />
+              <Route path="/jornada" element={<Jornada />} />
+              <Route path="/calendario" element={<CalendarioRomantico />} />
+              <Route path="/termos-de-uso" element={<Termos />} />
+              <Route path="politica-de-privacidade" element={<PoliticaPrivacidade />} />
+              <Route path="/busca" element={<SearchPage />} />
+
+              {/* rotas do cliente */}
+              <Route path="/meus-pedidos" element={<MyOrdersPage />} />
+              <Route path="/meus-produtos" element={<MyProductsPage />} />
+              <Route path="/meus-produtos/:slug" element={<ProductViewPage />} />
+              <Route path="/produto/:slug" element={<ProductViewPage />} />
+              <Route path="/customer" element={<CustomerDashboard />} />
+              <Route path="/customer/tickets" element={<CustomerTicketsPage />} />
+
+              {/* rotas dos sistemas comprados */}
+              <Route path="/sistema/crm-simples" element={<CRMSystem />} />
+              <Route path="/sistema/dashboards-personalizados" element={<DashboardSystem />} />
+              <Route path="/sistema/gestao-cobrancas" element={<BillingSystem />} />
+              <Route path="/sistema/posts-sociais" element={<SocialPostsSystem />} />
+              <Route path="/sistema/relatorios-financeiros" element={<FinancialReportsSystem />} />
+              <Route path="/sistema/fidelidade-digital" element={<LoyaltySystem />} />
+              <Route path="/sistema/fidelidade-digital/:productId" element={<LoyaltySystem />} />
+              <Route path="/sistema/starapp" element={<StarAPPSystem />} />
+
+              {/* rotas do admin */}
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/orders" element={<AdminOrdersPage />} />
+              <Route path="/admin/products" element={<AdminProductsPage />} />
+              <Route path="/admin/categories" element={<AdminCategoriesPage />} />
+              <Route path="/admin/coupons" element={<AdminCouponsPage />} />
+              <Route path="/admin/customers" element={<AdminCustomersPage />} />
+              <Route path="/admin/reviews" element={<AdminReviewsPage />} />
+              <Route path="/admin/settings" element={<AdminSettingsPage />} />
+              <Route path="/admin/rentals" element={<AdminRentalsPage />} />
+              <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
+              <Route path="/admin/whatsapp-leads" element={<AdminWhatsAppLeadsPage />} />
+
+              {/* fallback */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </CartProvider>
+    </AuthProvider>
+  </QueryClientProvider>
+);
+
+export default App;
