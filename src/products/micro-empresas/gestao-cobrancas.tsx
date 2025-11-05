@@ -17,7 +17,10 @@ export const gestaoCobrancas: Product = {
     "Relatórios de inadimplência",
     "Gestão de cobranças recorrentes",
     "Notificações por email e WhatsApp",
-    "Dashboard de pagamentos"
+    "Dashboard de pagamentos",
+    "Lembretes automáticos por WhatsApp",
+    "Geração de boletos/PIX",
+    "Notificações de pagamento"
   ],
   rentalAdvantages: [
     "💰 Economia de 50% mensalmente",

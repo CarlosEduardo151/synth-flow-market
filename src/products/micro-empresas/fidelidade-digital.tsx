@@ -17,7 +17,10 @@ export const fidelidadeDigital: Product = {
     "Gamificação de vendas",
     "Cupons e promoções",
     "Análise de comportamento",
-    "Notificações push"
+    "Notificações push",
+    "Gamificação (badges, níveis)",
+    "Cashback automático",
+    "Cupons personalizados"
   ],
   rentalAdvantages: [
     "💰 Economia de 50% no custo mensal",

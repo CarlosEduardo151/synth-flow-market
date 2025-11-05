@@ -17,7 +17,10 @@ export const crmSimples: Product = {
     "Funil de vendas visual",
     "Relatórios de performance",
     "Integração com WhatsApp",
-    "Acesso mobile"
+    "Acesso mobile",
+    "Automação de follow-ups",
+    "Relatórios de conversão",
+    "Integração com calendário"
   ],
   rentalAdvantages: [
     "💰 Economia de 30% mensalmente",
