@@ -146,7 +146,7 @@ export const ProductTutorial = ({
       {hasCompleted && !isOpen && (
         <Button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 rounded-full shadow-lg z-50 h-14 w-14 p-0"
+          className="fixed bottom-6 left-6 rounded-full shadow-lg z-50 h-14 w-14 p-0"
           size="icon"
         >
           <HelpCircle className="h-6 w-6" />
