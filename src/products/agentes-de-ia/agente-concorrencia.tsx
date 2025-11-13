@@ -3,8 +3,7 @@ import { Product } from '@/types/product';
 export const agenteConcorrencia: Product = {
   title: "Agente de Monitoramento de Concorrência",
   slug: "agente-concorrencia",
-  price: 50000, // R$ 500,00 em centavos
-  rentalPrice: 180000, //
+  price: 50000, // R$ 500,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-concorrencia.png"],
   short: "Observa concorrentes em tempo real, analisando preços, produtos e tendências.",
@@ -19,16 +18,9 @@ export const agenteConcorrencia: Product = {
     "Relatórios competitivos",
     "Recomendações estratégicas"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 28% no valor mensal",
-    "🔄 Sem comprometimento de longo prazo",
-    "🚀 Atualizações automáticas incluídas",
-    "🛠️ Suporte técnico prioritário",
-    "📊 Credenciais gerenciadas automaticamente"
-  ],
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
-  specs: "Assinatura mensal - R$ 500/mês",
+  specs: "Pagamento Mensal - R$ 500/mês",
   content: `# **Agente de Monitoramento de Concorrência**
 
 **Mantenha-se sempre um passo à frente da concorrência.**

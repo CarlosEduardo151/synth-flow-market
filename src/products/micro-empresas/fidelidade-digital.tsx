@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const fidelidadeDigital: Product = {
   title: "Sistema de Fidelidade Digital",
   slug: "fidelidade-digital",
-  price: 25000, // R$ 250,00 em centavos
-  rentalPrice: 90000, // R$ 900,00/mês em centavos
+  price: 25000, // R$ 250,00/mês em centavos
   category: "micro-empresas",
   images: ["/images/produtos/fidelidade-digital.png"],
   short: "Programa de pontos e recompensas para clientes, integrado ao WhatsApp e apps de fidelização.",
-  badges: ["Compra ou Aluguel", "Fideliza Clientes"],
+  badges: ["Assinatura Mensal", "Fideliza Clientes"],
   features: [
     "Programa de pontos automático",
     "Recompensas personalizadas",
@@ -22,16 +21,9 @@ export const fidelidadeDigital: Product = {
     "Cashback automático",
     "Cupons personalizados"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% no custo mensal",
-    "🔄 Flexibilidade total - cancele quando quiser",
-    "🚀 Todas as atualizações incluídas",
-    "🛠️ Suporte técnico prioritário",
-    "🔐 Backup automático incluído"
-  ],
   inStock: true,
   delivery: "Ativação em 48 horas",
-  specs: "Compra única R$ 250 ou Aluguel R$ 900/mês",
+  specs: "Pagamento Mensal - R$ 250/mês",
   content: `
 # Sistema de Fidelidade Digital
 

@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const agenteMarketing: Product = {
   title: "Agente de Marketing",
   slug: "agente-marketing",
-  price: 40000, // R$ 400,00 em centavos
-  rentalPrice: 175000, // R$ 1.750,00/mês em centavos
+  price: 40000, // R$ 400,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-marketing.png"],
   short: "Criação automática de campanhas publicitárias, monitoramento de resultados e sugestões de melhorias.",
-  badges: ["Compra/Aluguel", "ROI Máximo"],
+  badges: ["Assinatura Mensal", "ROI Máximo"],
   features: [
     "Criação automática de campanhas",
     "Monitoramento 24/7",
@@ -19,16 +18,9 @@ export const agenteMarketing: Product = {
     "Relatórios de ROI",
     "Múltiplas plataformas"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% mensalmente",
-    "🔄 Flexibilidade total",
-    "🚀 Atualizações incluídas",
-    "🛠️ Otimização contínua",
-    "📊 Relatórios detalhados"
-  ],
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
-  specs: "Compra R$ 400 ou Aluguel R$ 1.750/mês",
+  specs: "Pagamento Mensal - R$ 400/mês",
   content: `
 # Agente de Marketing
 

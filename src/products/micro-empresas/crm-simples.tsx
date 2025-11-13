@@ -3,8 +3,7 @@ import { Product } from '@/types/product';
 export const crmSimples: Product = {
   title: "CRM Simples para Microempresas",
   slug: "crm-simples",
-  price: 35000, // R$ 350,00 em centavos (compra)
-  rentalPrice: 175000, // R$ 1.750,00/mês em centavos
+  price: 35000, // R$ 350,00/mês em centavos
   category: "micro-empresas",
   images: ["/images/produtos/crm-simples.png"],
   short: "Ferramenta para gerenciar clientes, histórico de compras e contatos de forma prática e acessível.",
@@ -22,17 +21,10 @@ export const crmSimples: Product = {
     "Relatórios de conversão",
     "Integração com calendário"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 30% mensalmente",
-    "🔄 Flexibilidade total - cancele quando quiser",
-    "🚀 Todas as atualizações incluídas",
-    "🛠️ Configuração e migração de dados assistida",
-    "🔐 Backup automático incluído"
-  ],
   requiredCredentials: ["Dados de contatos", "Configurações de email", "WhatsApp API"],
   inStock: true,
   delivery: "Ativação imediata",
-  specs: "Assinatura mensal - R$ 350/mês (compra) ou R$ 1.750/mês (aluguel)",
+  specs: "Pagamento Mensal - R$ 350/mês",
   content: `
 # CRM Simples para Microempresas
 

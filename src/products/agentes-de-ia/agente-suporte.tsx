@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const agenteSuporte: Product = {
   title: "Agente de Suporte Técnico",
   slug: "agente-suporte",
-  price: 35000, // R$ 350,00 em centavos
-  rentalPrice: 125000, // R$ 1.250,00/mês em centavos
+  price: 35000, // R$ 350,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-suporte.png"],
   short: "Atende chamados, resolve problemas comuns e encaminha apenas casos complexos para humanos.",
-  badges: ["Compra/Aluguel", "24/7"],
+  badges: ["Assinatura Mensal", "24/7"],
   features: [
     "Atendimento técnico 24/7",
     "Resolução automática",
@@ -19,16 +18,9 @@ export const agenteSuporte: Product = {
     "Integração com sistemas",
     "Análise de satisfação"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% mensalmente",
-    "🔄 Flexibilidade total",
-    "🚀 Atualizações incluídas",
-    "🛠️ Suporte prioritário",
-    "📊 Base de conhecimento expandida"
-  ],
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
-  specs: "Compra R$ 350 ou Aluguel R$ 1.250/mês",
+  specs: "Pagamento Mensal - R$ 350/mês",
   content: `
 # Agente de Suporte Técnico
 

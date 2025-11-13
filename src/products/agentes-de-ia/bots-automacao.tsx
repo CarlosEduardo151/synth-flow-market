@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const botsAutomacao: Product = {
   title: "Bots de Automação",
   slug: "bots-automacao",
-  price: 25000, // R$ 250,00 em centavos
-  rentalPrice: 100000, // R$ 1.000,00/mês em centavos
+  price: 25000, // R$ 250,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/bots-automacao.png"],
   short: "Bots inteligentes para WhatsApp, Telegram, Discord e Instagram, usados em vendas, suporte e atendimento.",
-  badges: ["Compra/Aluguel", "Multi-Plataforma"],
+  badges: ["Assinatura Mensal", "Multi-Plataforma"],
   features: [
     "Bots para múltiplas plataformas",
     "WhatsApp Business integrado",
@@ -19,16 +18,9 @@ export const botsAutomacao: Product = {
     "Análise de conversas",
     "Dashboard unificado"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% mensalmente",
-    "🔄 Flexibilidade total",
-    "🚀 Atualizações incluídas",
-    "🛠️ Suporte prioritário",
-    "📊 Analytics avançado"
-  ],
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
-  specs: "Compra R$ 250 ou Aluguel R$ 1.000/mês",
+  specs: "Pagamento Mensal - R$ 250/mês",
   content: `
 # Bots de Automação
 

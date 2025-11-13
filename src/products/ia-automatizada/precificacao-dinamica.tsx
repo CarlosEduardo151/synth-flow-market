@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const precificacaoDinamica: Product = {
   title: "IA para Precificação Dinâmica",
   slug: "precificacao-dinamica",
-  price: 35000, // R$ 350,00 em centavos
+  price: 35000, // R$ 350,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/precificacao-dinamica.png"],
   short: "Sistema que ajusta preços automaticamente de acordo com demanda, concorrência e sazonalidade.",
@@ -20,7 +20,7 @@ export const precificacaoDinamica: Product = {
   ],
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
-  specs: "Assinatura mensal - R$ 350/mês",
+  specs: "Pagamento Mensal - R$ 350/mês",
   content: `
 # IA para Precificação Dinâmica
 

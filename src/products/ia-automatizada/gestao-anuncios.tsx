@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const gestaoAnuncios: Product = {
   title: "Gestão Automatizada de Anúncios",
   slug: "gestao-anuncios",
-  price: 40000, // R$ 400,00 em centavos
+  price: 40000, // R$ 400,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/gestao-anuncios.png"],
   short: "Otimização de campanhas digitais em Google e Meta, com ajustes automáticos de orçamento e segmentação.",
@@ -20,7 +20,7 @@ export const gestaoAnuncios: Product = {
   ],
   inStock: true,
   delivery: "Ativação em 48 horas",
-  specs: "Assinatura mensal - R$ 400/mês",
+  specs: "Pagamento Mensal - R$ 400/mês",
   content: `
 # Gestão Automatizada de Anúncios
 
