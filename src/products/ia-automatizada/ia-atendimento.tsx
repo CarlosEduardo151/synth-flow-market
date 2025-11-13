@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const iaAtendimento: Product = {
   title: "IA para Atendimento ao Cliente",
   slug: "ia-atendimento",
-  price: 35000, // R$ 350,00 em centavos
-  rentalPrice: 125000, // R$ 1.250,00/mês em centavos
+  price: 35000, // R$ 350,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/ia-atendimento.png"],
   short: "Chatbots inteligentes que entendem linguagem natural e resolvem dúvidas comuns 24/7.",
-  badges: ["Compra/Aluguel", "24/7"],
+  badges: ["Assinatura Mensal", "24/7"],
   features: [
     "Chatbot com IA avançada",
     "Entendimento de linguagem natural",
@@ -19,16 +18,9 @@ export const iaAtendimento: Product = {
     "Análise de satisfação",
     "Integração com CRM"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% mensalmente",
-    "🔄 Flexibilidade total",
-    "🚀 Atualizações incluídas",
-    "🛠️ Suporte prioritário",
-    "📊 Analytics detalhado"
-  ],
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
-  specs: "Compra R$ 350 ou Aluguel R$ 1.250/mês",
+  specs: "Pagamento Mensal - R$ 350/mês",
   content: `
 # IA para Atendimento ao Cliente
 

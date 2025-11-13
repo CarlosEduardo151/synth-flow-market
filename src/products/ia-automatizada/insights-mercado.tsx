@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const insightsMercado: Product = {
   title: "Relatórios de Insights de Mercado",
   slug: "insights-mercado",
-  price: 50000, // R$ 500,00 em centavos
+  price: 50000, // R$ 500,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/insights-mercado.png"],
   short: "Relatórios inteligentes com análise de tendências, benchmarking e previsões estratégicas.",
@@ -20,7 +20,7 @@ export const insightsMercado: Product = {
   ],
   inStock: true,
   delivery: "Primeiro relatório em 7 dias",
-  specs: "Assinatura mensal - R$ 500/mês",
+  specs: "Pagamento Mensal - R$ 500/mês",
   content: `
 # Relatórios de Insights de Mercado
 

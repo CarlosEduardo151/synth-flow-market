@@ -3,12 +3,11 @@ import { Product } from '@/types/product';
 export const agenteIntegracao: Product = {
   title: "Agente de Integração de Sistemas",
   slug: "agente-integracao",
-  price: 40000, // R$ 400,00 em centavos
-  rentalPrice: 150000, // R$ 1.500,00/mês em centavos
+  price: 40000, // R$ 400,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-integracao.png"],
   short: "Conecta diferentes APIs e bancos de dados, mantendo dados sempre sincronizados.",
-  badges: ["Compra/Aluguel", "Sincronização Total"],
+  badges: ["Assinatura Mensal", "Sincronização Total"],
   features: [
     "Integração de múltiplas APIs",
     "Sincronização automática",
@@ -19,16 +18,9 @@ export const agenteIntegracao: Product = {
     "Webhooks inteligentes",
     "Dashboard de integrações"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 50% mensalmente",
-    "🔄 Flexibilidade total",
-    "🚀 Atualizações incluídas",
-    "🛠️ Suporte prioritário",
-    "📊 Integrações ilimitadas"
-  ],
   inStock: true,
   delivery: "Ativação em 7 dias úteis",
-  specs: "Compra R$ 400 ou Aluguel R$ 1.500/mês",
+  specs: "Pagamento Mensal - R$ 400/mês",
   content: `
 # Agente de Integração de Sistemas
 

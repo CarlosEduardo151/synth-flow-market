@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const criacaoConteudo: Product = {
   title: "Criação de Conteúdo com IA",
   slug: "criacao-conteudo",
-  price: 40000, // R$ 400,00 em centavos
+  price: 40000, // R$ 400,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/criacao-conteudo.png"],
   short: "Geração de textos, imagens e vídeos para redes sociais e blogs, sempre originais e otimizados para engajamento.",
@@ -20,7 +20,7 @@ export const criacaoConteudo: Product = {
   ],
   inStock: true,
   delivery: "Ativação em 48 horas",
-  specs: "Assinatura mensal - R$ 400/mês",
+  specs: "Pagamento Mensal - R$ 400/mês",
   content: `
 # Criação de Conteúdo com IA
 

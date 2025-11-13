@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const analisePreditiva: Product = {
   title: "Análise Preditiva de Vendas",
   slug: "analise-preditiva",
-  price: 50000, // R$ 500,00 em centavos
+  price: 50000, // R$ 500,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/analise-preditiva.png"],
   short: "Modelos de IA que preveem demanda futura e ajudam na tomada de decisão de estoque e marketing.",
@@ -20,7 +20,7 @@ export const analisePreditiva: Product = {
   ],
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
-  specs: "Assinatura mensal - R$ 500/mês",
+  specs: "Pagamento Mensal - R$ 500/mês",
   content: `
 # Análise Preditiva de Vendas
 

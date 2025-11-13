@@ -3,8 +3,7 @@ import { Product } from '@/types/product';
 export const webScraping: Product = {
   title: "Web Scraping Automatizado",
   slug: "web-scraping",
-  price: 40000, // R$ 400,00 em centavos (compra)
-  rentalPrice: 180000, // R$ 1.800,00/mês em centavos
+  price: 40000, // R$ 400,00/mês em centavos
   category: "ia-automatizada",
   images: ["/images/produtos/web-scraping.png"],
   short: "Extração de dados da internet em tempo real, monitorando preços, concorrentes e tendências de mercado.",
@@ -19,17 +18,10 @@ export const webScraping: Product = {
     "API de integração",
     "Dados estruturados"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 28% no valor mensal",
-    "🔄 Sem comprometimento de longo prazo",
-    "🚀 Atualizações automáticas incluídas",
-    "🛠️ Suporte técnico prioritário",
-    "📊 Credenciais gerenciadas automaticamente"
-  ],
   requiredCredentials: ["API Keys para sites alvo", "Configurações de proxy"],
   inStock: true,
   delivery: "Ativação em 72 horas",
-  specs: "Assinatura mensal - R$ 400/mês (compra) ou R$ 1.800/mês (aluguel)",
+  specs: "Pagamento Mensal - R$ 400/mês",
   content: `
 # Web Scraping Automatizado
 

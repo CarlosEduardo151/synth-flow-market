@@ -3,8 +3,7 @@ import { Product } from '@/types/product';
 export const assistenteVendas: Product = {
   title: "Assistente de Vendas com IA",
   slug: "assistente-vendas",
-  price: 50000, // R$ 500,00 em centavos (compra)
-  rentalPrice: 250000, // R$ 2.500,00/mês em centavos
+  price: 50000, // R$ 500,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/assistente-vendas.png"],
   short: "Agente que prospecta leads, faz follow-up automático e agenda reuniões para equipes comerciais.",
@@ -19,17 +18,10 @@ export const assistenteVendas: Product = {
     "Relatórios de vendas",
     "Priorização automática"
   ],
-  rentalAdvantages: [
-    "💰 Economia de 29% no valor mensal",
-    "🔄 Cancele quando quiser",
-    "🚀 Atualizações e melhorias contínuas",
-    "🤝 Suporte dedicado incluído",
-    "🔐 Todas as credenciais configuradas automaticamente"
-  ],
   requiredCredentials: ["OpenAI API Key", "Integração CRM", "Email SMTP"],
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
-  specs: "Assinatura mensal - R$ 500/mês (compra) ou R$ 2.500/mês (aluguel)",
+  specs: "Pagamento Mensal - R$ 500/mês",
   content: `
 # Assistente de Vendas com IA
 
