@@ -47,6 +47,8 @@ import SocialPostsSystem from "./pages/systems/SocialPostsSystem";
 import FinancialReportsSystem from "./pages/systems/FinancialReportsSystem";
 import LoyaltySystem from "./pages/systems/LoyaltySystem";
 import StarAPPSystem from "./pages/systems/StarAPPSystem";
+import AIControlSystem from "./pages/systems/AIControlSystem";
+import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
@@ -98,6 +100,7 @@ const App = () => (
               <Route path="/sistema/fidelidade-digital" element={<LoyaltySystem />} />
               <Route path="/sistema/fidelidade-digital/:productId" element={<LoyaltySystem />} />
               <Route path="/sistema/starapp" element={<StarAPPSystem />} />
+              <Route path="/sistema/ai-control/:productId" element={<AIControlSystem />} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />

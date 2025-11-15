@@ -14,6 +14,94 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_control_config: {
+        Row: {
+          auto_restart: boolean | null
+          configuration: Json | null
+          created_at: string | null
+          current_requests_count: number | null
+          customer_product_id: string
+          id: string
+          is_active: boolean | null
+          last_activity: string | null
+          max_requests_per_day: number | null
+          n8n_webhook_url: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          auto_restart?: boolean | null
+          configuration?: Json | null
+          created_at?: string | null
+          current_requests_count?: number | null
+          customer_product_id: string
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          max_requests_per_day?: number | null
+          n8n_webhook_url?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          auto_restart?: boolean | null
+          configuration?: Json | null
+          created_at?: string | null
+          current_requests_count?: number | null
+          customer_product_id?: string
+          id?: string
+          is_active?: boolean | null
+          last_activity?: string | null
+          max_requests_per_day?: number | null
+          n8n_webhook_url?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_control_config_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_control_logs: {
+        Row: {
+          created_at: string | null
+          customer_product_id: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          webhook_response: string | null
+          webhook_sent: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_product_id: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          webhook_response?: string | null
+          webhook_sent?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_product_id?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          webhook_response?: string | null
+          webhook_sent?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_control_logs_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_clients: {
         Row: {
           cpf_cnpj: string | null

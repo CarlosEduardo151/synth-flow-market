@@ -69,19 +69,20 @@ const AIControlSystem = () => {
         .from('ai_control_config')
         .select('*')
         .eq('customer_product_id', productId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') {
+      if (error) {
         console.error('Error fetching config:', error);
         return;
       }
 
       if (data) {
-        setConfig(data);
-        setWebhookUrl(data.n8n_webhook_url || '');
-        setIsActive(data.is_active);
-        setAutoRestart(data.auto_restart);
-        setMaxRequests(data.max_requests_per_day?.toString() || '');
+        const configData = data as unknown as AIConfig;
+        setConfig(configData);
+        setWebhookUrl(configData.n8n_webhook_url || '');
+        setIsActive(configData.is_active);
+        setAutoRestart(configData.auto_restart);
+        setMaxRequests(configData.max_requests_per_day?.toString() || '');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -103,7 +104,7 @@ const AIControlSystem = () => {
       };
 
       const { error } = await supabase
-        .from('ai_control_config')
+        .from('ai_control_config' as any)
         .upsert(configData);
 
       if (error) throw error;
