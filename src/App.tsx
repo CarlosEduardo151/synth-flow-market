@@ -5,7 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
+import { DeviceProvider } from "@/contexts/DeviceContext";
 import { ChatWidget } from "@/components/ChatWidget";
+import { DeviceSelector } from "@/components/DeviceSelector";
 
 import Index from "./pages/Index";
 import CategoryPage from "./pages/CategoryPage";
@@ -13,8 +15,9 @@ import ProductPage from "./pages/ProductPage";
 import AuthPage from "./pages/AuthPage";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
-import OrderSuccessPage from "./pages/OrderSuccessPage";
 import PixPaymentPage from "./pages/PixPaymentPage";
+import MercadoPagoPaymentPage from "./pages/MercadoPagoPaymentPage";
+import OrderSuccessPage from "./pages/OrderSuccessPage";
 import MyOrdersPage from "./pages/MyOrdersPage";
 import MyProductsPage from "./pages/MyProductsPage";
 import ProductViewPage from "./pages/ProductViewPage";
@@ -46,7 +49,6 @@ import BillingSystem from "./pages/systems/BillingSystem";
 import SocialPostsSystem from "./pages/systems/SocialPostsSystem";
 import FinancialReportsSystem from "./pages/systems/FinancialReportsSystem";
 import LoyaltySystem from "./pages/systems/LoyaltySystem";
-import StarAPPSystem from "./pages/systems/StarAPPSystem";
 import AIControlSystem from "./pages/systems/AIControlSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 
@@ -60,11 +62,13 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <CartProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <ChatWidget />
-          <BrowserRouter>
+        <DeviceProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <ChatWidget />
+            <DeviceSelector />
+            <BrowserRouter>
 
             <Routes>
               {/* rotas públicas */}
@@ -73,9 +77,10 @@ const App = () => (
               <Route path="/p/:slug" element={<ProductPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/carrinho" element={<CartPage />} />
-              <Route path="/checkout" element={<CheckoutPage />} />
-              <Route path="/pix-payment/:orderId" element={<PixPaymentPage />} />
-              <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
+            <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/pix-payment/:orderId" element={<PixPaymentPage />} />
+            <Route path="/mercadopago-payment/:orderId" element={<MercadoPagoPaymentPage />} />
+            <Route path="/order-success/:orderId" element={<OrderSuccessPage />} />
               <Route path="/sobre" element={<Sobre />} />
               <Route path="/jornada" element={<Jornada />} />
               <Route path="/calendario" element={<CalendarioRomantico />} />
@@ -99,7 +104,6 @@ const App = () => (
               <Route path="/sistema/relatorios-financeiros" element={<FinancialReportsSystem />} />
               <Route path="/sistema/fidelidade-digital" element={<LoyaltySystem />} />
               <Route path="/sistema/fidelidade-digital/:productId" element={<LoyaltySystem />} />
-              <Route path="/sistema/starapp" element={<StarAPPSystem />} />
               <Route path="/sistema/ai-control/:productId" element={<AIControlSystem />} />
 
               {/* rotas do admin */}
@@ -120,9 +124,10 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </TooltipProvider>
-      </CartProvider>
-    </AuthProvider>
-  </QueryClientProvider>
+      </DeviceProvider>
+    </CartProvider>
+  </AuthProvider>
+</QueryClientProvider>
 );
 
 export default App;

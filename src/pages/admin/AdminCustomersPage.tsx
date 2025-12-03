@@ -65,14 +65,31 @@ export default function AdminCustomersPage() {
 
   const fetchCustomers = async () => {
     try {
-      const { data, error } = await supabase
+      setLoadingCustomers(true);
+      const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('role', 'customer')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setCustomers(data || []);
+      if (profilesError) throw profilesError;
+
+      // Fetch roles for each user
+      const customersWithRoles = await Promise.all(
+        (profilesData || []).map(async (profile) => {
+          const { data: roleData } = await supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', profile.user_id)
+            .single();
+
+          return {
+            ...profile,
+            role: roleData?.role || 'customer',
+          };
+        })
+      );
+
+      setCustomers(customersWithRoles.filter(c => c.role === 'customer'));
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -88,7 +105,7 @@ export default function AdminCustomersPage() {
   const fetchCustomerDetails = async (customerId: string) => {
     try {
       // Get customer profile
-      const { data: profile, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', customerId)
@@ -96,22 +113,30 @@ export default function AdminCustomersPage() {
 
       if (profileError) throw profileError;
 
+      // Fetch user role
+      const { data: roleData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', profileData.user_id)
+        .single();
+
       // Get customer orders statistics
-      const { data: orders, error: ordersError } = await supabase
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('total_amount, created_at')
-        .eq('user_id', profile.user_id);
+        .eq('user_id', profileData.user_id);
 
       if (ordersError) throw ordersError;
 
-      const ordersCount = orders?.length || 0;
-      const totalSpent = orders?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
-      const lastOrderDate = orders && orders.length > 0 
-        ? orders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
+      const ordersCount = ordersData?.length || 0;
+      const totalSpent = ordersData?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
+      const lastOrderDate = ordersData && ordersData.length > 0 
+        ? ordersData.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0].created_at
         : null;
 
       setSelectedCustomer({
-        ...profile,
+        ...profileData,
+        role: roleData?.role || 'customer',
         orders_count: ordersCount,
         total_spent: totalSpent,
         last_order_date: lastOrderDate

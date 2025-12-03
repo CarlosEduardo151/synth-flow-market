@@ -39,17 +39,23 @@ export function WhatsAppConnectDialog({
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('send-zapi-message', {
+      // Usar nova edge function segura
+      const { data, error } = await supabase.functions.invoke('send-whatsapp', {
         body: {
           instanceId,
           token,
           phoneNumber,
           productSlug,
           productTitle,
+          message: `🎉 Olá! Você demonstrou interesse no produto *${productTitle}*.\n\nEm breve entraremos em contato!`,
         },
       });
 
       if (error) throw error;
+
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to send message');
+      }
 
       toast({
         title: "✅ Conectado com sucesso!",
@@ -60,11 +66,11 @@ export function WhatsAppConnectDialog({
       setInstanceId("");
       setToken("");
       setPhoneNumber("");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error connecting to WhatsApp:', error);
       toast({
         title: "Erro ao conectar",
-        description: "Não foi possível enviar a mensagem. Verifique suas credenciais Z-API.",
+        description: error.message || "Não foi possível enviar a mensagem. Verifique suas credenciais Z-API.",
         variant: "destructive",
       });
     } finally {

@@ -60,13 +60,13 @@ export default function AdminWhatsAppLeadsPage() {
 
   const checkAdminAndLoadData = async () => {
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
+      const { data: userRole } = await supabase
+        .from("user_roles")
         .select("role")
         .eq("user_id", user?.id)
         .single();
 
-      if (profile?.role !== "admin") {
+      if (userRole?.role !== "admin") {
         toast({
           title: "Acesso negado",
           description: "Você não tem permissão para acessar esta página.",

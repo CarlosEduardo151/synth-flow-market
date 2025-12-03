@@ -77,21 +77,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Create admin user if it's the specific email
-    if (!error && (email === 'admin@loja.com' || email === 'caduxim0@gmail.com')) {
-      try {
-        // The profile will be created automatically by the trigger
-        // but we need to update the role to admin after creation
-        setTimeout(async () => {
-          await supabase
-            .from('profiles')
-            .update({ role: 'admin' })
-            .eq('email', email);
-        }, 1000);
-      } catch (adminError) {
-        console.error('Error setting admin role:', adminError);
-      }
-    }
+    // SECURITY: Admin roles should ONLY be assigned via database admin panel or secure backend process
+    // NEVER auto-assign admin roles based on email in client-side code
+    // This is a CRITICAL security vulnerability that allows privilege escalation
 
     return { error };
   };

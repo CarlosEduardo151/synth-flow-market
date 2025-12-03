@@ -275,6 +275,31 @@
   --normal-border: transparent !important;
 }
 
+/* Estilos específicos por dispositivo */
+[data-device="mobile"] {
+  font-size: 14px;
+}
+
+[data-device="mobile"] .container {
+  @apply px-4;
+}
+
+[data-device="tablet"] {
+  font-size: 15px;
+}
+
+[data-device="tablet"] .container {
+  @apply px-6;
+}
+
+[data-device="desktop"] {
+  font-size: 16px;
+}
+
+[data-device="desktop"] .container {
+  @apply px-8;
+}
+
 @layer base {
   * {
     @apply border-border;

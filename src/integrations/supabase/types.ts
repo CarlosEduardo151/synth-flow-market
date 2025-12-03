@@ -635,7 +635,15 @@ export type Database = {
           user_id?: string
           webhook_token?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customer_products_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_reviews: {
         Row: {
@@ -1036,6 +1044,257 @@ export type Database = {
           },
         ]
       }
+      mp_logs: {
+        Row: {
+          created_at: string | null
+          data: Json
+          event_type: string
+          id: string
+          ip_address: string | null
+          order_id: string | null
+          payment_id: string | null
+          source: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          data: Json
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          data?: Json
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          order_id?: string | null
+          payment_id?: string | null
+          source?: string | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_logs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "mp_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_logs_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "mp_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mp_order_items: {
+        Row: {
+          created_at: string | null
+          id: string
+          order_id: string | null
+          product_id: string | null
+          product_price: number
+          product_slug: string
+          product_title: string
+          quantity: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          product_price: number
+          product_slug: string
+          product_title: string
+          quantity?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          order_id?: string | null
+          product_id?: string | null
+          product_price?: number
+          product_slug?: string
+          product_title?: string
+          quantity?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "mp_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "mp_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mp_orders: {
+        Row: {
+          created_at: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone: string | null
+          discount_amount: number | null
+          id: string
+          payment_method: string | null
+          status: string | null
+          subtotal_amount: number
+          total_amount: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_email: string
+          customer_name: string
+          customer_phone?: string | null
+          discount_amount?: number | null
+          id?: string
+          payment_method?: string | null
+          status?: string | null
+          subtotal_amount: number
+          total_amount: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_email?: string
+          customer_name?: string
+          customer_phone?: string | null
+          discount_amount?: number | null
+          id?: string
+          payment_method?: string | null
+          status?: string | null
+          subtotal_amount?: number
+          total_amount?: number
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      mp_payments: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          created_at: string | null
+          id: string
+          mercadopago_payment_id: string | null
+          metadata: Json | null
+          order_id: string | null
+          payer_email: string | null
+          payer_name: string | null
+          payment_method: string | null
+          payment_type: string | null
+          preference_id: string | null
+          proof_url: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          created_at?: string | null
+          id?: string
+          mercadopago_payment_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_method?: string | null
+          payment_type?: string | null
+          preference_id?: string | null
+          proof_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          created_at?: string | null
+          id?: string
+          mercadopago_payment_id?: string | null
+          metadata?: Json | null
+          order_id?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payment_method?: string | null
+          payment_type?: string | null
+          preference_id?: string | null
+          proof_url?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "mp_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mp_products: {
+        Row: {
+          category: string | null
+          created_at: string | null
+          delivery: string | null
+          description: string | null
+          features: Json | null
+          id: string
+          images: Json | null
+          in_stock: boolean | null
+          price: number
+          rental_price: number | null
+          slug: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string | null
+          delivery?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          images?: Json | null
+          in_stock?: boolean | null
+          price: number
+          rental_price?: number | null
+          slug: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category?: string | null
+          created_at?: string | null
+          delivery?: string | null
+          description?: string | null
+          features?: Json | null
+          id?: string
+          images?: Json | null
+          in_stock?: boolean | null
+          price?: number
+          rental_price?: number | null
+          slug?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_installments: {
         Row: {
           amount: number
@@ -1323,7 +1582,6 @@ export type Database = {
           id: string
           phone: string | null
           profile_photo_url: string | null
-          role: Database["public"]["Enums"]["user_role"]
           state: string | null
           updated_at: string
           user_id: string
@@ -1340,7 +1598,6 @@ export type Database = {
           id?: string
           phone?: string | null
           profile_photo_url?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
           updated_at?: string
           user_id: string
@@ -1357,7 +1614,6 @@ export type Database = {
           id?: string
           phone?: string | null
           profile_photo_url?: string | null
-          role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
           updated_at?: string
           user_id?: string
@@ -1408,283 +1664,6 @@ export type Database = {
             columns: ["customer_product_id"]
             isOneToOne: false
             referencedRelation: "customer_products"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      starapp_hotels: {
-        Row: {
-          address: string | null
-          admin_email: string
-          created_at: string
-          id: string
-          is_active: boolean
-          logo_url: string | null
-          name: string
-          phone: string | null
-          updated_at: string
-        }
-        Insert: {
-          address?: string | null
-          admin_email: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          logo_url?: string | null
-          name: string
-          phone?: string | null
-          updated_at?: string
-        }
-        Update: {
-          address?: string | null
-          admin_email?: string
-          created_at?: string
-          id?: string
-          is_active?: boolean
-          logo_url?: string | null
-          name?: string
-          phone?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      starapp_menu_items: {
-        Row: {
-          category: string
-          created_at: string
-          description: string | null
-          hotel_id: string
-          id: string
-          image_url: string | null
-          is_available: boolean
-          name: string
-          price: number
-          updated_at: string
-        }
-        Insert: {
-          category: string
-          created_at?: string
-          description?: string | null
-          hotel_id: string
-          id?: string
-          image_url?: string | null
-          is_available?: boolean
-          name: string
-          price: number
-          updated_at?: string
-        }
-        Update: {
-          category?: string
-          created_at?: string
-          description?: string | null
-          hotel_id?: string
-          id?: string
-          image_url?: string | null
-          is_available?: boolean
-          name?: string
-          price?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "starapp_menu_items_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_hotels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      starapp_nfc_bracelets: {
-        Row: {
-          check_in_date: string
-          check_out_date: string | null
-          created_at: string
-          guest_cpf: string
-          guest_name: string
-          hotel_id: string
-          id: string
-          is_active: boolean
-          nfc_id: string
-          room_number: string | null
-        }
-        Insert: {
-          check_in_date?: string
-          check_out_date?: string | null
-          created_at?: string
-          guest_cpf: string
-          guest_name: string
-          hotel_id: string
-          id?: string
-          is_active?: boolean
-          nfc_id: string
-          room_number?: string | null
-        }
-        Update: {
-          check_in_date?: string
-          check_out_date?: string | null
-          created_at?: string
-          guest_cpf?: string
-          guest_name?: string
-          hotel_id?: string
-          id?: string
-          is_active?: boolean
-          nfc_id?: string
-          room_number?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "starapp_nfc_bracelets_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_hotels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      starapp_order_items: {
-        Row: {
-          created_at: string
-          id: string
-          menu_item_id: string
-          notes: string | null
-          order_id: string
-          quantity: number
-          subtotal: number
-          unit_price: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          menu_item_id: string
-          notes?: string | null
-          order_id: string
-          quantity?: number
-          subtotal: number
-          unit_price: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          menu_item_id?: string
-          notes?: string | null
-          order_id?: string
-          quantity?: number
-          subtotal?: number
-          unit_price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "starapp_order_items_menu_item_id_fkey"
-            columns: ["menu_item_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_menu_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "starapp_order_items_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      starapp_orders: {
-        Row: {
-          bracelet_id: string
-          created_at: string
-          hotel_id: string
-          id: string
-          notes: string | null
-          staff_id: string | null
-          status: string
-          total_amount: number
-          updated_at: string
-        }
-        Insert: {
-          bracelet_id: string
-          created_at?: string
-          hotel_id: string
-          id?: string
-          notes?: string | null
-          staff_id?: string | null
-          status?: string
-          total_amount?: number
-          updated_at?: string
-        }
-        Update: {
-          bracelet_id?: string
-          created_at?: string
-          hotel_id?: string
-          id?: string
-          notes?: string | null
-          staff_id?: string | null
-          status?: string
-          total_amount?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "starapp_orders_bracelet_id_fkey"
-            columns: ["bracelet_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_nfc_bracelets"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "starapp_orders_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_hotels"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "starapp_orders_staff_id_fkey"
-            columns: ["staff_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_staff"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      starapp_staff: {
-        Row: {
-          created_at: string
-          email: string
-          hotel_id: string
-          id: string
-          is_active: boolean
-          name: string
-          role: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          email: string
-          hotel_id: string
-          id?: string
-          is_active?: boolean
-          name: string
-          role?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          email?: string
-          hotel_id?: string
-          id?: string
-          is_active?: boolean
-          name?: string
-          role?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "starapp_staff_hotel_id_fkey"
-            columns: ["hotel_id"]
-            isOneToOne: false
-            referencedRelation: "starapp_hotels"
             referencedColumns: ["id"]
           },
         ]
@@ -1780,6 +1759,27 @@ export type Database = {
           created_at?: string | null
           id?: string
           product_slug?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
           user_id?: string
         }
         Relationships: []
@@ -1893,16 +1893,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_admin: { Args: { user_id: string }; Returns: boolean }
-      is_hotel_owner: {
-        Args: { _admin_email: string; _user_id: string }
-        Returns: boolean
-      }
-      is_hotel_staff: {
-        Args: { _hotel_id: string; _user_id: string }
-        Returns: boolean
-      }
-      is_starapp_admin: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       acquisition_type: "purchase" | "rental"

@@ -174,13 +174,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: userRole } = await supabase
+          .from('user_roles')
           .select('role')
           .eq('user_id', state.user.id)
           .single();
 
-        dispatch({ type: 'SET_ADMIN', payload: profile?.role === 'admin' });
+        dispatch({ type: 'SET_ADMIN', payload: userRole?.role === 'admin' });
       } catch (error) {
         console.error('Error checking admin status:', error);
         dispatch({ type: 'SET_ADMIN', payload: false });
@@ -248,16 +248,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       },
     });
 
-    if (!error && (email === 'admin@loja.com' || email === 'caduxim0@gmail.com')) {
-      try {
-        setTimeout(async () => {
-          await supabase
-            .from('profiles')
-            .update({ role: 'admin' })
-            .eq('email', email);
-        }, 1000);
-      } catch (adminError) {
-        console.error('Error setting admin role:', adminError);
+    if (!error) {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user && (email === 'admin@loja.com' || email === 'caduxim0@gmail.com')) {
+        try {
+          setTimeout(async () => {
+            await supabase
+              .from('user_roles')
+              .insert({ 
+                user_id: userData.user.id, 
+                role: 'admin' 
+              });
+          }, 1000);
+        } catch (adminError) {
+          console.error('Error setting admin role:', adminError);
+        }
       }
     }
 

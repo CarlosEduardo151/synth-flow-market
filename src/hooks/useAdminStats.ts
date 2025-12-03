@@ -68,10 +68,10 @@ export const useAdminStats = () => {
         .select('id')
         .eq('status', 'open');
 
-      // Total de clientes
-      const { data: customers } = await supabase
-        .from('profiles')
-        .select('id')
+      // Total de clientes - contando user_roles com role = 'customer'
+      const { data: customerRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
         .eq('role', 'customer');
 
       // Total de avaliações
@@ -80,7 +80,7 @@ export const useAdminStats = () => {
         .select('id');
 
       // Taxa de conversão (simplificada: pedidos aprovados / total de clientes)
-      const conversionRate = customers?.length ? (approvedOrders / customers.length) * 100 : 0;
+      const conversionRate = customerRoles?.length ? (approvedOrders / customerRoles.length) * 100 : 0;
 
       setStats({
         monthlyRevenue,
@@ -89,7 +89,7 @@ export const useAdminStats = () => {
         approvedOrdersRate,
         pendingOrdersCount: pendingOrders?.length || 0,
         openTicketsCount: openTickets?.length || 0,
-        totalCustomers: customers?.length || 0,
+        totalCustomers: customerRoles?.length || 0,
         totalReviews: reviews?.length || 0,
         loading: false,
       });

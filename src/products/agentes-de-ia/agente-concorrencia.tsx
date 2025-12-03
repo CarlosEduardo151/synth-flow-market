@@ -3,7 +3,7 @@ import { Product } from '@/types/product';
 export const agenteConcorrencia: Product = {
   title: "Agente de Monitoramento de Concorrência",
   slug: "agente-concorrencia",
-  price: 50000, // R$ 500,00/mês em centavos
+  price: 300, // R$ 500,00/mês em centavos
   category: "agentes-de-ia",
   images: ["/images/produtos/agente-concorrencia.png"],
   short: "Observa concorrentes em tempo real, analisando preços, produtos e tendências.",
