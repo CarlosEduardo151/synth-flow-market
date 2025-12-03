@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { ProductCard } from "@/components/ProductCard";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import { HeroSection } from "@/components/home/HeroSection";
+import { ProblemBlocks } from "@/components/home/ProblemBlocks";
+import { LeadMagnet } from "@/components/home/LeadMagnet";
+import { ImpactNumbers } from "@/components/home/ImpactNumbers";
 import { getProducts, type Product } from "@/data/products";
 import { getCategories, type Category } from "@/data/categories";
-import { Bot, Zap, Shield, ArrowRight, Star } from "lucide-react";
-import heroBannerVideo from "@/assets/hero-banner.mp4";
+import { Bot, Zap, Shield, ArrowRight } from "lucide-react";
 
 const Index = () => {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -50,88 +53,20 @@ const Index = () => {
     <div className="min-h-screen bg-tech-lines">
       <Header />
 
-      {/* Hero Section com vídeo no fundo */}
-      <section className="relative py-20 overflow-hidden">
-        {/* Vídeo como background */}
-        <video
-          src={heroBannerVideo}
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+      {/* Hero Section - TOFU */}
+      <HeroSection />
 
-        {/* Fade sobre o vídeo */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-transparent"></div>
-        {/* Fade inferior para transição para conteúdo abaixo */}
-        <div className="absolute bottom-0 left-0 right-0 h-60 bg-gradient-to-t from-background via-background/80 to-transparent"></div>
+      {/* Transição */}
+      <div className="relative h-16 bg-gradient-to-b from-transparent to-background"></div>
 
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-              className="space-y-8"
-            >
-              <div className="space-y-4">
-                <h1 className="text-5xl lg:text-6xl font-bold leading-tight text-white">
-                  <span className="gradient-text">Agentes de IA</span>
-                  <br />
-                  <span className="text-white">para o futuro</span>
-                </h1>
-                <p className="text-xl text-gray-200 leading-relaxed max-w-lg">
-                  Revolucione seus processos com nossa linha completa de soluções em
-                  inteligência artificial. Automação inteligente ao seu alcance.
-                </p>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-              <a
-              href="https://wa.me/559991898399" // substitua pelo seu número com DDD
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button variant="hero" size="xl" className="group">
-                Whatsapp
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </a>
-            <a href="/busca">
-              <Button variant="secondary" size="xl" className="group">
-                Buscar
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </a>
-            </div>
+      {/* Números de Impacto */}
+      <ImpactNumbers />
 
+      {/* Blocos de Problemas - TOFU */}
+      <ProblemBlocks />
 
-              {/* Stats */}
-              <div className="flex items-center space-x-8 pt-8 text-white">
-                <div className="text-center">
-                  <div className="text-3xl font-bold gradient-text">500+</div>
-                  <div className="text-sm">Clientes ativos</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-3xl font-bold gradient-text">99.9%</div>
-                  <div className="text-sm">Uptime</div>
-                </div>
-                <div className="text-center">
-                  <div className="flex items-center justify-center mb-1">
-                    {[...Array(5)].map((_, i) => (
-                      <Star key={i} className="w-4 h-4 fill-primary text-primary" />
-                    ))}
-                  </div>
-                  <div className="text-sm">Avaliação</div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pequeno gradiente de transição para o conteúdo abaixo */}
-      <div className="relative h-32 bg-gradient-to-b from-transparent via-background/80 to-background"></div>
+      {/* Lead Magnet - TOFU */}
+      <LeadMagnet />
 
       {/* Categorias */}
       <section className="py-20 bg-background">
@@ -143,10 +78,10 @@ const Index = () => {
             className="text-center mb-12"
           >
             <h2 className="text-4xl font-bold mb-4">
-              Explore nossas <span className="gradient-text">categorias</span>
+              Explore nossas <span className="gradient-text">soluções</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Soluções especializadas para cada necessidade do seu negócio
+              Cada categoria foi pensada para resolver problemas específicos do seu negócio
             </p>
           </motion.div>
 
@@ -172,7 +107,7 @@ const Index = () => {
                           {category.summary}
                         </p>
                         <div className="flex items-center mt-4 text-primary group-hover:translate-x-2 transition-transform">
-                          <span className="font-medium">Explorar categoria</span>
+                          <span className="font-medium">Ver soluções</span>
                           <ArrowRight className="w-4 h-4 ml-2" />
                         </div>
                       </div>
@@ -195,10 +130,10 @@ const Index = () => {
             className="text-center mb-12"
           >
             <h2 className="text-4xl font-bold mb-4">
-              Produtos em <span className="gradient-text">destaque</span>
+              Produtos <span className="gradient-text">mais escolhidos</span>
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Nossas soluções mais populares e avançadas em IA
+              As soluções que mais geram resultados para nossos clientes
             </p>
           </motion.div>
 
@@ -222,8 +157,8 @@ const Index = () => {
             className="text-center mt-12"
           >
             <Button variant="hero" size="lg" asChild>
-              <Link to="/produtos">
-                Em brevé....
+              <Link to="/busca">
+                Ver Todos os Produtos
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </Button>
@@ -250,17 +185,17 @@ const Index = () => {
               {
                 icon: Bot,
                 title: "IA Avançada",
-                description: "Tecnologia de ponta com algoritmos proprietários",
+                description: "Tecnologia de ponta com algoritmos proprietários que realmente funcionam",
               },
               {
                 icon: Zap,
-                title: "Implementação Rápida",
-                description: "Configure e execute em minutos, não semanas",
+                title: "Resultados em 30 dias",
+                description: "Configuração rápida e resultados mensuráveis no primeiro mês",
               },
               {
                 icon: Shield,
-                title: "Segurança Total",
-                description: "Proteção empresarial com criptografia end-to-end",
+                title: "Suporte Especializado",
+                description: "Time dedicado para garantir o sucesso da sua implementação",
               },
             ].map((benefit, index) => (
               <motion.div
