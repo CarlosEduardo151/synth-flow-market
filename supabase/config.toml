@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.send_reply]
 verify_jwt = false
+
+[functions.n8n-control]
+verify_jwt = true
