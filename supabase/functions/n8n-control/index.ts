@@ -62,21 +62,30 @@ serve(async (req) => {
       );
     }
 
-    // Send request to n8n webhook
-    const n8nResponse = await fetch(n8nWebhookUrl, {
-      method: 'POST',
+    // Build URL with query parameters for GET request
+    const url = new URL(n8nWebhookUrl);
+    url.searchParams.append('agentId', agentId);
+    url.searchParams.append('action', action);
+    url.searchParams.append('timestamp', new Date().toISOString());
+
+    console.log(`n8n-control: Sending GET request to ${url.toString()}`);
+
+    // Send GET request to n8n webhook
+    const n8nResponse = await fetch(url.toString(), {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         ...(n8nApiKey && { 'Authorization': `Bearer ${n8nApiKey}` }),
       },
-      body: JSON.stringify({
-        agentId,
-        action,
-        timestamp: new Date().toISOString(),
-      }),
     });
 
-    const responseData = await n8nResponse.json().catch(() => ({}));
+    let responseData = {};
+    const contentType = n8nResponse.headers.get('content-type');
+    if (contentType?.includes('application/json')) {
+      responseData = await n8nResponse.json().catch(() => ({}));
+    } else {
+      const text = await n8nResponse.text().catch(() => '');
+      responseData = { rawResponse: text };
+    }
     
     console.log(`n8n-control: n8n response status ${n8nResponse.status}`, responseData);
 
