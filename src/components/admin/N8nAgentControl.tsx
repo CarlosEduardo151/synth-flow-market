@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Power, PowerOff, RefreshCw, Bot, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Power, PowerOff, RefreshCw, Bot, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -17,6 +18,7 @@ type StatusType = 'idle' | 'loading' | 'success' | 'error';
 interface StatusState {
   type: StatusType;
   message: string;
+  hint?: string;
 }
 
 export function N8nAgentControl({ 
@@ -32,7 +34,7 @@ export function N8nAgentControl({
 
     try {
       const { data, error } = await supabase.functions.invoke('n8n-control', {
-        body: { agentId, action }
+        body: { agentId, action, httpMethod: 'POST' }
       });
 
       if (error) {
@@ -43,7 +45,12 @@ export function N8nAgentControl({
         setStatus({ type: 'success', message: data.message });
         toast.success(data.message);
       } else {
-        throw new Error(data?.message || 'Erro desconhecido');
+        setStatus({ 
+          type: 'error', 
+          message: data?.message || 'Erro desconhecido',
+          hint: data?.hint
+        });
+        toast.error(data?.message || 'Erro ao executar comando');
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao executar comando';
@@ -150,13 +157,28 @@ export function N8nAgentControl({
 
         {/* Status Display */}
         {status.message && (
-          <div className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${getStatusBgClass()}`}>
-            {getStatusIcon()}
-            <span className={`text-sm ${status.type === 'error' ? 'text-destructive' : status.type === 'success' ? 'text-green-600' : 'text-foreground'}`}>
-              {status.message}
-            </span>
+          <div className={`flex items-start gap-3 p-4 rounded-lg border transition-all ${getStatusBgClass()}`}>
+            <div className="mt-0.5">{getStatusIcon()}</div>
+            <div className="flex-1">
+              <span className={`text-sm ${status.type === 'error' ? 'text-destructive' : status.type === 'success' ? 'text-green-600' : 'text-foreground'}`}>
+                {status.message}
+              </span>
+              {status.hint && (
+                <p className="text-xs text-muted-foreground mt-1">{status.hint}</p>
+              )}
+            </div>
           </div>
         )}
+
+        {/* Help Alert */}
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Importante</AlertTitle>
+          <AlertDescription className="text-xs">
+            Certifique-se que o workflow no n8n está <strong>ATIVO</strong> e usando a URL de <strong>produção</strong> (não a de teste). 
+            O webhook deve aceitar requisições POST.
+          </AlertDescription>
+        </Alert>
       </CardContent>
     </Card>
   );

@@ -11,9 +11,9 @@ serve(async (req) => {
   }
 
   try {
-    const { agentId, action } = await req.json();
+    const { agentId, action, httpMethod = 'POST' } = await req.json();
 
-    console.log(`n8n-control: Received action '${action}' for agent '${agentId}'`);
+    console.log(`n8n-control: Received action '${action}' for agent '${agentId}' using ${httpMethod}`);
 
     // Validate required fields
     if (!agentId || !action) {
@@ -53,7 +53,7 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'ERRO: Configuração do n8n não encontrada.' 
+          message: 'ERRO: Configuração do n8n não encontrada. Configure N8N_WEBHOOK_URL.' 
         }),
         { 
           status: 500, 
@@ -62,23 +62,43 @@ serve(async (req) => {
       );
     }
 
-    // Build URL with query parameters for GET request
-    const url = new URL(n8nWebhookUrl);
-    url.searchParams.append('agentId', agentId);
-    url.searchParams.append('action', action);
-    url.searchParams.append('timestamp', new Date().toISOString());
+    const payload = {
+      agentId,
+      action,
+      timestamp: new Date().toISOString(),
+    };
 
-    console.log(`n8n-control: Sending GET request to ${url.toString()}`);
+    let n8nResponse;
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (n8nApiKey) {
+      headers['Authorization'] = `Bearer ${n8nApiKey}`;
+    }
 
-    // Send GET request to n8n webhook
-    const n8nResponse = await fetch(url.toString(), {
-      method: 'GET',
-      headers: {
-        ...(n8nApiKey && { 'Authorization': `Bearer ${n8nApiKey}` }),
-      },
-    });
+    if (httpMethod === 'GET') {
+      // Build URL with query parameters for GET request
+      const url = new URL(n8nWebhookUrl);
+      url.searchParams.append('agentId', agentId);
+      url.searchParams.append('action', action);
+      url.searchParams.append('timestamp', payload.timestamp);
 
-    let responseData = {};
+      console.log(`n8n-control: Sending GET request to ${url.toString()}`);
+      n8nResponse = await fetch(url.toString(), {
+        method: 'GET',
+        headers,
+      });
+    } else {
+      // Send POST request to n8n webhook
+      console.log(`n8n-control: Sending POST request to ${n8nWebhookUrl}`);
+      n8nResponse = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+    }
+
+    let responseData: Record<string, unknown> = {};
     const contentType = n8nResponse.headers.get('content-type');
     if (contentType?.includes('application/json')) {
       responseData = await n8nResponse.json().catch(() => ({}));
@@ -88,6 +108,23 @@ serve(async (req) => {
     }
     
     console.log(`n8n-control: n8n response status ${n8nResponse.status}`, responseData);
+
+    // Check for n8n test mode error
+    const errorMessage = (responseData as { message?: string })?.message || '';
+    if (n8nResponse.status === 404 && errorMessage.includes('This webhook is not registered')) {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: 'ERRO: Webhook n8n não encontrado. Verifique se o workflow está ATIVO no n8n e se a URL está correta (use a URL de produção, não de teste).',
+          hint: 'No n8n, ative o workflow clicando no botão "Active" no canto superior direito.',
+          details: responseData
+        }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
 
     if (!n8nResponse.ok) {
       return new Response(
