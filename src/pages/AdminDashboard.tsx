@@ -21,8 +21,10 @@ import {
   DollarSign,
   CheckCircle,
   Calendar,
-  MessageCircle
+  MessageCircle,
+  Bot
 } from 'lucide-react';
+import { N8nAgentControl } from '@/components/admin/N8nAgentControl';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -211,6 +213,15 @@ const AdminDashboard = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+
+        {/* N8n Agent Control Section */}
+        <div className="mt-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Bot className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-semibold">Controle de Agentes</h2>
+          </div>
+          <N8nAgentControl />
         </div>
       </main>
 
