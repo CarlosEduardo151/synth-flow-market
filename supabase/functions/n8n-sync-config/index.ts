@@ -375,16 +375,15 @@ serve(async (req) => {
           updateLog.push('Memória atualizada');
         }
         
-        // 4. Push updated workflow to n8n
+        // 4. Push updated workflow to n8n - only include accepted properties
         const updatedWorkflow = {
-          ...workflow,
+          name: workflow.name,
           nodes: updatedNodes,
+          connections: workflow.connections,
+          settings: workflow.settings,
+          staticData: workflow.staticData,
+          pinData: workflow.pinData,
         };
-        
-        // Remove fields that can't be updated
-        delete updatedWorkflow.id;
-        delete updatedWorkflow.createdAt;
-        delete updatedWorkflow.updatedAt;
         
         console.log(`n8n-sync-config: Updating workflow ${targetWorkflowId}`);
         const savedWorkflow = await n8nRequest(`/workflows/${targetWorkflowId}`, 'PUT', updatedWorkflow);
