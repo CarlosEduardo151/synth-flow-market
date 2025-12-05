@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Bot, Brain, MessageSquare, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, AlertCircle, Settings2, Shield, Zap, Clock, Database,
-  ExternalLink, Copy, CheckCircle2, XCircle
+  ExternalLink, Copy, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +16,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -30,6 +31,25 @@ interface CustomTool {
   name: string;
   description: string;
   endpoint: string;
+}
+
+interface N8nWorkflow {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+  tags?: { id: string; name: string }[];
+}
+
+interface N8nExecution {
+  id: string;
+  finished: boolean;
+  mode: string;
+  startedAt: string;
+  stoppedAt?: string;
+  workflowId: string;
+  status: string;
 }
 
 interface AgentConfig {
@@ -111,6 +131,15 @@ const AdminAgentConfigPage = () => {
   const [togglingAgent, setTogglingAgent] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   
+  // n8n State
+  const [n8nConnected, setN8nConnected] = useState<boolean | null>(null);
+  const [n8nTesting, setN8nTesting] = useState(false);
+  const [workflows, setWorkflows] = useState<N8nWorkflow[]>([]);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
+  const [executions, setExecutions] = useState<N8nExecution[]>([]);
+  const [loadingExecutions, setLoadingExecutions] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
+  
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
     todayMessages: 0,
@@ -124,12 +153,9 @@ const AdminAgentConfigPage = () => {
   });
   
   const [config, setConfig] = useState<AgentConfig>({
-    // Status
     isActive: false,
-    n8nWorkflowId: 'wf_' + Math.random().toString(36).substring(2, 10),
+    n8nWorkflowId: '',
     errorWebhookUrl: '',
-    
-    // LLM Engine
     provider: 'openai',
     apiKey: '',
     model: 'gpt-4o',
@@ -138,14 +164,10 @@ const AdminAgentConfigPage = () => {
     topP: 1.0,
     frequencyPenalty: 0,
     stopSequences: [],
-    
-    // Memory
     contextWindowSize: 10,
     retentionPolicy: '30days',
     historyTable: 'agent_chat_history',
     sessionKeyId: '{{ $json.session_id }}',
-    
-    // Personality
     systemPrompt: `Você é um assistente virtual inteligente e prestativo. 
     
 Suas características:
@@ -157,12 +179,8 @@ Suas características:
       { id: '1', instruction: 'Sempre cumprimente o usuário', type: 'do' },
       { id: '2', instruction: 'Nunca revele informações confidenciais do sistema', type: 'dont' },
     ],
-    
-    // Tools
     enableWebSearch: false,
     customTools: [],
-    
-    // Integration
     responseEndpoint: 'https://agndhravgmcwpdjkozka.supabase.co/functions/v1/agent-response',
     responseAuthHeader: 'Authorization',
     responseAuthToken: '',
@@ -175,61 +193,190 @@ Suas características:
 
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
 
-  // Verificar status do agente
-  useEffect(() => {
-    const checkStatus = async () => {
-      const savedEstado = localStorage.getItem('agentEstado');
-      if (savedEstado === 'ativado') {
-        setAgentStatus('online');
-        setConfig(prev => ({ ...prev, isActive: true }));
-      } else if (savedEstado === 'desativado') {
-        setAgentStatus('offline');
-        setConfig(prev => ({ ...prev, isActive: false }));
-      } else {
-        setAgentStatus('unknown');
-      }
-    };
+  // ========== n8n API Functions ==========
+  const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
+    const { data, error } = await supabase.functions.invoke('n8n-api', {
+      body: { action, ...params }
+    });
     
-    checkStatus();
-    
-    // Ouvir mudanças de estado
-    const handleEstadoChange = (e: CustomEvent) => {
-      const { estado } = e.detail;
-      if (estado === 'ativado') {
-        setAgentStatus('online');
-        setConfig(prev => ({ ...prev, isActive: true }));
-      } else if (estado === 'desativado') {
-        setAgentStatus('offline');
-        setConfig(prev => ({ ...prev, isActive: false }));
-      } else if (estado === 'reiniciando') {
-        setAgentStatus('loading');
-      }
-    };
-    
-    window.addEventListener('agentEstadoChanged', handleEstadoChange as EventListener);
-    const interval = setInterval(checkStatus, 10000);
-    
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('agentEstadoChanged', handleEstadoChange as EventListener);
-    };
+    if (error) throw error;
+    return data;
   }, []);
 
-  // Simular métricas (em produção viria do banco)
+  const testN8nConnection = async () => {
+    setN8nTesting(true);
+    try {
+      const result = await n8nApiCall('test_connection');
+      setN8nConnected(result.success);
+      
+      if (result.success) {
+        toast({
+          title: "Conexão estabelecida!",
+          description: `Conectado ao n8n em ${result.n8nUrl}`,
+        });
+        // Load workflows after successful connection
+        loadWorkflows();
+      } else {
+        toast({
+          title: "Falha na conexão",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      setN8nConnected(false);
+      toast({
+        title: "Erro de conexão",
+        description: error.message || "Não foi possível conectar ao n8n",
+        variant: "destructive",
+      });
+    } finally {
+      setN8nTesting(false);
+    }
+  };
+
+  const loadWorkflows = async () => {
+    setLoadingWorkflows(true);
+    try {
+      const result = await n8nApiCall('list_workflows', { limit: 100 });
+      if (result.success) {
+        setWorkflows(result.workflows);
+      }
+    } catch (error: any) {
+      console.error('Error loading workflows:', error);
+      toast({
+        title: "Erro ao carregar workflows",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingWorkflows(false);
+    }
+  };
+
+  const loadExecutions = async (workflowId?: string) => {
+    setLoadingExecutions(true);
+    try {
+      const result = await n8nApiCall('get_executions', { 
+        workflowId: workflowId || config.n8nWorkflowId,
+        limit: 20 
+      });
+      if (result.success) {
+        setExecutions(result.executions);
+        
+        // Calculate metrics from executions
+        const successCount = result.executions.filter((e: N8nExecution) => e.status === 'success').length;
+        const errorCount = result.executions.filter((e: N8nExecution) => e.status === 'error').length;
+        const total = result.executions.length;
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalMessages: total,
+          errorRate: total > 0 ? (errorCount / total) * 100 : 0,
+          lastActivity: result.executions[0]?.startedAt || null,
+        }));
+      }
+    } catch (error: any) {
+      console.error('Error loading executions:', error);
+    } finally {
+      setLoadingExecutions(false);
+    }
+  };
+
+  const activateWorkflow = async (workflowId: string) => {
+    setTogglingAgent(true);
+    try {
+      const result = await n8nApiCall('activate_workflow', { workflowId });
+      
+      if (result.success) {
+        toast({
+          title: "Workflow Ativado",
+          description: `Workflow ${workflowId} está agora ativo.`,
+        });
+        setAgentStatus('online');
+        setConfig(prev => ({ ...prev, isActive: true }));
+        localStorage.setItem('agentEstado', 'ativado');
+        
+        // Update workflow list
+        setWorkflows(prev => prev.map(w => 
+          w.id === workflowId ? { ...w, active: true } : w
+        ));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao ativar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingAgent(false);
+    }
+  };
+
+  const deactivateWorkflow = async (workflowId: string) => {
+    setTogglingAgent(true);
+    try {
+      const result = await n8nApiCall('deactivate_workflow', { workflowId });
+      
+      if (result.success) {
+        toast({
+          title: "Workflow Desativado",
+          description: `Workflow ${workflowId} foi desativado.`,
+        });
+        setAgentStatus('offline');
+        setConfig(prev => ({ ...prev, isActive: false }));
+        localStorage.setItem('agentEstado', 'desativado');
+        
+        // Update workflow list
+        setWorkflows(prev => prev.map(w => 
+          w.id === workflowId ? { ...w, active: false } : w
+        ));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao desativar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingAgent(false);
+    }
+  };
+
+  const toggleWorkflowStatus = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Selecione um workflow",
+        description: "Escolha um workflow na lista antes de ativar/desativar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (config.isActive) {
+      await deactivateWorkflow(config.n8nWorkflowId);
+    } else {
+      await activateWorkflow(config.n8nWorkflowId);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
-    const simulatedMetrics: AgentMetrics = {
-      totalMessages: Math.floor(Math.random() * 5000),
-      todayMessages: Math.floor(Math.random() * 50),
-      weekMessages: Math.floor(Math.random() * 300),
-      monthMessages: Math.floor(Math.random() * 1200),
-      totalTokens: Math.floor(Math.random() * 500000),
-      inputTokens: Math.floor(Math.random() * 300000),
-      outputTokens: Math.floor(Math.random() * 200000),
-      errorRate: Math.random() * 5,
-      lastActivity: new Date().toISOString(),
-    };
-    setMetrics(simulatedMetrics);
+    testN8nConnection();
   }, []);
+
+  // Update status when workflow is selected
+  useEffect(() => {
+    if (config.n8nWorkflowId) {
+      const workflow = workflows.find(w => w.id === config.n8nWorkflowId);
+      if (workflow) {
+        setSelectedWorkflow(workflow);
+        setAgentStatus(workflow.active ? 'online' : 'offline');
+        setConfig(prev => ({ ...prev, isActive: workflow.active }));
+        loadExecutions(workflow.id);
+      }
+    }
+  }, [config.n8nWorkflowId, workflows]);
 
   const handleProviderChange = (provider: 'openai' | 'google') => {
     setConfig(prev => ({
@@ -237,37 +384,6 @@ Suas características:
       provider,
       model: provider === 'openai' ? 'gpt-4o' : 'gemini-2.5-flash',
     }));
-  };
-
-  const toggleAgentStatus = async () => {
-    setTogglingAgent(true);
-    const action = config.isActive ? 'desativar' : 'ativar';
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('n8n-control', {
-        body: { agentId: config.n8nWorkflowId, action }
-      });
-      
-      if (error) throw error;
-      
-      const newStatus = !config.isActive;
-      setConfig(prev => ({ ...prev, isActive: newStatus }));
-      setAgentStatus(newStatus ? 'online' : 'offline');
-      localStorage.setItem('agentEstado', newStatus ? 'ativado' : 'desativado');
-      
-      toast({
-        title: newStatus ? "Agente Ativado" : "Agente Desativado",
-        description: `O workflow foi ${newStatus ? 'ativado' : 'desativado'} com sucesso.`,
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Não foi possível alterar o status do agente.",
-        variant: "destructive",
-      });
-    } finally {
-      setTogglingAgent(false);
-    }
   };
 
   const addInstruction = () => {
@@ -381,12 +497,25 @@ Suas características:
                 </div>
                 <div>
                   <h1 className="text-xl font-bold">Configuração do Agente IA</h1>
-                  <p className="text-sm text-muted-foreground">Configure inteligência, memória, status e integração</p>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Integrado com n8n</span>
+                    {n8nConnected === true && (
+                      <Badge variant="outline" className="text-green-500 border-green-500">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Conectado
+                      </Badge>
+                    )}
+                    {n8nConnected === false && (
+                      <Badge variant="outline" className="text-red-500 border-red-500">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Desconectado
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {/* Status Indicator */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
                 <div className={`w-2.5 h-2.5 rounded-full ${
                   agentStatus === 'online' ? 'bg-green-500 animate-pulse' : 
@@ -440,15 +569,134 @@ Suas características:
           {/* ======== STATUS E ATIVAÇÃO ======== */}
           <TabsContent value="status" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Controle de Status */}
+              {/* Conexão n8n */}
               <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ServerCog className="h-5 w-5 text-primary" />
+                    Conexão com n8n
+                  </CardTitle>
+                  <CardDescription>
+                    Status da integração com sua instância n8n
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                    n8nConnected === true ? 'border-green-500 bg-green-500/10' :
+                    n8nConnected === false ? 'border-red-500 bg-red-500/10' :
+                    'border-border'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      {n8nConnected === true ? (
+                        <CheckCircle2 className="h-8 w-8 text-green-500" />
+                      ) : n8nConnected === false ? (
+                        <XCircle className="h-8 w-8 text-red-500" />
+                      ) : (
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                      )}
+                      <div>
+                        <p className="font-semibold">
+                          {n8nConnected === true ? 'Conectado' :
+                           n8nConnected === false ? 'Desconectado' : 'Verificando...'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          https://n8n.starai.com.br
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={testN8nConnection}
+                      disabled={n8nTesting}
+                    >
+                      {n8nTesting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {n8nConnected && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Workflows disponíveis:</span>
+                      <Badge>{workflows.length}</Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Seleção de Workflow */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <List className="h-5 w-5 text-primary" />
+                    Selecionar Workflow
+                  </CardTitle>
+                  <CardDescription>
+                    Escolha o workflow do agente no n8n
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Select 
+                      value={config.n8nWorkflowId} 
+                      onValueChange={(v) => setConfig(prev => ({ ...prev, n8nWorkflowId: v }))}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Selecione um workflow..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workflows.map(wf => (
+                          <SelectItem key={wf.id} value={wf.id}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                              {wf.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={loadWorkflows}
+                      disabled={loadingWorkflows}
+                    >
+                      {loadingWorkflows ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  {selectedWorkflow && (
+                    <div className="p-4 rounded-lg bg-muted/50 border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{selectedWorkflow.name}</span>
+                        <Badge variant={selectedWorkflow.active ? "default" : "secondary"}>
+                          {selectedWorkflow.active ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <p>ID: {selectedWorkflow.id}</p>
+                        <p>Atualizado: {new Date(selectedWorkflow.updatedAt).toLocaleString('pt-BR')}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Controle de Status */}
+              <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Power className="h-5 w-5 text-primary" />
                     Controle do Agente
                   </CardTitle>
                   <CardDescription>
-                    Ative ou desative o workflow do agente no n8n
+                    Ative ou desative o workflow selecionado
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -470,151 +718,111 @@ Suas características:
                       <div>
                         <Label className="text-lg font-semibold">Agente Ativo</Label>
                         <p className="text-sm text-muted-foreground">
-                          {config.isActive ? 'O agente está respondendo mensagens' : 'O agente está desativado'}
+                          {config.isActive ? 'O workflow está ativo no n8n' : 'O workflow está desativado'}
                         </p>
+                        {config.n8nWorkflowId && (
+                          <p className="text-xs text-muted-foreground font-mono mt-1">
+                            Workflow: {config.n8nWorkflowId}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <Switch
                       checked={config.isActive}
-                      onCheckedChange={toggleAgentStatus}
-                      disabled={togglingAgent}
+                      onCheckedChange={toggleWorkflowStatus}
+                      disabled={togglingAgent || !config.n8nWorkflowId || !n8nConnected}
                       className="scale-125"
                     />
                   </div>
 
-                  {/* Status de Saúde */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-muted/50 border">
-                      <div className="flex items-center gap-2 mb-2">
-                        {agentStatus === 'online' ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        ) : agentStatus === 'offline' ? (
-                          <XCircle className="h-5 w-5 text-red-500" />
-                        ) : (
-                          <RefreshCw className="h-5 w-5 text-yellow-500 animate-spin" />
-                        )}
-                        <span className="font-medium">Status n8n</span>
-                      </div>
-                      <p className="text-2xl font-bold">
-                        {agentStatus === 'online' ? 'Ativo' : 
-                         agentStatus === 'offline' ? 'Inativo' : 'Verificando'}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/50 border">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Clock className="h-5 w-5 text-muted-foreground" />
-                        <span className="font-medium">Última Atividade</span>
-                      </div>
-                      <p className="text-sm">
-                        {metrics.lastActivity 
-                          ? new Date(metrics.lastActivity).toLocaleString('pt-BR')
-                          : 'Nenhuma atividade'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Separator />
-
                   {/* Botões de Ação */}
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-3 gap-3">
                     <Button 
                       variant={config.isActive ? "destructive" : "default"}
                       className="flex-1"
-                      onClick={toggleAgentStatus}
-                      disabled={togglingAgent}
+                      onClick={toggleWorkflowStatus}
+                      disabled={togglingAgent || !config.n8nWorkflowId || !n8nConnected}
                     >
                       {togglingAgent ? (
-                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : config.isActive ? (
-                        <Power className="h-4 w-4 mr-2" />
+                        <Square className="h-4 w-4 mr-2" />
                       ) : (
-                        <Zap className="h-4 w-4 mr-2" />
+                        <Play className="h-4 w-4 mr-2" />
                       )}
-                      {config.isActive ? 'Desativar Agente' : 'Ativar Agente'}
+                      {config.isActive ? 'Desativar' : 'Ativar'}
                     </Button>
+                    
                     <Button 
                       variant="outline"
-                      onClick={async () => {
-                        setTogglingAgent(true);
-                        try {
-                          await supabase.functions.invoke('n8n-control', {
-                            body: { agentId: config.n8nWorkflowId, action: 'reiniciar' }
-                          });
-                          toast({ title: "Reiniciando...", description: "O agente está sendo reiniciado." });
-                        } catch {
-                          toast({ title: "Erro", description: "Falha ao reiniciar.", variant: "destructive" });
-                        } finally {
-                          setTogglingAgent(false);
-                        }
-                      }}
-                      disabled={togglingAgent || !config.isActive}
+                      onClick={() => loadExecutions()}
+                      disabled={loadingExecutions || !config.n8nWorkflowId}
                     >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Reiniciar
+                      {loadingExecutions ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Activity className="h-4 w-4 mr-2" />
+                      )}
+                      Ver Execuções
+                    </Button>
+                    
+                    <Button 
+                      variant="outline"
+                      onClick={() => window.open(`https://n8n.starai.com.br/workflow/${config.n8nWorkflowId}`, '_blank')}
+                      disabled={!config.n8nWorkflowId}
+                    >
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Abrir no n8n
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* IDs de Integração */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Settings2 className="h-5 w-5 text-primary" />
-                    IDs de Integração
-                  </CardTitle>
-                  <CardDescription>
-                    Identificadores para conexão com o n8n
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
+                  {/* Lista de Workflows */}
                   <div className="space-y-2">
-                    <Label>Workflow ID do n8n</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={config.n8nWorkflowId}
-                        readOnly
-                        className="bg-muted font-mono text-sm"
-                      />
-                      <Button 
-                        variant="outline" 
-                        size="icon"
-                        onClick={() => copyToClipboard(config.n8nWorkflowId, 'Workflow ID')}
-                      >
-                        {copied === 'Workflow ID' ? <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Preenchido automaticamente pelo sistema
-                    </p>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>URL do Webhook de Erro</Label>
-                    <Input
-                      value={config.errorWebhookUrl}
-                      onChange={(e) => setConfig(prev => ({ ...prev, errorWebhookUrl: e.target.value }))}
-                      placeholder="https://seu-servico.com/webhook/erros"
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Receba notificações de erros críticos do n8n
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                    <div className="flex items-start gap-3">
-                      <AlertCircle className="h-5 w-5 text-amber-500 mt-0.5" />
-                      <div>
-                        <p className="font-medium text-amber-700 dark:text-amber-400">Atenção</p>
-                        <p className="text-sm text-muted-foreground">
-                          Alterações no Workflow ID podem afetar integrações existentes. 
-                          Use com cuidado em ambientes de produção.
+                    <Label>Todos os Workflows ({workflows.length})</Label>
+                    <ScrollArea className="h-[200px] rounded-lg border p-2">
+                      {workflows.map(wf => (
+                        <div 
+                          key={wf.id}
+                          className={`flex items-center justify-between p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
+                            config.n8nWorkflowId === wf.id 
+                              ? 'bg-primary/10 border border-primary' 
+                              : 'hover:bg-muted/50'
+                          }`}
+                          onClick={() => setConfig(prev => ({ ...prev, n8nWorkflowId: wf.id }))}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`w-2.5 h-2.5 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <div>
+                              <p className="font-medium text-sm">{wf.name}</p>
+                              <p className="text-xs text-muted-foreground">ID: {wf.id}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={wf.active ? "default" : "secondary"} className="text-xs">
+                              {wf.active ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                            {config.n8nWorkflowId !== wf.id && (
+                              <Button 
+                                size="sm" 
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  wf.active ? deactivateWorkflow(wf.id) : activateWorkflow(wf.id);
+                                }}
+                                disabled={togglingAgent}
+                              >
+                                {wf.active ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {workflows.length === 0 && (
+                        <p className="text-center text-muted-foreground py-8">
+                          {loadingWorkflows ? 'Carregando...' : 'Nenhum workflow encontrado'}
                         </p>
-                      </div>
-                    </div>
+                      )}
+                    </ScrollArea>
                   </div>
                 </CardContent>
               </Card>
@@ -702,7 +910,6 @@ Suas características:
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Temperatura */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label>Temperatura (Criatividade)</Label>
@@ -723,7 +930,6 @@ Suas características:
                     </div>
                   </div>
 
-                  {/* Max Tokens */}
                   <div className="space-y-2">
                     <Label>Max Tokens (Limite de Resposta)</Label>
                     <Input
@@ -733,9 +939,6 @@ Suas características:
                       min={100}
                       max={128000}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Limite: 100 - 128.000 tokens
-                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -750,7 +953,6 @@ Suas características:
                 </CardHeader>
                 <CardContent>
                   <div className="grid gap-6 md:grid-cols-2">
-                    {/* Top P */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <Label>Top P (Foco de Amostragem)</Label>
@@ -765,12 +967,8 @@ Suas características:
                         max={1}
                         step={0.05}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Controla a diversidade da resposta (nucleus sampling)
-                      </p>
                     </div>
 
-                    {/* Frequency Penalty */}
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <Label>Frequência Penalidade</Label>
@@ -785,14 +983,10 @@ Suas características:
                         max={2}
                         step={0.1}
                       />
-                      <p className="text-xs text-muted-foreground">
-                        Reduz repetição de palavras (0.0 - 2.0)
-                      </p>
                     </div>
 
-                    {/* Stop Sequences */}
                     <div className="space-y-4 md:col-span-2">
-                      <Label>Sequências de Parada (Stop Sequences)</Label>
+                      <Label>Sequências de Parada</Label>
                       <div className="flex gap-2">
                         <Input
                           value={newStopSequence}
@@ -818,13 +1012,7 @@ Suas características:
                             </Button>
                           </Badge>
                         ))}
-                        {config.stopSequences.length === 0 && (
-                          <span className="text-sm text-muted-foreground">Nenhuma sequência definida</span>
-                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        A IA para de gerar texto ao encontrar essas sequências
-                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -841,9 +1029,6 @@ Suas características:
                     <Database className="h-5 w-5 text-primary" />
                     Configuração da Memória
                   </CardTitle>
-                  <CardDescription>
-                    PostgreSQL gerenciado internamente pelo SaaS
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-4 bg-muted/50 rounded-lg border flex items-center gap-3">
@@ -861,9 +1046,6 @@ Suas características:
                       min={1}
                       max={100}
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Máximo de mensagens do histórico carregadas por requisição (impacta custo e relevância)
-                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -883,9 +1065,6 @@ Suas características:
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Tempo de retenção do histórico antes da exclusão automática
-                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -893,106 +1072,77 @@ Suas características:
               <Card>
                 <CardHeader>
                   <CardTitle>Isolamento e Sessão</CardTitle>
-                  <CardDescription>
-                    Configure o isolamento de dados do cliente
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Tabela de Histórico (Isolamento)</Label>
+                    <Label>Tabela de Histórico</Label>
                     <Input
                       value={config.historyTable}
                       onChange={(e) => setConfig(prev => ({ ...prev, historyTable: e.target.value }))}
-                      placeholder="agent_chat_history"
                       className="font-mono"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Nome da tabela PostgreSQL para este agente/cliente
-                    </p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Session Key ID <Badge variant="destructive" className="ml-2 text-xs">Obrigatório</Badge></Label>
+                    <Label>Session Key ID</Label>
                     <Input
                       value={config.sessionKeyId}
                       onChange={(e) => setConfig(prev => ({ ...prev, sessionKeyId: e.target.value }))}
-                      placeholder="{{ $json.session_id }}"
                       className="font-mono text-sm"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      Variável do webhook usada como chave de sessão no n8n
-                    </p>
-                  </div>
-
-                  <Separator />
-
-                  <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-                    <p className="text-sm">
-                      <strong>Dica:</strong> Use variáveis n8n como <code className="bg-muted px-1 rounded">{"{{ $json.id }}"}</code> ou <code className="bg-muted px-1 rounded">{"{{ $json.user_id }}"}</code> para identificar sessões únicas.
-                    </p>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* ======== PERSONALIDADE E REGRAS ======== */}
+          {/* ======== PERSONALIDADE ======== */}
           <TabsContent value="personality" className="space-y-6">
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" />
-                    System Prompt Principal
-                  </CardTitle>
-                  <CardDescription>
-                    Defina a personalidade, tom e regras do seu agente
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={config.systemPrompt}
-                    onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                    placeholder="Você é um assistente..."
-                    className="min-h-[200px] font-mono text-sm"
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-primary" />
+                  System Prompt Principal
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={config.systemPrompt}
+                  onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                  className="min-h-[200px] font-mono text-sm"
+                />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Instruções de Ação (Guardrails)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
+                    <SelectTrigger className="w-[140px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="do">✅ Faça isso</SelectItem>
+                      <SelectItem value="dont">❌ Nunca faça</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={newInstruction}
+                    onChange={(e) => setNewInstruction(e.target.value)}
+                    placeholder="Digite uma instrução..."
+                    onKeyPress={(e) => e.key === 'Enter' && addInstruction()}
+                    className="flex-1"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Este texto será injetado como instrução principal no nó AI Agent do n8n
-                  </p>
-                </CardContent>
-              </Card>
+                  <Button onClick={addInstruction} size="icon">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Instruções de Ação (Guardrails)</CardTitle>
-                  <CardDescription>
-                    Defina comandos específicos para segurança e alinhamento de marca
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
-                      <SelectTrigger className="w-[140px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="do">✅ Faça isso</SelectItem>
-                        <SelectItem value="dont">❌ Nunca faça</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Input
-                      value={newInstruction}
-                      onChange={(e) => setNewInstruction(e.target.value)}
-                      placeholder="Digite uma instrução..."
-                      onKeyPress={(e) => e.key === 'Enter' && addInstruction()}
-                      className="flex-1"
-                    />
-                    <Button onClick={addInstruction} size="icon">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                <ScrollArea className="h-[250px]">
+                  <div className="space-y-2">
                     {config.actionInstructions.map((item) => (
                       <div
                         key={item.id}
@@ -1008,19 +1158,19 @@ Suas características:
                           variant="ghost"
                           size="icon"
                           onClick={() => removeInstruction(item.id)}
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     ))}
                   </div>
-                </CardContent>
-              </Card>
-            </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* ======== FERRAMENTAS E RAG ======== */}
+          {/* ======== FERRAMENTAS ======== */}
           <TabsContent value="tools" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
@@ -1029,16 +1179,13 @@ Suas características:
                     <Plug className="h-5 w-5 text-primary" />
                     RAG e Busca
                   </CardTitle>
-                  <CardDescription>
-                    Configure ferramentas de busca na web
-                  </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent>
                   <div className="flex items-center justify-between p-4 rounded-lg border">
-                    <div className="space-y-0.5">
+                    <div>
                       <Label className="text-base">Ativar Busca na Web (RAG)</Label>
                       <p className="text-sm text-muted-foreground">
-                        Integra DuckDuckGo/Google Search para respostas factuais
+                        Integra DuckDuckGo/Google Search
                       </p>
                     </div>
                     <Switch
@@ -1046,42 +1193,20 @@ Suas características:
                       onCheckedChange={(v) => setConfig(prev => ({ ...prev, enableWebSearch: v }))}
                     />
                   </div>
-
-                  {config.enableWebSearch && (
-                    <div className="p-4 rounded-lg bg-green-500/10 border border-green-500/30">
-                      <p className="text-sm">
-                        <CheckCircle2 className="h-4 w-4 inline mr-2 text-green-500" />
-                        O nó de busca será integrado automaticamente ao workflow do n8n.
-                      </p>
-                    </div>
-                  )}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
                   <CardTitle>Integração de Resposta</CardTitle>
-                  <CardDescription>
-                    Configure onde o n8n envia as respostas
-                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>URL de Resposta (SaaS Endpoint) <Badge variant="destructive" className="ml-2 text-xs">Obrigatório</Badge></Label>
+                    <Label>URL de Resposta (Endpoint)</Label>
                     <Input
                       value={config.responseEndpoint}
                       onChange={(e) => setConfig(prev => ({ ...prev, responseEndpoint: e.target.value }))}
-                      placeholder="https://..."
                       className="font-mono text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Header de Autorização</Label>
-                    <Input
-                      value={config.responseAuthHeader}
-                      onChange={(e) => setConfig(prev => ({ ...prev, responseAuthHeader: e.target.value }))}
-                      placeholder="Authorization"
                     />
                   </div>
 
@@ -1092,7 +1217,6 @@ Suas características:
                         type={showAuthToken ? 'text' : 'password'}
                         value={config.responseAuthToken}
                         onChange={(e) => setConfig(prev => ({ ...prev, responseAuthToken: e.target.value }))}
-                        placeholder="Bearer sk-..."
                         className="pr-10"
                       />
                       <Button
@@ -1108,224 +1232,117 @@ Suas características:
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Ferramentas Personalizadas */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Ferramentas Personalizadas (API/Funções)</CardTitle>
-                  <CardDescription>
-                    Defina funções externas que o agente pode chamar
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <Input
-                      value={newTool.name}
-                      onChange={(e) => setNewTool(prev => ({ ...prev, name: e.target.value }))}
-                      placeholder="Nome da ferramenta"
-                    />
-                    <Input
-                      value={newTool.description}
-                      onChange={(e) => setNewTool(prev => ({ ...prev, description: e.target.value }))}
-                      placeholder="Descrição"
-                    />
-                    <div className="flex gap-2">
-                      <Input
-                        value={newTool.endpoint}
-                        onChange={(e) => setNewTool(prev => ({ ...prev, endpoint: e.target.value }))}
-                        placeholder="https://api.exemplo.com/funcao"
-                        className="font-mono text-sm"
-                      />
-                      <Button onClick={addCustomTool} size="icon">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    {config.customTools.map((tool) => (
-                      <div
-                        key={tool.id}
-                        className="flex items-center justify-between p-3 rounded-lg border bg-muted/50"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="p-2 rounded bg-primary/10">
-                            <Plug className="h-4 w-4 text-primary" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{tool.name}</p>
-                            <p className="text-xs text-muted-foreground">{tool.description || 'Sem descrição'}</p>
-                            <p className="text-xs font-mono text-muted-foreground">{tool.endpoint}</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeCustomTool(tool.id)}
-                          className="text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {config.customTools.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhuma ferramenta personalizada adicionada
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
           {/* ======== MONITORAMENTO ======== */}
           <TabsContent value="monitoring" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-4">
-              {/* Status */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    Status do Agente
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Status</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-3">
                     <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      agentStatus === 'online' ? 'bg-green-500/20' : 
-                      agentStatus === 'offline' ? 'bg-red-500/20' : 'bg-yellow-500/20'
+                      agentStatus === 'online' ? 'bg-green-500/20' : 'bg-red-500/20'
                     }`}>
                       <div className={`w-6 h-6 rounded-full ${
-                        agentStatus === 'online' ? 'bg-green-500 animate-pulse' : 
-                        agentStatus === 'offline' ? 'bg-red-500' : 'bg-yellow-500'
+                        agentStatus === 'online' ? 'bg-green-500 animate-pulse' : 'bg-red-500'
                       }`} />
                     </div>
                     <div>
                       <p className="font-semibold">
-                        {agentStatus === 'online' ? 'Online' : agentStatus === 'offline' ? 'Offline' : 'Verificando'}
+                        {agentStatus === 'online' ? 'Online' : 'Offline'}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        Workflow n8n
-                      </p>
+                      <p className="text-xs text-muted-foreground">n8n Workflow</p>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Taxa de Erro */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
-                    Taxa de Erro
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Taxa de Erro</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className={`text-3xl font-bold ${metrics.errorRate < 2 ? 'text-green-500' : metrics.errorRate < 5 ? 'text-yellow-500' : 'text-red-500'}`}>
+                  <p className={`text-3xl font-bold ${metrics.errorRate < 5 ? 'text-green-500' : 'text-red-500'}`}>
                     {metrics.errorRate.toFixed(1)}%
                   </p>
-                  <p className="text-xs text-muted-foreground">Últimas 24h</p>
+                  <p className="text-xs text-muted-foreground">Últimas execuções</p>
                 </CardContent>
               </Card>
 
-              {/* Mensagens Hoje */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <MessageSquare className="h-4 w-4" />
-                    Mensagens Hoje
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Execuções</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold text-primary">{metrics.todayMessages}</p>
-                  <p className="text-xs text-muted-foreground">Processadas</p>
+                  <p className="text-3xl font-bold text-primary">{executions.length}</p>
+                  <p className="text-xs text-muted-foreground">Registradas</p>
                 </CardContent>
               </Card>
 
-              {/* Tokens Totais */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    Tokens (Mês)
-                  </CardTitle>
+                  <CardTitle className="text-sm font-medium">Última Atividade</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-3xl font-bold text-primary">{(metrics.totalTokens / 1000).toFixed(1)}k</p>
-                  <p className="text-xs text-muted-foreground">Consumidos</p>
+                  <p className="text-sm font-medium">
+                    {metrics.lastActivity 
+                      ? new Date(metrics.lastActivity).toLocaleString('pt-BR')
+                      : 'Nenhuma'}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Métricas Detalhadas */}
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Contador de Mensagens</CardTitle>
-                  <CardDescription>Mensagens processadas por período</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{metrics.todayMessages}</p>
-                      <p className="text-xs text-muted-foreground">Hoje</p>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{metrics.weekMessages}</p>
-                      <p className="text-xs text-muted-foreground">Semana</p>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{metrics.monthMessages}</p>
-                      <p className="text-xs text-muted-foreground">Mês</p>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{metrics.totalMessages}</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                    </div>
+            {/* Lista de Execuções */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Histórico de Execuções</span>
+                  <Button variant="outline" size="sm" onClick={() => loadExecutions()}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Atualizar
+                  </Button>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-[300px]">
+                  <div className="space-y-2">
+                    {executions.map(exec => (
+                      <div key={exec.id} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-2.5 h-2.5 rounded-full ${
+                            exec.status === 'success' ? 'bg-green-500' :
+                            exec.status === 'error' ? 'bg-red-500' :
+                            exec.status === 'running' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'
+                          }`} />
+                          <div>
+                            <p className="font-mono text-sm">#{exec.id}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(exec.startedAt).toLocaleString('pt-BR')}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant={
+                          exec.status === 'success' ? 'default' :
+                          exec.status === 'error' ? 'destructive' : 'secondary'
+                        }>
+                          {exec.status}
+                        </Badge>
+                      </div>
+                    ))}
+                    {executions.length === 0 && (
+                      <p className="text-center text-muted-foreground py-8">
+                        {loadingExecutions ? 'Carregando...' : 'Nenhuma execução encontrada'}
+                      </p>
+                    )}
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Consumo de Tokens</CardTitle>
-                  <CardDescription>Input + Output tokens</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{(metrics.inputTokens / 1000).toFixed(1)}k</p>
-                      <p className="text-xs text-muted-foreground">Input</p>
-                    </div>
-                    <div className="text-center p-4 bg-muted rounded-lg">
-                      <p className="text-2xl font-bold">{(metrics.outputTokens / 1000).toFixed(1)}k</p>
-                      <p className="text-xs text-muted-foreground">Output</p>
-                    </div>
-                    <div className="text-center p-4 bg-primary/10 rounded-lg border border-primary/30">
-                      <p className="text-2xl font-bold text-primary">{(metrics.totalTokens / 1000).toFixed(1)}k</p>
-                      <p className="text-xs text-muted-foreground">Total</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span>Uso do limite mensal</span>
-                      <span>{((metrics.totalTokens / 1000000) * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary transition-all"
-                        style={{ width: `${Math.min((metrics.totalTokens / 1000000) * 100, 100)}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {metrics.totalTokens.toLocaleString()} / 1.000.000 tokens
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </main>
