@@ -1295,6 +1295,33 @@ export type Database = {
         }
         Relationships: []
       }
+      n8n_agent_messages: {
+        Row: {
+          agent_id: string
+          content: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          agent_id?: string
+          content: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          agent_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: []
+      }
       order_installments: {
         Row: {
           amount: number
