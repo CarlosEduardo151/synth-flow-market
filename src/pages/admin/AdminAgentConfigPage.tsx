@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft, Save, Bot, Brain, MessageSquare, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
-  Power, RefreshCw, Wifi, WifiOff, AlertCircle, Settings2, Shield, Zap, Clock, Database,
-  ExternalLink, Copy, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Users, GitBranch
+  ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
+  Power, RefreshCw, Wifi, WifiOff, Shield, Database,
+  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,6 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,20 +25,12 @@ interface ActionInstruction {
   type: 'do' | 'dont';
 }
 
-interface CustomTool {
-  id: string;
-  name: string;
-  description: string;
-  endpoint: string;
-}
-
 interface N8nWorkflow {
   id: string;
   name: string;
   active: boolean;
   createdAt: string;
   updatedAt: string;
-  tags?: { id: string; name: string }[];
 }
 
 interface N8nExecution {
@@ -53,49 +44,23 @@ interface N8nExecution {
 }
 
 interface AgentConfig {
-  // Status Control
   isActive: boolean;
   n8nWorkflowId: string;
-  errorWebhookUrl: string;
-  
-  // LLM Engine
   provider: 'openai' | 'google';
   apiKey: string;
   model: string;
   temperature: number;
   maxTokens: number;
-  topP: number;
-  frequencyPenalty: number;
-  stopSequences: string[];
-  
-  // Memory
   contextWindowSize: number;
   retentionPolicy: '7days' | '30days' | '90days' | 'unlimited';
-  historyTable: string;
   sessionKeyId: string;
-  
-  // Personality
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
-  
-  // Tools
   enableWebSearch: boolean;
-  customTools: CustomTool[];
-  
-  // Integration
-  responseEndpoint: string;
-  responseAuthHeader: string;
-  responseAuthToken: string;
 }
 
 interface AgentMetrics {
   totalMessages: number;
-  todayMessages: number;
-  weekMessages: number;
-  monthMessages: number;
-  totalTokens: number;
-  inputTokens: number;
-  outputTokens: number;
   errorRate: number;
   lastActivity: string | null;
 }
@@ -126,12 +91,9 @@ const AdminAgentConfigPage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-  const [showAuthToken, setShowAuthToken] = useState(false);
   const [agentStatus, setAgentStatus] = useState<'online' | 'offline' | 'loading' | 'unknown'>('unknown');
   const [togglingAgent, setTogglingAgent] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
   
-  // n8n State
   const [n8nConnected, setN8nConnected] = useState<boolean | null>(null);
   const [n8nTesting, setN8nTesting] = useState(false);
   const [workflows, setWorkflows] = useState<N8nWorkflow[]>([]);
@@ -140,20 +102,8 @@ const AdminAgentConfigPage = () => {
   const [loadingExecutions, setLoadingExecutions] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
   
-  // Provisioning State
-  const [templateWorkflowId, setTemplateWorkflowId] = useState<string>('');
-  const [customerProducts, setCustomerProducts] = useState<any[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [provisioningId, setProvisioningId] = useState<string | null>(null);
-  
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
-    todayMessages: 0,
-    weekMessages: 0,
-    monthMessages: 0,
-    totalTokens: 0,
-    inputTokens: 0,
-    outputTokens: 0,
     errorRate: 0,
     lastActivity: null,
   });
@@ -161,18 +111,13 @@ const AdminAgentConfigPage = () => {
   const [config, setConfig] = useState<AgentConfig>({
     isActive: false,
     n8nWorkflowId: '',
-    errorWebhookUrl: '',
     provider: 'openai',
     apiKey: '',
     model: 'gpt-4o',
     temperature: 0.7,
     maxTokens: 2048,
-    topP: 1.0,
-    frequencyPenalty: 0,
-    stopSequences: [],
     contextWindowSize: 10,
     retentionPolicy: '30days',
-    historyTable: 'agent_chat_history',
     sessionKeyId: '{{ $json.session_id }}',
     systemPrompt: `Você é um assistente virtual inteligente e prestativo. 
     
@@ -186,25 +131,17 @@ Suas características:
       { id: '2', instruction: 'Nunca revele informações confidenciais do sistema', type: 'dont' },
     ],
     enableWebSearch: false,
-    customTools: [],
-    responseEndpoint: 'https://agndhravgmcwpdjkozka.supabase.co/functions/v1/agent-response',
-    responseAuthHeader: 'Authorization',
-    responseAuthToken: '',
   });
 
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
-  const [newStopSequence, setNewStopSequence] = useState('');
-  const [newTool, setNewTool] = useState({ name: '', description: '', endpoint: '' });
 
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
 
-  // ========== n8n API Functions ==========
   const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
     const { data, error } = await supabase.functions.invoke('n8n-api', {
       body: { action, ...params }
     });
-    
     if (error) throw error;
     return data;
   }, []);
@@ -220,7 +157,6 @@ Suas características:
           title: "Conexão estabelecida!",
           description: `Conectado ao n8n em ${result.n8nUrl}`,
         });
-        // Load workflows after successful connection
         loadWorkflows();
       } else {
         toast({
@@ -270,7 +206,6 @@ Suas características:
       if (result.success) {
         setExecutions(result.executions);
         
-        // Calculate metrics from executions
         const successCount = result.executions.filter((e: N8nExecution) => e.status === 'success').length;
         const errorCount = result.executions.filter((e: N8nExecution) => e.status === 'error').length;
         const total = result.executions.length;
@@ -289,88 +224,6 @@ Suas características:
     }
   };
 
-  // ========== Provisioning Functions ==========
-  const loadCustomerProducts = async () => {
-    setLoadingProducts(true);
-    try {
-      const { data, error } = await supabase
-        .from('customer_products')
-        .select(`
-          id,
-          product_slug,
-          product_title,
-          n8n_workflow_id,
-          user_id,
-          created_at,
-          is_active,
-          orders!inner (
-            customer_email,
-            customer_name
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setCustomerProducts(data || []);
-    } catch (error: any) {
-      console.error('Error loading customer products:', error);
-      toast({
-        title: "Erro ao carregar produtos",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoadingProducts(false);
-    }
-  };
-
-  const provisionWorkflow = async (customerProduct: any) => {
-    if (!templateWorkflowId) {
-      toast({
-        title: "Selecione um template",
-        description: "Escolha um workflow template antes de provisionar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setProvisioningId(customerProduct.id);
-    try {
-      const { data, error } = await supabase.functions.invoke('provision-workflow', {
-        body: {
-          customerProductId: customerProduct.id,
-          customerEmail: customerProduct.orders?.customer_email,
-          productSlug: customerProduct.product_slug,
-          productTitle: customerProduct.product_title,
-          templateWorkflowId: templateWorkflowId,
-        }
-      });
-
-      if (error) throw error;
-
-      if (data.success) {
-        toast({
-          title: "Workflow criado!",
-          description: `Workflow "${data.workflowName}" criado com sucesso.`,
-        });
-        // Reload products to update the list
-        loadCustomerProducts();
-        // Reload workflows
-        loadWorkflows();
-      } else {
-        throw new Error(data.error || 'Erro desconhecido');
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao provisionar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setProvisioningId(null);
-    }
-  };
-
   const activateWorkflow = async (workflowId: string) => {
     setTogglingAgent(true);
     try {
@@ -383,9 +236,6 @@ Suas características:
         });
         setAgentStatus('online');
         setConfig(prev => ({ ...prev, isActive: true }));
-        localStorage.setItem('agentEstado', 'ativado');
-        
-        // Update workflow list
         setWorkflows(prev => prev.map(w => 
           w.id === workflowId ? { ...w, active: true } : w
         ));
@@ -413,9 +263,6 @@ Suas características:
         });
         setAgentStatus('offline');
         setConfig(prev => ({ ...prev, isActive: false }));
-        localStorage.setItem('agentEstado', 'desativado');
-        
-        // Update workflow list
         setWorkflows(prev => prev.map(w => 
           w.id === workflowId ? { ...w, active: false } : w
         ));
@@ -448,12 +295,10 @@ Suas características:
     }
   };
 
-  // Initial load
   useEffect(() => {
     testN8nConnection();
   }, []);
 
-  // Update status when workflow is selected
   useEffect(() => {
     if (config.n8nWorkflowId) {
       const workflow = workflows.find(w => w.id === config.n8nWorkflowId);
@@ -493,48 +338,6 @@ Suas características:
     }));
   };
 
-  const addStopSequence = () => {
-    if (!newStopSequence.trim()) return;
-    setConfig(prev => ({
-      ...prev,
-      stopSequences: [...prev.stopSequences, newStopSequence]
-    }));
-    setNewStopSequence('');
-  };
-
-  const removeStopSequence = (index: number) => {
-    setConfig(prev => ({
-      ...prev,
-      stopSequences: prev.stopSequences.filter((_, i) => i !== index)
-    }));
-  };
-
-  const addCustomTool = () => {
-    if (!newTool.name.trim() || !newTool.endpoint.trim()) return;
-    setConfig(prev => ({
-      ...prev,
-      customTools: [
-        ...prev.customTools,
-        { id: Date.now().toString(), ...newTool }
-      ]
-    }));
-    setNewTool({ name: '', description: '', endpoint: '' });
-  };
-
-  const removeCustomTool = (id: string) => {
-    setConfig(prev => ({
-      ...prev,
-      customTools: prev.customTools.filter(t => t.id !== id)
-    }));
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(label);
-    setTimeout(() => setCopied(null), 2000);
-    toast({ title: "Copiado!", description: `${label} copiado para a área de transferência.` });
-  };
-
   const syncToN8n = async (workflowId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('n8n-sync-config', {
@@ -572,14 +375,11 @@ Suas características:
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Save to localStorage
       localStorage.setItem('agentConfig', JSON.stringify({
         ...config,
         apiKey: '***ENCRYPTED***',
-        responseAuthToken: '***ENCRYPTED***',
       }));
 
-      // If workflow is selected, sync to n8n
       if (config.n8nWorkflowId) {
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
@@ -612,40 +412,8 @@ Suas características:
     }
   };
 
-  const handleSyncSelectedProduct = async (product: any) => {
-    if (!product.n8n_workflow_id) {
-      toast({
-        title: "Workflow não provisionado",
-        description: "Provisione um workflow primeiro para este produto.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const syncResult = await syncToN8n(product.n8n_workflow_id);
-      
-      if (syncResult?.success) {
-        toast({
-          title: "Sincronizado!",
-          description: `Configurações aplicadas ao workflow de ${product.orders?.customer_email}`,
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao sincronizar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -692,7 +460,7 @@ Suas características:
               </div>
               <Button onClick={handleSave} disabled={loading}>
                 <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Salvando...' : 'Salvar'}
+                {loading ? 'Salvando...' : 'Salvar e Sincronizar'}
               </Button>
             </div>
           </div>
@@ -701,14 +469,10 @@ Suas características:
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="status" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
-            </TabsTrigger>
-            <TabsTrigger value="provisioning" className="gap-2">
-              <GitBranch className="h-4 w-4" />
-              <span className="hidden sm:inline">Provisionar</span>
             </TabsTrigger>
             <TabsTrigger value="engine" className="gap-2">
               <Brain className="h-4 w-4" />
@@ -732,10 +496,9 @@ Suas características:
             </TabsTrigger>
           </TabsList>
 
-          {/* ======== STATUS E ATIVAÇÃO ======== */}
+          {/* STATUS */}
           <TabsContent value="status" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Conexão n8n */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -792,7 +555,6 @@ Suas características:
                 </CardContent>
               </Card>
 
-              {/* Seleção de Workflow */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -849,12 +611,20 @@ Suas características:
                         <p>ID: {selectedWorkflow.id}</p>
                         <p>Atualizado: {new Date(selectedWorkflow.updatedAt).toLocaleString('pt-BR')}</p>
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full mt-2"
+                        onClick={() => window.open(`https://n8n.starai.com.br/workflow/${selectedWorkflow.id}`, '_blank')}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir no n8n
+                      </Button>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Controle de Status */}
               <Card className="lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -866,7 +636,6 @@ Suas características:
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {/* Toggle Principal */}
                   <div className="flex items-center justify-between p-6 rounded-xl border-2 transition-colors duration-300" style={{
                     borderColor: config.isActive ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                     backgroundColor: config.isActive ? 'hsl(var(--primary) / 0.05)' : 'transparent'
@@ -886,11 +655,6 @@ Suas características:
                         <p className="text-sm text-muted-foreground">
                           {config.isActive ? 'O workflow está ativo no n8n' : 'O workflow está desativado'}
                         </p>
-                        {config.n8nWorkflowId && (
-                          <p className="text-xs text-muted-foreground font-mono mt-1">
-                            Workflow: {config.n8nWorkflowId}
-                          </p>
-                        )}
                       </div>
                     </div>
                     <Switch
@@ -901,11 +665,9 @@ Suas características:
                     />
                   </div>
 
-                  {/* Botões de Ação */}
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     <Button 
                       variant={config.isActive ? "destructive" : "default"}
-                      className="flex-1"
                       onClick={toggleWorkflowStatus}
                       disabled={togglingAgent || !config.n8nWorkflowId || !n8nConnected}
                     >
@@ -927,287 +689,19 @@ Suas características:
                       {loadingExecutions ? (
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       ) : (
-                        <Activity className="h-4 w-4 mr-2" />
+                        <RefreshCw className="h-4 w-4 mr-2" />
                       )}
-                      Ver Execuções
+                      Atualizar Status
                     </Button>
-                    
-                    <Button 
-                      variant="outline"
-                      onClick={() => window.open(`https://n8n.starai.com.br/workflow/${config.n8nWorkflowId}`, '_blank')}
-                      disabled={!config.n8nWorkflowId}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Abrir no n8n
-                    </Button>
-                  </div>
-
-                  {/* Lista de Workflows */}
-                  <div className="space-y-2">
-                    <Label>Todos os Workflows ({workflows.length})</Label>
-                    <ScrollArea className="h-[200px] rounded-lg border p-2">
-                      {workflows.map(wf => (
-                        <div 
-                          key={wf.id}
-                          className={`flex items-center justify-between p-3 rounded-lg mb-2 cursor-pointer transition-colors ${
-                            config.n8nWorkflowId === wf.id 
-                              ? 'bg-primary/10 border border-primary' 
-                              : 'hover:bg-muted/50'
-                          }`}
-                          onClick={() => setConfig(prev => ({ ...prev, n8nWorkflowId: wf.id }))}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-2.5 h-2.5 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
-                            <div>
-                              <p className="font-medium text-sm">{wf.name}</p>
-                              <p className="text-xs text-muted-foreground">ID: {wf.id}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={wf.active ? "default" : "secondary"} className="text-xs">
-                              {wf.active ? 'Ativo' : 'Inativo'}
-                            </Badge>
-                            {config.n8nWorkflowId !== wf.id && (
-                              <Button 
-                                size="sm" 
-                                variant="ghost"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  wf.active ? deactivateWorkflow(wf.id) : activateWorkflow(wf.id);
-                                }}
-                                disabled={togglingAgent}
-                              >
-                                {wf.active ? <Square className="h-3 w-3" /> : <Play className="h-3 w-3" />}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                      {workflows.length === 0 && (
-                        <p className="text-center text-muted-foreground py-8">
-                          {loadingWorkflows ? 'Carregando...' : 'Nenhum workflow encontrado'}
-                        </p>
-                      )}
-                    </ScrollArea>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* ======== PROVISIONAMENTO DE WORKFLOWS ======== */}
-          <TabsContent value="provisioning" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-3">
-              {/* Seleção de Template */}
-              <Card className="lg:col-span-1">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <GitBranch className="h-5 w-5 text-primary" />
-                    Workflow Template
-                  </CardTitle>
-                  <CardDescription>
-                    Selecione o workflow base para duplicação
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Template (ex: "API")</Label>
-                    <Select 
-                      value={templateWorkflowId} 
-                      onValueChange={setTemplateWorkflowId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione um workflow..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workflows.map(wf => (
-                          <SelectItem key={wf.id} value={wf.id}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
-                              {wf.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Este workflow será duplicado para cada cliente
-                    </p>
-                  </div>
-
-                  {templateWorkflowId && (
-                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
-                      <p className="text-sm font-medium">Template selecionado:</p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        {workflows.find(w => w.id === templateWorkflowId)?.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        ID: {templateWorkflowId}
-                      </p>
-                    </div>
-                  )}
-
-                  <Separator />
-
-                  <Button 
-                    onClick={loadCustomerProducts} 
-                    disabled={loadingProducts}
-                    className="w-full"
-                  >
-                    {loadingProducts ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                    )}
-                    Carregar Produtos
-                  </Button>
-                </CardContent>
-              </Card>
-
-              {/* Lista de Produtos dos Clientes */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5 text-primary" />
-                    Produtos dos Clientes
-                  </CardTitle>
-                  <CardDescription>
-                    Provisione workflows para cada cliente que comprou um agente
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[500px]">
-                    {customerProducts.length === 0 ? (
-                      <div className="text-center py-12 text-muted-foreground">
-                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                        <p>Nenhum produto encontrado</p>
-                        <p className="text-sm">Clique em "Carregar Produtos" para buscar</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {customerProducts.map((cp: any) => (
-                          <div 
-                            key={cp.id} 
-                            className={`p-4 rounded-lg border transition-colors ${
-                              cp.n8n_workflow_id 
-                                ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' 
-                                : 'bg-card hover:bg-muted/50'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-semibold">{cp.product_title}</span>
-                                  {cp.n8n_workflow_id ? (
-                                    <Badge variant="default" className="bg-green-600">
-                                      <CheckCircle2 className="h-3 w-3 mr-1" />
-                                      Provisionado
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary">
-                                      Pendente
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Cliente: {cp.orders?.customer_email || 'N/A'}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {cp.orders?.customer_name} • {new Date(cp.created_at).toLocaleDateString('pt-BR')}
-                                </p>
-                                {cp.n8n_workflow_id && (
-                                  <p className="text-xs font-mono text-green-600 mt-1">
-                                    Workflow: {cp.n8n_workflow_id}
-                                  </p>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {cp.n8n_workflow_id ? (
-                                  <>
-                                    <Button 
-                                      size="sm" 
-                                      variant="default"
-                                      onClick={() => handleSyncSelectedProduct(cp)}
-                                      disabled={loading}
-                                    >
-                                      {loading ? (
-                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                      ) : (
-                                        <Zap className="h-4 w-4 mr-1" />
-                                      )}
-                                      Sincronizar
-                                    </Button>
-                                    <Button 
-                                      size="sm" 
-                                      variant="outline"
-                                      onClick={() => window.open(`https://n8n.starai.com.br/workflow/${cp.n8n_workflow_id}`, '_blank')}
-                                    >
-                                      <ExternalLink className="h-4 w-4 mr-1" />
-                                      n8n
-                                    </Button>
-                                  </>
-                                ) : (
-                                  <Button 
-                                    size="sm"
-                                    onClick={() => provisionWorkflow(cp)}
-                                    disabled={!templateWorkflowId || provisioningId === cp.id}
-                                  >
-                                    {provisioningId === cp.id ? (
-                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                    ) : (
-                                      <GitBranch className="h-4 w-4 mr-1" />
-                                    )}
-                                    Provisionar
-                                  </Button>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Estatísticas de Provisionamento */}
-            <div className="grid grid-cols-3 gap-4">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-primary">{customerProducts.length}</p>
-                    <p className="text-sm text-muted-foreground">Total de Produtos</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-green-600">
-                      {customerProducts.filter((cp: any) => cp.n8n_workflow_id).length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Provisionados</p>
-                  </div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="text-center">
-                    <p className="text-3xl font-bold text-yellow-600">
-                      {customerProducts.filter((cp: any) => !cp.n8n_workflow_id).length}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Pendentes</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* ======== MOTOR DE INTELIGÊNCIA ======== */}
+          {/* MOTOR IA */}
           <TabsContent value="engine" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
-              {/* Credenciais */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -1254,7 +748,7 @@ Suas características:
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Shield className="h-3 w-3" />
-                      Armazenamento criptografado (Vault)
+                      Armazenamento criptografado
                     </p>
                   </div>
 
@@ -1276,7 +770,6 @@ Suas características:
                 </CardContent>
               </Card>
 
-              {/* Parâmetros Básicos */}
               <Card>
                 <CardHeader>
                   <CardTitle>Parâmetros do Modelo</CardTitle>
@@ -1317,85 +810,10 @@ Suas características:
                   </div>
                 </CardContent>
               </Card>
-
-              {/* Parâmetros Avançados */}
-              <Card className="lg:col-span-2">
-                <CardHeader>
-                  <CardTitle>Parâmetros Avançados</CardTitle>
-                  <CardDescription>
-                    Controle fino sobre a geração de texto
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-6 md:grid-cols-2">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label>Top P (Foco de Amostragem)</Label>
-                        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {config.topP.toFixed(2)}
-                        </span>
-                      </div>
-                      <Slider
-                        value={[config.topP]}
-                        onValueChange={([v]) => setConfig(prev => ({ ...prev, topP: v }))}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                      />
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label>Frequência Penalidade</Label>
-                        <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
-                          {config.frequencyPenalty.toFixed(2)}
-                        </span>
-                      </div>
-                      <Slider
-                        value={[config.frequencyPenalty]}
-                        onValueChange={([v]) => setConfig(prev => ({ ...prev, frequencyPenalty: v }))}
-                        min={0}
-                        max={2}
-                        step={0.1}
-                      />
-                    </div>
-
-                    <div className="space-y-4 md:col-span-2">
-                      <Label>Sequências de Parada</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          value={newStopSequence}
-                          onChange={(e) => setNewStopSequence(e.target.value)}
-                          placeholder="Ex: USUÁRIO:"
-                          onKeyPress={(e) => e.key === 'Enter' && addStopSequence()}
-                        />
-                        <Button onClick={addStopSequence} size="icon">
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {config.stopSequences.map((seq, index) => (
-                          <Badge key={index} variant="secondary" className="gap-1 pr-1">
-                            <span className="font-mono">{seq}</span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-4 w-4 hover:bg-destructive/20"
-                              onClick={() => removeStopSequence(index)}
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </TabsContent>
 
-          {/* ======== MEMÓRIA E CONTEXTO ======== */}
+          {/* MEMÓRIA */}
           <TabsContent value="memory" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
@@ -1421,6 +839,9 @@ Suas características:
                       min={1}
                       max={100}
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Número de mensagens anteriores que o agente lembra
+                    </p>
                   </div>
 
                   <div className="space-y-2">
@@ -1450,28 +871,22 @@ Suas características:
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label>Tabela de Histórico</Label>
-                    <Input
-                      value={config.historyTable}
-                      onChange={(e) => setConfig(prev => ({ ...prev, historyTable: e.target.value }))}
-                      className="font-mono"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
                     <Label>Session Key ID</Label>
                     <Input
                       value={config.sessionKeyId}
                       onChange={(e) => setConfig(prev => ({ ...prev, sessionKeyId: e.target.value }))}
                       className="font-mono text-sm"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Variável usada para identificar sessões únicas
+                    </p>
                   </div>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          {/* ======== PERSONALIDADE ======== */}
+          {/* PERSONALIDADE */}
           <TabsContent value="personality" className="space-y-6">
             <Card>
               <CardHeader>
@@ -1479,12 +894,16 @@ Suas características:
                   <Bot className="h-5 w-5 text-primary" />
                   System Prompt Principal
                 </CardTitle>
+                <CardDescription>
+                  Defina como o agente deve se comportar e responder
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <Textarea
                   value={config.systemPrompt}
                   onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
                   className="min-h-[200px] font-mono text-sm"
+                  placeholder="Descreva a personalidade e comportamento do agente..."
                 />
               </CardContent>
             </Card>
@@ -1492,6 +911,9 @@ Suas características:
             <Card>
               <CardHeader>
                 <CardTitle>Instruções de Ação (Guardrails)</CardTitle>
+                <CardDescription>
+                  Defina o que o agente deve ou não fazer
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex gap-2">
@@ -1545,72 +967,33 @@ Suas características:
             </Card>
           </TabsContent>
 
-          {/* ======== FERRAMENTAS ======== */}
+          {/* FERRAMENTAS */}
           <TabsContent value="tools" className="space-y-6">
-            <div className="grid gap-6 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Plug className="h-5 w-5 text-primary" />
-                    RAG e Busca
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between p-4 rounded-lg border">
-                    <div>
-                      <Label className="text-base">Ativar Busca na Web (RAG)</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Integra DuckDuckGo/Google Search
-                      </p>
-                    </div>
-                    <Switch
-                      checked={config.enableWebSearch}
-                      onCheckedChange={(v) => setConfig(prev => ({ ...prev, enableWebSearch: v }))}
-                    />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plug className="h-5 w-5 text-primary" />
+                  RAG e Busca
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 rounded-lg border">
+                  <div>
+                    <Label className="text-base">Ativar Busca na Web (RAG)</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Permite ao agente buscar informações na internet
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Integração de Resposta</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>URL de Resposta (Endpoint)</Label>
-                    <Input
-                      value={config.responseEndpoint}
-                      onChange={(e) => setConfig(prev => ({ ...prev, responseEndpoint: e.target.value }))}
-                      className="font-mono text-sm"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label>Token de Autorização</Label>
-                    <div className="relative">
-                      <Input
-                        type={showAuthToken ? 'text' : 'password'}
-                        value={config.responseAuthToken}
-                        onChange={(e) => setConfig(prev => ({ ...prev, responseAuthToken: e.target.value }))}
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full"
-                        onClick={() => setShowAuthToken(!showAuthToken)}
-                      >
-                        {showAuthToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  <Switch
+                    checked={config.enableWebSearch}
+                    onCheckedChange={(v) => setConfig(prev => ({ ...prev, enableWebSearch: v }))}
+                  />
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
-          {/* ======== MONITORAMENTO ======== */}
+          {/* MONITORAMENTO */}
           <TabsContent value="monitoring" className="space-y-6">
             <div className="grid gap-6 lg:grid-cols-4">
               <Card>
@@ -1672,7 +1055,6 @@ Suas características:
               </Card>
             </div>
 
-            {/* Lista de Execuções */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
