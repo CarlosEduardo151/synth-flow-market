@@ -16,6 +16,9 @@ export type Database = {
     Tables: {
       ai_control_config: {
         Row: {
+          action_instructions: string | null
+          ai_credentials: Json | null
+          ai_model: string | null
           auto_restart: boolean | null
           configuration: Json | null
           created_at: string | null
@@ -25,10 +28,21 @@ export type Database = {
           is_active: boolean | null
           last_activity: string | null
           max_requests_per_day: number | null
+          max_tokens: number | null
+          memory_connection_string: string | null
+          memory_session_id: string | null
+          memory_type: string | null
           n8n_webhook_url: string | null
+          personality: string | null
+          system_prompt: string | null
+          temperature: number | null
+          tools_enabled: Json | null
           updated_at: string | null
         }
         Insert: {
+          action_instructions?: string | null
+          ai_credentials?: Json | null
+          ai_model?: string | null
           auto_restart?: boolean | null
           configuration?: Json | null
           created_at?: string | null
@@ -38,10 +52,21 @@ export type Database = {
           is_active?: boolean | null
           last_activity?: string | null
           max_requests_per_day?: number | null
+          max_tokens?: number | null
+          memory_connection_string?: string | null
+          memory_session_id?: string | null
+          memory_type?: string | null
           n8n_webhook_url?: string | null
+          personality?: string | null
+          system_prompt?: string | null
+          temperature?: number | null
+          tools_enabled?: Json | null
           updated_at?: string | null
         }
         Update: {
+          action_instructions?: string | null
+          ai_credentials?: Json | null
+          ai_model?: string | null
           auto_restart?: boolean | null
           configuration?: Json | null
           created_at?: string | null
@@ -51,7 +76,15 @@ export type Database = {
           is_active?: boolean | null
           last_activity?: string | null
           max_requests_per_day?: number | null
+          max_tokens?: number | null
+          memory_connection_string?: string | null
+          memory_session_id?: string | null
+          memory_type?: string | null
           n8n_webhook_url?: string | null
+          personality?: string | null
+          system_prompt?: string | null
+          temperature?: number | null
+          tools_enabled?: Json | null
           updated_at?: string | null
         }
         Relationships: [
