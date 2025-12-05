@@ -19,15 +19,37 @@ interface Message {
   created_at: string;
 }
 
+type AgentEstado = 'ativado' | 'desativado' | 'reiniciando' | 'desconhecido';
+
 const N8nAgentChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [agentEstado, setAgentEstado] = useState<AgentEstado>('desconhecido');
   const scrollRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const webhookUrl = 'https://agndhravgmcwpdjkozka.supabase.co/functions/v1/n8n-chat';
+
+  // Load agent state from localStorage
+  useEffect(() => {
+    const savedEstado = localStorage.getItem('agentEstado') as AgentEstado;
+    if (savedEstado) {
+      setAgentEstado(savedEstado);
+    }
+    
+    // Listen for estado changes from N8nAgentControl
+    const handleEstadoChange = (event: CustomEvent<{ estado: AgentEstado }>) => {
+      setAgentEstado(event.detail.estado);
+      localStorage.setItem('agentEstado', event.detail.estado);
+    };
+    
+    window.addEventListener('agentEstadoChanged', handleEstadoChange as EventListener);
+    return () => {
+      window.removeEventListener('agentEstadoChanged', handleEstadoChange as EventListener);
+    };
+  }, []);
 
   // Load messages
   const loadMessages = async () => {
@@ -62,7 +84,7 @@ const N8nAgentChat = () => {
         agent_id: 'default',
         role: 'user',
         content: newMessage,
-        metadata: { source: 'admin_panel' }
+        metadata: { source: 'admin_panel', estado: agentEstado }
       });
 
     if (error) {
@@ -82,8 +104,10 @@ const N8nAgentChat = () => {
           body: JSON.stringify({
             type: 'chat_message',
             message: newMessage,
+            estado: agentEstado, // Estado atual do agente: ativado, desativado, reiniciando, desconhecido
             source: 'admin_panel',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            webhookUrl
           })
         });
       } catch (e) {

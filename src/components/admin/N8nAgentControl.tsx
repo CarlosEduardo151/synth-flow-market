@@ -55,6 +55,18 @@ export function N8nAgentControl({
       if (data?.success) {
         setStatus({ type: 'success', message: data.message });
         toast.success(data.message);
+        
+        // Dispatch event to notify N8nAgentChat about estado change
+        const estadoMap: Record<ActionType, string> = {
+          'ativar': 'ativado',
+          'desativar': 'desativado',
+          'reiniciar': 'reiniciando'
+        };
+        const newEstado = estadoMap[action];
+        localStorage.setItem('agentEstado', newEstado);
+        window.dispatchEvent(new CustomEvent('agentEstadoChanged', { 
+          detail: { estado: newEstado } 
+        }));
       } else {
         setStatus({ 
           type: 'error', 
