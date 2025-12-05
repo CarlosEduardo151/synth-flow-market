@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { AIAgentConfig } from '@/components/AIAgentConfig';
 import { 
   Settings, 
   Webhook, 
@@ -24,7 +25,8 @@ import {
   Copy,
   CheckCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Bot
 } from 'lucide-react';
 
 interface AIConfig {
@@ -37,6 +39,7 @@ interface AIConfig {
   current_requests_count: number;
   last_activity: string | null;
   configuration: any;
+  n8n_workflow_id?: string | null;
 }
 
 const AIControlSystem = () => {
@@ -52,6 +55,7 @@ const AIControlSystem = () => {
   const [maxRequests, setMaxRequests] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [workflowId, setWorkflowId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -65,6 +69,17 @@ const AIControlSystem = () => {
     if (!user || !productId) return;
 
     try {
+      // Fetch workflow ID from customer_products
+      const { data: productData } = await supabase
+        .from('customer_products')
+        .select('n8n_workflow_id')
+        .eq('id', productId)
+        .single();
+      
+      if (productData?.n8n_workflow_id) {
+        setWorkflowId(productData.n8n_workflow_id);
+      }
+
       const { data, error } = await supabase
         .from('ai_control_config')
         .select('*')
@@ -243,12 +258,25 @@ const AIControlSystem = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="config" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="config">Configuração</TabsTrigger>
+        <Tabs defaultValue="agent" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="agent" className="flex items-center gap-1">
+              <Bot className="h-4 w-4" />
+              Agente IA
+            </TabsTrigger>
+            <TabsTrigger value="config">Webhook</TabsTrigger>
             <TabsTrigger value="control">Controle</TabsTrigger>
-            <TabsTrigger value="tutorial">Tutorial n8n</TabsTrigger>
+            <TabsTrigger value="tutorial">Tutorial</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="agent">
+            {productId && (
+              <AIAgentConfig 
+                customerProductId={productId} 
+                workflowId={workflowId}
+              />
+            )}
+          </TabsContent>
 
           <TabsContent value="config" className="space-y-4">
             <Card>

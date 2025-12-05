@@ -1,5 +1,8 @@
 project_id = "agndhravgmcwpdjkozka"
 
+[functions.n8n-sync-config]
+verify_jwt = false
+
 [functions.send_message]
 verify_jwt = false
 
