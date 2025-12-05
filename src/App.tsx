@@ -51,6 +51,7 @@ import FinancialReportsSystem from "./pages/systems/FinancialReportsSystem";
 import LoyaltySystem from "./pages/systems/LoyaltySystem";
 import AIControlSystem from "./pages/systems/AIControlSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
+import AdminAgentConfigPage from "./pages/admin/AdminAgentConfigPage";
 
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
@@ -118,6 +119,7 @@ const App = () => (
               <Route path="/admin/rentals" element={<AdminRentalsPage />} />
               <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
               <Route path="/admin/whatsapp-leads" element={<AdminWhatsAppLeadsPage />} />
+              <Route path="/admin/agent-config" element={<AdminAgentConfigPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />
