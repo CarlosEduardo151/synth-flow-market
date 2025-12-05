@@ -25,6 +25,7 @@ import {
   Bot
 } from 'lucide-react';
 import { N8nAgentControl } from '@/components/admin/N8nAgentControl';
+import N8nAgentChat from '@/components/admin/N8nAgentChat';
 import { Link } from 'react-router-dom';
 
 const AdminDashboard = () => {
@@ -216,12 +217,21 @@ const AdminDashboard = () => {
         </div>
 
         {/* N8n Agent Control Section */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Bot className="h-5 w-5 text-primary" />
-            <h2 className="text-xl font-semibold">Controle de Agentes</h2>
+        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <Bot className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold">Controle de Agentes</h2>
+            </div>
+            <N8nAgentControl />
           </div>
-          <N8nAgentControl />
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="h-5 w-5 text-primary" />
+              <h2 className="text-xl font-semibold">Chat AI Agent</h2>
+            </div>
+            <N8nAgentChat />
+          </div>
         </div>
       </main>
 
