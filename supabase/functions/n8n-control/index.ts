@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +8,9 @@ const corsHeaders = {
 
 // URL fixa do webhook n8n para controle do agente
 const N8N_CONTROL_WEBHOOK = 'https://n8n.starai.com.br/webhook-test/control-agente';
+
+// Armazenamento em memória do último comando por agente (para persistência simples)
+const agentLastCommands = new Map<string, { action: string; timestamp: string; status: string }>();
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -55,13 +59,32 @@ serve(async (req) => {
       'status': 'consultando'
     };
 
+    // Obter o último comando executado para este agente
+    const lastCommand = agentLastCommands.get(agentId) || null;
+    
+    // Determinar o estado atual do agente baseado no último comando
+    let currentAgentState = 'desconhecido';
+    if (lastCommand) {
+      if (lastCommand.action === 'ativar') currentAgentState = 'ligado';
+      else if (lastCommand.action === 'desativar') currentAgentState = 'desligado';
+      else if (lastCommand.action === 'reiniciar') currentAgentState = 'ligado'; // Após reiniciar, fica ligado
+    }
+
+    const timestamp = new Date().toISOString();
+
     const payload = {
       agentId,
       action,
-      status: statusMap[action],
+      newStatus: statusMap[action],
+      previousState: currentAgentState,
+      lastCommand: lastCommand ? {
+        action: lastCommand.action,
+        status: lastCommand.status,
+        executedAt: lastCommand.timestamp
+      } : null,
       source: 'lovable-site',
-      timestamp: new Date().toISOString(),
-      message: `Agente ${agentId}: Comando '${action}' enviado. Status: ${statusMap[action]}`
+      timestamp,
+      message: `Agente ${agentId}: Comando '${action}' enviado. Estado anterior: ${currentAgentState}. Novo status: ${statusMap[action]}`
     };
 
     console.log(`n8n-control: Sending to ${N8N_CONTROL_WEBHOOK}`, payload);
@@ -118,6 +141,15 @@ serve(async (req) => {
       );
     }
 
+    // Atualizar o último comando executado para este agente (se não for apenas consulta de status)
+    if (action !== 'status') {
+      agentLastCommands.set(agentId, {
+        action,
+        status: statusMap[action],
+        timestamp
+      });
+    }
+
     const actionMessages: Record<string, string> = {
       ativar: 'Agente LIGADO com sucesso!',
       desativar: 'Agente DESLIGADO com sucesso!',
@@ -129,7 +161,9 @@ serve(async (req) => {
       JSON.stringify({ 
         success: true, 
         message: actionMessages[action],
-        status: statusMap[action],
+        currentState: action === 'status' ? currentAgentState : statusMap[action],
+        previousState: currentAgentState,
+        lastCommand: lastCommand,
         webhookUrl: N8N_CONTROL_WEBHOOK,
         payload: payload,
         n8nResponse: responseData
