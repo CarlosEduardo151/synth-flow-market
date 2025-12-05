@@ -12,13 +12,16 @@ const N8N_API_KEY = Deno.env.get('N8N_API_KEY');
 interface N8nApiRequest {
   action: 'list_workflows' | 'get_workflow' | 'activate_workflow' | 'deactivate_workflow' | 
           'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
-          'delete_workflow' | 'get_workflow_tags' | 'test_connection';
+          'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow';
   workflowId?: string;
   executionId?: string;
   data?: any;
   limit?: number;
   cursor?: string;
   status?: string;
+  newName?: string;
+  customerEmail?: string;
+  productTitle?: string;
 }
 
 // Helper to make n8n API requests
@@ -235,6 +238,44 @@ serve(async (req) => {
         result = {
           success: true,
           tags: tags.data || [],
+        };
+        break;
+      }
+
+      // ========== DUPLICATE WORKFLOW ==========
+      case 'duplicate_workflow': {
+        if (!workflowId) throw new Error('workflowId é obrigatório');
+        
+        const { newName, customerEmail, productTitle }: N8nApiRequest = await req.json().catch(() => ({}));
+        
+        // 1. Buscar o workflow template
+        console.log(`n8n-api: Buscando workflow template ${workflowId}`);
+        const templateWorkflow = await n8nRequest(`/workflows/${workflowId}`);
+        
+        // 2. Criar nome do novo workflow
+        const workflowName = newName || `[${customerEmail}] ${productTitle || templateWorkflow.name}`;
+        
+        // 3. Preparar dados do novo workflow (remover ID e campos que não podem ser copiados)
+        const newWorkflowData = {
+          name: workflowName,
+          nodes: templateWorkflow.nodes,
+          connections: templateWorkflow.connections,
+          settings: templateWorkflow.settings || {},
+          staticData: null,
+          active: false, // Novo workflow começa desativado
+        };
+        
+        console.log(`n8n-api: Criando novo workflow: ${workflowName}`);
+        
+        // 4. Criar o novo workflow
+        const newWorkflow = await n8nRequest('/workflows', 'POST', newWorkflowData);
+        
+        result = {
+          success: true,
+          message: `Workflow duplicado com sucesso: ${workflowName}`,
+          workflow: newWorkflow,
+          workflowId: newWorkflow.id,
+          workflowName: newWorkflow.name,
         };
         break;
       }

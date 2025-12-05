@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Bot, Brain, MessageSquare, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, AlertCircle, Settings2, Shield, Zap, Clock, Database,
-  ExternalLink, Copy, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog
+  ExternalLink, Copy, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Users, GitBranch
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -139,6 +139,12 @@ const AdminAgentConfigPage = () => {
   const [executions, setExecutions] = useState<N8nExecution[]>([]);
   const [loadingExecutions, setLoadingExecutions] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
+  
+  // Provisioning State
+  const [templateWorkflowId, setTemplateWorkflowId] = useState<string>('');
+  const [customerProducts, setCustomerProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+  const [provisioningId, setProvisioningId] = useState<string | null>(null);
   
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
@@ -280,6 +286,88 @@ Suas características:
       console.error('Error loading executions:', error);
     } finally {
       setLoadingExecutions(false);
+    }
+  };
+
+  // ========== Provisioning Functions ==========
+  const loadCustomerProducts = async () => {
+    setLoadingProducts(true);
+    try {
+      const { data, error } = await supabase
+        .from('customer_products')
+        .select(`
+          id,
+          product_slug,
+          product_title,
+          n8n_workflow_id,
+          user_id,
+          created_at,
+          is_active,
+          orders!inner (
+            customer_email,
+            customer_name
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCustomerProducts(data || []);
+    } catch (error: any) {
+      console.error('Error loading customer products:', error);
+      toast({
+        title: "Erro ao carregar produtos",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const provisionWorkflow = async (customerProduct: any) => {
+    if (!templateWorkflowId) {
+      toast({
+        title: "Selecione um template",
+        description: "Escolha um workflow template antes de provisionar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProvisioningId(customerProduct.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('provision-workflow', {
+        body: {
+          customerProductId: customerProduct.id,
+          customerEmail: customerProduct.orders?.customer_email,
+          productSlug: customerProduct.product_slug,
+          productTitle: customerProduct.product_title,
+          templateWorkflowId: templateWorkflowId,
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.success) {
+        toast({
+          title: "Workflow criado!",
+          description: `Workflow "${data.workflowName}" criado com sucesso.`,
+        });
+        // Reload products to update the list
+        loadCustomerProducts();
+        // Reload workflows
+        loadWorkflows();
+      } else {
+        throw new Error(data.error || 'Erro desconhecido');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao provisionar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setProvisioningId(null);
     }
   };
 
@@ -539,10 +627,14 @@ Suas características:
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="status" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
+            </TabsTrigger>
+            <TabsTrigger value="provisioning" className="gap-2">
+              <GitBranch className="h-4 w-4" />
+              <span className="hidden sm:inline">Provisionar</span>
             </TabsTrigger>
             <TabsTrigger value="engine" className="gap-2">
               <Brain className="h-4 w-4" />
@@ -823,6 +915,200 @@ Suas características:
                         </p>
                       )}
                     </ScrollArea>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* ======== PROVISIONAMENTO DE WORKFLOWS ======== */}
+          <TabsContent value="provisioning" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* Seleção de Template */}
+              <Card className="lg:col-span-1">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <GitBranch className="h-5 w-5 text-primary" />
+                    Workflow Template
+                  </CardTitle>
+                  <CardDescription>
+                    Selecione o workflow base para duplicação
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Template (ex: "API")</Label>
+                    <Select 
+                      value={templateWorkflowId} 
+                      onValueChange={setTemplateWorkflowId}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um workflow..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workflows.map(wf => (
+                          <SelectItem key={wf.id} value={wf.id}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                              {wf.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Este workflow será duplicado para cada cliente
+                    </p>
+                  </div>
+
+                  {templateWorkflowId && (
+                    <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <p className="text-sm font-medium">Template selecionado:</p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        {workflows.find(w => w.id === templateWorkflowId)?.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ID: {templateWorkflowId}
+                      </p>
+                    </div>
+                  )}
+
+                  <Separator />
+
+                  <Button 
+                    onClick={loadCustomerProducts} 
+                    disabled={loadingProducts}
+                    className="w-full"
+                  >
+                    {loadingProducts ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                    )}
+                    Carregar Produtos
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Lista de Produtos dos Clientes */}
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    Produtos dos Clientes
+                  </CardTitle>
+                  <CardDescription>
+                    Provisione workflows para cada cliente que comprou um agente
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="h-[500px]">
+                    {customerProducts.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum produto encontrado</p>
+                        <p className="text-sm">Clique em "Carregar Produtos" para buscar</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {customerProducts.map((cp: any) => (
+                          <div 
+                            key={cp.id} 
+                            className={`p-4 rounded-lg border transition-colors ${
+                              cp.n8n_workflow_id 
+                                ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' 
+                                : 'bg-card hover:bg-muted/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="font-semibold">{cp.product_title}</span>
+                                  {cp.n8n_workflow_id ? (
+                                    <Badge variant="default" className="bg-green-600">
+                                      <CheckCircle2 className="h-3 w-3 mr-1" />
+                                      Provisionado
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary">
+                                      Pendente
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  Cliente: {cp.orders?.customer_email || 'N/A'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {cp.orders?.customer_name} • {new Date(cp.created_at).toLocaleDateString('pt-BR')}
+                                </p>
+                                {cp.n8n_workflow_id && (
+                                  <p className="text-xs font-mono text-green-600 mt-1">
+                                    Workflow: {cp.n8n_workflow_id}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {cp.n8n_workflow_id ? (
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => window.open(`https://n8n.starai.com.br/workflow/${cp.n8n_workflow_id}`, '_blank')}
+                                  >
+                                    <ExternalLink className="h-4 w-4 mr-1" />
+                                    Abrir
+                                  </Button>
+                                ) : (
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => provisionWorkflow(cp)}
+                                    disabled={!templateWorkflowId || provisioningId === cp.id}
+                                  >
+                                    {provisioningId === cp.id ? (
+                                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <GitBranch className="h-4 w-4 mr-1" />
+                                    )}
+                                    Provisionar
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Estatísticas de Provisionamento */}
+            <div className="grid grid-cols-3 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-primary">{customerProducts.length}</p>
+                    <p className="text-sm text-muted-foreground">Total de Produtos</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-green-600">
+                      {customerProducts.filter((cp: any) => cp.n8n_workflow_id).length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Provisionados</p>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center">
+                    <p className="text-3xl font-bold text-yellow-600">
+                      {customerProducts.filter((cp: any) => !cp.n8n_workflow_id).length}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Pendentes</p>
                   </div>
                 </CardContent>
               </Card>

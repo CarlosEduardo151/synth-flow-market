@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.n8n-api]
 verify_jwt = false
+
+[functions.provision-workflow]
+verify_jwt = false
