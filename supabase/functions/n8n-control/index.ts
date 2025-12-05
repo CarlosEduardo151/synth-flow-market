@@ -72,19 +72,28 @@ serve(async (req) => {
 
     const timestamp = new Date().toISOString();
 
+    // Determinar o estado atual para enviar no payload
+    const estadoMap: Record<string, string> = {
+      'ativar': 'ativado',
+      'desativar': 'desativado',
+      'reiniciar': 'reiniciando',
+      'status': currentAgentState === 'ligado' ? 'ativado' : currentAgentState === 'desligado' ? 'desativado' : 'desconhecido'
+    };
+
     const payload = {
       agentId,
       action,
-      newStatus: statusMap[action],
-      previousState: currentAgentState,
+      tipo: action, // comando executado: ativar, desativar, reiniciar, status
+      estado: estadoMap[action], // estado resultante: ativado, desativado, reiniciando
+      estadoAnterior: currentAgentState === 'ligado' ? 'ativado' : currentAgentState === 'desligado' ? 'desativado' : 'desconhecido',
       lastCommand: lastCommand ? {
         action: lastCommand.action,
-        status: lastCommand.status,
+        estado: lastCommand.action === 'ativar' ? 'ativado' : lastCommand.action === 'desativar' ? 'desativado' : 'reiniciando',
         executedAt: lastCommand.timestamp
       } : null,
       source: 'lovable-site',
       timestamp,
-      message: `Agente ${agentId}: Comando '${action}' enviado. Estado anterior: ${currentAgentState}. Novo status: ${statusMap[action]}`
+      message: `Agente ${agentId}: Comando '${action}' executado. Estado: ${estadoMap[action]}`
     };
 
     console.log(`n8n-control: Sending to ${N8N_CONTROL_WEBHOOK}`, payload);
