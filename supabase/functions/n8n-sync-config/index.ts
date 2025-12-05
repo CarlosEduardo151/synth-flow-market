@@ -324,23 +324,26 @@ serve(async (req) => {
 
       // Main sync action - apply config to n8n workflow
       case 'sync_config': {
-        if (!customerProductId) throw new Error('customerProductId é obrigatório');
+        let targetWorkflowId = workflowId;
         
-        // 1. Get customer product to find workflow ID
-        const { data: customerProduct, error: cpError } = await supabase
-          .from('customer_products')
-          .select('n8n_workflow_id, user_id, product_slug')
-          .eq('id', customerProductId)
-          .single();
-        
-        if (cpError || !customerProduct) {
-          throw new Error('Produto não encontrado');
+        // If customerProductId is provided, get workflow from there
+        if (customerProductId) {
+          const { data: customerProduct, error: cpError } = await supabase
+            .from('customer_products')
+            .select('n8n_workflow_id, user_id, product_slug')
+            .eq('id', customerProductId)
+            .single();
+          
+          if (cpError || !customerProduct) {
+            throw new Error('Produto não encontrado');
+          }
+          
+          targetWorkflowId = workflowId || customerProduct.n8n_workflow_id;
         }
         
-        const targetWorkflowId = workflowId || customerProduct.n8n_workflow_id;
-        
+        // Either workflowId must be provided directly or via customerProduct
         if (!targetWorkflowId) {
-          throw new Error('Workflow n8n não provisionado para este produto');
+          throw new Error('workflowId é obrigatório');
         }
         
         // 2. Get current workflow from n8n
@@ -386,30 +389,34 @@ serve(async (req) => {
         console.log(`n8n-sync-config: Updating workflow ${targetWorkflowId}`);
         const savedWorkflow = await n8nRequest(`/workflows/${targetWorkflowId}`, 'PUT', updatedWorkflow);
         
-        // 5. Save config to database
-        const configData: any = {
-          customer_product_id: customerProductId,
-          ai_model: config?.aiModel || 'gpt-4o-mini',
-          system_prompt: config?.systemPrompt,
-          personality: config?.personality,
-          action_instructions: config?.actionInstructions,
-          memory_type: config?.memoryType || 'postgresql',
-          memory_connection_string: config?.memoryConnectionString,
-          memory_session_id: config?.memorySessionId || `session_${customerProductId}`,
-          temperature: config?.temperature ?? 0.7,
-          max_tokens: config?.maxTokens ?? 2048,
-          tools_enabled: config?.toolsEnabled || [],
-          ai_credentials: config?.aiCredentials || {},
-          updated_at: new Date().toISOString(),
-        };
-        
-        const { error: saveError } = await supabase
-          .from('ai_control_config')
-          .upsert(configData, { onConflict: 'customer_product_id' });
-        
-        if (saveError) {
-          console.error('n8n-sync-config: Error saving to DB', saveError);
-          // Don't throw - n8n was updated successfully
+        // 5. Save config to database (only if customerProductId provided)
+        let configSaved = false;
+        if (customerProductId) {
+          const configData: any = {
+            customer_product_id: customerProductId,
+            ai_model: config?.aiModel || 'gpt-4o-mini',
+            system_prompt: config?.systemPrompt,
+            personality: config?.personality,
+            action_instructions: config?.actionInstructions,
+            memory_type: config?.memoryType || 'postgresql',
+            memory_connection_string: config?.memoryConnectionString,
+            memory_session_id: config?.memorySessionId || `session_${customerProductId}`,
+            temperature: config?.temperature ?? 0.7,
+            max_tokens: config?.maxTokens ?? 2048,
+            tools_enabled: config?.toolsEnabled || [],
+            ai_credentials: config?.aiCredentials || {},
+            updated_at: new Date().toISOString(),
+          };
+          
+          const { error: saveError } = await supabase
+            .from('ai_control_config')
+            .upsert(configData, { onConflict: 'customer_product_id' });
+          
+          if (saveError) {
+            console.error('n8n-sync-config: Error saving to DB', saveError);
+          } else {
+            configSaved = true;
+          }
         }
         
         result = {
@@ -418,7 +425,7 @@ serve(async (req) => {
           workflowId: targetWorkflowId,
           workflowName: savedWorkflow.name,
           updatedNodes: updateLog,
-          configSaved: !saveError,
+          configSaved,
         };
         break;
       }
