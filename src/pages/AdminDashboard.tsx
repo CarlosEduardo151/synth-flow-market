@@ -113,6 +113,14 @@ const AdminDashboard = () => {
       link: '/admin/installments',
       color: 'bg-orange-500',
       stats: 'Ver todas'
+    },
+    {
+      title: 'Config. Agente IA',
+      description: 'Configurar motor, memória e personalidade',
+      icon: Bot,
+      link: '/admin/agent-config',
+      color: 'bg-cyan-500',
+      stats: 'Protótipo'
     }
   ];
 
