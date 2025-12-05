@@ -583,6 +583,7 @@ export type Database = {
           is_active: boolean
           max_downloads: number | null
           monthly_rental_price: number | null
+          n8n_workflow_id: string | null
           order_id: string
           product_slug: string
           product_title: string
@@ -604,6 +605,7 @@ export type Database = {
           is_active?: boolean
           max_downloads?: number | null
           monthly_rental_price?: number | null
+          n8n_workflow_id?: string | null
           order_id: string
           product_slug: string
           product_title: string
@@ -625,6 +627,7 @@ export type Database = {
           is_active?: boolean
           max_downloads?: number | null
           monthly_rental_price?: number | null
+          n8n_workflow_id?: string | null
           order_id?: string
           product_slug?: string
           product_title?: string
