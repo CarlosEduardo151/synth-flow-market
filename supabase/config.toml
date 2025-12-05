@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.n8n-control]
 verify_jwt = true
+
+[functions.n8n-agent-webhook]
+verify_jwt = false
