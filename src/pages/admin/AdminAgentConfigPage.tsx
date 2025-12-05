@@ -535,33 +535,107 @@ Suas características:
     toast({ title: "Copiado!", description: `${label} copiado para a área de transferência.` });
   };
 
+  const syncToN8n = async (workflowId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('n8n-sync-config', {
+        body: {
+          action: 'sync_config',
+          workflowId,
+          config: {
+            aiModel: config.model,
+            systemPrompt: config.systemPrompt,
+            personality: config.actionInstructions
+              .filter(i => i.type === 'do')
+              .map(i => i.instruction)
+              .join('\n'),
+            actionInstructions: config.actionInstructions
+              .map(i => `${i.type === 'do' ? '✓' : '✗'} ${i.instruction}`)
+              .join('\n'),
+            temperature: config.temperature,
+            maxTokens: config.maxTokens,
+            memorySessionId: config.sessionKeyId,
+            aiCredentials: {
+              [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
+            },
+          },
+        },
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Sync error:', error);
+      throw error;
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
-      if (!config.apiKey) {
-        toast({
-          title: "API Key obrigatória",
-          description: "Por favor, insira sua chave de API.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
+      // Save to localStorage
       localStorage.setItem('agentConfig', JSON.stringify({
         ...config,
         apiKey: '***ENCRYPTED***',
         responseAuthToken: '***ENCRYPTED***',
       }));
 
-      toast({
-        title: "Configuração salva!",
-        description: "As configurações do agente foram atualizadas com sucesso.",
-      });
-    } catch (error) {
+      // If workflow is selected, sync to n8n
+      if (config.n8nWorkflowId) {
+        const syncResult = await syncToN8n(config.n8nWorkflowId);
+        
+        if (syncResult?.success) {
+          toast({
+            title: "Configuração sincronizada!",
+            description: `Workflow "${syncResult.workflowName}" atualizado no n8n. ${syncResult.updatedNodes?.join(', ') || ''}`,
+          });
+        } else {
+          toast({
+            title: "Configuração salva localmente",
+            description: "Salvo local, mas falha ao sincronizar com n8n.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        toast({
+          title: "Configuração salva!",
+          description: "Selecione um workflow para sincronizar com n8n.",
+        });
+      }
+    } catch (error: any) {
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar as configurações.",
+        description: error.message || "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSyncSelectedProduct = async (product: any) => {
+    if (!product.n8n_workflow_id) {
+      toast({
+        title: "Workflow não provisionado",
+        description: "Provisione um workflow primeiro para este produto.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const syncResult = await syncToN8n(product.n8n_workflow_id);
+      
+      if (syncResult?.success) {
+        toast({
+          title: "Sincronizado!",
+          description: `Configurações aplicadas ao workflow de ${product.orders?.customer_email}`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
@@ -1049,14 +1123,29 @@ Suas características:
                               </div>
                               <div className="flex items-center gap-2">
                                 {cp.n8n_workflow_id ? (
-                                  <Button 
-                                    size="sm" 
-                                    variant="outline"
-                                    onClick={() => window.open(`https://n8n.starai.com.br/workflow/${cp.n8n_workflow_id}`, '_blank')}
-                                  >
-                                    <ExternalLink className="h-4 w-4 mr-1" />
-                                    Abrir
-                                  </Button>
+                                  <>
+                                    <Button 
+                                      size="sm" 
+                                      variant="default"
+                                      onClick={() => handleSyncSelectedProduct(cp)}
+                                      disabled={loading}
+                                    >
+                                      {loading ? (
+                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                      ) : (
+                                        <Zap className="h-4 w-4 mr-1" />
+                                      )}
+                                      Sincronizar
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => window.open(`https://n8n.starai.com.br/workflow/${cp.n8n_workflow_id}`, '_blank')}
+                                    >
+                                      <ExternalLink className="h-4 w-4 mr-1" />
+                                      n8n
+                                    </Button>
+                                  </>
                                 ) : (
                                   <Button 
                                     size="sm"
