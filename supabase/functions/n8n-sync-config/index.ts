@@ -350,6 +350,12 @@ serve(async (req) => {
         console.log(`n8n-sync-config: Fetching workflow ${targetWorkflowId}`);
         const workflow = await n8nRequest(`/workflows/${targetWorkflowId}`);
         
+        // Log all nodes in workflow for debugging
+        console.log(`n8n-sync-config: Found ${workflow.nodes?.length || 0} nodes in workflow`);
+        workflow.nodes?.forEach((n: any) => {
+          console.log(`n8n-sync-config: Node: ${n.name} (type: ${n.type})`);
+        });
+        
         // 3. Find and update nodes
         let updatedNodes = [...(workflow.nodes || [])];
         const updateLog: string[] = [];
@@ -357,15 +363,27 @@ serve(async (req) => {
         // Update AI Agent node
         const aiAgentIndex = updatedNodes.findIndex(n => findAIAgentNode([n]));
         if (aiAgentIndex !== -1) {
+          const originalParams = JSON.stringify(updatedNodes[aiAgentIndex].parameters);
           updatedNodes[aiAgentIndex] = updateAIAgentNode(updatedNodes[aiAgentIndex], config);
+          const newParams = JSON.stringify(updatedNodes[aiAgentIndex].parameters);
+          console.log(`n8n-sync-config: AI Agent params changed: ${originalParams !== newParams}`);
+          console.log(`n8n-sync-config: AI Agent systemMessage: ${updatedNodes[aiAgentIndex].parameters?.systemMessage?.substring(0, 100)}...`);
           updateLog.push('AI Agent atualizado');
+        } else {
+          console.log(`n8n-sync-config: AI Agent node NOT found`);
         }
         
         // Update Chat Model node
         const chatModelIndex = updatedNodes.findIndex(n => findChatModelNode([n]));
         if (chatModelIndex !== -1) {
+          const originalParams = JSON.stringify(updatedNodes[chatModelIndex].parameters);
           updatedNodes[chatModelIndex] = updateChatModelNode(updatedNodes[chatModelIndex], config);
+          const newParams = JSON.stringify(updatedNodes[chatModelIndex].parameters);
+          console.log(`n8n-sync-config: Chat Model params changed: ${originalParams !== newParams}`);
+          console.log(`n8n-sync-config: Chat Model model: ${updatedNodes[chatModelIndex].parameters?.model}`);
           updateLog.push('Modelo de Chat atualizado');
+        } else {
+          console.log(`n8n-sync-config: Chat Model node NOT found`);
         }
         
         // Update Memory node
@@ -373,6 +391,8 @@ serve(async (req) => {
         if (memoryIndex !== -1) {
           updatedNodes[memoryIndex] = updateMemoryNode(updatedNodes[memoryIndex], config);
           updateLog.push('Memória atualizada');
+        } else {
+          console.log(`n8n-sync-config: Memory node NOT found`);
         }
         
         // 4. Push updated workflow to n8n - only include required properties
