@@ -375,17 +375,17 @@ serve(async (req) => {
           updateLog.push('Memória atualizada');
         }
         
-        // 4. Push updated workflow to n8n - only include accepted properties
-        const updatedWorkflow = {
+        // 4. Push updated workflow to n8n - only include required properties
+        const updatedWorkflow: Record<string, any> = {
           name: workflow.name,
           nodes: updatedNodes,
-          connections: workflow.connections,
-          settings: workflow.settings,
-          staticData: workflow.staticData,
-          pinData: workflow.pinData,
+          connections: workflow.connections || {},
         };
         
-        console.log(`n8n-sync-config: Updating workflow ${targetWorkflowId}`);
+        // Only add optional properties if they exist
+        if (workflow.settings) updatedWorkflow.settings = workflow.settings;
+        
+        console.log(`n8n-sync-config: Updating workflow ${targetWorkflowId} with keys: ${Object.keys(updatedWorkflow).join(', ')}`);
         const savedWorkflow = await n8nRequest(`/workflows/${targetWorkflowId}`, 'PUT', updatedWorkflow);
         
         // 5. Save config to database (only if customerProductId provided)
