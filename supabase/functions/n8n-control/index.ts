@@ -5,15 +5,18 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// URL fixa do webhook n8n para controle do agente
+const N8N_CONTROL_WEBHOOK = 'https://n8n.starai.com.br/webhook-test/control-agente';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { agentId, action, httpMethod = 'POST' } = await req.json();
+    const { agentId, action } = await req.json();
 
-    console.log(`n8n-control: Received action '${action}' for agent '${agentId}' using ${httpMethod}`);
+    console.log(`n8n-control: Received action '${action}' for agent '${agentId}'`);
 
     // Validate required fields
     if (!agentId || !action) {
@@ -30,7 +33,7 @@ serve(async (req) => {
     }
 
     // Validate action type
-    const validActions = ['ativar', 'desativar', 'reiniciar'];
+    const validActions = ['ativar', 'desativar', 'reiniciar', 'status'];
     if (!validActions.includes(action)) {
       return new Response(
         JSON.stringify({ 
@@ -44,59 +47,32 @@ serve(async (req) => {
       );
     }
 
-    // Get n8n credentials from environment
-    const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
-    const n8nApiKey = Deno.env.get('N8N_API_KEY');
-
-    if (!n8nWebhookUrl) {
-      console.error('N8N_WEBHOOK_URL not configured');
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          message: 'ERRO: Configuração do n8n não encontrada. Configure N8N_WEBHOOK_URL.' 
-        }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
+    // Determinar o status baseado na ação
+    const statusMap: Record<string, string> = {
+      'ativar': 'ligado',
+      'desativar': 'desligado',
+      'reiniciar': 'reiniciando',
+      'status': 'consultando'
+    };
 
     const payload = {
       agentId,
       action,
+      status: statusMap[action],
+      source: 'lovable-site',
       timestamp: new Date().toISOString(),
+      message: `Agente ${agentId}: Comando '${action}' enviado. Status: ${statusMap[action]}`
     };
 
-    let n8nResponse;
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    if (n8nApiKey) {
-      headers['Authorization'] = `Bearer ${n8nApiKey}`;
-    }
+    console.log(`n8n-control: Sending to ${N8N_CONTROL_WEBHOOK}`, payload);
 
-    if (httpMethod === 'GET') {
-      // Build URL with query parameters for GET request
-      const url = new URL(n8nWebhookUrl);
-      url.searchParams.append('agentId', agentId);
-      url.searchParams.append('action', action);
-      url.searchParams.append('timestamp', payload.timestamp);
-
-      console.log(`n8n-control: Sending GET request to ${url.toString()}`);
-      n8nResponse = await fetch(url.toString(), {
-        method: 'GET',
-        headers,
-      });
-    } else {
-      // Send POST request to n8n webhook
-      console.log(`n8n-control: Sending POST request to ${n8nWebhookUrl}`);
-      n8nResponse = await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-    }
+    const n8nResponse = await fetch(N8N_CONTROL_WEBHOOK, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
 
     let responseData: Record<string, unknown> = {};
     const contentType = n8nResponse.headers.get('content-type');
@@ -115,8 +91,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'ERRO: Webhook n8n não encontrado. Verifique se o workflow está ATIVO no n8n e se a URL está correta (use a URL de produção, não de teste).',
+          message: 'ERRO: Webhook n8n não encontrado. Verifique se o workflow está ATIVO no n8n.',
           hint: 'No n8n, ative o workflow clicando no botão "Active" no canto superior direito.',
+          webhookUrl: N8N_CONTROL_WEBHOOK,
           details: responseData
         }),
         { 
@@ -130,7 +107,8 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: `ERRO: Falha ao ${action === 'ativar' ? 'ligar' : action === 'desativar' ? 'desligar' : 'reiniciar'} o agente.`,
+          message: `ERRO: Falha ao executar ação '${action}'.`,
+          webhookUrl: N8N_CONTROL_WEBHOOK,
           details: responseData
         }),
         { 
@@ -140,17 +118,21 @@ serve(async (req) => {
       );
     }
 
-    const actionMessages = {
-      ativar: 'Agente ativado com sucesso!',
-      desativar: 'Agente desativado com sucesso!',
-      reiniciar: 'Agente reiniciado com sucesso!',
+    const actionMessages: Record<string, string> = {
+      ativar: 'Agente LIGADO com sucesso!',
+      desativar: 'Agente DESLIGADO com sucesso!',
+      reiniciar: 'Agente REINICIADO com sucesso!',
+      status: 'Status consultado com sucesso!'
     };
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: actionMessages[action as keyof typeof actionMessages],
-        data: responseData
+        message: actionMessages[action],
+        status: statusMap[action],
+        webhookUrl: N8N_CONTROL_WEBHOOK,
+        payload: payload,
+        n8nResponse: responseData
       }),
       { 
         status: 200, 
@@ -163,7 +145,8 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        message: `ERRO: ${error instanceof Error ? error.message : 'Erro desconhecido'}` 
+        message: `ERRO: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        webhookUrl: N8N_CONTROL_WEBHOOK
       }),
       { 
         status: 500, 
