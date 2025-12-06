@@ -13,7 +13,8 @@ interface N8nApiRequest {
   action: 'list_workflows' | 'get_workflow' | 'activate_workflow' | 'deactivate_workflow' | 
           'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
           'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow' |
-          'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential';
+          'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential' |
+          'update_llm_config';
   workflowId?: string;
   executionId?: string;
   data?: any;
@@ -31,6 +32,11 @@ interface N8nApiRequest {
   credentialType?: string;
   credentialData?: Record<string, any>;
   credentialId?: string;
+  // Para update_llm_config
+  provider?: 'openai' | 'google';
+  apiKey?: string;
+  model?: string;
+  llmNodeId?: string;
 }
 
 // Helper to make n8n API requests
@@ -90,7 +96,8 @@ serve(async (req) => {
       action, workflowId, executionId, data, limit, cursor, status,
       newName, customerEmail, productTitle,
       newSystemMessage, agentNodeId,
-      credentialName, credentialType, credentialData, credentialId
+      credentialName, credentialType, credentialData, credentialId,
+      provider, apiKey, model, llmNodeId
     }: N8nApiRequest = requestBody;
     
     console.log(`n8n-api: Action '${action}' received`);
@@ -435,6 +442,133 @@ serve(async (req) => {
         result = {
           success: true,
           message: `Credencial ${credentialId} deletada com sucesso`,
+        };
+        break;
+      }
+
+      // ========== UPDATE LLM CONFIG (Credencial + Modelo no Workflow) ==========
+      case 'update_llm_config': {
+        if (!workflowId) throw new Error('workflowId é obrigatório');
+        if (!provider) throw new Error('provider é obrigatório (openai ou google)');
+        if (!apiKey) throw new Error('apiKey é obrigatório');
+        if (!model) throw new Error('model é obrigatório');
+        
+        console.log(`n8n-api: Atualizando LLM config do workflow ${workflowId} para ${provider}/${model}`);
+        
+        // 1. Determinar tipo de credencial e nome para o n8n
+        const credentialConfig = provider === 'openai' 
+          ? { 
+              type: 'openAiApi', 
+              credKey: 'openAiApi',
+              nodeType: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+              data: { apiKey }
+            }
+          : { 
+              type: 'googlePalmApi', 
+              credKey: 'googlePalmApi',
+              nodeType: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini',
+              data: { apiKey }
+            };
+        
+        // 2. Criar ou atualizar credencial no n8n
+        const credName = `Cliente_${provider}_${Date.now()}`;
+        console.log(`n8n-api: Criando credencial ${credName}`);
+        
+        const newCredential = await n8nRequest('/credentials', 'POST', {
+          name: credName,
+          type: credentialConfig.type,
+          data: credentialConfig.data,
+        });
+        
+        console.log(`n8n-api: Credencial criada com ID ${newCredential.id}`);
+        
+        // 3. Buscar workflow completo
+        const workflow = await n8nRequest(`/workflows/${workflowId}`);
+        const wasActive = workflow.active;
+        
+        // 4. Encontrar o nó LLM (Chat Model) no workflow
+        const targetLlmNodeId = llmNodeId;
+        let llmNodeIndex = -1;
+        
+        if (targetLlmNodeId) {
+          llmNodeIndex = workflow.nodes.findIndex((node: any) => node.id === targetLlmNodeId);
+        }
+        
+        // Fallback: buscar por tipo de nó de chat model
+        if (llmNodeIndex === -1) {
+          llmNodeIndex = workflow.nodes.findIndex((node: any) => 
+            node.type === '@n8n/n8n-nodes-langchain.lmChatGoogleGemini' ||
+            node.type === '@n8n/n8n-nodes-langchain.lmChatOpenAi' ||
+            node.type?.includes('lmChat')
+          );
+        }
+        
+        if (llmNodeIndex === -1) {
+          throw new Error('Nó de Chat Model (LLM) não encontrado no workflow');
+        }
+        
+        console.log(`n8n-api: Nó LLM encontrado no índice ${llmNodeIndex}, tipo: ${workflow.nodes[llmNodeIndex].type}`);
+        
+        // 5. Atualizar nó LLM com nova credencial e modelo
+        const updatedNodes = [...workflow.nodes];
+        const llmNode = { ...updatedNodes[llmNodeIndex] };
+        
+        // Atualizar tipo do nó se necessário (trocar entre OpenAI e Gemini)
+        llmNode.type = credentialConfig.nodeType;
+        
+        // Atualizar credenciais
+        llmNode.credentials = {
+          [credentialConfig.credKey]: {
+            id: newCredential.id,
+            name: credName,
+          }
+        };
+        
+        // Atualizar modelo nos parâmetros
+        llmNode.parameters = llmNode.parameters || {};
+        llmNode.parameters.model = model;
+        
+        // Para OpenAI, ajustar nome do campo se necessário
+        if (provider === 'openai') {
+          llmNode.parameters.model = model;
+        } else {
+          // Para Gemini
+          llmNode.parameters.modelName = model;
+        }
+        
+        updatedNodes[llmNodeIndex] = llmNode;
+        
+        // 6. Enviar workflow atualizado
+        const updatePayload = {
+          name: workflow.name,
+          nodes: updatedNodes,
+          connections: workflow.connections,
+          ...(workflow.settings && { settings: workflow.settings }),
+        };
+        
+        console.log(`n8n-api: Enviando atualização do workflow`);
+        const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
+        
+        // 7. Reativar workflow se estava ativo
+        if (wasActive) {
+          console.log(`n8n-api: Reativando workflow`);
+          try {
+            await n8nRequest(`/workflows/${workflowId}/deactivate`, 'POST');
+            await n8nRequest(`/workflows/${workflowId}/activate`, 'POST');
+          } catch (reactivateError) {
+            console.warn(`n8n-api: Erro ao reativar workflow:`, reactivateError);
+          }
+        }
+        
+        result = {
+          success: true,
+          message: `Configuração LLM atualizada: ${provider}/${model}`,
+          credentialId: newCredential.id,
+          credentialName: credName,
+          workflowId: savedWorkflow.id,
+          provider,
+          model,
+          nodeType: credentialConfig.nodeType,
         };
         break;
       }

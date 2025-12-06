@@ -93,6 +93,7 @@ const AdminAgentConfigPage = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [agentStatus, setAgentStatus] = useState<'online' | 'offline' | 'loading' | 'unknown'>('unknown');
   const [togglingAgent, setTogglingAgent] = useState(false);
+  const [syncingLlm, setSyncingLlm] = useState(false);
   
   const [n8nConnected, setN8nConnected] = useState<boolean | null>(null);
   const [n8nTesting, setN8nTesting] = useState(false);
@@ -416,6 +417,54 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
     }
   };
 
+  // Sincronizar credenciais e modelo LLM com n8n
+  const syncLlmConfigToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        description: "Selecione um workflow na aba Status antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!config.apiKey) {
+      toast({
+        title: "API Key não informada",
+        description: "Insira a chave de API do provedor selecionado.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingLlm(true);
+    try {
+      const result = await n8nApiCall('update_llm_config', {
+        workflowId: config.n8nWorkflowId,
+        provider: config.provider,
+        apiKey: config.apiKey,
+        model: config.model,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Motor IA sincronizado!",
+          description: `${result.provider}/${result.model} configurado no workflow. Credencial ID: ${result.credentialId}`,
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao sincronizar LLM');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar Motor IA",
+        description: error.message || "Não foi possível sincronizar as credenciais.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingLlm(false);
+    }
+  };
+
   const handleSave = async () => {
     setLoading(true);
     try {
@@ -438,18 +487,35 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
           newSystemMessage: fullPrompt,
         });
 
+        // Sincronizar credenciais e modelo LLM
+        let llmResult = { success: true };
+        if (config.apiKey && config.apiKey !== '***ENCRYPTED***') {
+          llmResult = await n8nApiCall('update_llm_config', {
+            workflowId: config.n8nWorkflowId,
+            provider: config.provider,
+            apiKey: config.apiKey,
+            model: config.model,
+          });
+        }
+
         // Também sincroniza outras configurações via n8n-sync-config
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
-        if (promptResult?.success && syncResult?.success) {
+        if (promptResult?.success && llmResult?.success && syncResult?.success) {
           toast({
             title: "Tudo sincronizado!",
-            description: `System Prompt e configurações atualizadas no workflow ${config.n8nWorkflowId}`,
+            description: `System Prompt, Motor IA (${config.provider}/${config.model}) e configurações atualizadas.`,
+          });
+        } else if (promptResult?.success && llmResult?.success) {
+          toast({
+            title: "Prompt e Motor sincronizados!",
+            description: "System Prompt e credenciais atualizadas. Algumas configurações adicionais podem não ter sido aplicadas.",
           });
         } else if (promptResult?.success) {
           toast({
             title: "Prompt sincronizado!",
-            description: "System Prompt atualizado. Algumas configurações adicionais podem não ter sido aplicadas.",
+            description: "System Prompt atualizado. Falha ao sincronizar Motor IA.",
+            variant: "destructive",
           });
         } else {
           toast({
@@ -830,6 +896,26 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <Button 
+                    onClick={syncLlmConfigToN8n} 
+                    disabled={syncingLlm || !config.n8nWorkflowId || !config.apiKey}
+                    className="w-full gap-2"
+                    variant="outline"
+                  >
+                    {syncingLlm ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {syncingLlm ? 'Sincronizando...' : 'Salvar Credencial no n8n'}
+                  </Button>
+                  
+                  {!config.n8nWorkflowId && (
+                    <p className="text-xs text-amber-500">
+                      Selecione um workflow na aba Status para sincronizar
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
