@@ -12,7 +12,8 @@ const N8N_API_KEY = Deno.env.get('N8N_API_KEY');
 interface N8nApiRequest {
   action: 'list_workflows' | 'get_workflow' | 'activate_workflow' | 'deactivate_workflow' | 
           'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
-          'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow';
+          'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow' |
+          'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential';
   workflowId?: string;
   executionId?: string;
   data?: any;
@@ -22,6 +23,14 @@ interface N8nApiRequest {
   newName?: string;
   customerEmail?: string;
   productTitle?: string;
+  // Para update_system_prompt
+  newSystemMessage?: string;
+  agentNodeId?: string;
+  // Para create_credential
+  credentialName?: string;
+  credentialType?: string;
+  credentialData?: Record<string, any>;
+  credentialId?: string;
 }
 
 // Helper to make n8n API requests
@@ -76,7 +85,13 @@ serve(async (req) => {
       throw new Error('N8N_API_KEY não está configurado');
     }
 
-    const { action, workflowId, executionId, data, limit, cursor, status }: N8nApiRequest = await req.json();
+    const requestBody = await req.json();
+    const { 
+      action, workflowId, executionId, data, limit, cursor, status,
+      newName, customerEmail, productTitle,
+      newSystemMessage, agentNodeId,
+      credentialName, credentialType, credentialData, credentialId
+    }: N8nApiRequest = requestBody;
     
     console.log(`n8n-api: Action '${action}' received`);
 
@@ -246,8 +261,6 @@ serve(async (req) => {
       case 'duplicate_workflow': {
         if (!workflowId) throw new Error('workflowId é obrigatório');
         
-        const { newName, customerEmail, productTitle }: N8nApiRequest = await req.json().catch(() => ({}));
-        
         // 1. Buscar o workflow template
         console.log(`n8n-api: Buscando workflow template ${workflowId}`);
         const templateWorkflow = await n8nRequest(`/workflows/${workflowId}`);
@@ -276,6 +289,152 @@ serve(async (req) => {
           workflow: newWorkflow,
           workflowId: newWorkflow.id,
           workflowName: newWorkflow.name,
+        };
+        break;
+      }
+
+      // ========== UPDATE SYSTEM PROMPT (Personalidade) ==========
+      case 'update_system_prompt': {
+        if (!workflowId) throw new Error('workflowId é obrigatório');
+        if (!newSystemMessage) throw new Error('newSystemMessage é obrigatório');
+        
+        console.log(`n8n-api: Atualizando system prompt do workflow ${workflowId}`);
+        
+        // 1. Buscar o workflow completo
+        const workflow = await n8nRequest(`/workflows/${workflowId}`);
+        const wasActive = workflow.active;
+        
+        // 2. Encontrar o nó AI Agent (por ID específico ou por tipo)
+        const targetNodeId = agentNodeId || '37ada3be-cb69-4cad-8c9f-06eefe75aded';
+        let agentNodeIndex = workflow.nodes.findIndex((node: any) => node.id === targetNodeId);
+        
+        // Fallback: buscar por tipo se não encontrar pelo ID
+        if (agentNodeIndex === -1) {
+          agentNodeIndex = workflow.nodes.findIndex((node: any) => 
+            node.type === '@n8n/n8n-nodes-langchain.agent'
+          );
+        }
+        
+        if (agentNodeIndex === -1) {
+          throw new Error('Nó AI Agent não encontrado no workflow');
+        }
+        
+        console.log(`n8n-api: Nó AI Agent encontrado no índice ${agentNodeIndex}`);
+        
+        // 3. Modificar apenas o systemMessage
+        const updatedNodes = [...workflow.nodes];
+        const agentNode = { ...updatedNodes[agentNodeIndex] };
+        
+        // Garantir que a estrutura de parâmetros existe
+        agentNode.parameters = agentNode.parameters || {};
+        agentNode.parameters.options = agentNode.parameters.options || {};
+        agentNode.parameters.options.systemMessage = newSystemMessage;
+        
+        updatedNodes[agentNodeIndex] = agentNode;
+        
+        // 4. Enviar o workflow atualizado (apenas campos permitidos)
+        const updatePayload = {
+          name: workflow.name,
+          nodes: updatedNodes,
+          connections: workflow.connections,
+          ...(workflow.settings && { settings: workflow.settings }),
+        };
+        
+        console.log(`n8n-api: Enviando atualização do workflow`);
+        const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
+        
+        // 5. Reativar workflow se estava ativo
+        if (wasActive) {
+          console.log(`n8n-api: Reativando workflow`);
+          try {
+            await n8nRequest(`/workflows/${workflowId}/deactivate`, 'POST');
+            await n8nRequest(`/workflows/${workflowId}/activate`, 'POST');
+          } catch (reactivateError) {
+            console.warn(`n8n-api: Erro ao reativar workflow:`, reactivateError);
+          }
+        }
+        
+        result = {
+          success: true,
+          message: `System prompt atualizado com sucesso`,
+          workflowId: savedWorkflow.id,
+          nodeId: updatedNodes[agentNodeIndex].id,
+          systemMessagePreview: newSystemMessage.substring(0, 100) + '...',
+        };
+        break;
+      }
+
+      // ========== CREATE CREDENTIAL (Chaves do Cliente) ==========
+      case 'create_credential': {
+        if (!credentialName) throw new Error('credentialName é obrigatório');
+        if (!credentialType) throw new Error('credentialType é obrigatório (ex: openAiApi, googleApi)');
+        if (!credentialData) throw new Error('credentialData é obrigatório');
+        
+        console.log(`n8n-api: Criando credencial ${credentialName} do tipo ${credentialType}`);
+        
+        // Mapear tipos comuns para o formato do n8n
+        const typeMapping: Record<string, string> = {
+          'openai': 'openAiApi',
+          'openai_api': 'openAiApi',
+          'openAiApi': 'openAiApi',
+          'google': 'googleApi',
+          'googleApi': 'googleApi',
+          'google_sheets': 'googleSheetsOAuth2Api',
+          'whatsapp': 'whatsAppBusinessCloudApi',
+          'telegram': 'telegramApi',
+          'discord': 'discordBotApi',
+          'slack': 'slackApi',
+          'postgres': 'postgres',
+          'mysql': 'mySql',
+        };
+        
+        const n8nCredentialType = typeMapping[credentialType] || credentialType;
+        
+        const credentialPayload = {
+          name: credentialName,
+          type: n8nCredentialType,
+          data: credentialData,
+        };
+        
+        const newCredential = await n8nRequest('/credentials', 'POST', credentialPayload);
+        
+        console.log(`n8n-api: Credencial criada com ID ${newCredential.id}`);
+        
+        result = {
+          success: true,
+          message: `Credencial '${credentialName}' criada com sucesso`,
+          credentialId: newCredential.id,
+          credentialName: newCredential.name,
+          credentialType: newCredential.type,
+        };
+        break;
+      }
+
+      // ========== LIST CREDENTIALS ==========
+      case 'list_credentials': {
+        console.log(`n8n-api: Listando credenciais`);
+        
+        const credentials = await n8nRequest('/credentials');
+        
+        result = {
+          success: true,
+          credentials: credentials.data || [],
+          totalCount: credentials.data?.length || 0,
+        };
+        break;
+      }
+
+      // ========== DELETE CREDENTIAL ==========
+      case 'delete_credential': {
+        if (!credentialId) throw new Error('credentialId é obrigatório');
+        
+        console.log(`n8n-api: Deletando credencial ${credentialId}`);
+        
+        await n8nRequest(`/credentials/${credentialId}`, 'DELETE');
+        
+        result = {
+          success: true,
+          message: `Credencial ${credentialId} deletada com sucesso`,
         };
         break;
       }
