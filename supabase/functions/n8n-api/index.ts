@@ -464,8 +464,8 @@ serve(async (req) => {
               data: { apiKey }
             }
           : { 
-              type: 'googleGeminiApi', 
-              credKey: 'googleGeminiApi',
+              type: 'googlePalmApi', 
+              credKey: 'googlePalmApi',
               nodeType: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini',
               data: { apiKey }
             };
