@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, Shield, Database,
-  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog
+  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -135,6 +135,7 @@ Suas características:
 
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
+  const [syncingPrompt, setSyncingPrompt] = useState(false);
 
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
 
@@ -369,6 +370,49 @@ Suas características:
     } catch (error) {
       console.error('Sync error:', error);
       throw error;
+    }
+  };
+
+  // Sincronizar apenas o System Prompt diretamente com n8n
+  const syncSystemPromptToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        description: "Selecione um workflow na aba Status antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingPrompt(true);
+    try {
+      // Monta o prompt completo com instruções de ação
+      const fullPrompt = `${config.systemPrompt}
+
+=== INSTRUÇÕES DE AÇÃO ===
+${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NUNCA FAÇA:'} ${i.instruction}`).join('\n')}`;
+
+      const result = await n8nApiCall('update_system_prompt', {
+        workflowId: config.n8nWorkflowId,
+        newSystemMessage: fullPrompt,
+      });
+
+      if (result.success) {
+        toast({
+          title: "System Prompt sincronizado!",
+          description: `Atualizado no workflow ${config.n8nWorkflowId}`,
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao sincronizar');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: error.message || "Não foi possível sincronizar o System Prompt.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingPrompt(false);
     }
   };
 
@@ -890,21 +934,50 @@ Suas características:
           <TabsContent value="personality" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Bot className="h-5 w-5 text-primary" />
-                  System Prompt Principal
-                </CardTitle>
-                <CardDescription>
-                  Defina como o agente deve se comportar e responder
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Bot className="h-5 w-5 text-primary" />
+                      System Prompt Principal
+                    </CardTitle>
+                    <CardDescription>
+                      Defina como o agente deve se comportar e responder
+                    </CardDescription>
+                  </div>
+                  <Button 
+                    onClick={syncSystemPromptToN8n} 
+                    disabled={syncingPrompt || !config.n8nWorkflowId}
+                    variant="outline"
+                    className="gap-2"
+                  >
+                    {syncingPrompt ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {syncingPrompt ? 'Sincronizando...' : 'Sincronizar com n8n'}
+                  </Button>
+                </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <Textarea
                   value={config.systemPrompt}
                   onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                  className="min-h-[200px] font-mono text-sm"
+                  className="min-h-[250px] font-mono text-sm"
                   placeholder="Descreva a personalidade e comportamento do agente..."
                 />
+                {!config.n8nWorkflowId && (
+                  <p className="text-sm text-amber-500 flex items-center gap-2">
+                    <XCircle className="h-4 w-4" />
+                    Selecione um workflow na aba "Status" para habilitar sincronização
+                  </p>
+                )}
+                {config.n8nWorkflowId && (
+                  <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    Workflow selecionado: <code className="bg-muted px-1 rounded">{config.n8nWorkflowId}</code>
+                  </p>
+                )}
               </CardContent>
             </Card>
 
