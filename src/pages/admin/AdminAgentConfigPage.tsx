@@ -419,18 +419,37 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
   const handleSave = async () => {
     setLoading(true);
     try {
+      // Salvar localmente
       localStorage.setItem('agentConfig', JSON.stringify({
         ...config,
         apiKey: '***ENCRYPTED***',
       }));
 
       if (config.n8nWorkflowId) {
+        // Monta o prompt completo com instruções de ação
+        const fullPrompt = `${config.systemPrompt}
+
+=== INSTRUÇÕES DE AÇÃO ===
+${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NUNCA FAÇA:'} ${i.instruction}`).join('\n')}`;
+
+        // Sincronizar System Prompt diretamente via update_system_prompt
+        const promptResult = await n8nApiCall('update_system_prompt', {
+          workflowId: config.n8nWorkflowId,
+          newSystemMessage: fullPrompt,
+        });
+
+        // Também sincroniza outras configurações via n8n-sync-config
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
-        if (syncResult?.success) {
+        if (promptResult?.success && syncResult?.success) {
           toast({
-            title: "Configuração sincronizada!",
-            description: `Workflow "${syncResult.workflowName}" atualizado no n8n. ${syncResult.updatedNodes?.join(', ') || ''}`,
+            title: "Tudo sincronizado!",
+            description: `System Prompt e configurações atualizadas no workflow ${config.n8nWorkflowId}`,
+          });
+        } else if (promptResult?.success) {
+          toast({
+            title: "Prompt sincronizado!",
+            description: "System Prompt atualizado. Algumas configurações adicionais podem não ter sido aplicadas.",
           });
         } else {
           toast({
@@ -934,30 +953,13 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
           <TabsContent value="personality" className="space-y-6">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Bot className="h-5 w-5 text-primary" />
-                      System Prompt Principal
-                    </CardTitle>
-                    <CardDescription>
-                      Defina como o agente deve se comportar e responder
-                    </CardDescription>
-                  </div>
-                  <Button 
-                    onClick={syncSystemPromptToN8n} 
-                    disabled={syncingPrompt || !config.n8nWorkflowId}
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    {syncingPrompt ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Send className="h-4 w-4" />
-                    )}
-                    {syncingPrompt ? 'Sincronizando...' : 'Sincronizar com n8n'}
-                  </Button>
-                </div>
+                <CardTitle className="flex items-center gap-2">
+                  <Bot className="h-5 w-5 text-primary" />
+                  System Prompt Principal
+                </CardTitle>
+                <CardDescription>
+                  Defina como o agente deve se comportar e responder
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
