@@ -407,6 +407,19 @@ serve(async (req) => {
         
         console.log(`n8n-sync-config: Updating workflow ${targetWorkflowId} with keys: ${Object.keys(updatedWorkflow).join(', ')}`);
         const savedWorkflow = await n8nRequest(`/workflows/${targetWorkflowId}`, 'PUT', updatedWorkflow);
+        console.log(`n8n-sync-config: PUT response - workflow updated: ${savedWorkflow?.id}`);
+        
+        // 4.5 Reactivate workflow if it was active (n8n requires this to apply changes)
+        if (workflow.active) {
+          console.log(`n8n-sync-config: Reactivating workflow ${targetWorkflowId}`);
+          try {
+            await n8nRequest(`/workflows/${targetWorkflowId}/deactivate`, 'POST');
+            await n8nRequest(`/workflows/${targetWorkflowId}/activate`, 'POST');
+            console.log(`n8n-sync-config: Workflow reactivated successfully`);
+          } catch (reactivateError) {
+            console.warn(`n8n-sync-config: Could not reactivate workflow:`, reactivateError);
+          }
+        }
         
         // 5. Save config to database (only if customerProductId provided)
         let configSaved = false;
