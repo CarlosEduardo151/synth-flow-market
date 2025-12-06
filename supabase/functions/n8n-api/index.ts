@@ -477,7 +477,11 @@ serve(async (req) => {
         const newCredential = await n8nRequest('/credentials', 'POST', {
           name: credName,
           type: credentialConfig.type,
-          data: credentialConfig.data,
+          data: {
+            ...credentialConfig.data,
+            host: provider === 'openai' ? 'https://api.openai.com' : 'https://generativelanguage.googleapis.com',
+            allowedDomains: ['*'],
+          },
         });
         
         console.log(`n8n-api: Credencial criada com ID ${newCredential.id}`);
