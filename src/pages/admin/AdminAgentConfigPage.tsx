@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -72,12 +72,72 @@ const OPENAI_MODELS = [
   { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Econômico)' },
 ];
 
-const GOOGLE_MODELS = [
-  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recomendado)' },
-  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Avançado)' },
-  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+// Modelos Google organizados por categoria
+type GoogleModelCategory = 'chat' | 'image' | 'video' | 'tts' | 'special';
+
+interface GoogleModel {
+  value: string;
+  label: string;
+  description: string;
+  category: GoogleModelCategory;
+}
+
+const GOOGLE_MODELS: GoogleModel[] = [
+  // Chat / Conversação - Gemini 2.5
+  { value: 'models/gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Versão estável lançado em 17 de junho de 2025', category: 'chat' },
+  { value: 'models/gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Multimodal de médio porte, até 1M tokens (abril 2025)', category: 'chat' },
+  { value: 'models/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', description: 'Versão estável lançado em julho de 2025', category: 'chat' },
+  { value: 'models/gemini-2.5-flash-lite-preview-09-2025', label: 'Gemini 2.5 Flash-Lite Preview', description: 'Versão prévia (25 de setembro de 2025)', category: 'chat' },
+  { value: 'models/gemini-2.5-computer-use-preview-10-2025', label: 'Gemini 2.5 Computer Use', description: 'Prévia de Uso de Computador', category: 'chat' },
+  // Chat / Conversação - Gemini 2.0
+  { value: 'models/gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Modelo multimodal rápido e versátil', category: 'chat' },
+  { value: 'models/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash 001', description: 'Versão estável lançado em janeiro de 2025', category: 'chat' },
+  { value: 'models/gemini-2.0-flash-exp', label: 'Gemini 2.0 Flash Experimental', description: 'Versão experimental', category: 'chat' },
+  { value: 'models/gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite', description: 'Versão leve do 2.0 Flash', category: 'chat' },
+  { value: 'models/gemini-2.0-flash-lite-001', label: 'Gemini 2.0 Flash Lite 001', description: 'Versão estável lançado em julho de 2025', category: 'chat' },
+  { value: 'models/gemini-2.0-flash-lite-preview', label: 'Gemini 2.0 Flash Lite Preview', description: 'Versão prévia (5 de fevereiro de 2025)', category: 'chat' },
+  { value: 'models/gemini-2.0-pro-exp', label: 'Gemini 2.0 Pro Experimental', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
+  { value: 'models/gemini-2.0-pro-exp-02-05', label: 'Gemini 2.0 Pro Exp 02-05', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
+  // Chat / Conversação - Latest
+  { value: 'models/gemini-pro-latest', label: 'Gemini Pro Latest', description: 'Último lançamento do Gemini Pro', category: 'chat' },
+  { value: 'models/gemini-flash-latest', label: 'Gemini Flash Latest', description: 'Último lançamento do Gemini Flash', category: 'chat' },
+  { value: 'models/gemini-flash-lite-latest', label: 'Gemini Flash Lite Latest', description: 'Último lançamento do Gemini Flash-Lite', category: 'chat' },
+  { value: 'models/gemini-exp-1206', label: 'Gemini Exp 1206', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
+  // Gemma Models
+  { value: 'models/gemma-3-12b-it', label: 'Gemma 3 12B IT', description: 'Modelo Gemma 3 com 12B parâmetros', category: 'chat' },
+  { value: 'models/gemma-3-27b-it', label: 'Gemma 3 27B IT', description: 'Modelo Gemma 3 com 27B parâmetros', category: 'chat' },
+  { value: 'models/gemma-3n-e2b-it', label: 'Gemma 3N E2B IT', description: 'Modelo Gemma 3N E2B', category: 'chat' },
+  { value: 'models/gemma-3n-e4b-it', label: 'Gemma 3N E4B IT', description: 'Modelo Gemma 3N E4B', category: 'chat' },
+  // AQA
+  { value: 'models/aqa', label: 'AQA', description: 'Respostas fundamentadas em pesquisa para maior precisão', category: 'chat' },
+  // Geração de Imagem
+  { value: 'models/gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image', description: 'Versão estável lançado em julho de 2025', category: 'image' },
+  { value: 'models/gemini-2.5-flash-image-preview', label: 'Gemini 2.5 Flash Image Preview', description: 'Prévia de Imagem do Gemini 2.5 Flash', category: 'image' },
+  { value: 'models/gemini-2.0-flash-exp-image-generation', label: 'Gemini 2.0 Flash Image Gen', description: 'Geração de Imagem Experimental', category: 'image' },
+  { value: 'models/gemini-3-pro-image-preview', label: 'Gemini 3 Pro Image Preview', description: 'Prévia de Imagem do Gemini 3 Pro', category: 'image' },
+  { value: 'vertex/imagen-4.0-fast-generate-001', label: 'Imagen 4.0 Fast', description: 'Modelo Imagen 4.0 rápido servido pelo Vertex', category: 'image' },
+  { value: 'vertex/imagen-4.0-generate-001', label: 'Imagen 4.0', description: 'Modelo Imagen 4.0 servido pelo Vertex', category: 'image' },
+  { value: 'vertex/imagen-4.0-ultra-generate-preview-06-06', label: 'Imagen 4.0 Ultra', description: 'Modelo Imagen 4.0 ultra servido pelo Vertex', category: 'image' },
+  { value: 'vertex/nano-banana-pro-preview', label: 'Nano Banana Pro Preview', description: 'Prévia de Imagem do Gemini 3 Pro', category: 'image' },
+  // Geração de Vídeo
+  { value: 'models/veo-2.0-generate-001', label: 'Veo 2.0', description: 'Modelo Veo 2.0 para geração de vídeo', category: 'video' },
+  { value: 'models/veo-3.0-fast-generate-001', label: 'Veo 3 Fast', description: 'Veo 3 rápido para geração de vídeo', category: 'video' },
+  { value: 'models/veo-3.0-generate-001', label: 'Veo 3', description: 'Veo 3 para geração de vídeo', category: 'video' },
+  { value: 'models/veo-3.1-generate-001', label: 'Veo 3.1', description: 'Veo 3.1 para geração de vídeo', category: 'video' },
+  // Text-to-Speech
+  { value: 'models/gemini-2.5-flash-preview-tts', label: 'Gemini 2.5 Flash TTS', description: 'Prévia Text-to-Speech Set 2025', category: 'tts' },
+  { value: 'models/gemini-3-pro-preview-tts', label: 'Gemini 3 Pro TTS Preview', description: 'Prévia Text-to-Speech do Gemini 3 Pro', category: 'tts' },
+  // Especiais
+  { value: 'models/gemini-robotics-er-1.5-preview', label: 'Gemini Robotics ER 1.5', description: 'Prévia ER 1.5 de Robótica', category: 'special' },
 ];
+
+const GOOGLE_CATEGORY_LABELS: Record<GoogleModelCategory, string> = {
+  chat: '💬 Chat / Conversação',
+  image: '🖼️ Geração de Imagem',
+  video: '🎬 Geração de Vídeo',
+  tts: '🔊 Text-to-Speech (TTS)',
+  special: '🤖 Especiais',
+};
 
 const RETENTION_OPTIONS = [
   { value: '7days', label: '7 dias' },
@@ -318,7 +378,7 @@ Suas características:
     setConfig(prev => ({
       ...prev,
       provider,
-      model: provider === 'openai' ? 'gpt-4o' : 'gemini-2.5-flash',
+      model: provider === 'openai' ? 'gpt-4o' : 'models/gemini-2.5-flash',
     }));
   };
 
@@ -923,17 +983,43 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   <div className="space-y-2">
                     <Label>Modelo</Label>
                     <Select value={config.model} onValueChange={(v) => setConfig(prev => ({ ...prev, model: v }))}>
-                      <SelectTrigger>
-                        <SelectValue />
+                      <SelectTrigger className="bg-background">
+                        <SelectValue placeholder="Selecione um modelo" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {availableModels.map(model => (
-                          <SelectItem key={model.value} value={model.value}>
-                            {model.label}
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="bg-popover max-h-[400px]">
+                        {config.provider === 'openai' ? (
+                          // OpenAI Models - lista simples
+                          OPENAI_MODELS.map(model => (
+                            <SelectItem key={model.value} value={model.value}>
+                              {model.label}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          // Google Models - agrupado por categoria
+                          (['chat', 'image', 'video', 'tts', 'special'] as GoogleModelCategory[]).map((category) => {
+                            const modelsInCategory = GOOGLE_MODELS.filter(m => m.category === category);
+                            if (modelsInCategory.length === 0) return null;
+                            return (
+                              <SelectGroup key={category}>
+                                <SelectLabel className="bg-muted/50 text-muted-foreground">
+                                  {GOOGLE_CATEGORY_LABELS[category]}
+                                </SelectLabel>
+                                {modelsInCategory.map((model) => (
+                                  <SelectItem key={model.value} value={model.value}>
+                                    {model.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            );
+                          })
+                        )}
                       </SelectContent>
                     </Select>
+                    {config.provider === 'google' && (
+                      <p className="text-xs text-muted-foreground">
+                        {GOOGLE_MODELS.find(m => m.value === config.model)?.description}
+                      </p>
+                    )}
                   </div>
 
                   <Button 
