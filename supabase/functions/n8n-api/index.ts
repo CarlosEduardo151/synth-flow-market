@@ -450,63 +450,22 @@ serve(async (req) => {
         break;
       }
 
-      // ========== UPDATE LLM CONFIG (Credencial + Modelo no Workflow) ==========
+      // ========== UPDATE LLM CONFIG (Modelo no Workflow - sem criar credencial) ==========
       case 'update_llm_config': {
         if (!workflowId) throw new Error('workflowId é obrigatório');
-        if (!provider) throw new Error('provider é obrigatório (openai ou google)');
-        if (!apiKey) throw new Error('apiKey é obrigatório');
         if (!model) throw new Error('model é obrigatório');
         
-        console.log(`n8n-api: Atualizando LLM config do workflow ${workflowId} para ${provider}/${model}`);
+        // Provider é opcional - se não fornecido, detectamos do modelo
+        const detectedProvider = model.toLowerCase().includes('gpt') || model.toLowerCase().includes('openai') ? 'openai' : 'google';
+        const actualProvider = provider || detectedProvider;
         
-        // 1. Determinar tipo de credencial e nome para o n8n
-        const credentialConfig = provider === 'openai' 
-          ? { 
-              type: 'openAiApi', 
-              credKey: 'openAiApi',
-              nodeType: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
-            }
-          : { 
-              type: 'googlePalmApi', 
-              credKey: 'googlePalmApi',
-              nodeType: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini',
-            };
+        console.log(`n8n-api: Atualizando LLM config do workflow ${workflowId} para ${actualProvider}/${model}`);
         
-        // 2. Criar ou atualizar credencial no n8n
-        // Formato conforme documentação: https://community.n8n.io/t/how-to-create-an-gemini-and-llm-credential-with-api/65682
-        const credName = `Cliente_${provider}_${Date.now()}`;
-        console.log(`n8n-api: Criando credencial ${credName}`);
-        
-        // Montar payload de credencial conforme tipo
-        const credentialPayload: any = {
-          name: credName,
-          type: credentialConfig.type,
-        };
-        
-        if (provider === 'openai') {
-          credentialPayload.data = {
-            apiKey: apiKey,
-            allowedDomains: ['*'],
-          };
-        } else {
-          // Google PaLM/Gemini API - formato conforme documentação n8n
-          credentialPayload.data = {
-            host: 'https://generativelanguage.googleapis.com',
-            apiKey: apiKey,
-            allowedDomains: ['*'],
-          };
-        }
-        
-        console.log(`n8n-api: Payload de credencial:`, JSON.stringify(credentialPayload));
-        const newCredential = await n8nRequest('/credentials', 'POST', credentialPayload);
-        
-        console.log(`n8n-api: Credencial criada com ID ${newCredential.id}`);
-        
-        // 3. Buscar workflow completo
+        // 1. Buscar workflow completo
         const workflow = await n8nRequest(`/workflows/${workflowId}`);
         const wasActive = workflow.active;
         
-        // 4. Encontrar o nó LLM (Chat Model) no workflow
+        // 2. Encontrar o nó LLM (Chat Model) no workflow
         const targetLlmNodeId = llmNodeId;
         let llmNodeIndex = -1;
         
@@ -529,36 +488,29 @@ serve(async (req) => {
         
         console.log(`n8n-api: Nó LLM encontrado no índice ${llmNodeIndex}, tipo: ${workflow.nodes[llmNodeIndex].type}`);
         
-        // 5. Atualizar nó LLM com nova credencial e modelo
+        // 3. Atualizar apenas os parâmetros do nó (mantendo credenciais existentes)
         const updatedNodes = [...workflow.nodes];
         const llmNode = { ...updatedNodes[llmNodeIndex] };
         
-        // Atualizar tipo do nó se necessário (trocar entre OpenAI e Gemini)
-        llmNode.type = credentialConfig.nodeType;
-        
-        // Atualizar credenciais
-        llmNode.credentials = {
-          [credentialConfig.credKey]: {
-            id: newCredential.id,
-            name: credName,
-          }
-        };
+        // Manter credenciais existentes
+        console.log(`n8n-api: Mantendo credenciais existentes: ${JSON.stringify(llmNode.credentials || {})}`);
         
         // Atualizar modelo nos parâmetros
         llmNode.parameters = llmNode.parameters || {};
-        llmNode.parameters.model = model;
         
-        // Para OpenAI, ajustar nome do campo se necessário
-        if (provider === 'openai') {
-          llmNode.parameters.model = model;
-        } else {
-          // Para Gemini
+        // Para Gemini, o campo é modelName
+        if (llmNode.type?.includes('GoogleGemini') || actualProvider === 'google') {
           llmNode.parameters.modelName = model;
+          console.log(`n8n-api: Definindo modelName (Gemini) = ${model}`);
+        } else {
+          // Para OpenAI, o campo é model
+          llmNode.parameters.model = model;
+          console.log(`n8n-api: Definindo model (OpenAI) = ${model}`);
         }
         
         updatedNodes[llmNodeIndex] = llmNode;
         
-        // 6. Enviar workflow atualizado
+        // 4. Enviar workflow atualizado
         const updatePayload = {
           name: workflow.name,
           nodes: updatedNodes,
@@ -569,7 +521,7 @@ serve(async (req) => {
         console.log(`n8n-api: Enviando atualização do workflow`);
         const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
         
-        // 7. Reativar workflow se estava ativo
+        // 5. Reativar workflow se estava ativo
         if (wasActive) {
           console.log(`n8n-api: Reativando workflow`);
           try {
@@ -582,13 +534,11 @@ serve(async (req) => {
         
         result = {
           success: true,
-          message: `Configuração LLM atualizada: ${provider}/${model}`,
-          credentialId: newCredential.id,
-          credentialName: credName,
+          message: `Modelo LLM atualizado para: ${model}`,
           workflowId: savedWorkflow.id,
-          provider,
+          provider: actualProvider,
           model,
-          nodeType: credentialConfig.nodeType,
+          llmNodeType: llmNode.type,
         };
         break;
       }
