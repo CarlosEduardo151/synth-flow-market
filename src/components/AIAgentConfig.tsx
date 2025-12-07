@@ -48,15 +48,27 @@ interface AIConfig {
 }
 
 const AI_MODELS = [
+  // OpenAI Models
   { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Mais inteligente, multimodal' },
   { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Rápido e econômico' },
   { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'Contexto grande' },
   { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Mais barato' },
+  // Anthropic Models
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Equilibrado' },
   { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Mais capaz' },
   { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', description: 'Mais rápido' },
-  { id: 'gemini-pro', name: 'Gemini Pro', provider: 'Google', description: 'Multimodal' },
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Contexto enorme' },
+  // Google Gemini 3 Models (Mais recentes)
+  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', provider: 'Google', description: 'Modelo mais avançado - raciocínio complexo e agentes' },
+  // Google Gemini 2.5 Models
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Modelo pensante avançado - STEM, código e análise' },
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Melhor custo-benefício - rápido e inteligente' },
+  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', description: 'Ultra rápido - otimizado para eficiência' },
+  // Google Gemini 2.0 Models (Anteriores)
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: '2ª geração - ferramentas nativas, 1M tokens' },
+  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: '2ª geração rápido - baixa latência' },
+  // Google Gemini 1.5 Models (Legacy)
+  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Contexto enorme - 2M tokens' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Versão rápida do 1.5' },
 ];
 
 const CREDENTIAL_TYPES = [
