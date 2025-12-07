@@ -14,7 +14,7 @@ interface N8nApiRequest {
           'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
           'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow' |
           'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential' |
-          'update_llm_config';
+          'update_llm_config' | 'update_memory_config';
   workflowId?: string;
   executionId?: string;
   data?: any;
@@ -37,6 +37,10 @@ interface N8nApiRequest {
   apiKey?: string;
   model?: string;
   llmNodeId?: string;
+  // Para update_memory_config
+  memoryNodeId?: string;
+  sessionIdKey?: string;
+  contextWindowSize?: number;
 }
 
 // Helper to make n8n API requests
@@ -574,6 +578,196 @@ serve(async (req) => {
           model,
           nodeType: credentialConfig.nodeType,
         };
+        break;
+      }
+
+      // ========== UPDATE MEMORY CONFIG (PostgreSQL VPS) ==========
+      case 'update_memory_config': {
+        if (!workflowId) throw new Error('workflowId é obrigatório');
+        
+        console.log(`n8n-api: Atualizando memória PostgreSQL do workflow ${workflowId}`);
+        
+        // Configurações fixas do PostgreSQL da VPS
+        const POSTGRES_HOST = '151.243.24.146';
+        const POSTGRES_DATABASE = 'n8n';
+        const POSTGRES_USER = 'n8n';
+        const POSTGRES_PASSWORD = Deno.env.get('N8N_POSTGRES_PASSWORD') || '';
+        const POSTGRES_PORT = 5432;
+        
+        if (!POSTGRES_PASSWORD) {
+          throw new Error('N8N_POSTGRES_PASSWORD não está configurado nos secrets');
+        }
+        
+        // 1. Criar credencial PostgreSQL no n8n
+        const credName = `PostgresMemory_${Date.now()}`;
+        console.log(`n8n-api: Criando credencial PostgreSQL: ${credName}`);
+        
+        const postgresCredential = await n8nRequest('/credentials', 'POST', {
+          name: credName,
+          type: 'postgres',
+          data: {
+            host: POSTGRES_HOST,
+            database: POSTGRES_DATABASE,
+            user: POSTGRES_USER,
+            password: POSTGRES_PASSWORD,
+            port: POSTGRES_PORT,
+            ssl: 'disable',
+          },
+        });
+        
+        console.log(`n8n-api: Credencial PostgreSQL criada com ID ${postgresCredential.id}`);
+        
+        // 2. Buscar workflow completo
+        const workflow = await n8nRequest(`/workflows/${workflowId}`);
+        const wasActive = workflow.active;
+        
+        // 3. Encontrar o nó de memória (Postgres Chat Memory ou Window Buffer Memory)
+        const targetMemoryNodeId = requestBody.memoryNodeId;
+        let memoryNodeIndex = -1;
+        
+        if (targetMemoryNodeId) {
+          memoryNodeIndex = workflow.nodes.findIndex((node: any) => node.id === targetMemoryNodeId);
+        }
+        
+        // Fallback: buscar por tipo de nó de memória
+        if (memoryNodeIndex === -1) {
+          memoryNodeIndex = workflow.nodes.findIndex((node: any) => 
+            node.type === '@n8n/n8n-nodes-langchain.memoryPostgresChat' ||
+            node.type === '@n8n/n8n-nodes-langchain.memoryBufferWindow' ||
+            node.type?.includes('memory')
+          );
+        }
+        
+        if (memoryNodeIndex === -1) {
+          console.log(`n8n-api: Nó de memória não encontrado, criando novo nó...`);
+          
+          // Criar um novo nó de memória PostgreSQL
+          const newMemoryNode = {
+            id: crypto.randomUUID(),
+            name: 'Postgres Chat Memory',
+            type: '@n8n/n8n-nodes-langchain.memoryPostgresChat',
+            typeVersion: 1,
+            position: [600, 400],
+            credentials: {
+              postgres: {
+                id: postgresCredential.id,
+                name: credName,
+              }
+            },
+            parameters: {
+              sessionIdType: 'customKey',
+              sessionKey: requestBody.sessionIdKey || '{{ $json.session_id }}',
+              tableName: 'n8n_chat_histories',
+              contextWindowLength: requestBody.contextWindowSize || 10,
+            }
+          };
+          
+          workflow.nodes.push(newMemoryNode);
+          
+          // Enviar workflow atualizado
+          const updatePayload = {
+            name: workflow.name,
+            nodes: workflow.nodes,
+            connections: workflow.connections,
+            ...(workflow.settings && { settings: workflow.settings }),
+          };
+          
+          console.log(`n8n-api: Adicionando nó de memória ao workflow`);
+          const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
+          
+          // Reativar workflow se estava ativo
+          if (wasActive) {
+            try {
+              await n8nRequest(`/workflows/${workflowId}/deactivate`, 'POST');
+              await n8nRequest(`/workflows/${workflowId}/activate`, 'POST');
+            } catch (reactivateError) {
+              console.warn(`n8n-api: Erro ao reativar workflow:`, reactivateError);
+            }
+          }
+          
+          result = {
+            success: true,
+            message: 'Nó de memória PostgreSQL criado e configurado',
+            credentialId: postgresCredential.id,
+            credentialName: credName,
+            workflowId: savedWorkflow.id,
+            memoryNodeId: newMemoryNode.id,
+            postgresConfig: {
+              host: POSTGRES_HOST,
+              database: POSTGRES_DATABASE,
+              user: POSTGRES_USER,
+            }
+          };
+        } else {
+          // 4. Atualizar nó de memória existente
+          console.log(`n8n-api: Nó de memória encontrado no índice ${memoryNodeIndex}, tipo: ${workflow.nodes[memoryNodeIndex].type}`);
+          
+          const updatedNodes = [...workflow.nodes];
+          const memoryNode = { ...updatedNodes[memoryNodeIndex] };
+          
+          // Trocar para tipo PostgreSQL se for outro tipo
+          if (memoryNode.type !== '@n8n/n8n-nodes-langchain.memoryPostgresChat') {
+            console.log(`n8n-api: Trocando tipo de memória para PostgreSQL`);
+            memoryNode.type = '@n8n/n8n-nodes-langchain.memoryPostgresChat';
+            memoryNode.typeVersion = 1;
+          }
+          
+          // Atualizar credenciais
+          memoryNode.credentials = {
+            postgres: {
+              id: postgresCredential.id,
+              name: credName,
+            }
+          };
+          
+          // Atualizar parâmetros
+          memoryNode.parameters = memoryNode.parameters || {};
+          memoryNode.parameters.sessionIdType = 'customKey';
+          memoryNode.parameters.sessionKey = requestBody.sessionIdKey || memoryNode.parameters.sessionKey || '{{ $json.session_id }}';
+          memoryNode.parameters.tableName = 'n8n_chat_histories';
+          if (requestBody.contextWindowSize) {
+            memoryNode.parameters.contextWindowLength = requestBody.contextWindowSize;
+          }
+          
+          updatedNodes[memoryNodeIndex] = memoryNode;
+          
+          // 5. Enviar workflow atualizado
+          const updatePayload = {
+            name: workflow.name,
+            nodes: updatedNodes,
+            connections: workflow.connections,
+            ...(workflow.settings && { settings: workflow.settings }),
+          };
+          
+          console.log(`n8n-api: Enviando atualização do workflow com memória PostgreSQL`);
+          const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
+          
+          // 6. Reativar workflow se estava ativo
+          if (wasActive) {
+            console.log(`n8n-api: Reativando workflow`);
+            try {
+              await n8nRequest(`/workflows/${workflowId}/deactivate`, 'POST');
+              await n8nRequest(`/workflows/${workflowId}/activate`, 'POST');
+            } catch (reactivateError) {
+              console.warn(`n8n-api: Erro ao reativar workflow:`, reactivateError);
+            }
+          }
+          
+          result = {
+            success: true,
+            message: 'Memória PostgreSQL configurada com sucesso',
+            credentialId: postgresCredential.id,
+            credentialName: credName,
+            workflowId: savedWorkflow.id,
+            memoryNodeId: memoryNode.id,
+            memoryNodeType: memoryNode.type,
+            postgresConfig: {
+              host: POSTGRES_HOST,
+              database: POSTGRES_DATABASE,
+              user: POSTGRES_USER,
+            }
+          };
+        }
         break;
       }
 

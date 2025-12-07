@@ -102,6 +102,7 @@ const AdminAgentConfigPage = () => {
   const [executions, setExecutions] = useState<N8nExecution[]>([]);
   const [loadingExecutions, setLoadingExecutions] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
+  const [syncingMemory, setSyncingMemory] = useState(false);
   
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
@@ -462,6 +463,44 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       });
     } finally {
       setSyncingLlm(false);
+    }
+  };
+
+  // Sincronizar memória PostgreSQL com n8n
+  const syncMemoryToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        description: "Selecione um workflow na aba Status antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingMemory(true);
+    try {
+      const result = await n8nApiCall('update_memory_config', {
+        workflowId: config.n8nWorkflowId,
+        sessionIdKey: config.sessionKeyId,
+        contextWindowSize: config.contextWindowSize,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Memória PostgreSQL sincronizada!",
+          description: `Conectado ao PostgreSQL em ${result.postgresConfig?.host}. Credencial ID: ${result.credentialId}`,
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao sincronizar memória');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar memória",
+        description: error.message || "Não foi possível configurar a memória PostgreSQL.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingMemory(false);
     }
   };
 
@@ -969,14 +1008,36 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Database className="h-5 w-5 text-primary" />
-                    Configuração da Memória
+                    Memória PostgreSQL (VPS)
                   </CardTitle>
+                  <CardDescription>
+                    Memória persistente usando PostgreSQL externo
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="p-4 bg-muted/50 rounded-lg border flex items-center gap-3">
-                    <Badge>Provedor</Badge>
-                    <span className="font-semibold">PostgreSQL (Supabase)</span>
-                    <Badge variant="outline" className="ml-auto">Gerenciado</Badge>
+                  <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                    <div className="flex items-center gap-3 mb-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="font-semibold text-green-700 dark:text-green-400">PostgreSQL Configurado</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Host:</span>
+                        <code className="bg-muted px-2 py-0.5 rounded">151.243.24.146</code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Database:</span>
+                        <code className="bg-muted px-2 py-0.5 rounded">n8n</code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">User:</span>
+                        <code className="bg-muted px-2 py-0.5 rounded">n8n</code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">Porta:</span>
+                        <code className="bg-muted px-2 py-0.5 rounded">5432</code>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -1011,12 +1072,35 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       </SelectContent>
                     </Select>
                   </div>
+
+                  <Button 
+                    onClick={syncMemoryToN8n} 
+                    disabled={syncingMemory || !config.n8nWorkflowId}
+                    className="w-full gap-2"
+                    variant="outline"
+                  >
+                    {syncingMemory ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {syncingMemory ? 'Configurando...' : 'Sincronizar Memória com n8n'}
+                  </Button>
+
+                  {!config.n8nWorkflowId && (
+                    <p className="text-xs text-amber-500">
+                      Selecione um workflow na aba Status para sincronizar
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
               <Card>
                 <CardHeader>
                   <CardTitle>Isolamento e Sessão</CardTitle>
+                  <CardDescription>
+                    Configure como identificar sessões únicas
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
@@ -1027,7 +1111,17 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       className="font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Variável usada para identificar sessões únicas
+                      Variável usada para identificar sessões únicas (ex: {`{{ $json.session_id }}`})
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="text-sm font-medium mb-2">Tabela de Histórico</p>
+                    <code className="text-xs bg-background px-2 py-1 rounded block">
+                      n8n_chat_histories
+                    </code>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Esta tabela será criada automaticamente no PostgreSQL
                     </p>
                   </div>
                 </CardContent>
