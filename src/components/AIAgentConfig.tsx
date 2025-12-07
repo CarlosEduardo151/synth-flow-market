@@ -47,63 +47,86 @@ interface AIConfig {
   aiCredentials: Record<string, string>;
 }
 
-const AI_MODELS = [
+// Categorias de modelos
+type ModelCategory = 'chat' | 'image' | 'video' | 'tts' | 'special';
+
+interface AIModel {
+  id: string;
+  name: string;
+  provider: string;
+  description: string;
+  category: ModelCategory;
+}
+
+const AI_MODELS: AIModel[] = [
+  // ===================== CHAT MODELS =====================
   // OpenAI Models
-  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Mais inteligente, multimodal' },
-  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Rápido e econômico' },
-  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'Contexto grande' },
-  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Mais barato' },
+  { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', description: 'Mais inteligente, multimodal', category: 'chat' },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', description: 'Rápido e econômico', category: 'chat' },
+  { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'OpenAI', description: 'Contexto grande', category: 'chat' },
+  { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'OpenAI', description: 'Mais barato', category: 'chat' },
   // Anthropic Models
-  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Equilibrado' },
-  { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Mais capaz' },
-  { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', description: 'Mais rápido' },
-  // Google Gemini 2.5 Models (Recomendados)
-  { id: 'models/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Versão estável lançado em 17 de junho de 2025' },
-  { id: 'models/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Multimodal de médio porte, até 1M tokens (abril 2025)' },
-  { id: 'models/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
-  { id: 'models/gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash-Lite Preview', provider: 'Google', description: 'Versão prévia (25 de setembro de 2025)' },
-  { id: 'models/gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
-  { id: 'models/gemini-2.5-flash-image-preview', name: 'Gemini 2.5 Flash Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 2.5 Flash' },
-  { id: 'models/gemini-2.5-computer-use-preview-10-2025', name: 'Gemini 2.5 Computer Use', provider: 'Google', description: 'Prévia de Uso de Computador' },
-  // Google Gemini 2.0 Models
-  { id: 'models/gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Modelo multimodal rápido e versátil' },
-  { id: 'models/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash 001', provider: 'Google', description: 'Versão estável lançado em janeiro de 2025' },
-  { id: 'models/gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Experimental', provider: 'Google', description: 'Versão experimental' },
-  { id: 'models/gemini-2.0-flash-exp-image-generation', name: 'Gemini 2.0 Flash Image Gen', provider: 'Google', description: 'Geração de Imagem Experimental' },
-  { id: 'models/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'Google', description: 'Versão leve do 2.0 Flash' },
-  { id: 'models/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite 001', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
-  { id: 'models/gemini-2.0-flash-lite-preview', name: 'Gemini 2.0 Flash Lite Preview', provider: 'Google', description: 'Versão prévia (5 de fevereiro de 2025)' },
-  { id: 'models/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
-  { id: 'models/gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp 02-05', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
-  // Google Gemini 3 Models (Preview)
-  { id: 'models/gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 3 Pro' },
-  { id: 'models/gemini-3-pro-preview-tts', name: 'Gemini 3 Pro TTS Preview', provider: 'Google', description: 'Prévia Text-to-Speech do Gemini 3 Pro' },
-  // Google Gemini Latest/Aliases
-  { id: 'models/gemini-pro-latest', name: 'Gemini Pro Latest', provider: 'Google', description: 'Último lançamento do Gemini Pro' },
-  { id: 'models/gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash' },
-  { id: 'models/gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash-Lite' },
-  // Google Gemini Experimental
-  { id: 'models/gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Equilibrado', category: 'chat' },
+  { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Mais capaz', category: 'chat' },
+  { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', description: 'Mais rápido', category: 'chat' },
+  // Google Gemini Chat Models
+  { id: 'models/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Versão estável lançado em 17 de junho de 2025', category: 'chat' },
+  { id: 'models/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Multimodal de médio porte, até 1M tokens (abril 2025)', category: 'chat' },
+  { id: 'models/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', description: 'Versão estável lançado em julho de 2025', category: 'chat' },
+  { id: 'models/gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash-Lite Preview', provider: 'Google', description: 'Versão prévia (25 de setembro de 2025)', category: 'chat' },
+  { id: 'models/gemini-2.5-computer-use-preview-10-2025', name: 'Gemini 2.5 Computer Use', provider: 'Google', description: 'Prévia de Uso de Computador', category: 'chat' },
+  { id: 'models/gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Modelo multimodal rápido e versátil', category: 'chat' },
+  { id: 'models/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash 001', provider: 'Google', description: 'Versão estável lançado em janeiro de 2025', category: 'chat' },
+  { id: 'models/gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Experimental', provider: 'Google', description: 'Versão experimental', category: 'chat' },
+  { id: 'models/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'Google', description: 'Versão leve do 2.0 Flash', category: 'chat' },
+  { id: 'models/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite 001', provider: 'Google', description: 'Versão estável lançado em julho de 2025', category: 'chat' },
+  { id: 'models/gemini-2.0-flash-lite-preview', name: 'Gemini 2.0 Flash Lite Preview', provider: 'Google', description: 'Versão prévia (5 de fevereiro de 2025)', category: 'chat' },
+  { id: 'models/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', provider: 'Google', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
+  { id: 'models/gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp 02-05', provider: 'Google', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
+  { id: 'models/gemini-pro-latest', name: 'Gemini Pro Latest', provider: 'Google', description: 'Último lançamento do Gemini Pro', category: 'chat' },
+  { id: 'models/gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash', category: 'chat' },
+  { id: 'models/gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash-Lite', category: 'chat' },
+  { id: 'models/gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', description: 'Versão experimental (25 de março de 2025)', category: 'chat' },
   // Google Gemma Models
-  { id: 'models/gemma-3-12b-it', name: 'Gemma 3 12B IT', provider: 'Google', description: 'Modelo Gemma 3 com 12B parâmetros' },
-  { id: 'models/gemma-3-27b-it', name: 'Gemma 3 27B IT', provider: 'Google', description: 'Modelo Gemma 3 com 27B parâmetros' },
-  { id: 'models/gemma-3n-e2b-it', name: 'Gemma 3N E2B IT', provider: 'Google', description: 'Modelo Gemma 3N E2B' },
-  { id: 'models/gemma-3n-e4b-it', name: 'Gemma 3N E4B IT', provider: 'Google', description: 'Modelo Gemma 3N E4B' },
-  // Modelos Especiais Google
-  { id: 'models/aqa', name: 'AQA', provider: 'Google', description: 'Respostas fundamentadas em pesquisa para maior precisão' },
-  { id: 'models/gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS', provider: 'Google', description: 'Prévia Text-to-Speech Set 2025' },
-  { id: 'models/gemini-robotics-er-1.5-preview', name: 'Gemini Robotics ER 1.5', provider: 'Google', description: 'Prévia ER 1.5 de Robótica' },
+  { id: 'models/gemma-3-12b-it', name: 'Gemma 3 12B IT', provider: 'Google', description: 'Modelo Gemma 3 com 12B parâmetros', category: 'chat' },
+  { id: 'models/gemma-3-27b-it', name: 'Gemma 3 27B IT', provider: 'Google', description: 'Modelo Gemma 3 com 27B parâmetros', category: 'chat' },
+  { id: 'models/gemma-3n-e2b-it', name: 'Gemma 3N E2B IT', provider: 'Google', description: 'Modelo Gemma 3N E2B', category: 'chat' },
+  { id: 'models/gemma-3n-e4b-it', name: 'Gemma 3N E4B IT', provider: 'Google', description: 'Modelo Gemma 3N E4B', category: 'chat' },
+  // Modelo AQA
+  { id: 'models/aqa', name: 'AQA', provider: 'Google', description: 'Respostas fundamentadas em pesquisa para maior precisão', category: 'chat' },
+
+  // ===================== IMAGE MODELS =====================
+  { id: 'models/gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', provider: 'Google', description: 'Versão estável lançado em julho de 2025', category: 'image' },
+  { id: 'models/gemini-2.5-flash-image-preview', name: 'Gemini 2.5 Flash Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 2.5 Flash', category: 'image' },
+  { id: 'models/gemini-2.0-flash-exp-image-generation', name: 'Gemini 2.0 Flash Image Gen', provider: 'Google', description: 'Geração de Imagem Experimental', category: 'image' },
+  { id: 'models/gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 3 Pro', category: 'image' },
   // Vertex AI - Imagen Models
-  { id: 'vertex/imagen-4.0-fast-generate-001', name: 'Imagen 4.0 Fast', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 rápido servido pelo Vertex' },
-  { id: 'vertex/imagen-4.0-generate-001', name: 'Imagen 4.0', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 servido pelo Vertex' },
-  { id: 'vertex/imagen-4.0-ultra-generate-preview-06-06', name: 'Imagen 4.0 Ultra', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 ultra servido pelo Vertex' },
-  { id: 'vertex/nano-banana-pro-preview', name: 'Nano Banana Pro Preview', provider: 'Vertex AI', description: 'Prévia de Imagem do Gemini 3 Pro' },
-  // Veo Models (Video Generation)
-  { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0', provider: 'Google', description: 'Modelo Veo 2.0 para geração de vídeo' },
-  { id: 'models/veo-3.0-fast-generate-001', name: 'Veo 3 Fast', provider: 'Google', description: 'Veo 3 rápido para geração de vídeo' },
-  { id: 'models/veo-3.0-generate-001', name: 'Veo 3', provider: 'Google', description: 'Veo 3 para geração de vídeo' },
-  { id: 'models/veo-3.1-generate-001', name: 'Veo 3.1', provider: 'Google', description: 'Veo 3.1 para geração de vídeo' },
+  { id: 'vertex/imagen-4.0-fast-generate-001', name: 'Imagen 4.0 Fast', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 rápido servido pelo Vertex', category: 'image' },
+  { id: 'vertex/imagen-4.0-generate-001', name: 'Imagen 4.0', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 servido pelo Vertex', category: 'image' },
+  { id: 'vertex/imagen-4.0-ultra-generate-preview-06-06', name: 'Imagen 4.0 Ultra', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 ultra servido pelo Vertex', category: 'image' },
+  { id: 'vertex/nano-banana-pro-preview', name: 'Nano Banana Pro Preview', provider: 'Vertex AI', description: 'Prévia de Imagem do Gemini 3 Pro', category: 'image' },
+
+  // ===================== VIDEO MODELS =====================
+  { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0', provider: 'Google', description: 'Modelo Veo 2.0 para geração de vídeo', category: 'video' },
+  { id: 'models/veo-3.0-fast-generate-001', name: 'Veo 3 Fast', provider: 'Google', description: 'Veo 3 rápido para geração de vídeo', category: 'video' },
+  { id: 'models/veo-3.0-generate-001', name: 'Veo 3', provider: 'Google', description: 'Veo 3 para geração de vídeo', category: 'video' },
+  { id: 'models/veo-3.1-generate-001', name: 'Veo 3.1', provider: 'Google', description: 'Veo 3.1 para geração de vídeo', category: 'video' },
+
+  // ===================== TTS MODELS =====================
+  { id: 'models/gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS', provider: 'Google', description: 'Prévia Text-to-Speech Set 2025', category: 'tts' },
+  { id: 'models/gemini-3-pro-preview-tts', name: 'Gemini 3 Pro TTS Preview', provider: 'Google', description: 'Prévia Text-to-Speech do Gemini 3 Pro', category: 'tts' },
+
+  // ===================== SPECIAL MODELS =====================
+  { id: 'models/gemini-robotics-er-1.5-preview', name: 'Gemini Robotics ER 1.5', provider: 'Google', description: 'Prévia ER 1.5 de Robótica', category: 'special' },
 ];
+
+const CATEGORY_LABELS: Record<ModelCategory, string> = {
+  chat: '💬 Chat / Conversação',
+  image: '🖼️ Geração de Imagem',
+  video: '🎬 Geração de Vídeo',
+  tts: '🔊 Text-to-Speech (TTS)',
+  special: '🤖 Especiais',
+};
 
 const CREDENTIAL_TYPES = [
   { id: 'openai_api_key', name: 'OpenAI API Key', icon: '🤖' },
@@ -390,18 +413,29 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
               <div className="space-y-3">
                 <Label>Modelo</Label>
                 <Select value={config.aiModel} onValueChange={(v) => setConfig(prev => ({ ...prev, aiModel: v }))}>
-                  <SelectTrigger>
+                  <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Selecione um modelo" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {AI_MODELS.map((model) => (
-                      <SelectItem key={model.id} value={model.id}>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{model.name}</span>
-                          <Badge variant="outline" className="text-xs">{model.provider}</Badge>
+                  <SelectContent className="bg-background border border-border shadow-lg z-50 max-h-[400px]">
+                    {(['chat', 'image', 'video', 'tts', 'special'] as ModelCategory[]).map((category) => {
+                      const modelsInCategory = AI_MODELS.filter(m => m.category === category);
+                      if (modelsInCategory.length === 0) return null;
+                      return (
+                        <div key={category}>
+                          <div className="px-2 py-2 text-sm font-semibold text-muted-foreground bg-muted/50 sticky top-0">
+                            {CATEGORY_LABELS[category]}
+                          </div>
+                          {modelsInCategory.map((model) => (
+                            <SelectItem key={model.id} value={model.id} className="cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{model.name}</span>
+                                <Badge variant="outline" className="text-xs">{model.provider}</Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
                         </div>
-                      </SelectItem>
-                    ))}
+                      );
+                    })}
                   </SelectContent>
                 </Select>
                 <p className="text-sm text-muted-foreground">
