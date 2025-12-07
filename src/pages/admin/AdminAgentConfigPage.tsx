@@ -65,12 +65,103 @@ interface AgentMetrics {
   lastActivity: string | null;
 }
 
-const OPENAI_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o (Recomendado)' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini (Rápido)' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo (Econômico)' },
+// Modelos OpenAI organizados por categoria
+type OpenAIModelCategory = 'flagship' | 'mini' | 'reasoning' | 'audio' | 'image' | 'search' | 'codex' | 'legacy';
+
+interface OpenAIModel {
+  value: string;
+  label: string;
+  description: string;
+  category: OpenAIModelCategory;
+}
+
+const OPENAI_MODELS: OpenAIModel[] = [
+  // Flagship - Modelos principais
+  { value: 'gpt-5.1', label: 'GPT-5.1', description: 'Modelo mais recente e poderoso', category: 'flagship' },
+  { value: 'gpt-5.1-2025-11-13', label: 'GPT-5.1 (Nov 2025)', description: 'Versão datada do GPT-5.1', category: 'flagship' },
+  { value: 'gpt-5.1-chat-latest', label: 'GPT-5.1 Chat Latest', description: 'Última versão de chat do GPT-5.1', category: 'flagship' },
+  { value: 'gpt-5', label: 'GPT-5', description: 'Modelo flagship anterior', category: 'flagship' },
+  { value: 'gpt-5-2025-08-07', label: 'GPT-5 (Ago 2025)', description: 'Versão datada do GPT-5', category: 'flagship' },
+  { value: 'gpt-5-chat-latest', label: 'GPT-5 Chat Latest', description: 'Última versão de chat do GPT-5', category: 'flagship' },
+  { value: 'gpt-5-pro', label: 'GPT-5 Pro', description: 'Versão Pro do GPT-5', category: 'flagship' },
+  { value: 'gpt-5-pro-2025-10-08', label: 'GPT-5 Pro (Out 2025)', description: 'Versão datada do GPT-5 Pro', category: 'flagship' },
+  { value: 'gpt-4.1', label: 'GPT-4.1', description: 'Modelo GPT-4.1 estável', category: 'flagship' },
+  { value: 'gpt-4.1-2025-04-14', label: 'GPT-4.1 (Abr 2025)', description: 'Versão datada do GPT-4.1', category: 'flagship' },
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Modelo multimodal rápido', category: 'flagship' },
+  { value: 'gpt-4o-2024-05-13', label: 'GPT-4o (Mai 2024)', description: 'Versão datada do GPT-4o', category: 'flagship' },
+  { value: 'gpt-4', label: 'GPT-4', description: 'Modelo GPT-4 original', category: 'flagship' },
+  { value: 'gpt-4-0613', label: 'GPT-4 (Jun 2023)', description: 'Versão datada do GPT-4', category: 'flagship' },
+  { value: 'gpt-4-turbo-2024-04-09', label: 'GPT-4 Turbo (Abr 2024)', description: 'GPT-4 Turbo com visão', category: 'flagship' },
+  { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo Preview', description: 'Prévia do GPT-4 Turbo', category: 'flagship' },
+  { value: 'gpt-4-1106-preview', label: 'GPT-4 1106 Preview', description: 'Prévia de novembro 2023', category: 'flagship' },
+  { value: 'gpt-4-0125-preview', label: 'GPT-4 0125 Preview', description: 'Prévia de janeiro 2024', category: 'flagship' },
+  
+  // Mini - Modelos rápidos e econômicos
+  { value: 'gpt-5-mini', label: 'GPT-5 Mini', description: 'Versão rápida do GPT-5', category: 'mini' },
+  { value: 'gpt-5-mini-2025-08-07', label: 'GPT-5 Mini (Ago 2025)', description: 'Versão datada do GPT-5 Mini', category: 'mini' },
+  { value: 'gpt-5-nano', label: 'GPT-5 Nano', description: 'Versão ultra-rápida do GPT-5', category: 'mini' },
+  { value: 'gpt-5-nano-2025-08-07', label: 'GPT-5 Nano (Ago 2025)', description: 'Versão datada do GPT-5 Nano', category: 'mini' },
+  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', description: 'Versão rápida do GPT-4.1', category: 'mini' },
+  { value: 'gpt-4.1-mini-2025-04-14', label: 'GPT-4.1 Mini (Abr 2025)', description: 'Versão datada do GPT-4.1 Mini', category: 'mini' },
+  { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', description: 'Versão ultra-rápida do GPT-4.1', category: 'mini' },
+  { value: 'gpt-4.1-nano-2025-04-14', label: 'GPT-4.1 Nano (Abr 2025)', description: 'Versão datada do GPT-4.1 Nano', category: 'mini' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Versão rápida do GPT-4o', category: 'mini' },
+  { value: 'gpt-4o-mini-2024-07-18', label: 'GPT-4o Mini (Jul 2024)', description: 'Versão datada do GPT-4o Mini', category: 'mini' },
+  { value: 'gpt-3.5-turbo-0125', label: 'GPT-3.5 Turbo 0125', description: 'GPT-3.5 de janeiro 2025', category: 'mini' },
+  { value: 'gpt-3.5-turbo-1106', label: 'GPT-3.5 Turbo 1106', description: 'GPT-3.5 de novembro 2023', category: 'mini' },
+  { value: 'gpt-3.5-turbo-16k', label: 'GPT-3.5 Turbo 16K', description: 'GPT-3.5 com contexto expandido', category: 'mini' },
+  
+  // Reasoning - Modelos de raciocínio
+  { value: 'o4-mini', label: 'O4 Mini', description: 'Modelo de raciocínio rápido', category: 'reasoning' },
+  { value: 'o4-mini-2025-04-16', label: 'O4 Mini (Abr 2025)', description: 'Versão datada do O4 Mini', category: 'reasoning' },
+  { value: 'o3', label: 'O3', description: 'Modelo de raciocínio poderoso', category: 'reasoning' },
+  { value: 'o3-2025-04-16', label: 'O3 (Abr 2025)', description: 'Versão datada do O3', category: 'reasoning' },
+  { value: 'o3-mini', label: 'O3 Mini', description: 'Versão rápida do O3', category: 'reasoning' },
+  { value: 'o3-mini-2025-01-31', label: 'O3 Mini (Jan 2025)', description: 'Versão datada do O3 Mini', category: 'reasoning' },
+  { value: 'o1', label: 'O1', description: 'Modelo de raciocínio original', category: 'reasoning' },
+  { value: 'o1-2024-12-17', label: 'O1 (Dez 2024)', description: 'Versão datada do O1', category: 'reasoning' },
+  { value: 'o1-pro', label: 'O1 Pro', description: 'Versão Pro do O1', category: 'reasoning' },
+  { value: 'o1-pro-2025-03-19', label: 'O1 Pro (Mar 2025)', description: 'Versão datada do O1 Pro', category: 'reasoning' },
+  
+  // Audio - Modelos de áudio
+  { value: 'gpt-audio', label: 'GPT Audio', description: 'Modelo de áudio principal', category: 'audio' },
+  { value: 'gpt-audio-2025-08-28', label: 'GPT Audio (Ago 2025)', description: 'Versão datada do GPT Audio', category: 'audio' },
+  { value: 'gpt-audio-mini', label: 'GPT Audio Mini', description: 'Modelo de áudio rápido', category: 'audio' },
+  { value: 'gpt-audio-mini-2025-10-06', label: 'GPT Audio Mini (Out 2025)', description: 'Versão datada do GPT Audio Mini', category: 'audio' },
+  { value: 'gpt-4o-audio-preview', label: 'GPT-4o Audio Preview', description: 'Prévia de áudio do GPT-4o', category: 'audio' },
+  { value: 'gpt-4o-audio-preview-2024-12-17', label: 'GPT-4o Audio (Dez 2024)', description: 'Versão datada do GPT-4o Audio', category: 'audio' },
+  { value: 'gpt-4o-mini-audio-preview', label: 'GPT-4o Mini Audio', description: 'Prévia de áudio do GPT-4o Mini', category: 'audio' },
+  { value: 'gpt-4o-mini-audio-preview-2024-12-17', label: 'GPT-4o Mini Audio (Dez 2024)', description: 'Versão datada', category: 'audio' },
+  { value: 'gpt-4o-transcribe', label: 'GPT-4o Transcribe', description: 'Transcrição de áudio', category: 'audio' },
+  { value: 'gpt-4o-transcribe-diarize', label: 'GPT-4o Transcribe Diarize', description: 'Transcrição com identificação de falantes', category: 'audio' },
+  
+  // Image - Modelos de imagem
+  { value: 'gpt-image', label: 'GPT Image', description: 'Modelo de geração de imagem', category: 'image' },
+  { value: 'gpt-image-1-mini', label: 'GPT Image Mini', description: 'Modelo de imagem rápido', category: 'image' },
+  
+  // Search - Modelos de busca
+  { value: 'gpt-5-search-api', label: 'GPT-5 Search API', description: 'GPT-5 com busca web', category: 'search' },
+  { value: 'gpt-5-search-api-2025-10-14', label: 'GPT-5 Search (Out 2025)', description: 'Versão datada do GPT-5 Search', category: 'search' },
+  { value: 'gpt-4o-mini-search-preview', label: 'GPT-4o Mini Search', description: 'GPT-4o Mini com busca', category: 'search' },
+  { value: 'gpt-4o-mini-search-preview-2025-03-11', label: 'GPT-4o Mini Search (Mar 2025)', description: 'Versão datada', category: 'search' },
+  
+  // Codex - Modelos de código
+  { value: 'gpt-5-codex', label: 'GPT-5 Codex', description: 'GPT-5 otimizado para código', category: 'codex' },
+  { value: 'gpt-5.1-codex', label: 'GPT-5.1 Codex', description: 'GPT-5.1 otimizado para código', category: 'codex' },
+  { value: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max', description: 'Versão máxima para código', category: 'codex' },
+  { value: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini', description: 'Versão rápida para código', category: 'codex' },
 ];
+
+const OPENAI_CATEGORY_LABELS: Record<OpenAIModelCategory, string> = {
+  flagship: '⭐ Flagship (Principais)',
+  mini: '⚡ Mini / Nano (Rápidos)',
+  reasoning: '🧠 Reasoning (Raciocínio)',
+  audio: '🎵 Audio',
+  image: '🖼️ Image',
+  search: '🔍 Search',
+  codex: '💻 Codex (Código)',
+  legacy: '📦 Legacy',
+};
 
 // Modelos Google organizados por categoria
 type GoogleModelCategory = 'chat' | 'image' | 'video' | 'tts' | 'special';
@@ -1151,12 +1242,23 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       </SelectTrigger>
                       <SelectContent className="bg-popover max-h-[400px]">
                         {config.provider === 'openai' ? (
-                          // OpenAI Models - lista simples
-                          OPENAI_MODELS.map(model => (
-                            <SelectItem key={model.value} value={model.value}>
-                              {model.label}
-                            </SelectItem>
-                          ))
+                          // OpenAI Models - agrupado por categoria
+                          (['flagship', 'mini', 'reasoning', 'audio', 'image', 'search', 'codex'] as OpenAIModelCategory[]).map((category) => {
+                            const modelsInCategory = OPENAI_MODELS.filter(m => m.category === category);
+                            if (modelsInCategory.length === 0) return null;
+                            return (
+                              <SelectGroup key={category}>
+                                <SelectLabel className="bg-muted/50 text-muted-foreground">
+                                  {OPENAI_CATEGORY_LABELS[category]}
+                                </SelectLabel>
+                                {modelsInCategory.map((model) => (
+                                  <SelectItem key={model.value} value={model.value}>
+                                    {model.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            );
+                          })
                         ) : (
                           // Google Models - agrupado por categoria
                           (['chat', 'image', 'video', 'tts', 'special'] as GoogleModelCategory[]).map((category) => {
@@ -1178,11 +1280,11 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                         )}
                       </SelectContent>
                     </Select>
-                    {config.provider === 'google' && (
-                      <p className="text-xs text-muted-foreground">
-                        {GOOGLE_MODELS.find(m => m.value === config.model)?.description}
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {config.provider === 'openai' 
+                        ? OPENAI_MODELS.find(m => m.value === config.model)?.description
+                        : GOOGLE_MODELS.find(m => m.value === config.model)?.description}
+                    </p>
                   </div>
 
                   <Button 
