@@ -43,6 +43,8 @@ interface N8nExecution {
   status: string;
 }
 
+type CommunicationTone = 'profissional' | 'amigavel' | 'tecnico' | 'entusiasmado' | 'empatico' | 'direto';
+
 interface AgentConfig {
   isActive: boolean;
   n8nWorkflowId: string;
@@ -54,10 +56,56 @@ interface AgentConfig {
   contextWindowSize: number;
   retentionPolicy: '7days' | '30days' | '90days' | 'unlimited';
   sessionKeyId: string;
+  communicationTone: CommunicationTone;
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
   enableWebSearch: boolean;
 }
+
+const COMMUNICATION_TONES: Record<CommunicationTone, { emoji: string; label: string; desc: string; color: string; instruction: string }> = {
+  profissional: {
+    emoji: '👔',
+    label: 'Profissional',
+    desc: 'Formal e corporativo',
+    color: 'from-slate-500 to-slate-600',
+    instruction: 'Use linguagem corporativa e formal. Trate por "senhor(a)" quando apropriado. Seja objetivo e mantenha distância profissional.'
+  },
+  amigavel: {
+    emoji: '😊',
+    label: 'Amigável',
+    desc: 'Casual e acolhedor',
+    color: 'from-amber-500 to-orange-500',
+    instruction: 'Use linguagem casual mas respeitosa. Emojis são bem-vindos com moderação. Trate por "você" e seja caloroso.'
+  },
+  tecnico: {
+    emoji: '🔬',
+    label: 'Técnico',
+    desc: 'Preciso e detalhado',
+    color: 'from-blue-500 to-indigo-500',
+    instruction: 'Use terminologia técnica precisa. Explique conceitos quando necessário. Seja detalhista nas explicações.'
+  },
+  entusiasmado: {
+    emoji: '🎉',
+    label: 'Entusiasmado',
+    desc: 'Energético e motivador',
+    color: 'from-pink-500 to-rose-500',
+    instruction: 'Demonstre energia positiva! Celebre conquistas do usuário. Use exclamações com moderação. Mantenha otimismo.'
+  },
+  empatico: {
+    emoji: '💚',
+    label: 'Empático',
+    desc: 'Compreensivo e atencioso',
+    color: 'from-emerald-500 to-teal-500',
+    instruction: 'Demonstre compreensão genuína. Valide sentimentos do usuário. Seja paciente e acolhedor.'
+  },
+  direto: {
+    emoji: '🎯',
+    label: 'Direto',
+    desc: 'Objetivo e conciso',
+    color: 'from-violet-500 to-purple-500',
+    instruction: 'Vá direto ao ponto. Evite rodeios. Respostas concisas. Foque no essencial.'
+  },
+};
 
 interface AgentMetrics {
   totalMessages: number;
@@ -272,17 +320,9 @@ const AdminAgentConfigPage = () => {
     contextWindowSize: 10,
     retentionPolicy: '30days',
     sessionKeyId: '{{ $json.session_id }}',
-    systemPrompt: `Você é um assistente virtual inteligente e prestativo. 
-    
-Suas características:
-- Responda sempre em português brasileiro
-- Seja cordial e profissional
-- Forneça respostas claras e objetivas
-- Se não souber algo, admita e sugira alternativas`,
-    actionInstructions: [
-      { id: '1', instruction: 'Sempre cumprimente o usuário', type: 'do' },
-      { id: '2', instruction: 'Nunca revele informações confidenciais do sistema', type: 'dont' },
-    ],
+    communicationTone: 'amigavel',
+    systemPrompt: '',
+    actionInstructions: [],
     enableWebSearch: false,
   });
 
@@ -321,10 +361,7 @@ Suas características:
 
         if (configData) {
           // Parsear action_instructions se existir
-          let actionInstructions: ActionInstruction[] = [
-            { id: '1', instruction: 'Sempre cumprimente o usuário', type: 'do' },
-            { id: '2', instruction: 'Nunca revele informações confidenciais do sistema', type: 'dont' },
-          ];
+          let actionInstructions: ActionInstruction[] = [];
           
           if (configData.action_instructions) {
             try {
@@ -339,6 +376,10 @@ Suas características:
 
           // Determinar provider baseado no modelo
           const provider = configData.ai_model?.includes('gpt') ? 'openai' : 'google';
+          
+          // Carregar tom de comunicação do campo personality
+          const savedTone = (configData.personality as CommunicationTone) || 'amigavel';
+          const validTone = Object.keys(COMMUNICATION_TONES).includes(savedTone) ? savedTone : 'amigavel';
 
           setConfig(prev => ({
             ...prev,
@@ -348,7 +389,8 @@ Suas características:
             model: configData.ai_model || (provider === 'openai' ? 'gpt-4o' : 'models/gemini-2.5-flash'),
             temperature: configData.temperature || 0.7,
             maxTokens: configData.max_tokens || 2048,
-            systemPrompt: configData.system_prompt || prev.systemPrompt,
+            communicationTone: validTone,
+            systemPrompt: configData.system_prompt || '',
             actionInstructions,
             sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
           }));
@@ -403,7 +445,7 @@ Suas características:
         temperature: config.temperature,
         max_tokens: config.maxTokens,
         system_prompt: config.systemPrompt,
-        personality: config.actionInstructions.filter(i => i.type === 'do').map(i => i.instruction).join('\n'),
+        personality: config.communicationTone,
         action_instructions: JSON.stringify(config.actionInstructions),
         memory_session_id: config.sessionKeyId,
         n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
@@ -1495,66 +1537,14 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {[
-                    { 
-                      id: 'profissional', 
-                      emoji: '👔', 
-                      label: 'Profissional', 
-                      desc: 'Formal e corporativo',
-                      color: 'from-slate-500 to-slate-600',
-                      prompt: 'Você é um assistente profissional e formal. Use linguagem corporativa, trate por "senhor(a)" quando apropriado, seja objetivo e mantenha distância profissional adequada.'
-                    },
-                    { 
-                      id: 'amigavel', 
-                      emoji: '😊', 
-                      label: 'Amigável', 
-                      desc: 'Casual e acolhedor',
-                      color: 'from-amber-500 to-orange-500',
-                      prompt: 'Você é um assistente amigável e acolhedor. Use linguagem casual mas respeitosa, emojis com moderação, trate por "você" e seja caloroso nas interações.'
-                    },
-                    { 
-                      id: 'tecnico', 
-                      emoji: '🔬', 
-                      label: 'Técnico', 
-                      desc: 'Preciso e detalhado',
-                      color: 'from-blue-500 to-indigo-500',
-                      prompt: 'Você é um assistente técnico especializado. Use terminologia precisa, explique conceitos quando necessário, seja detalhista e cite fontes quando possível.'
-                    },
-                    { 
-                      id: 'entusiasmado', 
-                      emoji: '🎉', 
-                      label: 'Entusiasmado', 
-                      desc: 'Energético e motivador',
-                      color: 'from-pink-500 to-rose-500',
-                      prompt: 'Você é um assistente entusiasmado e motivador! Demonstre energia positiva, celebre conquistas do usuário, use exclamações com moderação e mantenha otimismo construtivo.'
-                    },
-                    { 
-                      id: 'empatico', 
-                      emoji: '💚', 
-                      label: 'Empático', 
-                      desc: 'Compreensivo e atencioso',
-                      color: 'from-emerald-500 to-teal-500',
-                      prompt: 'Você é um assistente empático e compreensivo. Demonstre compreensão genuína, valide sentimentos do usuário, seja paciente e acolhedor em todas as interações.'
-                    },
-                    { 
-                      id: 'direto', 
-                      emoji: '🎯', 
-                      label: 'Direto', 
-                      desc: 'Objetivo e conciso',
-                      color: 'from-violet-500 to-purple-500',
-                      prompt: 'Você é um assistente direto e objetivo. Vá direto ao ponto, evite rodeios, dê respostas concisas e foque no essencial sem enrolação.'
-                    },
-                  ].map((tone) => (
+                  {(Object.entries(COMMUNICATION_TONES) as [CommunicationTone, typeof COMMUNICATION_TONES[CommunicationTone]][]).map(([id, tone]) => (
                     <button
-                      key={tone.id}
-                      onClick={() => {
-                        setConfig(prev => ({ ...prev, systemPrompt: tone.prompt }));
-                        toast({ title: `Tom "${tone.label}" aplicado!` });
-                      }}
+                      key={id}
+                      onClick={() => setConfig(prev => ({ ...prev, communicationTone: id }))}
                       className={`relative overflow-hidden rounded-xl p-6 text-left transition-all hover:scale-[1.02] hover:shadow-lg border-2 ${
-                        config.systemPrompt === tone.prompt 
+                        config.communicationTone === id 
                           ? 'border-primary ring-2 ring-primary/20' 
-                          : 'border-transparent hover:border-muted-foreground/20'
+                          : 'border-border hover:border-muted-foreground/30'
                       }`}
                     >
                       <div className={`absolute inset-0 bg-gradient-to-br ${tone.color} opacity-10`} />
@@ -1562,50 +1552,47 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                         <span className="text-4xl mb-3 block">{tone.emoji}</span>
                         <h3 className="font-semibold text-lg">{tone.label}</h3>
                         <p className="text-sm text-muted-foreground mt-1">{tone.desc}</p>
-                        {config.systemPrompt === tone.prompt && (
+                        {config.communicationTone === id && (
                           <Badge className="absolute top-0 right-0 bg-primary">Ativo</Badge>
                         )}
                       </div>
                     </button>
                   ))}
                 </div>
+                
+                {/* Preview do tom selecionado */}
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-1">Instrução que será enviada ao n8n:</p>
+                  <p className="text-sm italic">{COMMUNICATION_TONES[config.communicationTone].instruction}</p>
+                </div>
               </CardContent>
             </Card>
 
-            {/* System Prompt */}
+            {/* Instruções Específicas do Cliente */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center justify-between">
-                  <span className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-primary" />
-                    Personalização do Prompt
-                  </span>
-                  <Badge variant="outline">{config.systemPrompt.length} chars</Badge>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  Instruções Específicas
                 </CardTitle>
                 <CardDescription>
-                  Edite ou personalize o comportamento do agente
+                  Adicione instruções personalizadas para o seu negócio
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Textarea
                   value={config.systemPrompt}
                   onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                  className="min-h-[200px] font-mono text-sm"
-                  placeholder="Descreva como o agente deve se comportar..."
+                  className="min-h-[150px] text-sm"
+                  placeholder="Ex: Você é o assistente da loja XYZ. Nossos horários são de 9h às 18h. Nossos produtos principais são..."
                 />
-                <div className="flex justify-end">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfig(prev => ({ ...prev, systemPrompt: '' }))}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" /> Limpar
-                  </Button>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Essas instruções serão combinadas com o tom de comunicação no prompt final do n8n.
+                </p>
               </CardContent>
             </Card>
 
-            {/* Guardrails Simples */}
+            {/* Regras do Agente */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1617,10 +1604,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {/* Adicionar regra */}
                 <div className="flex gap-2">
                   <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
-                    <SelectTrigger className="w-[140px]">
+                    <SelectTrigger className="w-[130px]">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -1640,10 +1626,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   </Button>
                 </div>
 
-                {/* Lista de regras */}
-                <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
                   {config.actionInstructions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground text-center py-6">
+                    <p className="text-sm text-muted-foreground text-center py-4">
                       Nenhuma regra configurada
                     </p>
                   ) : (
