@@ -57,18 +57,42 @@ const AI_MODELS = [
   { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', provider: 'Anthropic', description: 'Equilibrado' },
   { id: 'claude-3-opus', name: 'Claude 3 Opus', provider: 'Anthropic', description: 'Mais capaz' },
   { id: 'claude-3-haiku', name: 'Claude 3 Haiku', provider: 'Anthropic', description: 'Mais rápido' },
-  // Google Gemini 3 Models (Mais recentes)
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', provider: 'Google', description: 'Modelo mais avançado - raciocínio complexo e agentes' },
-  // Google Gemini 2.5 Models
-  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Modelo pensante avançado - STEM, código e análise' },
-  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Melhor custo-benefício - rápido e inteligente' },
-  { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', description: 'Ultra rápido - otimizado para eficiência' },
-  // Google Gemini 2.0 Models (Anteriores)
-  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: '2ª geração - ferramentas nativas, 1M tokens' },
-  { id: 'gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash-Lite', provider: 'Google', description: '2ª geração rápido - baixa latência' },
-  // Google Gemini 1.5 Models (Legacy)
-  { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', provider: 'Google', description: 'Contexto enorme - 2M tokens' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', provider: 'Google', description: 'Versão rápida do 1.5' },
+  // Google Gemini 2.5 Models (Recomendados)
+  { id: 'models/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', description: 'Versão estável lançado em 17 de junho de 2025' },
+  { id: 'models/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', description: 'Multimodal de médio porte, até 1M tokens (abril 2025)' },
+  { id: 'models/gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash-Lite', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
+  { id: 'models/gemini-2.5-flash-lite-preview-09-2025', name: 'Gemini 2.5 Flash-Lite Preview', provider: 'Google', description: 'Versão prévia (25 de setembro de 2025)' },
+  { id: 'models/gemini-2.5-flash-image', name: 'Gemini 2.5 Flash Image', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
+  { id: 'models/gemini-2.5-flash-image-preview', name: 'Gemini 2.5 Flash Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 2.5 Flash' },
+  { id: 'models/gemini-2.5-computer-use-preview-10-2025', name: 'Gemini 2.5 Computer Use', provider: 'Google', description: 'Prévia de Uso de Computador' },
+  // Google Gemini 2.0 Models
+  { id: 'models/gemini-2.0-flash', name: 'Gemini 2.0 Flash', provider: 'Google', description: 'Modelo multimodal rápido e versátil' },
+  { id: 'models/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash 001', provider: 'Google', description: 'Versão estável lançado em janeiro de 2025' },
+  { id: 'models/gemini-2.0-flash-exp', name: 'Gemini 2.0 Flash Experimental', provider: 'Google', description: 'Versão experimental' },
+  { id: 'models/gemini-2.0-flash-exp-image-generation', name: 'Gemini 2.0 Flash Image Gen', provider: 'Google', description: 'Geração de Imagem Experimental' },
+  { id: 'models/gemini-2.0-flash-lite', name: 'Gemini 2.0 Flash Lite', provider: 'Google', description: 'Versão leve do 2.0 Flash' },
+  { id: 'models/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite 001', provider: 'Google', description: 'Versão estável lançado em julho de 2025' },
+  { id: 'models/gemini-2.0-flash-lite-preview', name: 'Gemini 2.0 Flash Lite Preview', provider: 'Google', description: 'Versão prévia (5 de fevereiro de 2025)' },
+  { id: 'models/gemini-2.0-pro-exp', name: 'Gemini 2.0 Pro Experimental', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
+  { id: 'models/gemini-2.0-pro-exp-02-05', name: 'Gemini 2.0 Pro Exp 02-05', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
+  // Google Gemini 3 Models (Preview)
+  { id: 'models/gemini-3-pro-image-preview', name: 'Gemini 3 Pro Image Preview', provider: 'Google', description: 'Prévia de Imagem do Gemini 3 Pro' },
+  { id: 'models/gemini-3-pro-preview-tts', name: 'Gemini 3 Pro TTS Preview', provider: 'Google', description: 'Prévia Text-to-Speech do Gemini 3 Pro' },
+  // Google Gemini Latest/Aliases
+  { id: 'models/gemini-pro-latest', name: 'Gemini Pro Latest', provider: 'Google', description: 'Último lançamento do Gemini Pro' },
+  { id: 'models/gemini-flash-latest', name: 'Gemini Flash Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash' },
+  { id: 'models/gemini-flash-lite-latest', name: 'Gemini Flash Lite Latest', provider: 'Google', description: 'Último lançamento do Gemini Flash-Lite' },
+  // Google Gemini Experimental
+  { id: 'models/gemini-exp-1206', name: 'Gemini Exp 1206', provider: 'Google', description: 'Versão experimental (25 de março de 2025)' },
+  // Google Gemma Models
+  { id: 'models/gemma-3-12b-it', name: 'Gemma 3 12B IT', provider: 'Google', description: 'Modelo Gemma 3 com 12B parâmetros' },
+  { id: 'models/gemma-3-27b-it', name: 'Gemma 3 27B IT', provider: 'Google', description: 'Modelo Gemma 3 com 27B parâmetros' },
+  { id: 'models/gemma-3n-e2b-it', name: 'Gemma 3N E2B IT', provider: 'Google', description: 'Modelo Gemma 3N E2B' },
+  { id: 'models/gemma-3n-e4b-it', name: 'Gemma 3N E4B IT', provider: 'Google', description: 'Modelo Gemma 3N E4B' },
+  // Modelos Especiais
+  { id: 'models/aqa', name: 'AQA', provider: 'Google', description: 'Respostas fundamentadas em pesquisa para maior precisão' },
+  { id: 'models/gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS', provider: 'Google', description: 'Prévia Text-to-Speech Set 2025' },
+  { id: 'models/gemini-robotics-er-1.5-preview', name: 'Gemini Robotics ER 1.5', provider: 'Google', description: 'Prévia ER 1.5 de Robótica' },
 ];
 
 const CREDENTIAL_TYPES = [
