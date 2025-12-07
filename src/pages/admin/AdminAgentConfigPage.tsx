@@ -321,8 +321,21 @@ const AdminAgentConfigPage = () => {
     retentionPolicy: '30days',
     sessionKeyId: '{{ $json.session_id }}',
     communicationTone: 'amigavel',
-    systemPrompt: '',
-    actionInstructions: [],
+    systemPrompt: `Você é o assistente virtual da [NOME DA EMPRESA].
+
+SOBRE NÓS:
+- Somos especializados em [SEU PRODUTO/SERVIÇO]
+- Atendemos de segunda a sexta, das 9h às 18h
+- WhatsApp: (00) 00000-0000
+
+COMO AJUDAR:
+- Tire dúvidas sobre nossos produtos
+- Ajude com agendamentos
+- Encaminhe para um atendente humano quando necessário`,
+    actionInstructions: [
+      { id: '1', instruction: 'Sempre cumprimente o cliente pelo nome', type: 'do' },
+      { id: '2', instruction: 'Nunca invente informações sobre preços', type: 'dont' },
+    ],
     enableWebSearch: false,
   });
 
