@@ -89,10 +89,20 @@ const AI_MODELS = [
   { id: 'models/gemma-3-27b-it', name: 'Gemma 3 27B IT', provider: 'Google', description: 'Modelo Gemma 3 com 27B parâmetros' },
   { id: 'models/gemma-3n-e2b-it', name: 'Gemma 3N E2B IT', provider: 'Google', description: 'Modelo Gemma 3N E2B' },
   { id: 'models/gemma-3n-e4b-it', name: 'Gemma 3N E4B IT', provider: 'Google', description: 'Modelo Gemma 3N E4B' },
-  // Modelos Especiais
+  // Modelos Especiais Google
   { id: 'models/aqa', name: 'AQA', provider: 'Google', description: 'Respostas fundamentadas em pesquisa para maior precisão' },
   { id: 'models/gemini-2.5-flash-preview-tts', name: 'Gemini 2.5 Flash TTS', provider: 'Google', description: 'Prévia Text-to-Speech Set 2025' },
   { id: 'models/gemini-robotics-er-1.5-preview', name: 'Gemini Robotics ER 1.5', provider: 'Google', description: 'Prévia ER 1.5 de Robótica' },
+  // Vertex AI - Imagen Models
+  { id: 'vertex/imagen-4.0-fast-generate-001', name: 'Imagen 4.0 Fast', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 rápido servido pelo Vertex' },
+  { id: 'vertex/imagen-4.0-generate-001', name: 'Imagen 4.0', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 servido pelo Vertex' },
+  { id: 'vertex/imagen-4.0-ultra-generate-preview-06-06', name: 'Imagen 4.0 Ultra', provider: 'Vertex AI', description: 'Modelo Imagen 4.0 ultra servido pelo Vertex' },
+  { id: 'vertex/nano-banana-pro-preview', name: 'Nano Banana Pro Preview', provider: 'Vertex AI', description: 'Prévia de Imagem do Gemini 3 Pro' },
+  // Veo Models (Video Generation)
+  { id: 'models/veo-2.0-generate-001', name: 'Veo 2.0', provider: 'Google', description: 'Modelo Veo 2.0 para geração de vídeo' },
+  { id: 'models/veo-3.0-fast-generate-001', name: 'Veo 3 Fast', provider: 'Google', description: 'Veo 3 rápido para geração de vídeo' },
+  { id: 'models/veo-3.0-generate-001', name: 'Veo 3', provider: 'Google', description: 'Veo 3 para geração de vídeo' },
+  { id: 'models/veo-3.1-generate-001', name: 'Veo 3.1', provider: 'Google', description: 'Veo 3.1 para geração de vídeo' },
 ];
 
 const CREDENTIAL_TYPES = [
