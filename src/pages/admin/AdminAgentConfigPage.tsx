@@ -301,6 +301,7 @@ const AdminAgentConfigPage = () => {
   const [loadingWorkflows, setLoadingWorkflows] = useState(false);
   const [executions, setExecutions] = useState<N8nExecution[]>([]);
   const [loadingExecutions, setLoadingExecutions] = useState(false);
+  const [syncingTools, setSyncingTools] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
   const [syncingMemory, setSyncingMemory] = useState(false);
   
@@ -862,6 +863,53 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       });
     } finally {
       setSyncingMemory(false);
+    }
+  };
+
+  // Sincronizar ferramentas com o workflow n8n
+  const syncToolsToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        description: "Selecione um workflow na aba Status antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!config.enabledTools || config.enabledTools.length === 0) {
+      toast({
+        title: "Nenhuma ferramenta selecionada",
+        description: "Selecione pelo menos uma ferramenta para sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingTools(true);
+    try {
+      const result = await n8nApiCall('sync_tools', {
+        workflowId: config.n8nWorkflowId,
+        enabledTools: config.enabledTools,
+      });
+
+      if (result.success) {
+        const summary = result.summary;
+        toast({
+          title: "Ferramentas sincronizadas!",
+          description: `${summary.totalTools} ferramentas no workflow. Adicionadas: ${summary.added.length}, Removidas: ${summary.removed.length}`,
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao sincronizar ferramentas');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar ferramentas",
+        description: error.message || "Não foi possível sincronizar as ferramentas.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingTools(false);
     }
   };
 
@@ -1812,15 +1860,17 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                         {((config as any).enabledTools || []).length} ferramentas selecionadas
                       </p>
                     </div>
-                    {((config as any).enabledTools || []).length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setConfig(prev => ({ ...prev, enabledTools: [] } as AgentConfig))}
-                      >
-                        Limpar todas
-                      </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {((config as any).enabledTools || []).length > 0 && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setConfig(prev => ({ ...prev, enabledTools: [] } as AgentConfig))}
+                        >
+                          Limpar todas
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {((config as any).enabledTools || []).length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-3">
@@ -1831,6 +1881,35 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       ))}
                     </div>
                   )}
+                </div>
+
+                {/* Botão de sincronização */}
+                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20 mt-4">
+                  <div>
+                    <p className="text-sm font-medium">Sincronizar com n8n</p>
+                    <p className="text-xs text-muted-foreground">
+                      {config.n8nWorkflowId 
+                        ? `Workflow: ${config.n8nWorkflowId.substring(0, 8)}...`
+                        : 'Selecione um workflow na aba Status'}
+                    </p>
+                  </div>
+                  <Button
+                    onClick={syncToolsToN8n}
+                    disabled={syncingTools || !config.n8nWorkflowId || (config.enabledTools || []).length === 0}
+                    className="gap-2"
+                  >
+                    {syncingTools ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Sincronizando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4" />
+                        Sincronizar Ferramentas
+                      </>
+                    )}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
