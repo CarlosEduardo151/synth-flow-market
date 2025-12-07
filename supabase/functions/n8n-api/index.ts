@@ -465,28 +465,38 @@ serve(async (req) => {
               type: 'openAiApi', 
               credKey: 'openAiApi',
               nodeType: '@n8n/n8n-nodes-langchain.lmChatOpenAi',
-              data: { apiKey }
             }
           : { 
               type: 'googlePalmApi', 
               credKey: 'googlePalmApi',
               nodeType: '@n8n/n8n-nodes-langchain.lmChatGoogleGemini',
-              data: { apiKey }
             };
         
         // 2. Criar ou atualizar credencial no n8n
+        // Formato conforme documentação: https://community.n8n.io/t/how-to-create-an-gemini-and-llm-credential-with-api/65682
         const credName = `Cliente_${provider}_${Date.now()}`;
         console.log(`n8n-api: Criando credencial ${credName}`);
         
-        const newCredential = await n8nRequest('/credentials', 'POST', {
+        // Montar payload de credencial conforme tipo
+        const credentialPayload: any = {
           name: credName,
           type: credentialConfig.type,
-          data: {
-            ...credentialConfig.data,
-            host: provider === 'openai' ? 'https://api.openai.com' : 'https://generativelanguage.googleapis.com',
-            allowedDomains: ['*'],
-          },
-        });
+        };
+        
+        if (provider === 'openai') {
+          credentialPayload.data = {
+            apiKey: apiKey,
+          };
+        } else {
+          // Google PaLM/Gemini API - formato conforme documentação n8n
+          credentialPayload.data = {
+            host: 'https://generativelanguage.googleapis.com',
+            apiKey: apiKey,
+          };
+        }
+        
+        console.log(`n8n-api: Payload de credencial:`, JSON.stringify(credentialPayload));
+        const newCredential = await n8nRequest('/credentials', 'POST', credentialPayload);
         
         console.log(`n8n-api: Credencial criada com ID ${newCredential.id}`);
         
