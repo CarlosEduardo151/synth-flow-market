@@ -831,35 +831,24 @@ serve(async (req) => {
           console.warn(`n8n-api: AI Agent não encontrado, ferramentas serão adicionadas sem conexão`);
         }
         
-        // 3. Preservar TODOS os nós existentes - apenas adicionar/atualizar ferramentas
-        // Tipos de ferramentas que podemos gerenciar
+        // 3. ABORDAGEM SEGURA: Manter TODOS os nós existentes, apenas adicionar novas ferramentas
+        // Tipos de ferramentas que criamos (usar para verificar se já existe)
         const toolNodeTypes = Object.values(N8N_TOOLS_CONFIG).map(t => t.type);
         
-        // Identificar ferramentas existentes gerenciáveis (apenas as que estão na nossa lista)
-        const existingToolNodes = workflow.nodes.filter((node: any) => 
-          toolNodeTypes.includes(node.type)
-        );
+        // NUNCA remover nenhum nó - preservar TODOS os nós existentes
+        const allExistingNodes = [...workflow.nodes];
         
-        // PRESERVAR todos os outros nós (triggers, webhooks, agent, memory, llm, etc)
-        const nodesToKeep = workflow.nodes.filter((node: any) => 
-          !toolNodeTypes.includes(node.type)
-        );
+        // Verificar quais ferramentas já existem (por tipo)
+        const existingTypes = new Set(allExistingNodes.map((n: any) => n.type));
         
-        console.log(`n8n-api: Preservando ${nodesToKeep.length} nós essenciais`);
-        console.log(`n8n-api: Tipos preservados: ${nodesToKeep.map((n: any) => n.type).join(', ')}`);
-        console.log(`n8n-api: ${existingToolNodes.length} ferramentas gerenciáveis encontradas`);
+        console.log(`n8n-api: Workflow tem ${allExistingNodes.length} nós existentes`);
+        console.log(`n8n-api: Tipos existentes: ${Array.from(existingTypes).join(', ')}`);
         
-        // 4. Mapear ferramentas existentes por tipo
-        const existingToolsByType = new Map<string, any>();
-        for (const node of existingToolNodes) {
-          existingToolsByType.set(node.type, node);
-        }
-        
-        // 5. Criar ou manter ferramentas habilitadas
+        // 4. Verificar quais ferramentas NOVAS precisam ser adicionadas
         const newToolNodes: any[] = [];
-        const baseX = 1400; // Posição X base para ferramentas
-        let currentY = 200; // Posição Y inicial
-        const ySpacing = 120; // Espaçamento entre ferramentas
+        const baseX = 1400;
+        let currentY = 200;
+        const ySpacing = 120;
         
         for (const toolId of enabledToolIds) {
           const toolConfig = N8N_TOOLS_CONFIG[toolId];
@@ -868,72 +857,55 @@ serve(async (req) => {
             continue;
           }
           
-          // Verificar se já existe uma ferramenta desse tipo
-          const existingNode = existingToolsByType.get(toolConfig.type);
-          
-          if (existingNode) {
-            // Manter nó existente, atualizando apenas posição se necessário
-            console.log(`n8n-api: Mantendo ferramenta existente: ${existingNode.name}`);
-            newToolNodes.push({
-              ...existingNode,
-              position: [baseX, currentY],
-            });
-          } else {
-            // Criar novo nó
-            const toolName = toolId.replace(/Tool$/, '').replace(/([A-Z])/g, ' $1').trim();
-            const customParams = customToolsConfig[toolId] || {};
-            
-            const newNode = {
-              parameters: {
-                ...toolConfig.defaultParams,
-                ...customParams,
-              },
-              type: toolConfig.type,
-              typeVersion: toolConfig.typeVersion,
-              position: [baseX, currentY],
-              id: crypto.randomUUID(),
-              name: toolName,
-            };
-            
-            console.log(`n8n-api: Criando nova ferramenta: ${toolName} (${toolConfig.type})`);
-            newToolNodes.push(newNode);
+          // Verificar se já existe um nó desse tipo no workflow
+          if (existingTypes.has(toolConfig.type)) {
+            console.log(`n8n-api: Ferramenta ${toolId} já existe no workflow, ignorando`);
+            continue;
           }
           
+          // Criar novo nó apenas se não existe
+          const toolName = toolId.replace(/Tool$/, '').replace(/([A-Z])/g, ' $1').trim();
+          const customParams = customToolsConfig[toolId] || {};
+          
+          const newNode = {
+            parameters: {
+              ...toolConfig.defaultParams,
+              ...customParams,
+            },
+            type: toolConfig.type,
+            typeVersion: toolConfig.typeVersion,
+            position: [baseX, currentY],
+            id: crypto.randomUUID(),
+            name: toolName,
+          };
+          
+          console.log(`n8n-api: Adicionando nova ferramenta: ${toolName} (${toolConfig.type})`);
+          newToolNodes.push(newNode);
           currentY += ySpacing;
         }
         
-        // 6. Montar array final de nós - preservar todos + adicionar ferramentas
-        const updatedNodes = [...nodesToKeep, ...newToolNodes];
-        console.log(`n8n-api: Total de nós no workflow atualizado: ${updatedNodes.length}`);
+        // 5. Montar array final: TODOS os nós existentes + novas ferramentas
+        const updatedNodes = [...allExistingNodes, ...newToolNodes];
+        console.log(`n8n-api: Total de nós: ${allExistingNodes.length} existentes + ${newToolNodes.length} novas = ${updatedNodes.length}`);
         
-        // 7. Atualizar conexões
+        // 6. Preservar TODAS as conexões existentes e adicionar novas
         const updatedConnections = { ...workflow.connections };
         
-        // Remover conexões antigas de ferramentas
-        for (const existingTool of existingToolNodes) {
-          if (updatedConnections[existingTool.name]) {
-            delete updatedConnections[existingTool.name];
-          }
-        }
-        
         // Adicionar conexões das novas ferramentas ao AI Agent
-        if (agentNodeName) {
+        if (agentNodeName && newToolNodes.length > 0) {
           for (const toolNode of newToolNodes) {
-            // Verificar se é uma ferramenta do tipo langchain (ai_tool output)
-            const isLangchainTool = toolNode.type.includes('langchain') || 
-                                     toolNode.type.includes('Tool');
+            const isLangchainTool = toolNode.type.includes('langchain') || toolNode.type.includes('Tool');
             
             if (isLangchainTool) {
               updatedConnections[toolNode.name] = {
-                ai_tool: [
-                  [{ node: agentNodeName, type: 'ai_tool', index: 0 }]
-                ]
+                ai_tool: [[{ node: agentNodeName, type: 'ai_tool', index: 0 }]]
               };
+              console.log(`n8n-api: Conectando ${toolNode.name} ao ${agentNodeName}`);
             }
           }
         }
         
-        // 8. Enviar workflow atualizado
+        // 7. Enviar workflow atualizado
         const updatePayload = {
           name: workflow.name,
           nodes: updatedNodes,
@@ -944,7 +916,7 @@ serve(async (req) => {
         console.log(`n8n-api: Enviando workflow com ${updatedNodes.length} nós e ${Object.keys(updatedConnections).length} conexões`);
         const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
         
-        // 9. Reativar workflow se estava ativo
+        // 8. Reativar workflow se estava ativo
         if (wasActive) {
           console.log(`n8n-api: Reativando workflow`);
           try {
@@ -955,20 +927,14 @@ serve(async (req) => {
           }
         }
         
-        const addedTools = newToolNodes.filter(t => !existingToolsByType.has(t.type)).map(t => t.name);
-        const removedTools = existingToolNodes
-          .filter(t => !enabledToolIds.some(id => N8N_TOOLS_CONFIG[id]?.type === t.type))
-          .map(t => t.name);
-        
         result = {
           success: true,
           message: `Ferramentas sincronizadas com sucesso`,
           workflowId: savedWorkflow.id,
           summary: {
-            totalTools: newToolNodes.length,
-            added: addedTools,
-            removed: removedTools,
-            maintained: newToolNodes.length - addedTools.length,
+            totalTools: allExistingNodes.length + newToolNodes.length,
+            added: newToolNodes.map(t => t.name),
+            existing: allExistingNodes.length,
           },
           toolNodes: newToolNodes.map(t => ({ name: t.name, type: t.type, id: t.id })),
         };
