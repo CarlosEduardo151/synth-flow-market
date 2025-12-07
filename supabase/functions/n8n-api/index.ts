@@ -630,7 +630,11 @@ serve(async (req) => {
         // Atualizar parâmetros do nó
         memoryNode.parameters = memoryNode.parameters || {};
         memoryNode.parameters.sessionIdType = 'customKey';
-        memoryNode.parameters.sessionKey = requestBody.sessionIdKey || memoryNode.parameters.sessionKey || '{{ $json.session_id }}';
+        
+        // Definir sessionKey como expression (não string fixa)
+        const sessionKeyExpression = requestBody.sessionIdKey || '={{ $json.session_id }}';
+        memoryNode.parameters.sessionKey = `=${sessionKeyExpression.startsWith('=') ? sessionKeyExpression.slice(1) : sessionKeyExpression}`;
+        
         memoryNode.parameters.tableName = 'n8n_chat_histories';
         
         if (requestBody.contextWindowSize) {
