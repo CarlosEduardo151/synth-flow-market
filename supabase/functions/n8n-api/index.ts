@@ -480,29 +480,23 @@ serve(async (req) => {
             const schema = await n8nRequest(`/credentials/schema/${credentialType}`);
             console.log(`n8n-api: Schema obtido:`, JSON.stringify(schema));
             
-            // 2. Montar dados da credencial baseado no schema
+            // 2. Montar dados da credencial baseado no tipo
             const credData: Record<string, any> = {};
             
             // Adicionar apiKey (sempre obrigatório)
             credData.apiKey = apiKey;
             
+            // Para OpenAI, o schema tem campos condicionais que precisam ser configurados
+            if (actualProvider === 'openai') {
+              // header: false evita que exija headerName e headerValue
+              credData.header = false;
+              // allowedHttpRequestDomains: 'all' evita que exija allowedDomains
+              credData.allowedHttpRequestDomains = 'all';
+            }
+            
             // Para Google, adicionar host
             if (actualProvider === 'google') {
               credData.host = 'https://generativelanguage.googleapis.com';
-            }
-            
-            // Adicionar campos required que têm default no schema
-            if (schema.properties) {
-              for (const [key, prop] of Object.entries(schema.properties as Record<string, any>)) {
-                if (schema.required?.includes(key) && !credData[key]) {
-                  // Usar default se disponível
-                  if (prop.default !== undefined) {
-                    credData[key] = prop.default;
-                  } else if (key === 'allowedDomains') {
-                    credData[key] = '*';
-                  }
-                }
-              }
             }
             
             console.log(`n8n-api: Dados da credencial:`, JSON.stringify(credData));
