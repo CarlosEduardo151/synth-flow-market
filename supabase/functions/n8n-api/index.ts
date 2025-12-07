@@ -450,7 +450,7 @@ serve(async (req) => {
         break;
       }
 
-      // ========== UPDATE LLM CONFIG (Modelo no Workflow - sem criar credencial) ==========
+      // ========== UPDATE LLM CONFIG (Credencial + Modelo no Workflow) ==========
       case 'update_llm_config': {
         if (!workflowId) throw new Error('workflowId é obrigatório');
         if (!model) throw new Error('model é obrigatório');
@@ -461,11 +461,75 @@ serve(async (req) => {
         
         console.log(`n8n-api: Atualizando LLM config do workflow ${workflowId} para ${actualProvider}/${model}`);
         
-        // 1. Buscar workflow completo
+        // Determinar tipo de credencial
+        const credentialType = actualProvider === 'openai' ? 'openAiApi' : 'googlePalmApi';
+        const credKey = credentialType;
+        const nodeType = actualProvider === 'openai' 
+          ? '@n8n/n8n-nodes-langchain.lmChatOpenAi'
+          : '@n8n/n8n-nodes-langchain.lmChatGoogleGemini';
+        
+        let credentialId: string | null = null;
+        let credentialName: string | null = null;
+        
+        // Se API key foi fornecida, criar nova credencial
+        if (apiKey) {
+          console.log(`n8n-api: API key fornecida, buscando schema de credencial ${credentialType}`);
+          
+          try {
+            // 1. Buscar schema da credencial para saber campos obrigatórios
+            const schema = await n8nRequest(`/credentials/schema/${credentialType}`);
+            console.log(`n8n-api: Schema obtido:`, JSON.stringify(schema));
+            
+            // 2. Montar dados da credencial baseado no schema
+            const credData: Record<string, any> = {};
+            
+            // Adicionar apiKey (sempre obrigatório)
+            credData.apiKey = apiKey;
+            
+            // Para Google, adicionar host
+            if (actualProvider === 'google') {
+              credData.host = 'https://generativelanguage.googleapis.com';
+            }
+            
+            // Adicionar campos required que têm default no schema
+            if (schema.properties) {
+              for (const [key, prop] of Object.entries(schema.properties as Record<string, any>)) {
+                if (schema.required?.includes(key) && !credData[key]) {
+                  // Usar default se disponível
+                  if (prop.default !== undefined) {
+                    credData[key] = prop.default;
+                  } else if (key === 'allowedDomains') {
+                    credData[key] = '*';
+                  }
+                }
+              }
+            }
+            
+            console.log(`n8n-api: Dados da credencial:`, JSON.stringify(credData));
+            
+            // 3. Criar credencial
+            const credName = `Cliente_${actualProvider}_${Date.now()}`;
+            const newCredential = await n8nRequest('/credentials', 'POST', {
+              name: credName,
+              type: credentialType,
+              data: credData,
+            });
+            
+            credentialId = newCredential.id;
+            credentialName = credName;
+            console.log(`n8n-api: Credencial criada com ID ${credentialId}`);
+            
+          } catch (credError: any) {
+            console.warn(`n8n-api: Erro ao criar credencial: ${credError.message}`);
+            console.log(`n8n-api: Continuando sem criar credencial, apenas atualizando modelo`);
+          }
+        }
+        
+        // 4. Buscar workflow completo
         const workflow = await n8nRequest(`/workflows/${workflowId}`);
         const wasActive = workflow.active;
         
-        // 2. Encontrar o nó LLM (Chat Model) no workflow
+        // 5. Encontrar o nó LLM (Chat Model) no workflow
         const targetLlmNodeId = llmNodeId;
         let llmNodeIndex = -1;
         
@@ -488,29 +552,43 @@ serve(async (req) => {
         
         console.log(`n8n-api: Nó LLM encontrado no índice ${llmNodeIndex}, tipo: ${workflow.nodes[llmNodeIndex].type}`);
         
-        // 3. Atualizar apenas os parâmetros do nó (mantendo credenciais existentes)
+        // 6. Atualizar o nó LLM
         const updatedNodes = [...workflow.nodes];
         const llmNode = { ...updatedNodes[llmNodeIndex] };
         
-        // Manter credenciais existentes
-        console.log(`n8n-api: Mantendo credenciais existentes: ${JSON.stringify(llmNode.credentials || {})}`);
+        // Atualizar tipo do nó se estiver trocando de provedor
+        llmNode.type = nodeType;
+        
+        // Se credencial foi criada, atualizar no nó
+        if (credentialId && credentialName) {
+          llmNode.credentials = {
+            [credKey]: {
+              id: credentialId,
+              name: credentialName,
+            }
+          };
+          console.log(`n8n-api: Credencial atualizada no nó: ${credentialName}`);
+        } else {
+          console.log(`n8n-api: Mantendo credenciais existentes: ${JSON.stringify(llmNode.credentials || {})}`);
+        }
         
         // Atualizar modelo nos parâmetros
         llmNode.parameters = llmNode.parameters || {};
         
-        // Para Gemini, o campo é modelName
-        if (llmNode.type?.includes('GoogleGemini') || actualProvider === 'google') {
+        // Para Gemini, o campo é modelName; para OpenAI é model
+        if (actualProvider === 'google') {
           llmNode.parameters.modelName = model;
+          delete llmNode.parameters.model;
           console.log(`n8n-api: Definindo modelName (Gemini) = ${model}`);
         } else {
-          // Para OpenAI, o campo é model
           llmNode.parameters.model = model;
+          delete llmNode.parameters.modelName;
           console.log(`n8n-api: Definindo model (OpenAI) = ${model}`);
         }
         
         updatedNodes[llmNodeIndex] = llmNode;
         
-        // 4. Enviar workflow atualizado
+        // 7. Enviar workflow atualizado
         const updatePayload = {
           name: workflow.name,
           nodes: updatedNodes,
@@ -521,7 +599,7 @@ serve(async (req) => {
         console.log(`n8n-api: Enviando atualização do workflow`);
         const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
         
-        // 5. Reativar workflow se estava ativo
+        // 8. Reativar workflow se estava ativo
         if (wasActive) {
           console.log(`n8n-api: Reativando workflow`);
           try {
@@ -534,11 +612,14 @@ serve(async (req) => {
         
         result = {
           success: true,
-          message: `Modelo LLM atualizado para: ${model}`,
+          message: credentialId 
+            ? `LLM atualizado: ${actualProvider}/${model} com nova credencial`
+            : `Modelo LLM atualizado para: ${model} (credencial mantida)`,
           workflowId: savedWorkflow.id,
           provider: actualProvider,
           model,
-          llmNodeType: llmNode.type,
+          llmNodeType: nodeType,
+          ...(credentialId && { credentialId, credentialName }),
         };
         break;
       }
