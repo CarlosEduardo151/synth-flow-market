@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -416,24 +416,24 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                   <SelectTrigger className="bg-background">
                     <SelectValue placeholder="Selecione um modelo" />
                   </SelectTrigger>
-                  <SelectContent className="bg-background border border-border shadow-lg z-50 max-h-[400px]">
+                  <SelectContent className="bg-popover max-h-[400px]">
                     {(['chat', 'image', 'video', 'tts', 'special'] as ModelCategory[]).map((category) => {
                       const modelsInCategory = AI_MODELS.filter(m => m.category === category);
                       if (modelsInCategory.length === 0) return null;
                       return (
-                        <div key={category}>
-                          <div className="px-2 py-2 text-sm font-semibold text-muted-foreground bg-muted/50 sticky top-0">
+                        <SelectGroup key={category}>
+                          <SelectLabel className="bg-muted/50 text-muted-foreground">
                             {CATEGORY_LABELS[category]}
-                          </div>
+                          </SelectLabel>
                           {modelsInCategory.map((model) => (
-                            <SelectItem key={model.id} value={model.id} className="cursor-pointer">
+                            <SelectItem key={model.id} value={model.id}>
                               <div className="flex items-center gap-2">
                                 <span className="font-medium">{model.name}</span>
                                 <Badge variant="outline" className="text-xs">{model.provider}</Badge>
                               </div>
                             </SelectItem>
                           ))}
-                        </div>
+                        </SelectGroup>
                       );
                     })}
                   </SelectContent>
