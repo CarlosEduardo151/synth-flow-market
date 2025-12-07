@@ -831,16 +831,40 @@ serve(async (req) => {
           console.warn(`n8n-api: AI Agent não encontrado, ferramentas serão adicionadas sem conexão`);
         }
         
-        // 3. Separar nós existentes
+        // 3. Separar nós existentes - PRESERVAR todos os nós que não são ferramentas
+        // Tipos de ferramentas que podemos gerenciar
         const toolNodeTypes = Object.values(N8N_TOOLS_CONFIG).map(t => t.type);
-        const existingNonToolNodes = workflow.nodes.filter((node: any) => 
-          !toolNodeTypes.includes(node.type)
-        );
-        const existingToolNodes = workflow.nodes.filter((node: any) => 
-          toolNodeTypes.includes(node.type)
-        );
         
-        console.log(`n8n-api: ${existingNonToolNodes.length} nós não-ferramenta, ${existingToolNodes.length} nós de ferramenta existentes`);
+        // Função para verificar se é uma ferramenta gerenciável (não trigger/webhook/agent)
+        const isManageableTool = (node: any) => {
+          // Nunca remover nós essenciais
+          const essentialTypes = [
+            'n8n-nodes-base.webhook',
+            'n8n-nodes-base.scheduleTrigger',
+            'n8n-nodes-base.manualTrigger',
+            '@n8n/n8n-nodes-langchain.agent',
+            '@n8n/n8n-nodes-langchain.lmChatOpenAi',
+            '@n8n/n8n-nodes-langchain.lmChatGoogleGemini',
+            '@n8n/n8n-nodes-langchain.memoryPostgresChat',
+            '@n8n/n8n-nodes-langchain.memoryBufferWindow',
+          ];
+          
+          // Se é um tipo essencial, não é gerenciável
+          if (essentialTypes.some(t => node.type?.includes(t.replace('@n8n/n8n-nodes-langchain.', '')) || node.type === t)) {
+            return false;
+          }
+          
+          // É gerenciável se é um dos tipos de ferramenta conhecidos
+          return toolNodeTypes.includes(node.type);
+        };
+        
+        // Nós que devemos preservar (tudo que não é ferramenta gerenciável)
+        const existingNonToolNodes = workflow.nodes.filter((node: any) => !isManageableTool(node));
+        
+        // Ferramentas existentes que podemos substituir
+        const existingToolNodes = workflow.nodes.filter((node: any) => isManageableTool(node));
+        
+        console.log(`n8n-api: ${existingNonToolNodes.length} nós preservados (triggers, agent, memory, llm), ${existingToolNodes.length} ferramentas gerenciáveis`);
         
         // 4. Mapear ferramentas existentes por tipo
         const existingToolsByType = new Map<string, any>();
