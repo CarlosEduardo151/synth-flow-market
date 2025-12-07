@@ -1482,93 +1482,569 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
           {/* PERSONALIDADE */}
           <TabsContent value="personality" className="space-y-6">
+            {/* Templates Rápidos */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <List className="h-5 w-5 text-primary" />
+                  Templates Prontos
+                </CardTitle>
+                <CardDescription>
+                  Selecione um template e personalize conforme sua necessidade
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { 
+                      id: 'atendimento', 
+                      label: '🎧 Atendimento', 
+                      prompt: `Você é um assistente de atendimento ao cliente especializado e empático.
+
+IDENTIDADE:
+- Nome: Assistente Virtual
+- Empresa: [NOME_EMPRESA]
+- Setor: Atendimento ao Cliente
+
+COMPORTAMENTO:
+- Seja sempre cordial, paciente e prestativo
+- Use linguagem clara e acessível
+- Demonstre empatia com as dificuldades do cliente
+- Ofereça soluções práticas e objetivas
+- Encaminhe para humano quando necessário
+
+FORMATO DE RESPOSTA:
+- Cumprimente o cliente
+- Identifique o problema/necessidade
+- Ofereça solução ou orientação
+- Confirme se ajudou
+- Pergunte se precisa de mais algo`
+                    },
+                    { 
+                      id: 'vendas', 
+                      label: '💼 Vendas', 
+                      prompt: `Você é um consultor de vendas especializado e persuasivo.
+
+IDENTIDADE:
+- Nome: Consultor de Vendas
+- Empresa: [NOME_EMPRESA]
+- Foco: Conversão e relacionamento
+
+COMPORTAMENTO:
+- Seja proativo e entusiasmado
+- Faça perguntas para entender necessidades
+- Apresente benefícios, não apenas características
+- Use gatilhos mentais naturalmente
+- Crie urgência sem ser agressivo
+- Ofereça comparativos quando útil
+
+TÉCNICAS:
+- SPIN Selling: Situação, Problema, Implicação, Necessidade
+- Escuta ativa para identificar objeções
+- Follow-up estratégico
+- Upsell e cross-sell quando apropriado`
+                    },
+                    { 
+                      id: 'suporte', 
+                      label: '🔧 Suporte Técnico', 
+                      prompt: `Você é um especialista em suporte técnico.
+
+IDENTIDADE:
+- Nome: Suporte Técnico
+- Especialidade: [ÁREA_TÉCNICA]
+- Nível: Especialista
+
+COMPORTAMENTO:
+- Seja técnico mas acessível
+- Faça diagnóstico antes de sugerir soluções
+- Explique passo a passo quando necessário
+- Confirme cada etapa com o usuário
+- Documente o problema e solução
+
+PROCESSO:
+1. Identificar o problema (perguntas diagnósticas)
+2. Verificar contexto (sistema, versão, etc.)
+3. Propor solução mais simples primeiro
+4. Escalar se necessário
+5. Confirmar resolução`
+                    },
+                    { 
+                      id: 'agendamento', 
+                      label: '📅 Agendamento', 
+                      prompt: `Você é um assistente de agendamento eficiente.
+
+IDENTIDADE:
+- Nome: Assistente de Agenda
+- Empresa: [NOME_EMPRESA]
+- Função: Gestão de agendamentos
+
+COMPORTAMENTO:
+- Seja objetivo e organizado
+- Confirme todas as informações
+- Ofereça opções de horários
+- Envie lembretes de confirmação
+- Facilite reagendamentos
+
+INFORMAÇÕES NECESSÁRIAS:
+- Nome completo
+- Telefone/WhatsApp
+- Data preferida
+- Horário preferido
+- Serviço desejado
+
+FLUXO:
+1. Saudação → 2. Coleta dados → 3. Verifica disponibilidade → 4. Confirma agendamento → 5. Envia confirmação`
+                    },
+                    { 
+                      id: 'educacional', 
+                      label: '📚 Educacional', 
+                      prompt: `Você é um tutor educacional paciente e didático.
+
+IDENTIDADE:
+- Nome: Tutor Virtual
+- Área: [ÁREA_CONHECIMENTO]
+- Método: Aprendizado ativo
+
+COMPORTAMENTO:
+- Seja paciente e encorajador
+- Adapte explicações ao nível do aluno
+- Use exemplos práticos e analogias
+- Faça perguntas para verificar compreensão
+- Celebre progressos
+
+TÉCNICAS:
+- Método socrático (perguntas guiadas)
+- Exemplos do cotidiano
+- Repetição espaçada
+- Feedback construtivo
+- Gamificação quando apropriado`
+                    },
+                    { 
+                      id: 'financeiro', 
+                      label: '💰 Financeiro', 
+                      prompt: `Você é um consultor financeiro confiável.
+
+IDENTIDADE:
+- Nome: Consultor Financeiro
+- Especialidade: [ÁREA_FINANCEIRA]
+- Foco: Orientação e planejamento
+
+COMPORTAMENTO:
+- Seja preciso com números
+- Explique termos técnicos
+- Seja imparcial nas recomendações
+- Alerte sobre riscos
+- Respeite sigilo bancário
+
+IMPORTANTE:
+- Nunca solicite senhas ou dados sensíveis
+- Encaminhe para canais oficiais
+- Confirme identidade quando necessário
+- Documente todas as interações`
+                    },
+                    { 
+                      id: 'juridico', 
+                      label: '⚖️ Jurídico', 
+                      prompt: `Você é um assistente jurídico informativo.
+
+IDENTIDADE:
+- Nome: Assistente Jurídico
+- Área: [ÁREA_DIREITO]
+- Função: Orientação geral
+
+COMPORTAMENTO:
+- Seja preciso e formal
+- Use linguagem jurídica quando necessário, mas explique
+- Cite fontes quando possível
+- Recomende consulta profissional para casos específicos
+
+DISCLAIMER:
+"Esta é uma orientação geral e não substitui a consulta a um advogado. Cada caso possui particularidades que devem ser analisadas individualmente."`
+                    },
+                    { 
+                      id: 'personalizado', 
+                      label: '✨ Personalizado', 
+                      prompt: `Você é um assistente virtual inteligente e adaptável.
+
+IDENTIDADE:
+- Nome: [SEU_NOME]
+- Empresa: [SUA_EMPRESA]
+- Função: [SUA_FUNÇÃO]
+
+COMPORTAMENTO:
+- [DEFINA SEU COMPORTAMENTO]
+
+REGRAS:
+- [SUAS REGRAS AQUI]
+
+FORMATO:
+- [SEU FORMATO DE RESPOSTA]`
+                    },
+                  ].map((template) => (
+                    <Button
+                      key={template.id}
+                      variant="outline"
+                      className="h-auto py-3 flex flex-col items-center gap-1 hover:bg-primary/10 hover:border-primary transition-all"
+                      onClick={() => setConfig(prev => ({ ...prev, systemPrompt: template.prompt }))}
+                    >
+                      <span className="text-lg">{template.label.split(' ')[0]}</span>
+                      <span className="text-xs text-muted-foreground">{template.label.split(' ').slice(1).join(' ')}</span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tom de Voz */}
+            <Card>
+              <CardHeader>
+                <CardTitle>🎭 Tom de Voz</CardTitle>
+                <CardDescription>
+                  Selecione o estilo de comunicação do agente
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                  {[
+                    { id: 'formal', label: '👔 Formal', desc: 'Linguagem corporativa e profissional' },
+                    { id: 'amigavel', label: '😊 Amigável', desc: 'Casual e acolhedor' },
+                    { id: 'tecnico', label: '🔬 Técnico', desc: 'Preciso e especializado' },
+                    { id: 'entusiasmado', label: '🎉 Entusiasmado', desc: 'Energético e motivador' },
+                    { id: 'empatico', label: '💚 Empático', desc: 'Compreensivo e atencioso' },
+                    { id: 'direto', label: '🎯 Direto', desc: 'Objetivo e conciso' },
+                  ].map((tone) => (
+                    <Button
+                      key={tone.id}
+                      variant="outline"
+                      size="sm"
+                      className="h-auto py-2 flex flex-col items-center gap-0.5"
+                      onClick={() => {
+                        const toneInstructions: Record<string, string> = {
+                          formal: '\n\nTOM DE VOZ: Formal e Profissional\n- Use linguagem corporativa\n- Evite gírias e coloquialismos\n- Trate por "senhor(a)" ou "você" formal\n- Mantenha distância profissional',
+                          amigavel: '\n\nTOM DE VOZ: Amigável e Acolhedor\n- Use linguagem casual mas respeitosa\n- Emojis são bem-vindos com moderação 😊\n- Trate por "você"\n- Seja caloroso e próximo',
+                          tecnico: '\n\nTOM DE VOZ: Técnico e Especializado\n- Use terminologia precisa\n- Explique termos quando necessário\n- Seja detalhista nas explicações\n- Cite fontes quando possível',
+                          entusiasmado: '\n\nTOM DE VOZ: Entusiasmado e Motivador\n- Demonstre energia positiva\n- Use exclamações com moderação!\n- Celebre conquistas do usuário\n- Mantenha otimismo construtivo',
+                          empatico: '\n\nTOM DE VOZ: Empático e Compreensivo\n- Demonstre compreensão genuína\n- Valide sentimentos do usuário\n- Use frases como "entendo como se sente"\n- Seja paciente e acolhedor',
+                          direto: '\n\nTOM DE VOZ: Direto e Objetivo\n- Vá direto ao ponto\n- Evite rodeios\n- Respostas concisas\n- Foque no essencial',
+                        };
+                        setConfig(prev => ({
+                          ...prev,
+                          systemPrompt: prev.systemPrompt + toneInstructions[tone.id]
+                        }));
+                        toast({ title: `Tom "${tone.label}" adicionado ao prompt` });
+                      }}
+                    >
+                      <span>{tone.label.split(' ')[0]}</span>
+                      <span className="text-[10px] text-muted-foreground">{tone.label.split(' ')[1]}</span>
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* System Prompt Principal */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Bot className="h-5 w-5 text-primary" />
                   System Prompt Principal
                 </CardTitle>
-                <CardDescription>
-                  Defina como o agente deve se comportar e responder
+                <CardDescription className="flex items-center justify-between">
+                  <span>Defina como o agente deve se comportar e responder</span>
+                  <Badge variant="outline" className="ml-2">
+                    {config.systemPrompt.length} caracteres
+                  </Badge>
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Variáveis Dinâmicas */}
+                <div className="p-3 bg-muted/50 rounded-lg border">
+                  <Label className="text-xs text-muted-foreground mb-2 block">📌 Variáveis Dinâmicas (clique para inserir)</Label>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { var: '{{nome_usuario}}', desc: 'Nome do usuário' },
+                      { var: '{{data_atual}}', desc: 'Data atual' },
+                      { var: '{{hora_atual}}', desc: 'Hora atual' },
+                      { var: '{{nome_empresa}}', desc: 'Nome da empresa' },
+                      { var: '{{produto}}', desc: 'Produto/Serviço' },
+                      { var: '{{telefone}}', desc: 'Telefone' },
+                      { var: '{{email}}', desc: 'Email' },
+                    ].map((v) => (
+                      <Button
+                        key={v.var}
+                        variant="secondary"
+                        size="sm"
+                        className="h-6 text-xs"
+                        onClick={() => {
+                          setConfig(prev => ({
+                            ...prev,
+                            systemPrompt: prev.systemPrompt + ' ' + v.var
+                          }));
+                        }}
+                      >
+                        {v.var}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
                 <Textarea
                   value={config.systemPrompt}
                   onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                  className="min-h-[250px] font-mono text-sm"
+                  className="min-h-[350px] font-mono text-sm"
                   placeholder="Descreva a personalidade e comportamento do agente..."
                 />
-                {!config.n8nWorkflowId && (
-                  <p className="text-sm text-amber-500 flex items-center gap-2">
-                    <XCircle className="h-4 w-4" />
-                    Selecione um workflow na aba "Status" para habilitar sincronização
-                  </p>
-                )}
-                {config.n8nWorkflowId && (
-                  <p className="text-sm text-muted-foreground flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    Workflow selecionado: <code className="bg-muted px-1 rounded">{config.n8nWorkflowId}</code>
-                  </p>
-                )}
+                
+                <div className="flex items-center justify-between">
+                  {!config.n8nWorkflowId && (
+                    <p className="text-sm text-amber-500 flex items-center gap-2">
+                      <XCircle className="h-4 w-4" />
+                      Selecione um workflow na aba "Status" para habilitar sincronização
+                    </p>
+                  )}
+                  {config.n8nWorkflowId && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                      Workflow: <code className="bg-muted px-1 rounded">{config.n8nWorkflowId}</code>
+                    </p>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConfig(prev => ({ ...prev, systemPrompt: '' }))}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" /> Limpar
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 
+            {/* Guardrails Organizados */}
             <Card>
               <CardHeader>
-                <CardTitle>Instruções de Ação (Guardrails)</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Guardrails e Regras de Comportamento
+                </CardTitle>
                 <CardDescription>
-                  Defina o que o agente deve ou não fazer
+                  Defina limites e comportamentos obrigatórios do agente
                 </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
-                    <SelectTrigger className="w-[140px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="do">✅ Faça isso</SelectItem>
-                      <SelectItem value="dont">❌ Nunca faça</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    value={newInstruction}
-                    onChange={(e) => setNewInstruction(e.target.value)}
-                    placeholder="Digite uma instrução..."
-                    onKeyPress={(e) => e.key === 'Enter' && addInstruction()}
-                    className="flex-1"
-                  />
-                  <Button onClick={addInstruction} size="icon">
-                    <Plus className="h-4 w-4" />
-                  </Button>
+              <CardContent className="space-y-6">
+                {/* Guardrails Pré-definidos por Categoria */}
+                <div className="space-y-4">
+                  <Label className="text-sm font-medium">📦 Adicionar Guardrails Prontos</Label>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {/* Segurança */}
+                    <div className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Shield className="h-4 w-4 text-red-500" />
+                        Segurança
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { text: 'Nunca solicitar senhas ou dados bancários', type: 'dont' as const },
+                          { text: 'Nunca compartilhar informações de outros usuários', type: 'dont' as const },
+                          { text: 'Alertar sobre tentativas de phishing', type: 'do' as const },
+                          { text: 'Verificar identidade antes de dados sensíveis', type: 'do' as const },
+                        ].map((g, i) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className={`h-auto py-1 px-2 text-xs ${g.type === 'do' ? 'text-green-600 hover:bg-green-100' : 'text-red-600 hover:bg-red-100'}`}
+                            onClick={() => {
+                              const newId = Date.now().toString();
+                              setConfig(prev => ({
+                                ...prev,
+                                actionInstructions: [...prev.actionInstructions, { id: newId, instruction: g.text, type: g.type }]
+                              }));
+                              toast({ title: 'Guardrail adicionado!' });
+                            }}
+                          >
+                            {g.type === 'do' ? '✅' : '❌'} {g.text}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Comunicação */}
+                    <div className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Bot className="h-4 w-4 text-blue-500" />
+                        Comunicação
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { text: 'Sempre responder em português brasileiro', type: 'do' as const },
+                          { text: 'Usar linguagem inclusiva e respeitosa', type: 'do' as const },
+                          { text: 'Nunca usar palavrões ou linguagem ofensiva', type: 'dont' as const },
+                          { text: 'Evitar respostas muito longas', type: 'do' as const },
+                        ].map((g, i) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className={`h-auto py-1 px-2 text-xs ${g.type === 'do' ? 'text-green-600 hover:bg-green-100' : 'text-red-600 hover:bg-red-100'}`}
+                            onClick={() => {
+                              const newId = Date.now().toString();
+                              setConfig(prev => ({
+                                ...prev,
+                                actionInstructions: [...prev.actionInstructions, { id: newId, instruction: g.text, type: g.type }]
+                              }));
+                              toast({ title: 'Guardrail adicionado!' });
+                            }}
+                          >
+                            {g.type === 'do' ? '✅' : '❌'} {g.text}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Conhecimento */}
+                    <div className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Brain className="h-4 w-4 text-purple-500" />
+                        Conhecimento
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { text: 'Admitir quando não souber a resposta', type: 'do' as const },
+                          { text: 'Nunca inventar informações', type: 'dont' as const },
+                          { text: 'Citar fontes quando possível', type: 'do' as const },
+                          { text: 'Sugerir buscar ajuda humana quando necessário', type: 'do' as const },
+                        ].map((g, i) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className={`h-auto py-1 px-2 text-xs ${g.type === 'do' ? 'text-green-600 hover:bg-green-100' : 'text-red-600 hover:bg-red-100'}`}
+                            onClick={() => {
+                              const newId = Date.now().toString();
+                              setConfig(prev => ({
+                                ...prev,
+                                actionInstructions: [...prev.actionInstructions, { id: newId, instruction: g.text, type: g.type }]
+                              }));
+                              toast({ title: 'Guardrail adicionado!' });
+                            }}
+                          >
+                            {g.type === 'do' ? '✅' : '❌'} {g.text}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Escopo */}
+                    <div className="p-3 border rounded-lg space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Activity className="h-4 w-4 text-orange-500" />
+                        Escopo e Limites
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {[
+                          { text: 'Manter foco no assunto da empresa', type: 'do' as const },
+                          { text: 'Nunca discutir política ou religião', type: 'dont' as const },
+                          { text: 'Não fazer promessas que não pode cumprir', type: 'dont' as const },
+                          { text: 'Encaminhar para humano quando sair do escopo', type: 'do' as const },
+                        ].map((g, i) => (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className={`h-auto py-1 px-2 text-xs ${g.type === 'do' ? 'text-green-600 hover:bg-green-100' : 'text-red-600 hover:bg-red-100'}`}
+                            onClick={() => {
+                              const newId = Date.now().toString();
+                              setConfig(prev => ({
+                                ...prev,
+                                actionInstructions: [...prev.actionInstructions, { id: newId, instruction: g.text, type: g.type }]
+                              }));
+                              toast({ title: 'Guardrail adicionado!' });
+                            }}
+                          >
+                            {g.type === 'do' ? '✅' : '❌'} {g.text}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <ScrollArea className="h-[250px]">
-                  <div className="space-y-2">
-                    {config.actionInstructions.map((item) => (
-                      <div
-                        key={item.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border ${
-                          item.type === 'do' ? 'bg-green-500/10 border-green-500/30' : 'bg-red-500/10 border-red-500/30'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{item.type === 'do' ? '✅' : '❌'}</span>
-                          <span className="text-sm">{item.instruction}</span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeInstruction(item.id)}
-                          className="h-8 w-8"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
+                {/* Adicionar Guardrail Personalizado */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">➕ Adicionar Guardrail Personalizado</Label>
+                  <div className="flex gap-2">
+                    <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
+                      <SelectTrigger className="w-[160px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="do">✅ Sempre faça</SelectItem>
+                        <SelectItem value="dont">❌ Nunca faça</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={newInstruction}
+                      onChange={(e) => setNewInstruction(e.target.value)}
+                      placeholder="Digite uma instrução personalizada..."
+                      onKeyPress={(e) => e.key === 'Enter' && addInstruction()}
+                      className="flex-1"
+                    />
+                    <Button onClick={addInstruction} size="icon">
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
-                </ScrollArea>
+                </div>
+
+                {/* Lista de Guardrails Ativos */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">📋 Guardrails Ativos ({config.actionInstructions.length})</Label>
+                    {config.actionInstructions.length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs text-destructive"
+                        onClick={() => setConfig(prev => ({ ...prev, actionInstructions: [] }))}
+                      >
+                        Limpar todos
+                      </Button>
+                    )}
+                  </div>
+                  <ScrollArea className="h-[200px]">
+                    <div className="space-y-2">
+                      {config.actionInstructions.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">
+                          Nenhum guardrail configurado. Adicione regras acima.
+                        </p>
+                      ) : (
+                        config.actionInstructions.map((item) => (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                              item.type === 'do' 
+                                ? 'bg-green-500/10 border-green-500/30 hover:bg-green-500/20' 
+                                : 'bg-red-500/10 border-red-500/30 hover:bg-red-500/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{item.type === 'do' ? '✅' : '❌'}</span>
+                              <span className="text-sm">{item.instruction}</span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeInstruction(item.id)}
+                              className="h-8 w-8 opacity-50 hover:opacity-100"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </ScrollArea>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
