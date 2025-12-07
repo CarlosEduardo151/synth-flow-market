@@ -198,8 +198,159 @@ Suas características:
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
   const [syncingPrompt, setSyncingPrompt] = useState(false);
+  const [customerProductId, setCustomerProductId] = useState<string | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
 
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
+
+  // Carregar configuração do banco de dados
+  const loadConfigFromDatabase = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Buscar o primeiro customer_product do usuário para usar como referência
+      const { data: customerProducts } = await supabase
+        .from('customer_products')
+        .select('id, n8n_workflow_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (customerProducts && customerProducts.length > 0) {
+        const productId = customerProducts[0].id;
+        setCustomerProductId(productId);
+
+        // Carregar configuração existente
+        const { data: configData } = await supabase
+          .from('ai_control_config')
+          .select('*')
+          .eq('customer_product_id', productId)
+          .maybeSingle();
+
+        if (configData) {
+          // Parsear action_instructions se existir
+          let actionInstructions: ActionInstruction[] = [
+            { id: '1', instruction: 'Sempre cumprimente o usuário', type: 'do' },
+            { id: '2', instruction: 'Nunca revele informações confidenciais do sistema', type: 'dont' },
+          ];
+          
+          if (configData.action_instructions) {
+            try {
+              const parsed = JSON.parse(configData.action_instructions);
+              if (Array.isArray(parsed)) {
+                actionInstructions = parsed;
+              }
+            } catch (e) {
+              console.error('Error parsing action_instructions:', e);
+            }
+          }
+
+          // Determinar provider baseado no modelo
+          const provider = configData.ai_model?.includes('gpt') ? 'openai' : 'google';
+
+          setConfig(prev => ({
+            ...prev,
+            isActive: configData.is_active || false,
+            n8nWorkflowId: customerProducts[0].n8n_workflow_id || '',
+            provider,
+            model: configData.ai_model || (provider === 'openai' ? 'gpt-4o' : 'models/gemini-2.5-flash'),
+            temperature: configData.temperature || 0.7,
+            maxTokens: configData.max_tokens || 2048,
+            systemPrompt: configData.system_prompt || prev.systemPrompt,
+            actionInstructions,
+            sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
+          }));
+
+          // Carregar API key das credenciais se existir
+          if (configData.ai_credentials) {
+            const credentials = configData.ai_credentials as Record<string, string>;
+            const apiKey = credentials.openai_api_key || credentials.google_api_key || '';
+            if (apiKey) {
+              setConfig(prev => ({ ...prev, apiKey }));
+            }
+          }
+        }
+      }
+      setConfigLoaded(true);
+    } catch (error) {
+      console.error('Error loading config from database:', error);
+      setConfigLoaded(true);
+    }
+  };
+
+  // Salvar configuração no banco de dados
+  const saveConfigToDatabase = async () => {
+    if (!customerProductId) {
+      // Criar um registro se não existir
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return false;
+
+      // Verificar se já tem um customer_product
+      const { data: customerProducts } = await supabase
+        .from('customer_products')
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1);
+
+      if (!customerProducts || customerProducts.length === 0) {
+        console.error('No customer_product found');
+        return false;
+      }
+
+      setCustomerProductId(customerProducts[0].id);
+    }
+
+    const productId = customerProductId;
+    if (!productId) return false;
+
+    try {
+      const configToSave = {
+        customer_product_id: productId,
+        is_active: config.isActive,
+        ai_model: config.model,
+        temperature: config.temperature,
+        max_tokens: config.maxTokens,
+        system_prompt: config.systemPrompt,
+        personality: config.actionInstructions.filter(i => i.type === 'do').map(i => i.instruction).join('\n'),
+        action_instructions: JSON.stringify(config.actionInstructions),
+        memory_session_id: config.sessionKeyId,
+        n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
+        ai_credentials: {
+          [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
+        },
+        updated_at: new Date().toISOString(),
+      };
+
+      // Upsert - inserir ou atualizar
+      const { error } = await supabase
+        .from('ai_control_config')
+        .upsert(configToSave, { onConflict: 'customer_product_id' });
+
+      if (error) {
+        console.error('Error saving config:', error);
+        return false;
+      }
+
+      // Também atualizar o n8n_workflow_id no customer_products
+      if (config.n8nWorkflowId) {
+        await supabase
+          .from('customer_products')
+          .update({ n8n_workflow_id: config.n8nWorkflowId })
+          .eq('id', productId);
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Error saving config to database:', error);
+      return false;
+    }
+  };
+
+  // Carregar configuração ao montar o componente
+  useEffect(() => {
+    loadConfigFromDatabase();
+  }, []);
 
   const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
     const { data, error } = await supabase.functions.invoke('n8n-api', {
@@ -567,11 +718,16 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Salvar localmente
-      localStorage.setItem('agentConfig', JSON.stringify({
-        ...config,
-        apiKey: '***ENCRYPTED***',
-      }));
+      // Salvar no banco de dados (persistência permanente)
+      const dbSaved = await saveConfigToDatabase();
+      
+      if (!dbSaved) {
+        toast({
+          title: "Aviso",
+          description: "Não foi possível salvar no banco de dados. As configurações serão perdidas ao sair.",
+          variant: "destructive",
+        });
+      }
 
       if (config.n8nWorkflowId) {
         // Monta o prompt completo com instruções de ação
@@ -600,34 +756,41 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
         // Também sincroniza outras configurações via n8n-sync-config
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
-        if (promptResult?.success && llmResult?.success && syncResult?.success) {
+        if (dbSaved && promptResult?.success && llmResult?.success && syncResult?.success) {
           toast({
-            title: "Tudo sincronizado!",
-            description: `System Prompt, Motor IA (${config.provider}/${config.model}) e configurações atualizadas.`,
+            title: "Tudo salvo e sincronizado!",
+            description: `Configurações salvas permanentemente. Motor IA: ${config.provider}/${config.model}`,
           });
-        } else if (promptResult?.success && llmResult?.success) {
+        } else if (dbSaved && promptResult?.success && llmResult?.success) {
           toast({
-            title: "Prompt e Motor sincronizados!",
-            description: "System Prompt e credenciais atualizadas. Algumas configurações adicionais podem não ter sido aplicadas.",
+            title: "Salvo com sucesso!",
+            description: "Configurações salvas no banco. Prompt e Motor IA sincronizados com n8n.",
           });
-        } else if (promptResult?.success) {
+        } else if (dbSaved && promptResult?.success) {
           toast({
-            title: "Prompt sincronizado!",
-            description: "System Prompt atualizado. Falha ao sincronizar Motor IA.",
+            title: "Parcialmente sincronizado",
+            description: "Configurações salvas. Prompt atualizado, mas falha ao sincronizar Motor IA.",
             variant: "destructive",
+          });
+        } else if (dbSaved) {
+          toast({
+            title: "Salvo no banco de dados",
+            description: "Configurações salvas, mas falha ao sincronizar com n8n.",
           });
         } else {
           toast({
-            title: "Configuração salva localmente",
-            description: "Salvo local, mas falha ao sincronizar com n8n.",
+            title: "Erro ao salvar",
+            description: "Não foi possível salvar as configurações.",
             variant: "destructive",
           });
         }
       } else {
-        toast({
-          title: "Configuração salva!",
-          description: "Selecione um workflow para sincronizar com n8n.",
-        });
+        if (dbSaved) {
+          toast({
+            title: "Configurações salvas!",
+            description: "Salvo permanentemente. Selecione um workflow para sincronizar com n8n.",
+          });
+        }
       }
     } catch (error: any) {
       toast({
