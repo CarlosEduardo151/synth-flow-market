@@ -9,12 +9,68 @@ const corsHeaders = {
 const N8N_BASE_URL = Deno.env.get('N8N_BASE_URL') || 'https://n8n.starai.com.br';
 const N8N_API_KEY = Deno.env.get('N8N_API_KEY');
 
+// Definição das ferramentas n8n disponíveis
+const N8N_TOOLS_CONFIG: Record<string, { type: string; typeVersion: number; defaultParams: Record<string, any> }> = {
+  // Requisições e APIs
+  httpRequestTool: { type: 'n8n-nodes-base.httpRequestTool', typeVersion: 4.3, defaultParams: { options: {} } },
+  webhookTool: { type: 'n8n-nodes-base.webhook', typeVersion: 2, defaultParams: { httpMethod: 'POST', path: 'webhook' } },
+  graphqlTool: { type: 'n8n-nodes-base.graphql', typeVersion: 1, defaultParams: { endpoint: '', query: '' } },
+  soapTool: { type: 'n8n-nodes-base.soap', typeVersion: 1, defaultParams: { wsdlUrl: '' } },
+  
+  // Busca e Pesquisa
+  serpApiTool: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, defaultParams: {} },
+  wolframAlphaTool: { type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', typeVersion: 1, defaultParams: {} },
+  wikipediaTool: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, defaultParams: {} },
+  vectorStoreTool: { type: '@n8n/n8n-nodes-langchain.toolVectorStore', typeVersion: 1, defaultParams: {} },
+  
+  // Email e Comunicação
+  gmailTool: { type: 'n8n-nodes-base.gmail', typeVersion: 2.1, defaultParams: { operation: 'send' } },
+  outlookTool: { type: 'n8n-nodes-base.microsoftOutlook', typeVersion: 2, defaultParams: { operation: 'send' } },
+  sendGridTool: { type: 'n8n-nodes-base.sendGrid', typeVersion: 1, defaultParams: { operation: 'send' } },
+  smtpTool: { type: 'n8n-nodes-base.emailSend', typeVersion: 2.1, defaultParams: {} },
+  slackTool: { type: 'n8n-nodes-base.slack', typeVersion: 2.2, defaultParams: { operation: 'postMessage' } },
+  discordTool: { type: 'n8n-nodes-base.discord', typeVersion: 2, defaultParams: { operation: 'sendMessage' } },
+  telegramTool: { type: 'n8n-nodes-base.telegram', typeVersion: 1.2, defaultParams: { operation: 'sendMessage' } },
+  whatsappTool: { type: 'n8n-nodes-base.whatsApp', typeVersion: 1, defaultParams: { operation: 'sendMessage' } },
+  
+  // Planilhas e Dados
+  googleSheetsTool: { type: 'n8n-nodes-base.googleSheets', typeVersion: 4.5, defaultParams: { operation: 'read' } },
+  excelTool: { type: 'n8n-nodes-base.microsoftExcel', typeVersion: 2, defaultParams: { operation: 'read' } },
+  airtableTool: { type: 'n8n-nodes-base.airtable', typeVersion: 2.1, defaultParams: { operation: 'read' } },
+  notionTool: { type: 'n8n-nodes-base.notion', typeVersion: 2.2, defaultParams: { operation: 'get' } },
+  
+  // Banco de Dados
+  postgresTool: { type: 'n8n-nodes-base.postgres', typeVersion: 2.5, defaultParams: { operation: 'executeQuery' } },
+  mysqlTool: { type: 'n8n-nodes-base.mySql', typeVersion: 2.4, defaultParams: { operation: 'executeQuery' } },
+  mongoDbTool: { type: 'n8n-nodes-base.mongoDb', typeVersion: 1.1, defaultParams: { operation: 'find' } },
+  redisTool: { type: 'n8n-nodes-base.redis', typeVersion: 1, defaultParams: { operation: 'get' } },
+  supabaseTool: { type: 'n8n-nodes-base.supabase', typeVersion: 1, defaultParams: { operation: 'getAll' } },
+  
+  // Arquivos e Storage
+  googleDriveTool: { type: 'n8n-nodes-base.googleDrive', typeVersion: 3, defaultParams: { operation: 'download' } },
+  dropboxTool: { type: 'n8n-nodes-base.dropbox', typeVersion: 1, defaultParams: { operation: 'download' } },
+  s3Tool: { type: 'n8n-nodes-base.awsS3', typeVersion: 1, defaultParams: { operation: 'download' } },
+  ftpTool: { type: 'n8n-nodes-base.ftp', typeVersion: 1, defaultParams: { operation: 'download' } },
+  
+  // Utilidades
+  calculatorTool: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, defaultParams: {} },
+  codeTool: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1, defaultParams: { language: 'javascript' } },
+  dateTimeTool: { type: 'n8n-nodes-base.dateTime', typeVersion: 2, defaultParams: { operation: 'format' } },
+  cryptoTool: { type: 'n8n-nodes-base.crypto', typeVersion: 1, defaultParams: { action: 'hash' } },
+  ifTool: { type: 'n8n-nodes-base.if', typeVersion: 2.2, defaultParams: {} },
+  switchTool: { type: 'n8n-nodes-base.switch', typeVersion: 3.2, defaultParams: {} },
+  mergeTool: { type: 'n8n-nodes-base.merge', typeVersion: 3, defaultParams: { mode: 'combine' } },
+  splitTool: { type: 'n8n-nodes-base.splitInBatches', typeVersion: 3, defaultParams: { batchSize: 10 } },
+  waitTool: { type: 'n8n-nodes-base.wait', typeVersion: 1.1, defaultParams: { resume: 'timeInterval', amount: 1, unit: 'minutes' } },
+  scheduleTool: { type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1.2, defaultParams: { rule: { interval: [{ field: 'hours', minutesInterval: 1 }] } } },
+};
+
 interface N8nApiRequest {
   action: 'list_workflows' | 'get_workflow' | 'activate_workflow' | 'deactivate_workflow' | 
           'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
           'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow' |
           'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential' |
-          'update_llm_config' | 'update_memory_config';
+          'update_llm_config' | 'update_memory_config' | 'sync_tools' | 'get_available_tools';
   workflowId?: string;
   executionId?: string;
   data?: any;
@@ -41,6 +97,9 @@ interface N8nApiRequest {
   memoryNodeId?: string;
   sessionIdKey?: string;
   contextWindowSize?: number;
+  // Para sync_tools
+  enabledTools?: string[];
+  toolsConfig?: Record<string, Record<string, any>>;
 }
 
 // Helper to make n8n API requests
@@ -719,6 +778,191 @@ serve(async (req) => {
             user: POSTGRES_USER,
             note: 'Credenciais PostgreSQL mantidas do nó existente no n8n'
           }
+        };
+        break;
+      }
+
+      // ========== GET AVAILABLE TOOLS ==========
+      case 'get_available_tools': {
+        console.log(`n8n-api: Listando ferramentas disponíveis`);
+        
+        const tools = Object.entries(N8N_TOOLS_CONFIG).map(([id, config]) => ({
+          id,
+          type: config.type,
+          typeVersion: config.typeVersion,
+          hasDefaultParams: Object.keys(config.defaultParams).length > 0,
+        }));
+        
+        result = {
+          success: true,
+          tools,
+          totalCount: tools.length,
+        };
+        break;
+      }
+
+      // ========== SYNC TOOLS (Adicionar/Remover ferramentas do workflow) ==========
+      case 'sync_tools': {
+        if (!workflowId) throw new Error('workflowId é obrigatório');
+        if (!requestBody.enabledTools || !Array.isArray(requestBody.enabledTools)) {
+          throw new Error('enabledTools é obrigatório e deve ser um array de IDs de ferramentas');
+        }
+        
+        const enabledToolIds = requestBody.enabledTools as string[];
+        const customToolsConfig = requestBody.toolsConfig || {};
+        
+        console.log(`n8n-api: Sincronizando ${enabledToolIds.length} ferramentas com workflow ${workflowId}`);
+        console.log(`n8n-api: Ferramentas habilitadas: ${enabledToolIds.join(', ')}`);
+        
+        // 1. Buscar workflow completo
+        const workflow = await n8nRequest(`/workflows/${workflowId}`);
+        const wasActive = workflow.active;
+        
+        // 2. Identificar o nó AI Agent para conectar as ferramentas
+        let agentNodeName: string | null = null;
+        let agentNodeIndex = workflow.nodes.findIndex((node: any) => 
+          node.type === '@n8n/n8n-nodes-langchain.agent'
+        );
+        
+        if (agentNodeIndex !== -1) {
+          agentNodeName = workflow.nodes[agentNodeIndex].name;
+          console.log(`n8n-api: AI Agent encontrado: ${agentNodeName}`);
+        } else {
+          console.warn(`n8n-api: AI Agent não encontrado, ferramentas serão adicionadas sem conexão`);
+        }
+        
+        // 3. Separar nós existentes
+        const toolNodeTypes = Object.values(N8N_TOOLS_CONFIG).map(t => t.type);
+        const existingNonToolNodes = workflow.nodes.filter((node: any) => 
+          !toolNodeTypes.includes(node.type)
+        );
+        const existingToolNodes = workflow.nodes.filter((node: any) => 
+          toolNodeTypes.includes(node.type)
+        );
+        
+        console.log(`n8n-api: ${existingNonToolNodes.length} nós não-ferramenta, ${existingToolNodes.length} nós de ferramenta existentes`);
+        
+        // 4. Mapear ferramentas existentes por tipo
+        const existingToolsByType = new Map<string, any>();
+        for (const node of existingToolNodes) {
+          existingToolsByType.set(node.type, node);
+        }
+        
+        // 5. Criar ou manter ferramentas habilitadas
+        const newToolNodes: any[] = [];
+        const baseX = 1400; // Posição X base para ferramentas
+        let currentY = 200; // Posição Y inicial
+        const ySpacing = 120; // Espaçamento entre ferramentas
+        
+        for (const toolId of enabledToolIds) {
+          const toolConfig = N8N_TOOLS_CONFIG[toolId];
+          if (!toolConfig) {
+            console.warn(`n8n-api: Ferramenta desconhecida: ${toolId}`);
+            continue;
+          }
+          
+          // Verificar se já existe uma ferramenta desse tipo
+          const existingNode = existingToolsByType.get(toolConfig.type);
+          
+          if (existingNode) {
+            // Manter nó existente, atualizando apenas posição se necessário
+            console.log(`n8n-api: Mantendo ferramenta existente: ${existingNode.name}`);
+            newToolNodes.push({
+              ...existingNode,
+              position: [baseX, currentY],
+            });
+          } else {
+            // Criar novo nó
+            const toolName = toolId.replace(/Tool$/, '').replace(/([A-Z])/g, ' $1').trim();
+            const customParams = customToolsConfig[toolId] || {};
+            
+            const newNode = {
+              parameters: {
+                ...toolConfig.defaultParams,
+                ...customParams,
+              },
+              type: toolConfig.type,
+              typeVersion: toolConfig.typeVersion,
+              position: [baseX, currentY],
+              id: crypto.randomUUID(),
+              name: toolName,
+            };
+            
+            console.log(`n8n-api: Criando nova ferramenta: ${toolName} (${toolConfig.type})`);
+            newToolNodes.push(newNode);
+          }
+          
+          currentY += ySpacing;
+        }
+        
+        // 6. Montar array final de nós
+        const updatedNodes = [...existingNonToolNodes, ...newToolNodes];
+        
+        // 7. Atualizar conexões
+        const updatedConnections = { ...workflow.connections };
+        
+        // Remover conexões antigas de ferramentas
+        for (const existingTool of existingToolNodes) {
+          if (updatedConnections[existingTool.name]) {
+            delete updatedConnections[existingTool.name];
+          }
+        }
+        
+        // Adicionar conexões das novas ferramentas ao AI Agent
+        if (agentNodeName) {
+          for (const toolNode of newToolNodes) {
+            // Verificar se é uma ferramenta do tipo langchain (ai_tool output)
+            const isLangchainTool = toolNode.type.includes('langchain') || 
+                                     toolNode.type.includes('Tool');
+            
+            if (isLangchainTool) {
+              updatedConnections[toolNode.name] = {
+                ai_tool: [
+                  [{ node: agentNodeName, type: 'ai_tool', index: 0 }]
+                ]
+              };
+            }
+          }
+        }
+        
+        // 8. Enviar workflow atualizado
+        const updatePayload = {
+          name: workflow.name,
+          nodes: updatedNodes,
+          connections: updatedConnections,
+          ...(workflow.settings && { settings: workflow.settings }),
+        };
+        
+        console.log(`n8n-api: Enviando workflow com ${updatedNodes.length} nós e ${Object.keys(updatedConnections).length} conexões`);
+        const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
+        
+        // 9. Reativar workflow se estava ativo
+        if (wasActive) {
+          console.log(`n8n-api: Reativando workflow`);
+          try {
+            await n8nRequest(`/workflows/${workflowId}/deactivate`, 'POST');
+            await n8nRequest(`/workflows/${workflowId}/activate`, 'POST');
+          } catch (reactivateError) {
+            console.warn(`n8n-api: Erro ao reativar workflow:`, reactivateError);
+          }
+        }
+        
+        const addedTools = newToolNodes.filter(t => !existingToolsByType.has(t.type)).map(t => t.name);
+        const removedTools = existingToolNodes
+          .filter(t => !enabledToolIds.some(id => N8N_TOOLS_CONFIG[id]?.type === t.type))
+          .map(t => t.name);
+        
+        result = {
+          success: true,
+          message: `Ferramentas sincronizadas com sucesso`,
+          workflowId: savedWorkflow.id,
+          summary: {
+            totalTools: newToolNodes.length,
+            added: addedTools,
+            removed: removedTools,
+            maintained: newToolNodes.length - addedTools.length,
+          },
+          toolNodes: newToolNodes.map(t => ({ name: t.name, type: t.type, id: t.id })),
         };
         break;
       }
