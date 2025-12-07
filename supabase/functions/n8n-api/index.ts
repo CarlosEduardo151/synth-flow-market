@@ -486,12 +486,14 @@ serve(async (req) => {
         if (provider === 'openai') {
           credentialPayload.data = {
             apiKey: apiKey,
+            allowedDomains: ['*'],
           };
         } else {
           // Google PaLM/Gemini API - formato conforme documentação n8n
           credentialPayload.data = {
             host: 'https://generativelanguage.googleapis.com',
             apiKey: apiKey,
+            allowedDomains: ['*'],
           };
         }
         
