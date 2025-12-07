@@ -612,6 +612,15 @@ serve(async (req) => {
             password: POSTGRES_PASSWORD,
             port: POSTGRES_PORT,
             ssl: 'disable',
+            // SSH tunnel desabilitado - campos obrigatórios com valores vazios
+            sshTunnel: false,
+            sshAuthenticateWith: 'password',
+            sshHost: '',
+            sshPort: 22,
+            sshUser: '',
+            sshPassword: '',
+            privateKey: '',
+            passphrase: '',
           },
         });
         
