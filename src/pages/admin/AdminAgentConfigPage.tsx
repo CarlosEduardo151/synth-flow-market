@@ -60,6 +60,7 @@ interface AgentConfig {
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
   enableWebSearch: boolean;
+  enabledTools: string[];
 }
 
 const COMMUNICATION_TONES: Record<CommunicationTone, { emoji: string; label: string; desc: string; color: string; instruction: string }> = {
@@ -337,6 +338,7 @@ COMO AJUDAR:
       { id: '2', instruction: 'Nunca invente informações sobre preços', type: 'dont' },
     ],
     enableWebSearch: false,
+    enabledTools: ['httpRequestTool', 'calculatorTool'],
   });
 
   const [newInstruction, setNewInstruction] = useState('');
@@ -406,6 +408,7 @@ COMO AJUDAR:
             systemPrompt: configData.system_prompt || '',
             actionInstructions,
             sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
+            enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
           }));
 
           // Carregar API key das credenciais se existir
@@ -462,6 +465,7 @@ COMO AJUDAR:
         action_instructions: JSON.stringify(config.actionInstructions),
         memory_session_id: config.sessionKeyId,
         n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
+        tools_enabled: config.enabledTools,
         ai_credentials: {
           [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
         },
@@ -1679,21 +1683,154 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Plug className="h-5 w-5 text-primary" />
-                  RAG e Busca
+                  Ferramentas do Agente (n8n Tools)
                 </CardTitle>
+                <CardDescription>
+                  Selecione as ferramentas que o agente poderá utilizar
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 rounded-lg border">
-                  <div>
-                    <Label className="text-base">Ativar Busca na Web (RAG)</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Permite ao agente buscar informações na internet
-                    </p>
+              <CardContent className="space-y-6">
+                {/* Ferramentas organizadas por categoria */}
+                {[
+                  {
+                    category: '🌐 Requisições e APIs',
+                    tools: [
+                      { id: 'httpRequestTool', name: 'HTTP Request', desc: 'Fazer requisições HTTP para qualquer API', icon: '🔗', type: 'n8n-nodes-base.httpRequestTool', params: { method: 'GET', url: '', headers: {}, body: '' } },
+                      { id: 'webhookTool', name: 'Webhook', desc: 'Receber dados via webhook', icon: '📡', type: 'n8n-nodes-base.webhook', params: { path: '', method: 'POST' } },
+                      { id: 'graphqlTool', name: 'GraphQL', desc: 'Fazer consultas GraphQL', icon: '◼️', type: 'n8n-nodes-base.graphql', params: { endpoint: '', query: '' } },
+                    ]
+                  },
+                  {
+                    category: '🔍 Busca e Pesquisa',
+                    tools: [
+                      { id: 'serpApiTool', name: 'SerpAPI (Google)', desc: 'Buscar no Google via SerpAPI', icon: '🔎', type: 'n8n-nodes-base.serpApi', params: { query: '' } },
+                      { id: 'wikipediaTool', name: 'Wikipedia', desc: 'Buscar artigos na Wikipedia', icon: '📚', type: '@n8n/n8n-nodes-langchain.toolWikipedia', params: {} },
+                      { id: 'wolframAlphaTool', name: 'Wolfram Alpha', desc: 'Cálculos e conhecimento', icon: '🧮', type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', params: {} },
+                      { id: 'duckDuckGoTool', name: 'DuckDuckGo', desc: 'Busca privada na web', icon: '🦆', type: 'n8n-nodes-base.duckDuckGo', params: {} },
+                    ]
+                  },
+                  {
+                    category: '📧 Email e Comunicação',
+                    tools: [
+                      { id: 'gmailTool', name: 'Gmail', desc: 'Enviar e ler emails do Gmail', icon: '📧', type: 'n8n-nodes-base.gmail', params: { operation: 'send' } },
+                      { id: 'outlookTool', name: 'Microsoft Outlook', desc: 'Gerenciar emails do Outlook', icon: '📨', type: 'n8n-nodes-base.microsoftOutlook', params: {} },
+                      { id: 'sendGridTool', name: 'SendGrid', desc: 'Enviar emails transacionais', icon: '✉️', type: 'n8n-nodes-base.sendGrid', params: {} },
+                      { id: 'slackTool', name: 'Slack', desc: 'Enviar mensagens no Slack', icon: '💬', type: 'n8n-nodes-base.slack', params: { channel: '', message: '' } },
+                      { id: 'telegramTool', name: 'Telegram', desc: 'Enviar mensagens no Telegram', icon: '📱', type: 'n8n-nodes-base.telegram', params: { chatId: '', text: '' } },
+                      { id: 'discordTool', name: 'Discord', desc: 'Enviar mensagens no Discord', icon: '🎮', type: 'n8n-nodes-base.discord', params: { webhookUrl: '' } },
+                      { id: 'whatsappTool', name: 'WhatsApp', desc: 'Enviar mensagens via WhatsApp', icon: '📲', type: 'n8n-nodes-base.whatsApp', params: {} },
+                    ]
+                  },
+                  {
+                    category: '📊 Planilhas e Dados',
+                    tools: [
+                      { id: 'googleSheetsTool', name: 'Google Sheets', desc: 'Ler e escrever em planilhas', icon: '📗', type: 'n8n-nodes-base.googleSheets', params: { spreadsheetId: '', range: '' } },
+                      { id: 'excelTool', name: 'Microsoft Excel', desc: 'Gerenciar arquivos Excel', icon: '📊', type: 'n8n-nodes-base.microsoftExcel', params: {} },
+                      { id: 'airtableTool', name: 'Airtable', desc: 'Gerenciar dados no Airtable', icon: '🗂️', type: 'n8n-nodes-base.airtable', params: { baseId: '', tableId: '' } },
+                      { id: 'notionTool', name: 'Notion', desc: 'Gerenciar páginas e databases', icon: '📝', type: 'n8n-nodes-base.notion', params: {} },
+                    ]
+                  },
+                  {
+                    category: '🗄️ Banco de Dados',
+                    tools: [
+                      { id: 'postgresTool', name: 'PostgreSQL', desc: 'Executar queries SQL', icon: '🐘', type: 'n8n-nodes-base.postgres', params: { query: '' } },
+                      { id: 'mysqlTool', name: 'MySQL', desc: 'Executar queries MySQL', icon: '🐬', type: 'n8n-nodes-base.mySql', params: { query: '' } },
+                      { id: 'mongoDbTool', name: 'MongoDB', desc: 'Operações no MongoDB', icon: '🍃', type: 'n8n-nodes-base.mongoDb', params: {} },
+                      { id: 'redisTool', name: 'Redis', desc: 'Cache e dados em memória', icon: '🔴', type: 'n8n-nodes-base.redis', params: {} },
+                      { id: 'supabaseTool', name: 'Supabase', desc: 'Operações no Supabase', icon: '⚡', type: 'n8n-nodes-base.supabase', params: {} },
+                    ]
+                  },
+                  {
+                    category: '📁 Arquivos e Storage',
+                    tools: [
+                      { id: 'googleDriveTool', name: 'Google Drive', desc: 'Upload e download de arquivos', icon: '📁', type: 'n8n-nodes-base.googleDrive', params: {} },
+                      { id: 'dropboxTool', name: 'Dropbox', desc: 'Gerenciar arquivos Dropbox', icon: '📦', type: 'n8n-nodes-base.dropbox', params: {} },
+                      { id: 's3Tool', name: 'AWS S3', desc: 'Armazenamento S3', icon: '☁️', type: 'n8n-nodes-base.s3', params: { bucket: '' } },
+                      { id: 'ftpTool', name: 'FTP', desc: 'Transferência de arquivos FTP', icon: '📤', type: 'n8n-nodes-base.ftp', params: {} },
+                    ]
+                  },
+                  {
+                    category: '🛠️ Utilidades',
+                    tools: [
+                      { id: 'calculatorTool', name: 'Calculadora', desc: 'Fazer cálculos matemáticos', icon: '🔢', type: '@n8n/n8n-nodes-langchain.toolCalculator', params: {} },
+                      { id: 'codeTool', name: 'Executar Código', desc: 'Executar JavaScript/Python', icon: '💻', type: '@n8n/n8n-nodes-langchain.toolCode', params: { language: 'javascript', code: '' } },
+                      { id: 'dateTimeTool', name: 'Data e Hora', desc: 'Manipular datas e horários', icon: '📅', type: 'n8n-nodes-base.dateTime', params: {} },
+                      { id: 'cryptoTool', name: 'Crypto', desc: 'Criptografia e hash', icon: '🔐', type: 'n8n-nodes-base.crypto', params: {} },
+                      { id: 'htmlExtractTool', name: 'HTML Extract', desc: 'Extrair dados de HTML', icon: '🌐', type: 'n8n-nodes-base.htmlExtract', params: {} },
+                      { id: 'jsonTool', name: 'JSON', desc: 'Manipular dados JSON', icon: '{ }', type: 'n8n-nodes-base.set', params: {} },
+                    ]
+                  },
+                ].map((category) => (
+                  <div key={category.category} className="space-y-3">
+                    <h3 className="text-sm font-semibold text-muted-foreground">{category.category}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {category.tools.map((tool) => {
+                        const isEnabled = (config as any).enabledTools?.includes(tool.id);
+                        return (
+                          <button
+                            key={tool.id}
+                            onClick={() => {
+                              setConfig(prev => {
+                                const currentTools = (prev as any).enabledTools || [];
+                                const newTools = currentTools.includes(tool.id)
+                                  ? currentTools.filter((t: string) => t !== tool.id)
+                                  : [...currentTools, tool.id];
+                                return { ...prev, enabledTools: newTools } as AgentConfig;
+                              });
+                            }}
+                            className={`p-4 rounded-lg border text-left transition-all hover:shadow-md ${
+                              isEnabled 
+                                ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                                : 'border-border hover:border-muted-foreground/30'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <span className="text-2xl">{tool.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-medium text-sm truncate">{tool.name}</h4>
+                                  {isEnabled && (
+                                    <Badge variant="default" className="text-[10px] px-1.5 py-0">ON</Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tool.desc}</p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <Switch
-                    checked={config.enableWebSearch}
-                    onCheckedChange={(v) => setConfig(prev => ({ ...prev, enableWebSearch: v }))}
-                  />
+                ))}
+
+                {/* Resumo das ferramentas ativas */}
+                <div className="p-4 bg-muted/50 rounded-lg border mt-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium">Ferramentas Ativas</p>
+                      <p className="text-xs text-muted-foreground">
+                        {((config as any).enabledTools || []).length} ferramentas selecionadas
+                      </p>
+                    </div>
+                    {((config as any).enabledTools || []).length > 0 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfig(prev => ({ ...prev, enabledTools: [] } as AgentConfig))}
+                      >
+                        Limpar todas
+                      </Button>
+                    )}
+                  </div>
+                  {((config as any).enabledTools || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {((config as any).enabledTools || []).map((toolId: string) => (
+                        <Badge key={toolId} variant="secondary" className="text-xs">
+                          {toolId.replace('Tool', '')}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
