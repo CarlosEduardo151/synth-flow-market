@@ -161,11 +161,74 @@ const TOOL_CREDENTIAL_TYPES = [
   { id: 'youtube_api_key', name: 'YouTube API Key', icon: '▶️', placeholder: 'AIza...', docUrl: 'https://console.cloud.google.com/apis/credentials', description: 'Para dados do YouTube' },
 ];
 
+// Mapeamento de ferramentas para credenciais necessárias
+const TOOL_CREDENTIALS_MAP: Record<string, string[]> = {
+  serpApiTool: ['serpapi_api_key'],
+  wolframAlphaTool: ['wolfram_alpha_app_id'],
+  gmailTool: ['gmail_credentials'],
+  googleSheetsTool: ['google_sheets_credentials'],
+  googleCalendarTool: ['google_calendar_credentials'],
+  notionTool: ['notion_api_key'],
+  slackTool: ['slack_bot_token'],
+  discordTool: ['discord_bot_token'],
+  telegramTool: ['telegram_bot_token'],
+  whatsappTool: ['whatsapp_api_token'],
+  airtableTool: ['airtable_api_key'],
+  githubTool: ['github_token'],
+  jiraTool: ['jira_api_token'],
+  trelloTool: ['trello_api_key'],
+  hubspotTool: ['hubspot_api_key'],
+  salesforceTool: ['salesforce_credentials'],
+  zendeskTool: ['zendesk_api_token'],
+  stripeTool: ['stripe_api_key'],
+  twilioTool: ['twilio_credentials'],
+  openWeatherTool: ['openweather_api_key'],
+  youtubeTool: ['youtube_api_key'],
+};
+
+// Lista de ferramentas disponíveis organizadas por categoria
+const AVAILABLE_TOOLS = {
+  'Busca & Pesquisa': [
+    { id: 'serpApiTool', name: 'SerpAPI', icon: '🔎', description: 'Busca no Google, Bing, etc.' },
+    { id: 'wolframAlphaTool', name: 'Wolfram Alpha', icon: '🔢', description: 'Cálculos e dados científicos' },
+    { id: 'wikipediaTool', name: 'Wikipedia', icon: '📚', description: 'Consulta Wikipedia' },
+  ],
+  'Email & Comunicação': [
+    { id: 'gmailTool', name: 'Gmail', icon: '📧', description: 'Enviar/ler emails' },
+    { id: 'slackTool', name: 'Slack', icon: '💬', description: 'Mensagens no Slack' },
+    { id: 'discordTool', name: 'Discord', icon: '🎮', description: 'Mensagens no Discord' },
+    { id: 'telegramTool', name: 'Telegram', icon: '📱', description: 'Bot Telegram' },
+    { id: 'whatsappTool', name: 'WhatsApp', icon: '📲', description: 'Mensagens WhatsApp' },
+  ],
+  'Planilhas & Dados': [
+    { id: 'googleSheetsTool', name: 'Google Sheets', icon: '📊', description: 'Ler/escrever planilhas' },
+    { id: 'airtableTool', name: 'Airtable', icon: '📋', description: 'Bases de dados Airtable' },
+    { id: 'notionTool', name: 'Notion', icon: '📝', description: 'Páginas e databases' },
+  ],
+  'Banco de Dados': [
+    { id: 'postgresTool', name: 'PostgreSQL', icon: '🐘', description: 'Consultas SQL' },
+    { id: 'supabaseTool', name: 'Supabase', icon: '⚡', description: 'Backend Supabase' },
+    { id: 'mongoDbTool', name: 'MongoDB', icon: '🍃', description: 'NoSQL MongoDB' },
+  ],
+  'Utilidades': [
+    { id: 'calculatorTool', name: 'Calculadora', icon: '🧮', description: 'Cálculos matemáticos' },
+    { id: 'httpRequestTool', name: 'HTTP Request', icon: '🌐', description: 'Requisições HTTP' },
+    { id: 'codeTool', name: 'Código', icon: '💻', description: 'Executar código JS' },
+  ],
+  'CRM & Produtividade': [
+    { id: 'hubspotTool', name: 'HubSpot', icon: '🧲', description: 'CRM e marketing' },
+    { id: 'salesforceTool', name: 'Salesforce', icon: '☁️', description: 'CRM Salesforce' },
+    { id: 'jiraTool', name: 'Jira', icon: '🎯', description: 'Gerenciar issues' },
+    { id: 'trelloTool', name: 'Trello', icon: '📌', description: 'Gerenciar boards' },
+  ],
+};
+
 export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [syncingCredentials, setSyncingCredentials] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | null>(null);
   
   const [config, setConfig] = useState<AIConfig>({
@@ -349,6 +412,130 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
     }));
   };
 
+  const toggleTool = (toolId: string) => {
+    setConfig(prev => ({
+      ...prev,
+      toolsEnabled: prev.toolsEnabled.includes(toolId)
+        ? prev.toolsEnabled.filter(t => t !== toolId)
+        : [...prev.toolsEnabled, toolId],
+    }));
+  };
+
+  // Obter credenciais necessárias para ferramentas habilitadas
+  const getRequiredCredentialsForEnabledTools = () => {
+    const requiredCredIds = new Set<string>();
+    for (const toolId of config.toolsEnabled) {
+      const creds = TOOL_CREDENTIALS_MAP[toolId];
+      if (creds) {
+        creds.forEach(c => requiredCredIds.add(c));
+      }
+    }
+    return TOOL_CREDENTIAL_TYPES.filter(c => requiredCredIds.has(c.id));
+  };
+
+  // Sincronizar credenciais com n8n
+  const handleSyncCredentialsToN8n = async () => {
+    if (!workflowId) {
+      toast({
+        title: "Workflow não configurado",
+        description: "Configure o workflow primeiro.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingCredentials(true);
+    try {
+      // Filtrar apenas credenciais que têm valor
+      const credentialsToSync = Object.entries(config.aiCredentials)
+        .filter(([_, value]) => value && value.trim() !== '')
+        .map(([key, value]) => ({ key, value }));
+
+      if (credentialsToSync.length === 0) {
+        toast({
+          title: "Nenhuma credencial para sincronizar",
+          description: "Preencha as credenciais das ferramentas primeiro.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Sincronizar cada credencial com n8n
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const cred of credentialsToSync) {
+        try {
+          // Mapear o tipo de credencial para o tipo n8n
+          const n8nCredType = mapCredentialToN8nType(cred.key);
+          if (!n8nCredType) continue;
+
+          const { data, error } = await supabase.functions.invoke('n8n-api', {
+            body: {
+              action: 'create_credential',
+              credentialName: cred.key,
+              credentialType: n8nCredType,
+              credentialData: { apiKey: cred.value },
+            },
+          });
+
+          if (error) throw error;
+          if (data.success) {
+            successCount++;
+          } else {
+            errorCount++;
+          }
+        } catch (err) {
+          console.error(`Erro ao sincronizar ${cred.key}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: "Credenciais sincronizadas!",
+          description: `${successCount} credencial(is) sincronizada(s) com n8n.`,
+        });
+      }
+      if (errorCount > 0) {
+        toast({
+          title: "Algumas credenciais falharam",
+          description: `${errorCount} erro(s). Verifique o console para detalhes.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar credenciais",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingCredentials(false);
+    }
+  };
+
+  // Mapear tipo de credencial local para tipo n8n
+  const mapCredentialToN8nType = (localType: string): string | null => {
+    const mapping: Record<string, string> = {
+      serpapi_api_key: 'serpApiApi',
+      openai_api_key: 'openAiApi',
+      anthropic_api_key: 'anthropicApi',
+      google_api_key: 'googleAi',
+      gmail_credentials: 'googleOAuth2Api',
+      google_sheets_credentials: 'googleOAuth2Api',
+      notion_api_key: 'notionApi',
+      slack_bot_token: 'slackApi',
+      discord_bot_token: 'discordApi',
+      telegram_bot_token: 'telegramApi',
+      airtable_api_key: 'airtableApi',
+      github_token: 'githubApi',
+      stripe_api_key: 'stripeApi',
+      wolfram_alpha_app_id: 'wolframAlphaApi',
+    };
+    return mapping[localType] || null;
+  };
+
   if (loading) {
     return (
       <Card>
@@ -405,7 +592,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
       </Card>
 
       <Tabs defaultValue="model" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="model" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             Modelo
@@ -413,6 +600,10 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           <TabsTrigger value="prompt" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             Prompt
+          </TabsTrigger>
+          <TabsTrigger value="tools" className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Ferramentas
           </TabsTrigger>
           <TabsTrigger value="memory" className="flex items-center gap-2">
             <Database className="h-4 w-4" />
@@ -567,7 +758,182 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           </Card>
         </TabsContent>
 
-        {/* MEMORY TAB */}
+        {/* TOOLS TAB */}
+        <TabsContent value="tools">
+          <div className="space-y-6">
+            {/* Available Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Zap className="h-5 w-5" />
+                  Ferramentas Disponíveis
+                </CardTitle>
+                <CardDescription>
+                  Selecione as ferramentas que seu agente poderá usar
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {Object.entries(AVAILABLE_TOOLS).map(([category, tools]) => (
+                  <div key={category} className="space-y-3">
+                    <h4 className="font-medium text-sm text-muted-foreground">{category}</h4>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {tools.map((tool) => {
+                        const isEnabled = config.toolsEnabled.includes(tool.id);
+                        const requiredCreds = TOOL_CREDENTIALS_MAP[tool.id] || [];
+                        const hasRequiredCreds = requiredCreds.every(c => config.aiCredentials[c]);
+                        
+                        return (
+                          <div
+                            key={tool.id}
+                            className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                              isEnabled 
+                                ? 'border-primary bg-primary/5' 
+                                : 'border-border hover:border-primary/50'
+                            }`}
+                            onClick={() => toggleTool(tool.id)}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-lg">{tool.icon}</span>
+                                <span className="font-medium text-sm">{tool.name}</span>
+                              </div>
+                              <Switch checked={isEnabled} />
+                            </div>
+                            <p className="text-xs text-muted-foreground">{tool.description}</p>
+                            {requiredCreds.length > 0 && (
+                              <div className="mt-2">
+                                {hasRequiredCreds ? (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Credencial OK
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50">
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Requer credencial
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Required Credentials for Enabled Tools */}
+            {config.toolsEnabled.length > 0 && getRequiredCredentialsForEnabledTools().length > 0 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Key className="h-5 w-5" />
+                        Credenciais das Ferramentas Habilitadas
+                      </CardTitle>
+                      <CardDescription>
+                        Configure as API keys necessárias para as ferramentas selecionadas
+                      </CardDescription>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={handleSyncCredentialsToN8n}
+                      disabled={syncingCredentials || !workflowId}
+                    >
+                      {syncingCredentials ? (
+                        <>
+                          <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                          Sincronizando...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-3 w-3" />
+                          Sincronizar com n8n
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {getRequiredCredentialsForEnabledTools().map((cred) => (
+                      <div key={cred.id} className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor={`tool-${cred.id}`} className="flex items-center gap-2 text-base">
+                            <span className="text-lg">{cred.icon}</span>
+                            {cred.name}
+                          </Label>
+                          <a 
+                            href={cred.docUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            Doc
+                          </a>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{cred.description}</p>
+                        <Input
+                          id={`tool-${cred.id}`}
+                          type="password"
+                          value={config.aiCredentials[cred.id] || ''}
+                          onChange={(e) => updateCredential(cred.id, e.target.value)}
+                          placeholder={cred.placeholder}
+                          className="bg-background"
+                        />
+                        {config.aiCredentials[cred.id] && (
+                          <Badge variant="secondary" className="text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Configurado
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-4 border border-green-500/30 bg-green-500/10 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-green-600">Sincronização Automática</p>
+                        <p className="text-sm text-muted-foreground">
+                          Clique em "Sincronizar com n8n" para enviar as credenciais configuradas 
+                          diretamente para o n8n, sem precisar configurar manualmente.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Sync Tools Button */}
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleSyncToN8n} 
+                disabled={syncing || !workflowId || config.toolsEnabled.length === 0}
+              >
+                {syncing ? (
+                  <>
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                    Sincronizando Ferramentas...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="mr-2 h-4 w-4" />
+                    Sincronizar {config.toolsEnabled.length} Ferramenta(s) com n8n
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </TabsContent>
+
         <TabsContent value="memory">
           <Card>
             <CardHeader>
@@ -636,113 +1002,100 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
 
         {/* CREDENTIALS TAB */}
         <TabsContent value="credentials">
-          <div className="space-y-6">
-            {/* AI Model Credentials */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5" />
-                  Credenciais de Modelos de IA
-                </CardTitle>
-                <CardDescription>
-                  API keys dos provedores de modelos de IA
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {AI_CREDENTIAL_TYPES.map((cred) => (
-                  <div key={cred.id} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor={cred.id} className="flex items-center gap-2">
-                        <span>{cred.icon}</span>
-                        {cred.name}
-                      </Label>
-                      <a 
-                        href={cred.docUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        Obter chave
-                      </a>
-                    </div>
-                    <Input
-                      id={cred.id}
-                      type="password"
-                      value={config.aiCredentials[cred.id] || ''}
-                      onChange={(e) => updateCredential(cred.id, e.target.value)}
-                      placeholder={cred.placeholder}
-                    />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            {/* Tool Credentials */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  Credenciais de Ferramentas
-                </CardTitle>
-                <CardDescription>
-                  Configure as API keys das ferramentas que seu agente pode usar
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {TOOL_CREDENTIAL_TYPES.map((cred) => (
-                    <div key={cred.id} className="p-4 border rounded-lg space-y-3 bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor={cred.id} className="flex items-center gap-2 text-base">
-                          <span className="text-lg">{cred.icon}</span>
-                          {cred.name}
-                        </Label>
-                        <a 
-                          href={cred.docUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          Doc
-                        </a>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{cred.description}</p>
-                      <Input
-                        id={cred.id}
-                        type="password"
-                        value={config.aiCredentials[cred.id] || ''}
-                        onChange={(e) => updateCredential(cred.id, e.target.value)}
-                        placeholder={cred.placeholder}
-                        className="bg-background"
-                      />
-                      {config.aiCredentials[cred.id] && (
-                        <Badge variant="secondary" className="text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Configurado
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    Credenciais de Modelos de IA
+                  </CardTitle>
+                  <CardDescription>
+                    API keys dos provedores de modelos de IA (OpenAI, Anthropic, Google)
+                  </CardDescription>
                 </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleSyncCredentialsToN8n}
+                  disabled={syncingCredentials || !workflowId}
+                >
+                  {syncingCredentials ? (
+                    <>
+                      <RefreshCw className="mr-2 h-3 w-3 animate-spin" />
+                      Sincronizando...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-3 w-3" />
+                      Sincronizar com n8n
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {AI_CREDENTIAL_TYPES.map((cred) => (
+                <div key={cred.id} className="p-4 border rounded-lg space-y-2 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={cred.id} className="flex items-center gap-2">
+                      <span>{cred.icon}</span>
+                      {cred.name}
+                    </Label>
+                    <a 
+                      href={cred.docUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Obter chave
+                    </a>
+                  </div>
+                  <Input
+                    id={cred.id}
+                    type="password"
+                    value={config.aiCredentials[cred.id] || ''}
+                    onChange={(e) => updateCredential(cred.id, e.target.value)}
+                    placeholder={cred.placeholder}
+                    className="bg-background"
+                  />
+                  {config.aiCredentials[cred.id] && (
+                    <Badge variant="secondary" className="text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Configurado
+                    </Badge>
+                  )}
+                </div>
+              ))}
 
-                <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg mt-6">
-                  <div className="flex items-start gap-2">
-                    <Settings2 className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-blue-600">Nota sobre Credenciais de Ferramentas</p>
-                      <p className="text-sm text-muted-foreground">
-                        As credenciais são salvas de forma segura. Para que funcionem no n8n, 
-                        você também precisa configurar as credenciais correspondentes diretamente no n8n 
-                        em Configurações → Credenciais.
-                      </p>
-                    </div>
+              <div className="p-4 border border-green-500/30 bg-green-500/10 rounded-lg mt-6">
+                <div className="flex items-start gap-2">
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-green-600">Sincronização Automática</p>
+                    <p className="text-sm text-muted-foreground">
+                      As credenciais de IA são sincronizadas automaticamente com o n8n quando você clica em "Sincronizar com n8n".
+                      Isso configura os modelos no workflow sem necessidade de configuração manual.
+                    </p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+
+              <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Settings2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-blue-600">Credenciais de Ferramentas</p>
+                    <p className="text-sm text-muted-foreground">
+                      As credenciais de ferramentas (SerpAPI, Gmail, etc.) agora estão na aba "Ferramentas".
+                      Basta habilitar uma ferramenta e a seção de credenciais aparecerá automaticamente.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
