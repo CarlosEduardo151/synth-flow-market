@@ -26,7 +26,9 @@ import {
   Zap,
   CheckCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  Loader2,
+  TestTube2
 } from 'lucide-react';
 
 interface AIAgentConfigProps {
@@ -232,6 +234,8 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
   const [syncingCredentials, setSyncingCredentials] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | null>(null);
   const [credentialDialogTool, setCredentialDialogTool] = useState<{id: string; name: string; icon: string} | null>(null);
+  const [testingCredential, setTestingCredential] = useState<string | null>(null);
+  const [credentialTestResults, setCredentialTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
   
   const [config, setConfig] = useState<AIConfig>({
     aiModel: 'gpt-4o-mini',
@@ -421,6 +425,86 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
         ? prev.toolsEnabled.filter(t => t !== toolId)
         : [...prev.toolsEnabled, toolId],
     }));
+  };
+
+  // Testar credencial
+  const testCredential = async (credentialId: string) => {
+    const credValue = config.aiCredentials[credentialId];
+    if (!credValue || credValue.trim() === '') {
+      toast({
+        title: "Credencial vazia",
+        description: "Preencha a credencial antes de testar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setTestingCredential(credentialId);
+    setCredentialTestResults(prev => ({ ...prev, [credentialId]: null }));
+
+    try {
+      let testResult = false;
+      
+      // Testar baseado no tipo de credencial
+      if (credentialId === 'serpapi_api_key') {
+        const response = await fetch(`https://serpapi.com/account.json?api_key=${encodeURIComponent(credValue)}`);
+        testResult = response.ok;
+      } else if (credentialId === 'openweather_api_key') {
+        const response = await fetch(`https://api.openweathermap.org/data/2.5/weather?q=London&appid=${encodeURIComponent(credValue)}`);
+        testResult = response.ok;
+      } else if (credentialId === 'openai_api_key') {
+        const response = await fetch('https://api.openai.com/v1/models', {
+          headers: { 'Authorization': `Bearer ${credValue}` }
+        });
+        testResult = response.ok;
+      } else if (credentialId === 'anthropic_api_key') {
+        // Anthropic não tem endpoint de teste simples, verificamos formato
+        testResult = credValue.startsWith('sk-ant-');
+      } else if (credentialId === 'google_api_key') {
+        testResult = credValue.startsWith('AIza') && credValue.length > 30;
+      } else if (credentialId === 'github_token') {
+        const response = await fetch('https://api.github.com/user', {
+          headers: { 'Authorization': `Bearer ${credValue}` }
+        });
+        testResult = response.ok;
+      } else if (credentialId === 'stripe_api_key') {
+        testResult = (credValue.startsWith('sk_live_') || credValue.startsWith('sk_test_')) && credValue.length > 20;
+      } else if (credentialId === 'notion_api_key') {
+        const response = await fetch('https://api.notion.com/v1/users/me', {
+          headers: { 
+            'Authorization': `Bearer ${credValue}`,
+            'Notion-Version': '2022-06-28'
+          }
+        });
+        testResult = response.ok;
+      } else {
+        // Para outras credenciais, verificamos se não está vazia e tem tamanho mínimo
+        testResult = credValue.length >= 10;
+      }
+
+      setCredentialTestResults(prev => ({ 
+        ...prev, 
+        [credentialId]: testResult ? 'success' : 'error' 
+      }));
+      
+      toast({
+        title: testResult ? "Credencial válida!" : "Credencial inválida",
+        description: testResult 
+          ? "A credencial foi verificada com sucesso." 
+          : "Verifique se a credencial está correta.",
+        variant: testResult ? "default" : "destructive",
+      });
+    } catch (error) {
+      console.error('Erro ao testar credencial:', error);
+      setCredentialTestResults(prev => ({ ...prev, [credentialId]: 'error' }));
+      toast({
+        title: "Erro ao testar",
+        description: "Não foi possível verificar a credencial. Verifique sua conexão.",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingCredential(null);
+    }
   };
 
   // Obter credenciais necessárias para ferramentas habilitadas
@@ -1203,11 +1287,14 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
               const credInfo = TOOL_CREDENTIAL_TYPES.find(c => c.id === credId);
               if (!credInfo) return null;
               
+              const testStatus = credentialTestResults[credId];
+              const isTesting = testingCredential === credId;
+              
               return (
-                <div key={credId} className="space-y-2">
+                <div key={credId} className="space-y-3 p-4 border rounded-lg bg-muted/30">
                   <div className="flex items-center justify-between">
-                    <Label htmlFor={`dialog-${credId}`} className="flex items-center gap-2">
-                      <span>{credInfo.icon}</span>
+                    <Label htmlFor={`dialog-${credId}`} className="flex items-center gap-2 font-medium">
+                      <span className="text-lg">{credInfo.icon}</span>
                       {credInfo.name}
                     </Label>
                     <a 
@@ -1221,19 +1308,61 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                     </a>
                   </div>
                   <p className="text-xs text-muted-foreground">{credInfo.description}</p>
-                  <Input
-                    id={`dialog-${credId}`}
-                    type="password"
-                    value={config.aiCredentials[credId] || ''}
-                    onChange={(e) => updateCredential(credId, e.target.value)}
-                    placeholder={credInfo.placeholder}
-                  />
-                  {config.aiCredentials[credId] && (
-                    <Badge variant="secondary" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Configurado
-                    </Badge>
-                  )}
+                  <div className="flex gap-2">
+                    <Input
+                      id={`dialog-${credId}`}
+                      type="password"
+                      value={config.aiCredentials[credId] || ''}
+                      onChange={(e) => {
+                        updateCredential(credId, e.target.value);
+                        // Reset test status quando valor muda
+                        setCredentialTestResults(prev => ({ ...prev, [credId]: null }));
+                      }}
+                      placeholder={credInfo.placeholder}
+                      className="flex-1"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => testCredential(credId)}
+                      disabled={isTesting || !config.aiCredentials[credId]}
+                      className="shrink-0"
+                    >
+                      {isTesting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <TestTube2 className="h-4 w-4 mr-1" />
+                          Testar
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {config.aiCredentials[credId] && (
+                      <Badge 
+                        variant={testStatus === 'success' ? 'default' : testStatus === 'error' ? 'destructive' : 'secondary'} 
+                        className="text-xs"
+                      >
+                        {testStatus === 'success' ? (
+                          <>
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Verificado
+                          </>
+                        ) : testStatus === 'error' ? (
+                          <>
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Inválido
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Configurado
+                          </>
+                        )}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               );
             })}
