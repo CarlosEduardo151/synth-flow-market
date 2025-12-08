@@ -11,8 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { 
+import {
   Bot, 
   Brain, 
   Database, 
@@ -230,6 +231,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
   const [syncing, setSyncing] = useState(false);
   const [syncingCredentials, setSyncingCredentials] = useState(false);
   const [lastSyncStatus, setLastSyncStatus] = useState<'success' | 'error' | null>(null);
+  const [credentialDialogTool, setCredentialDialogTool] = useState<{id: string; name: string; icon: string} | null>(null);
   
   const [config, setConfig] = useState<AIConfig>({
     aiModel: 'gpt-4o-mini',
@@ -782,6 +784,15 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                         const requiredCreds = TOOL_CREDENTIALS_MAP[tool.id] || [];
                         const hasRequiredCreds = requiredCreds.every(c => config.aiCredentials[c]);
                         
+                        const handleToolClick = () => {
+                          if (requiredCreds.length > 0 && !hasRequiredCreds) {
+                            // Abre dialog de credenciais
+                            setCredentialDialogTool(tool);
+                          } else {
+                            toggleTool(tool.id);
+                          }
+                        };
+                        
                         return (
                           <div
                             key={tool.id}
@@ -790,7 +801,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                                 ? 'border-primary bg-primary/5' 
                                 : 'border-border hover:border-primary/50'
                             }`}
-                            onClick={() => toggleTool(tool.id)}
+                            onClick={handleToolClick}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
@@ -801,16 +812,29 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                             </div>
                             <p className="text-xs text-muted-foreground">{tool.description}</p>
                             {requiredCreds.length > 0 && (
-                              <div className="mt-2">
+                              <div className="mt-2 flex items-center gap-2">
                                 {hasRequiredCreds ? (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <CheckCircle className="h-3 w-3 mr-1" />
-                                    Credencial OK
-                                  </Badge>
+                                  <>
+                                    <Badge variant="secondary" className="text-xs">
+                                      <CheckCircle className="h-3 w-3 mr-1" />
+                                      Credencial OK
+                                    </Badge>
+                                    <Button 
+                                      variant="ghost" 
+                                      size="sm" 
+                                      className="h-6 text-xs px-2"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setCredentialDialogTool(tool);
+                                      }}
+                                    >
+                                      Editar
+                                    </Button>
+                                  </>
                                 ) : (
                                   <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50">
                                     <AlertCircle className="h-3 w-3 mr-1" />
-                                    Requer credencial
+                                    Clique para configurar
                                   </Badge>
                                 )}
                               </div>
@@ -1160,6 +1184,99 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           )}
         </Button>
       </div>
+
+      {/* Dialog de Credenciais da Ferramenta */}
+      <Dialog open={!!credentialDialogTool} onOpenChange={(open) => !open && setCredentialDialogTool(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <span className="text-2xl">{credentialDialogTool?.icon}</span>
+              Configurar {credentialDialogTool?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Insira as credenciais necessárias para usar esta ferramenta
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {credentialDialogTool && (TOOL_CREDENTIALS_MAP[credentialDialogTool.id] || []).map((credId) => {
+              const credInfo = TOOL_CREDENTIAL_TYPES.find(c => c.id === credId);
+              if (!credInfo) return null;
+              
+              return (
+                <div key={credId} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor={`dialog-${credId}`} className="flex items-center gap-2">
+                      <span>{credInfo.icon}</span>
+                      {credInfo.name}
+                    </Label>
+                    <a 
+                      href={credInfo.docUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      Obter chave
+                    </a>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{credInfo.description}</p>
+                  <Input
+                    id={`dialog-${credId}`}
+                    type="password"
+                    value={config.aiCredentials[credId] || ''}
+                    onChange={(e) => updateCredential(credId, e.target.value)}
+                    placeholder={credInfo.placeholder}
+                  />
+                  {config.aiCredentials[credId] && (
+                    <Badge variant="secondary" className="text-xs">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Configurado
+                    </Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={() => setCredentialDialogTool(null)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => {
+                const toolId = credentialDialogTool?.id;
+                if (toolId) {
+                  const requiredCreds = TOOL_CREDENTIALS_MAP[toolId] || [];
+                  const hasAllCreds = requiredCreds.every(c => config.aiCredentials[c]);
+                  
+                  if (hasAllCreds) {
+                    // Habilita a ferramenta automaticamente
+                    if (!config.toolsEnabled.includes(toolId)) {
+                      toggleTool(toolId);
+                    }
+                    toast({
+                      title: "Credenciais salvas!",
+                      description: `A ferramenta ${credentialDialogTool?.name} foi configurada e habilitada.`,
+                    });
+                  } else {
+                    toast({
+                      title: "Credenciais incompletas",
+                      description: "Preencha todas as credenciais necessárias.",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                }
+                setCredentialDialogTool(null);
+              }}
+            >
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Salvar e Habilitar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
