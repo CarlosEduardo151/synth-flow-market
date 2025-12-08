@@ -128,10 +128,37 @@ const CATEGORY_LABELS: Record<ModelCategory, string> = {
   special: '🤖 Especiais',
 };
 
-const CREDENTIAL_TYPES = [
-  { id: 'openai_api_key', name: 'OpenAI API Key', icon: '🤖' },
-  { id: 'anthropic_api_key', name: 'Anthropic API Key', icon: '🧠' },
-  { id: 'google_api_key', name: 'Google AI API Key', icon: '🔍' },
+// Credenciais de Modelos de IA
+const AI_CREDENTIAL_TYPES = [
+  { id: 'openai_api_key', name: 'OpenAI API Key', icon: '🤖', placeholder: 'sk-...', docUrl: 'https://platform.openai.com/api-keys' },
+  { id: 'anthropic_api_key', name: 'Anthropic API Key', icon: '🧠', placeholder: 'sk-ant-...', docUrl: 'https://console.anthropic.com/settings/keys' },
+  { id: 'google_api_key', name: 'Google AI API Key', icon: '🔍', placeholder: 'AIza...', docUrl: 'https://aistudio.google.com/app/apikey' },
+];
+
+// Credenciais de Ferramentas (Tools)
+const TOOL_CREDENTIAL_TYPES = [
+  { id: 'serpapi_api_key', name: 'SerpAPI Key', icon: '🔎', placeholder: 'Sua chave SerpAPI', docUrl: 'https://serpapi.com/manage-api-key', description: 'Para buscas no Google, Bing, etc.' },
+  { id: 'serper_api_key', name: 'Serper API Key', icon: '🌐', placeholder: 'Sua chave Serper', docUrl: 'https://serper.dev/api-key', description: 'API de busca Google (alternativa)' },
+  { id: 'gmail_credentials', name: 'Gmail OAuth', icon: '📧', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/', description: 'Para enviar/ler emails' },
+  { id: 'google_sheets_credentials', name: 'Google Sheets OAuth', icon: '📊', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/', description: 'Para ler/escrever planilhas' },
+  { id: 'google_calendar_credentials', name: 'Google Calendar OAuth', icon: '📅', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/', description: 'Para gerenciar eventos' },
+  { id: 'notion_api_key', name: 'Notion API Key', icon: '📝', placeholder: 'secret_...', docUrl: 'https://www.notion.so/my-integrations', description: 'Para acessar páginas e databases' },
+  { id: 'slack_bot_token', name: 'Slack Bot Token', icon: '💬', placeholder: 'xoxb-...', docUrl: 'https://api.slack.com/apps', description: 'Para enviar mensagens no Slack' },
+  { id: 'discord_bot_token', name: 'Discord Bot Token', icon: '🎮', placeholder: 'Token do bot', docUrl: 'https://discord.com/developers/applications', description: 'Para integração com Discord' },
+  { id: 'telegram_bot_token', name: 'Telegram Bot Token', icon: '📱', placeholder: 'Token do @BotFather', docUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot', description: 'Para bots no Telegram' },
+  { id: 'whatsapp_api_token', name: 'WhatsApp Business API', icon: '📲', placeholder: 'Token da API', docUrl: 'https://developers.facebook.com/docs/whatsapp', description: 'Para mensagens no WhatsApp' },
+  { id: 'airtable_api_key', name: 'Airtable API Key', icon: '📋', placeholder: 'pat...', docUrl: 'https://airtable.com/create/tokens', description: 'Para acessar bases Airtable' },
+  { id: 'github_token', name: 'GitHub Token', icon: '🐙', placeholder: 'ghp_...', docUrl: 'https://github.com/settings/tokens', description: 'Para integração com GitHub' },
+  { id: 'jira_api_token', name: 'Jira API Token', icon: '🎯', placeholder: 'Token Atlassian', docUrl: 'https://id.atlassian.com/manage-profile/security/api-tokens', description: 'Para gerenciar issues' },
+  { id: 'trello_api_key', name: 'Trello API Key', icon: '📌', placeholder: 'Chave API Trello', docUrl: 'https://trello.com/app-key', description: 'Para gerenciar boards' },
+  { id: 'hubspot_api_key', name: 'HubSpot API Key', icon: '🧲', placeholder: 'pat-...', docUrl: 'https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key', description: 'CRM e marketing' },
+  { id: 'salesforce_credentials', name: 'Salesforce OAuth', icon: '☁️', placeholder: 'JSON de credenciais', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/salesforce/', description: 'Para integração com Salesforce' },
+  { id: 'zendesk_api_token', name: 'Zendesk API Token', icon: '🎫', placeholder: 'Token da API', docUrl: 'https://support.zendesk.com/hc/en-us/articles/4408889192858', description: 'Para tickets de suporte' },
+  { id: 'stripe_api_key', name: 'Stripe API Key', icon: '💳', placeholder: 'sk_live_... ou sk_test_...', docUrl: 'https://dashboard.stripe.com/apikeys', description: 'Para pagamentos' },
+  { id: 'twilio_credentials', name: 'Twilio Credentials', icon: '📞', placeholder: 'Account SID:Auth Token', docUrl: 'https://www.twilio.com/console', description: 'Para SMS e ligações' },
+  { id: 'openweather_api_key', name: 'OpenWeather API Key', icon: '🌤️', placeholder: 'Sua chave API', docUrl: 'https://openweathermap.org/api', description: 'Para dados meteorológicos' },
+  { id: 'wolfram_alpha_app_id', name: 'Wolfram Alpha App ID', icon: '🔢', placeholder: 'App ID', docUrl: 'https://developer.wolframalpha.com/portal/myapps/', description: 'Para cálculos e dados' },
+  { id: 'youtube_api_key', name: 'YouTube API Key', icon: '▶️', placeholder: 'AIza...', docUrl: 'https://console.cloud.google.com/apis/credentials', description: 'Para dados do YouTube' },
 ];
 
 export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigProps) {
@@ -609,47 +636,113 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
 
         {/* CREDENTIALS TAB */}
         <TabsContent value="credentials">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Key className="h-5 w-5" />
-                Credenciais de IA
-              </CardTitle>
-              <CardDescription>
-                Configure as API keys dos provedores de IA
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {CREDENTIAL_TYPES.map((cred) => (
-                <div key={cred.id} className="space-y-2">
-                  <Label htmlFor={cred.id} className="flex items-center gap-2">
-                    <span>{cred.icon}</span>
-                    {cred.name}
-                  </Label>
-                  <Input
-                    id={cred.id}
-                    type="password"
-                    value={config.aiCredentials[cred.id] || ''}
-                    onChange={(e) => updateCredential(cred.id, e.target.value)}
-                    placeholder={`sk-...`}
-                  />
-                </div>
-              ))}
+          <div className="space-y-6">
+            {/* AI Model Credentials */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5" />
+                  Credenciais de Modelos de IA
+                </CardTitle>
+                <CardDescription>
+                  API keys dos provedores de modelos de IA
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {AI_CREDENTIAL_TYPES.map((cred) => (
+                  <div key={cred.id} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={cred.id} className="flex items-center gap-2">
+                        <span>{cred.icon}</span>
+                        {cred.name}
+                      </Label>
+                      <a 
+                        href={cred.docUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3 w-3" />
+                        Obter chave
+                      </a>
+                    </div>
+                    <Input
+                      id={cred.id}
+                      type="password"
+                      value={config.aiCredentials[cred.id] || ''}
+                      onChange={(e) => updateCredential(cred.id, e.target.value)}
+                      placeholder={cred.placeholder}
+                    />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
 
-              <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg">
-                <div className="flex items-start gap-2">
-                  <Settings2 className="h-5 w-5 text-blue-600 mt-0.5" />
-                  <div>
-                    <p className="font-medium text-blue-600">Nota sobre Credenciais</p>
-                    <p className="text-sm text-muted-foreground">
-                      As credenciais são salvas de forma segura e sincronizadas com o n8n. 
-                      Certifique-se de também configurar as credenciais correspondentes no n8n.
-                    </p>
+            {/* Tool Credentials */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Key className="h-5 w-5" />
+                  Credenciais de Ferramentas
+                </CardTitle>
+                <CardDescription>
+                  Configure as API keys das ferramentas que seu agente pode usar
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {TOOL_CREDENTIAL_TYPES.map((cred) => (
+                    <div key={cred.id} className="p-4 border rounded-lg space-y-3 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor={cred.id} className="flex items-center gap-2 text-base">
+                          <span className="text-lg">{cred.icon}</span>
+                          {cred.name}
+                        </Label>
+                        <a 
+                          href={cred.docUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          Doc
+                        </a>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{cred.description}</p>
+                      <Input
+                        id={cred.id}
+                        type="password"
+                        value={config.aiCredentials[cred.id] || ''}
+                        onChange={(e) => updateCredential(cred.id, e.target.value)}
+                        placeholder={cred.placeholder}
+                        className="bg-background"
+                      />
+                      {config.aiCredentials[cred.id] && (
+                        <Badge variant="secondary" className="text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Configurado
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-4 border border-blue-500/30 bg-blue-500/10 rounded-lg mt-6">
+                  <div className="flex items-start gap-2">
+                    <Settings2 className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-600">Nota sobre Credenciais de Ferramentas</p>
+                      <p className="text-sm text-muted-foreground">
+                        As credenciais são salvas de forma segura. Para que funcionem no n8n, 
+                        você também precisa configurar as credenciais correspondentes diretamente no n8n 
+                        em Configurações → Credenciais.
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
