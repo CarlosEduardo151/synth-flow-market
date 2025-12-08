@@ -870,13 +870,9 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                         const hasRequiredCreds = needsCredentials ? requiredCreds.every(c => config.aiCredentials[c]) : true;
                         
                         const handleToolClick = () => {
-                          console.log('Tool clicked:', tool.id, 'needsCredentials:', needsCredentials, 'requiredCreds:', requiredCreds);
-                          // Se precisa de credenciais, SEMPRE abre o dialog primeiro
                           if (needsCredentials) {
-                            console.log('Opening credential dialog for:', tool);
                             setCredentialDialogTool(tool);
                           } else {
-                            // Se não precisa de credenciais, apenas toggle
                             toggleTool(tool.id);
                           }
                         };
@@ -1287,7 +1283,6 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           <div className="space-y-4 py-4">
             {credentialDialogTool && (() => {
               const requiredCredIds = TOOL_CREDENTIALS_MAP[credentialDialogTool.id] || [];
-              console.log('Dialog open for:', credentialDialogTool.id, 'Required creds:', requiredCredIds);
               
               if (requiredCredIds.length === 0) {
                 return (
@@ -1299,10 +1294,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
               
               return requiredCredIds.map((credId) => {
                 const credInfo = TOOL_CREDENTIAL_TYPES.find(c => c.id === credId);
-                if (!credInfo) {
-                  console.log('Credential info not found for:', credId);
-                  return null;
-                }
+                if (!credInfo) return null;
               
                 const testStatus = credentialTestResults[credId];
                 const isTesting = testingCredential === credId;
