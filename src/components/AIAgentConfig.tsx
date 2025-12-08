@@ -870,8 +870,10 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                         const hasRequiredCreds = needsCredentials ? requiredCreds.every(c => config.aiCredentials[c]) : true;
                         
                         const handleToolClick = () => {
+                          console.log('Tool clicked:', tool.id, 'needsCredentials:', needsCredentials, 'requiredCreds:', requiredCreds);
                           // Se precisa de credenciais, SEMPRE abre o dialog primeiro
                           if (needsCredentials) {
+                            console.log('Opening credential dialog for:', tool);
                             setCredentialDialogTool(tool);
                           } else {
                             // Se não precisa de credenciais, apenas toggle
@@ -1283,89 +1285,104 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {credentialDialogTool && (TOOL_CREDENTIALS_MAP[credentialDialogTool.id] || []).map((credId) => {
-              const credInfo = TOOL_CREDENTIAL_TYPES.find(c => c.id === credId);
-              if (!credInfo) return null;
+            {credentialDialogTool && (() => {
+              const requiredCredIds = TOOL_CREDENTIALS_MAP[credentialDialogTool.id] || [];
+              console.log('Dialog open for:', credentialDialogTool.id, 'Required creds:', requiredCredIds);
               
-              const testStatus = credentialTestResults[credId];
-              const isTesting = testingCredential === credId;
+              if (requiredCredIds.length === 0) {
+                return (
+                  <div className="text-center py-4 text-muted-foreground">
+                    Esta ferramenta não requer credenciais adicionais.
+                  </div>
+                );
+              }
               
-              return (
-                <div key={credId} className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={`dialog-${credId}`} className="flex items-center gap-2 font-medium">
-                      <span className="text-lg">{credInfo.icon}</span>
-                      {credInfo.name}
-                    </Label>
-                    <a 
-                      href={credInfo.docUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Obter chave
-                    </a>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{credInfo.description}</p>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`dialog-${credId}`}
-                      type="password"
-                      value={config.aiCredentials[credId] || ''}
-                      onChange={(e) => {
-                        updateCredential(credId, e.target.value);
-                        // Reset test status quando valor muda
-                        setCredentialTestResults(prev => ({ ...prev, [credId]: null }));
-                      }}
-                      placeholder={credInfo.placeholder}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => testCredential(credId)}
-                      disabled={isTesting || !config.aiCredentials[credId]}
-                      className="shrink-0"
-                    >
-                      {isTesting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <TestTube2 className="h-4 w-4 mr-1" />
-                          Testar
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {config.aiCredentials[credId] && (
-                      <Badge 
-                        variant={testStatus === 'success' ? 'default' : testStatus === 'error' ? 'destructive' : 'secondary'} 
-                        className="text-xs"
+              return requiredCredIds.map((credId) => {
+                const credInfo = TOOL_CREDENTIAL_TYPES.find(c => c.id === credId);
+                if (!credInfo) {
+                  console.log('Credential info not found for:', credId);
+                  return null;
+                }
+              
+                const testStatus = credentialTestResults[credId];
+                const isTesting = testingCredential === credId;
+                
+                return (
+                  <div key={credId} className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor={`dialog-${credId}`} className="flex items-center gap-2 font-medium">
+                        <span className="text-lg">{credInfo.icon}</span>
+                        {credInfo.name}
+                      </Label>
+                      <a 
+                        href={credInfo.docUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
                       >
-                        {testStatus === 'success' ? (
-                          <>
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Verificado
-                          </>
-                        ) : testStatus === 'error' ? (
-                          <>
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Inválido
-                          </>
+                        <ExternalLink className="h-3 w-3" />
+                        Obter chave
+                      </a>
+                    </div>
+                    <p className="text-xs text-muted-foreground">{credInfo.description}</p>
+                    <div className="flex gap-2">
+                      <Input
+                        id={`dialog-${credId}`}
+                        type="password"
+                        value={config.aiCredentials[credId] || ''}
+                        onChange={(e) => {
+                          updateCredential(credId, e.target.value);
+                          setCredentialTestResults(prev => ({ ...prev, [credId]: null }));
+                        }}
+                        placeholder={credInfo.placeholder}
+                        className="flex-1"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => testCredential(credId)}
+                        disabled={isTesting || !config.aiCredentials[credId]}
+                        className="shrink-0"
+                      >
+                        {isTesting ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            Configurado
+                            <TestTube2 className="h-4 w-4 mr-1" />
+                            Testar
                           </>
                         )}
-                      </Badge>
-                    )}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {config.aiCredentials[credId] && (
+                        <Badge 
+                          variant={testStatus === 'success' ? 'default' : testStatus === 'error' ? 'destructive' : 'secondary'} 
+                          className="text-xs"
+                        >
+                          {testStatus === 'success' ? (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Verificado
+                            </>
+                          ) : testStatus === 'error' ? (
+                            <>
+                              <AlertCircle className="h-3 w-3 mr-1" />
+                              Inválido
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Configurado
+                            </>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
 
           <DialogFooter className="flex gap-2">
