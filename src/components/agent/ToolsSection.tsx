@@ -180,9 +180,9 @@ export function ToolsSection({
     }
   };
 
-  // Handler para o switch
-  const handleSwitchChange = (tool: ToolType, checked: boolean, e: React.MouseEvent) => {
-    e.stopPropagation();
+  // Handler para o switch - recebe apenas o checked
+  const handleSwitchClick = (e: React.MouseEvent, tool: ToolType) => {
+    e.stopPropagation(); // Evita que o clique propague para o card
     
     const needsCreds = toolNeedsCredentials(tool.id);
     const hasCreds = toolHasAllCredentials(tool.id);
@@ -339,10 +339,11 @@ export function ToolsSection({
                           <span className="text-lg">{tool.icon}</span>
                           <span className="font-medium text-sm">{tool.name}</span>
                         </div>
-                        <Switch 
-                          checked={isEnabled}
-                          onClick={(e) => handleSwitchChange(tool, !isEnabled, e)}
-                        />
+                        <div onClick={(e) => handleSwitchClick(e, tool)}>
+                          <Switch 
+                            checked={isEnabled}
+                          />
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground">{tool.description}</p>
                       
