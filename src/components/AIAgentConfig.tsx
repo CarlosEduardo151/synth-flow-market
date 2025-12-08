@@ -866,13 +866,15 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                       {tools.map((tool) => {
                         const isEnabled = config.toolsEnabled.includes(tool.id);
                         const requiredCreds = TOOL_CREDENTIALS_MAP[tool.id] || [];
-                        const hasRequiredCreds = requiredCreds.every(c => config.aiCredentials[c]);
+                        const needsCredentials = requiredCreds.length > 0;
+                        const hasRequiredCreds = needsCredentials ? requiredCreds.every(c => config.aiCredentials[c]) : true;
                         
                         const handleToolClick = () => {
-                          if (requiredCreds.length > 0 && !hasRequiredCreds) {
-                            // Abre dialog de credenciais
+                          // Se precisa de credenciais, SEMPRE abre o dialog primeiro
+                          if (needsCredentials) {
                             setCredentialDialogTool(tool);
                           } else {
+                            // Se não precisa de credenciais, apenas toggle
                             toggleTool(tool.id);
                           }
                         };
@@ -892,33 +894,31 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                                 <span className="text-lg">{tool.icon}</span>
                                 <span className="font-medium text-sm">{tool.name}</span>
                               </div>
-                              <Switch checked={isEnabled} />
+                              <Switch 
+                                checked={isEnabled} 
+                                onCheckedChange={() => {
+                                  // Se já tem credenciais ou não precisa, toggle direto
+                                  if (!needsCredentials || hasRequiredCreds) {
+                                    toggleTool(tool.id);
+                                  } else {
+                                    setCredentialDialogTool(tool);
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                              />
                             </div>
                             <p className="text-xs text-muted-foreground">{tool.description}</p>
-                            {requiredCreds.length > 0 && (
-                              <div className="mt-2 flex items-center gap-2">
+                            {needsCredentials && (
+                              <div className="mt-2">
                                 {hasRequiredCreds ? (
-                                  <>
-                                    <Badge variant="secondary" className="text-xs">
-                                      <CheckCircle className="h-3 w-3 mr-1" />
-                                      Credencial OK
-                                    </Badge>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
-                                      className="h-6 text-xs px-2"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setCredentialDialogTool(tool);
-                                      }}
-                                    >
-                                      Editar
-                                    </Button>
-                                  </>
+                                  <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Credencial configurada
+                                  </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50">
-                                    <AlertCircle className="h-3 w-3 mr-1" />
-                                    Clique para configurar
+                                  <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
+                                    <Key className="h-3 w-3 mr-1" />
+                                    Requer credencial
                                   </Badge>
                                 )}
                               </div>
