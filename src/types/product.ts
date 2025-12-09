@@ -14,4 +14,5 @@ export interface Product {
   delivery: string;
   specs?: string;
   content?: string;
+  systemPath?: string; // Path to the system/product dashboard
 }

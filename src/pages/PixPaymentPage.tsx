@@ -202,7 +202,7 @@ export default function PixPaymentPage() {
           : "Seu pagamento será analisado em breve",
       });
 
-      navigate('/customer-dashboard');
+      navigate('/meus-pedidos');
     } catch (error: any) {
       toast({
         title: "Erro ao enviar pagamento",
