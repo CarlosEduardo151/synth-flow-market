@@ -1834,76 +1834,115 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Ferramentas organizadas por categoria */}
-                {[
+                {(() => {
+                  const TOOL_LOGOS: Record<string, string> = {
+                    httpRequestTool: '/images/tools/n8n.svg',
+                    webhookTool: '/images/tools/n8n.svg',
+                    graphqlTool: '/images/tools/graphql.svg',
+                    serpApiTool: '/images/tools/google.svg',
+                    wikipediaTool: '/images/tools/wikipedia.svg',
+                    wolframAlphaTool: '/images/tools/wolfram.svg',
+                    duckDuckGoTool: '/images/tools/duckduckgo.svg',
+                    gmailTool: '/images/tools/gmail.svg',
+                    outlookTool: '/images/tools/outlook.svg',
+                    sendGridTool: '/images/tools/sendgrid.svg',
+                    slackTool: '/images/tools/slack.svg',
+                    telegramTool: '/images/tools/telegram.svg',
+                    discordTool: '/images/tools/discord.svg',
+                    whatsappTool: '/images/tools/whatsapp.svg',
+                    googleSheetsTool: '/images/tools/googlesheets.svg',
+                    excelTool: '/images/tools/excel.svg',
+                    airtableTool: '/images/tools/airtable.svg',
+                    notionTool: '/images/tools/notion.svg',
+                    postgresTool: '/images/tools/postgresql.svg',
+                    mysqlTool: '/images/tools/mysql.svg',
+                    mongoDbTool: '/images/tools/mongodb.svg',
+                    redisTool: '/images/tools/redis.svg',
+                    supabaseTool: '/images/tools/supabase.svg',
+                    googleDriveTool: '/images/tools/googledrive.svg',
+                    dropboxTool: '/images/tools/dropbox.svg',
+                    s3Tool: '/images/tools/s3.svg',
+                    ftpTool: '/images/tools/n8n.svg',
+                    calculatorTool: '/images/tools/n8n.svg',
+                    codeTool: '/images/tools/code.svg',
+                    dateTimeTool: '/images/tools/n8n.svg',
+                    cryptoTool: '/images/tools/n8n.svg',
+                    htmlExtractTool: '/images/tools/n8n.svg',
+                    jsonTool: '/images/tools/json.svg',
+                  };
+                  
+                  const TOOL_CATEGORIES = [
                   {
                     category: '🌐 Requisições e APIs',
                     tools: [
-                      { id: 'httpRequestTool', name: 'HTTP Request', desc: 'Fazer requisições HTTP para qualquer API', icon: '🔗', type: 'n8n-nodes-base.httpRequestTool', params: { method: 'GET', url: '', headers: {}, body: '' } },
-                      { id: 'webhookTool', name: 'Webhook', desc: 'Receber dados via webhook', icon: '📡', type: 'n8n-nodes-base.webhook', params: { path: '', method: 'POST' } },
-                      { id: 'graphqlTool', name: 'GraphQL', desc: 'Fazer consultas GraphQL', icon: '◼️', type: 'n8n-nodes-base.graphql', params: { endpoint: '', query: '' } },
+                      { id: 'httpRequestTool', name: 'HTTP Request', desc: 'Fazer requisições HTTP para qualquer API', logo: TOOL_LOGOS.httpRequestTool },
+                      { id: 'webhookTool', name: 'Webhook', desc: 'Receber dados via webhook', logo: TOOL_LOGOS.webhookTool },
+                      { id: 'graphqlTool', name: 'GraphQL', desc: 'Fazer consultas GraphQL', logo: TOOL_LOGOS.graphqlTool },
                     ]
                   },
                   {
                     category: '🔍 Busca e Pesquisa',
                     tools: [
-                      { id: 'serpApiTool', name: 'SerpAPI (Google)', desc: 'Buscar no Google via SerpAPI', icon: '🔎', type: 'n8n-nodes-base.serpApi', params: { query: '' } },
-                      { id: 'wikipediaTool', name: 'Wikipedia', desc: 'Buscar artigos na Wikipedia', icon: '📚', type: '@n8n/n8n-nodes-langchain.toolWikipedia', params: {} },
-                      { id: 'wolframAlphaTool', name: 'Wolfram Alpha', desc: 'Cálculos e conhecimento', icon: '🧮', type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', params: {} },
-                      { id: 'duckDuckGoTool', name: 'DuckDuckGo', desc: 'Busca privada na web', icon: '🦆', type: 'n8n-nodes-base.duckDuckGo', params: {} },
+                      { id: 'serpApiTool', name: 'SerpAPI (Google)', desc: 'Buscar no Google via SerpAPI', logo: TOOL_LOGOS.serpApiTool },
+                      { id: 'wikipediaTool', name: 'Wikipedia', desc: 'Buscar artigos na Wikipedia', logo: TOOL_LOGOS.wikipediaTool },
+                      { id: 'wolframAlphaTool', name: 'Wolfram Alpha', desc: 'Cálculos e conhecimento', logo: TOOL_LOGOS.wolframAlphaTool },
+                      { id: 'duckDuckGoTool', name: 'DuckDuckGo', desc: 'Busca privada na web', logo: TOOL_LOGOS.duckDuckGoTool },
                     ]
                   },
                   {
                     category: '📧 Email e Comunicação',
                     tools: [
-                      { id: 'gmailTool', name: 'Gmail', desc: 'Enviar e ler emails do Gmail', icon: '📧', type: 'n8n-nodes-base.gmail', params: { operation: 'send' } },
-                      { id: 'outlookTool', name: 'Microsoft Outlook', desc: 'Gerenciar emails do Outlook', icon: '📨', type: 'n8n-nodes-base.microsoftOutlook', params: {} },
-                      { id: 'sendGridTool', name: 'SendGrid', desc: 'Enviar emails transacionais', icon: '✉️', type: 'n8n-nodes-base.sendGrid', params: {} },
-                      { id: 'slackTool', name: 'Slack', desc: 'Enviar mensagens no Slack', icon: '💬', type: 'n8n-nodes-base.slack', params: { channel: '', message: '' } },
-                      { id: 'telegramTool', name: 'Telegram', desc: 'Enviar mensagens no Telegram', icon: '📱', type: 'n8n-nodes-base.telegram', params: { chatId: '', text: '' } },
-                      { id: 'discordTool', name: 'Discord', desc: 'Enviar mensagens no Discord', icon: '🎮', type: 'n8n-nodes-base.discord', params: { webhookUrl: '' } },
-                      { id: 'whatsappTool', name: 'WhatsApp', desc: 'Enviar mensagens via WhatsApp', icon: '📲', type: 'n8n-nodes-base.whatsApp', params: {} },
+                      { id: 'gmailTool', name: 'Gmail', desc: 'Enviar e ler emails do Gmail', logo: TOOL_LOGOS.gmailTool },
+                      { id: 'outlookTool', name: 'Microsoft Outlook', desc: 'Gerenciar emails do Outlook', logo: TOOL_LOGOS.outlookTool },
+                      { id: 'sendGridTool', name: 'SendGrid', desc: 'Enviar emails transacionais', logo: TOOL_LOGOS.sendGridTool },
+                      { id: 'slackTool', name: 'Slack', desc: 'Enviar mensagens no Slack', logo: TOOL_LOGOS.slackTool },
+                      { id: 'telegramTool', name: 'Telegram', desc: 'Enviar mensagens no Telegram', logo: TOOL_LOGOS.telegramTool },
+                      { id: 'discordTool', name: 'Discord', desc: 'Enviar mensagens no Discord', logo: TOOL_LOGOS.discordTool },
+                      { id: 'whatsappTool', name: 'WhatsApp', desc: 'Enviar mensagens via WhatsApp', logo: TOOL_LOGOS.whatsappTool },
                     ]
                   },
                   {
                     category: '📊 Planilhas e Dados',
                     tools: [
-                      { id: 'googleSheetsTool', name: 'Google Sheets', desc: 'Ler e escrever em planilhas', icon: '📗', type: 'n8n-nodes-base.googleSheets', params: { spreadsheetId: '', range: '' } },
-                      { id: 'excelTool', name: 'Microsoft Excel', desc: 'Gerenciar arquivos Excel', icon: '📊', type: 'n8n-nodes-base.microsoftExcel', params: {} },
-                      { id: 'airtableTool', name: 'Airtable', desc: 'Gerenciar dados no Airtable', icon: '🗂️', type: 'n8n-nodes-base.airtable', params: { baseId: '', tableId: '' } },
-                      { id: 'notionTool', name: 'Notion', desc: 'Gerenciar páginas e databases', icon: '📝', type: 'n8n-nodes-base.notion', params: {} },
+                      { id: 'googleSheetsTool', name: 'Google Sheets', desc: 'Ler e escrever em planilhas', logo: TOOL_LOGOS.googleSheetsTool },
+                      { id: 'excelTool', name: 'Microsoft Excel', desc: 'Gerenciar arquivos Excel', logo: TOOL_LOGOS.excelTool },
+                      { id: 'airtableTool', name: 'Airtable', desc: 'Gerenciar dados no Airtable', logo: TOOL_LOGOS.airtableTool },
+                      { id: 'notionTool', name: 'Notion', desc: 'Gerenciar páginas e databases', logo: TOOL_LOGOS.notionTool },
                     ]
                   },
                   {
                     category: '🗄️ Banco de Dados',
                     tools: [
-                      { id: 'postgresTool', name: 'PostgreSQL', desc: 'Executar queries SQL', icon: '🐘', type: 'n8n-nodes-base.postgres', params: { query: '' } },
-                      { id: 'mysqlTool', name: 'MySQL', desc: 'Executar queries MySQL', icon: '🐬', type: 'n8n-nodes-base.mySql', params: { query: '' } },
-                      { id: 'mongoDbTool', name: 'MongoDB', desc: 'Operações no MongoDB', icon: '🍃', type: 'n8n-nodes-base.mongoDb', params: {} },
-                      { id: 'redisTool', name: 'Redis', desc: 'Cache e dados em memória', icon: '🔴', type: 'n8n-nodes-base.redis', params: {} },
-                      { id: 'supabaseTool', name: 'Supabase', desc: 'Operações no Supabase', icon: '⚡', type: 'n8n-nodes-base.supabase', params: {} },
+                      { id: 'postgresTool', name: 'PostgreSQL', desc: 'Executar queries SQL', logo: TOOL_LOGOS.postgresTool },
+                      { id: 'mysqlTool', name: 'MySQL', desc: 'Executar queries MySQL', logo: TOOL_LOGOS.mysqlTool },
+                      { id: 'mongoDbTool', name: 'MongoDB', desc: 'Operações no MongoDB', logo: TOOL_LOGOS.mongoDbTool },
+                      { id: 'redisTool', name: 'Redis', desc: 'Cache e dados em memória', logo: TOOL_LOGOS.redisTool },
+                      { id: 'supabaseTool', name: 'Supabase', desc: 'Operações no Supabase', logo: TOOL_LOGOS.supabaseTool },
                     ]
                   },
                   {
                     category: '📁 Arquivos e Storage',
                     tools: [
-                      { id: 'googleDriveTool', name: 'Google Drive', desc: 'Upload e download de arquivos', icon: '📁', type: 'n8n-nodes-base.googleDrive', params: {} },
-                      { id: 'dropboxTool', name: 'Dropbox', desc: 'Gerenciar arquivos Dropbox', icon: '📦', type: 'n8n-nodes-base.dropbox', params: {} },
-                      { id: 's3Tool', name: 'AWS S3', desc: 'Armazenamento S3', icon: '☁️', type: 'n8n-nodes-base.s3', params: { bucket: '' } },
-                      { id: 'ftpTool', name: 'FTP', desc: 'Transferência de arquivos FTP', icon: '📤', type: 'n8n-nodes-base.ftp', params: {} },
+                      { id: 'googleDriveTool', name: 'Google Drive', desc: 'Upload e download de arquivos', logo: TOOL_LOGOS.googleDriveTool },
+                      { id: 'dropboxTool', name: 'Dropbox', desc: 'Gerenciar arquivos Dropbox', logo: TOOL_LOGOS.dropboxTool },
+                      { id: 's3Tool', name: 'AWS S3', desc: 'Armazenamento S3', logo: TOOL_LOGOS.s3Tool },
+                      { id: 'ftpTool', name: 'FTP', desc: 'Transferência de arquivos FTP', logo: TOOL_LOGOS.ftpTool },
                     ]
                   },
                   {
                     category: '🛠️ Utilidades',
                     tools: [
-                      { id: 'calculatorTool', name: 'Calculadora', desc: 'Fazer cálculos matemáticos', icon: '🔢', type: '@n8n/n8n-nodes-langchain.toolCalculator', params: {} },
-                      { id: 'codeTool', name: 'Executar Código', desc: 'Executar JavaScript/Python', icon: '💻', type: '@n8n/n8n-nodes-langchain.toolCode', params: { language: 'javascript', code: '' } },
-                      { id: 'dateTimeTool', name: 'Data e Hora', desc: 'Manipular datas e horários', icon: '📅', type: 'n8n-nodes-base.dateTime', params: {} },
-                      { id: 'cryptoTool', name: 'Crypto', desc: 'Criptografia e hash', icon: '🔐', type: 'n8n-nodes-base.crypto', params: {} },
-                      { id: 'htmlExtractTool', name: 'HTML Extract', desc: 'Extrair dados de HTML', icon: '🌐', type: 'n8n-nodes-base.htmlExtract', params: {} },
-                      { id: 'jsonTool', name: 'JSON', desc: 'Manipular dados JSON', icon: '{ }', type: 'n8n-nodes-base.set', params: {} },
+                      { id: 'calculatorTool', name: 'Calculadora', desc: 'Fazer cálculos matemáticos', logo: TOOL_LOGOS.calculatorTool },
+                      { id: 'codeTool', name: 'Executar Código', desc: 'Executar JavaScript/Python', logo: TOOL_LOGOS.codeTool },
+                      { id: 'dateTimeTool', name: 'Data e Hora', desc: 'Manipular datas e horários', logo: TOOL_LOGOS.dateTimeTool },
+                      { id: 'cryptoTool', name: 'Crypto', desc: 'Criptografia e hash', logo: TOOL_LOGOS.cryptoTool },
+                      { id: 'htmlExtractTool', name: 'HTML Extract', desc: 'Extrair dados de HTML', logo: TOOL_LOGOS.htmlExtractTool },
+                      { id: 'jsonTool', name: 'JSON', desc: 'Manipular dados JSON', logo: TOOL_LOGOS.jsonTool },
                     ]
                   },
-                ].map((category) => (
+                ];
+                
+                return TOOL_CATEGORIES.map((category) => (
                   <div key={category.category} className="space-y-3">
                     <h3 className="text-sm font-semibold text-muted-foreground">{category.category}</h3>
                     <div className="grid grid-cols-1 gap-3">
@@ -1928,7 +1967,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                                     <CollapsibleTrigger asChild>
                                       <button className="flex items-center gap-2 hover:text-primary transition-colors text-left">
                                         {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-                                        <span className="text-xl">{tool.icon}</span>
+                                        <img src={tool.logo} alt={tool.name} className="w-5 h-5 object-contain" />
                                         <div>
                                           <span className="font-medium text-sm">{tool.name}</span>
                                           <p className="text-xs text-muted-foreground">{tool.desc}</p>
@@ -1938,7 +1977,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                                   ) : (
                                     <div className="flex items-center gap-2">
                                       <span className="w-4" />
-                                      <span className="text-xl">{tool.icon}</span>
+                                      <img src={tool.logo} alt={tool.name} className="w-5 h-5 object-contain" />
                                       <div>
                                         <span className="font-medium text-sm">{tool.name}</span>
                                         <p className="text-xs text-muted-foreground">{tool.desc}</p>
@@ -2062,7 +2101,8 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       })}
                     </div>
                   </div>
-                ))}
+                ));
+                })()}
 
                 {/* Resumo das ferramentas ativas */}
                 <div className="p-4 bg-muted/50 rounded-lg border mt-6">
