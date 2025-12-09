@@ -135,66 +135,58 @@ export function ToolsSection({
 }: ToolsSectionProps) {
   const { toast } = useToast();
   
-  // Estado para o dialog - agora é um objeto com dados da ferramenta ou null
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<ToolType | null>(null);
-  
+  // Estados simples
+  const [credentialDialogOpen, setCredentialDialogOpen] = useState(false);
+  const [currentTool, setCurrentTool] = useState<ToolType | null>(null);
   const [testingCredential, setTestingCredential] = useState<string | null>(null);
   const [credentialTestResults, setCredentialTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
 
-  // Função para abrir o dialog de credenciais
-  const openCredentialDialog = (tool: ToolType) => {
-    setSelectedTool(tool);
-    setDialogOpen(true);
-  };
+  // Abrir dialog - SIMPLES como um botão
+  function abrirDialog(tool: ToolType) {
+    setCurrentTool(tool);
+    setCredentialDialogOpen(true);
+  }
 
-  // Função para fechar o dialog
-  const closeCredentialDialog = () => {
-    setDialogOpen(false);
-    setSelectedTool(null);
-  };
+  // Fechar dialog
+  function fecharDialog() {
+    setCredentialDialogOpen(false);
+    setCurrentTool(null);
+  }
 
   // Verificar se ferramenta precisa de credenciais
-  const toolNeedsCredentials = (toolId: string): boolean => {
-    const requiredCreds = TOOL_CREDENTIALS_MAP[toolId] || [];
-    return requiredCreds.length > 0;
-  };
+  function precisaCredencial(toolId: string): boolean {
+    return (TOOL_CREDENTIALS_MAP[toolId] || []).length > 0;
+  }
 
   // Verificar se ferramenta tem todas as credenciais
-  const toolHasAllCredentials = (toolId: string): boolean => {
-    const requiredCreds = TOOL_CREDENTIALS_MAP[toolId] || [];
-    if (requiredCreds.length === 0) return true;
-    return requiredCreds.every(credId => aiCredentials[credId] && aiCredentials[credId].trim() !== '');
-  };
+  function temCredenciais(toolId: string): boolean {
+    const creds = TOOL_CREDENTIALS_MAP[toolId] || [];
+    if (creds.length === 0) return true;
+    return creds.every(c => aiCredentials[c] && aiCredentials[c].trim() !== '');
+  }
 
-  // Handler para clicar no card da ferramenta
-  const handleToolCardClick = (tool: ToolType) => {
-    const needsCreds = toolNeedsCredentials(tool.id);
+  // Clique no card
+  function onClickCard(tool: ToolType) {
+    if (precisaCredencial(tool.id)) {
     
-    if (needsCreds) {
-      // SEMPRE abre o dialog se precisa de credenciais
-      openCredentialDialog(tool);
+      // Abre dialog se precisa de credenciais
+      abrirDialog(tool);
     } else {
-      // Sem credenciais necessárias, toggle direto
+      // Toggle direto
       onToggleTool(tool.id);
     }
-  };
+  }
 
-  // Handler para o switch - recebe apenas o checked
-  const handleSwitchClick = (e: React.MouseEvent, tool: ToolType) => {
-    e.stopPropagation(); // Evita que o clique propague para o card
+  // Clique no switch
+  function onClickSwitch(e: React.MouseEvent, tool: ToolType) {
+    e.stopPropagation();
     
-    const needsCreds = toolNeedsCredentials(tool.id);
-    const hasCreds = toolHasAllCredentials(tool.id);
-    
-    if (needsCreds && !hasCreds) {
-      // Precisa de credenciais e não tem, abre dialog
-      openCredentialDialog(tool);
+    if (precisaCredencial(tool.id) && !temCredenciais(tool.id)) {
+      abrirDialog(tool);
     } else {
-      // Tem credenciais ou não precisa, toggle direto
       onToggleTool(tool.id);
     }
-  };
+  }
 
   // Testar credencial
   const testCredential = async (credentialId: string) => {
@@ -266,13 +258,13 @@ export function ToolsSection({
   };
 
   // Salvar e habilitar ferramenta
-  const handleSaveAndEnable = () => {
-    if (!selectedTool) return;
+  function salvarEHabilitar() {
+    if (!currentTool) return;
     
-    const requiredCreds = TOOL_CREDENTIALS_MAP[selectedTool.id] || [];
-    const hasAllCreds = requiredCreds.every(c => aiCredentials[c] && aiCredentials[c].trim() !== '');
+    const creds = TOOL_CREDENTIALS_MAP[currentTool.id] || [];
+    const temTodas = creds.every(c => aiCredentials[c] && aiCredentials[c].trim() !== '');
     
-    if (!hasAllCreds) {
+    if (!temTodas) {
       toast({
         title: "Credenciais incompletas",
         description: "Preencha todas as credenciais necessárias.",
@@ -281,25 +273,24 @@ export function ToolsSection({
       return;
     }
     
-    // Habilita a ferramenta se não estiver habilitada
-    if (!toolsEnabled.includes(selectedTool.id)) {
-      onToggleTool(selectedTool.id);
+    if (!toolsEnabled.includes(currentTool.id)) {
+      onToggleTool(currentTool.id);
     }
     
     toast({
       title: "Credenciais salvas!",
-      description: `A ferramenta ${selectedTool.name} foi configurada e habilitada.`,
+      description: `A ferramenta ${currentTool.name} foi configurada e habilitada.`,
     });
     
-    closeCredentialDialog();
-  };
+    fecharDialog();
+  }
 
   // Obter credenciais necessárias para a ferramenta selecionada
-  const getSelectedToolCredentials = () => {
-    if (!selectedTool) return [];
-    const requiredCredIds = TOOL_CREDENTIALS_MAP[selectedTool.id] || [];
-    return requiredCredIds.map(credId => TOOL_CREDENTIAL_TYPES.find(c => c.id === credId)).filter(Boolean);
-  };
+  function getCredenciaisAtuais() {
+    if (!currentTool) return [];
+    const credIds = TOOL_CREDENTIALS_MAP[currentTool.id] || [];
+    return credIds.map(credId => TOOL_CREDENTIAL_TYPES.find(c => c.id === credId)).filter(Boolean);
+  }
 
   return (
     <div className="space-y-6">
@@ -321,13 +312,13 @@ export function ToolsSection({
               <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                 {tools.map((tool) => {
                   const isEnabled = toolsEnabled.includes(tool.id);
-                  const needsCreds = toolNeedsCredentials(tool.id);
-                  const hasCreds = toolHasAllCredentials(tool.id);
+                  const needsCreds = precisaCredencial(tool.id);
+                  const hasCreds = temCredenciais(tool.id);
                   
                   return (
                     <div
                       key={tool.id}
-                      onClick={() => handleToolCardClick(tool)}
+                      onClick={() => onClickCard(tool)}
                       className={`p-3 border rounded-lg cursor-pointer transition-all ${
                         isEnabled 
                           ? 'border-primary bg-primary/5' 
@@ -339,7 +330,7 @@ export function ToolsSection({
                           <span className="text-lg">{tool.icon}</span>
                           <span className="font-medium text-sm">{tool.name}</span>
                         </div>
-                        <div onClick={(e) => handleSwitchClick(e, tool)}>
+                        <div onClick={(e) => onClickSwitch(e, tool)}>
                           <Switch 
                             checked={isEnabled}
                           />
@@ -392,12 +383,12 @@ export function ToolsSection({
       </div>
 
       {/* Dialog de Credenciais */}
-      <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeCredentialDialog()}>
+      <Dialog open={credentialDialogOpen} onOpenChange={(open) => !open && fecharDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{selectedTool?.icon}</span>
-              Configurar {selectedTool?.name}
+              <span className="text-2xl">{currentTool?.icon}</span>
+              Configurar {currentTool?.name}
             </DialogTitle>
             <DialogDescription>
               Insira as credenciais necessárias para usar esta ferramenta
@@ -405,7 +396,7 @@ export function ToolsSection({
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            {getSelectedToolCredentials().map((credInfo) => {
+            {getCredenciaisAtuais().map((credInfo) => {
               if (!credInfo) return null;
               
               const testStatus = credentialTestResults[credInfo.id];
@@ -486,7 +477,7 @@ export function ToolsSection({
               );
             })}
             
-            {selectedTool && !toolNeedsCredentials(selectedTool.id) && (
+            {currentTool && !precisaCredencial(currentTool.id) && (
               <div className="text-center py-4 text-muted-foreground">
                 Esta ferramenta não requer credenciais adicionais.
               </div>
@@ -494,10 +485,10 @@ export function ToolsSection({
           </div>
 
           <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={closeCredentialDialog}>
+            <Button variant="outline" onClick={fecharDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveAndEnable}>
+            <Button onClick={salvarEHabilitar}>
               <CheckCircle className="mr-2 h-4 w-4" />
               Salvar e Habilitar
             </Button>
