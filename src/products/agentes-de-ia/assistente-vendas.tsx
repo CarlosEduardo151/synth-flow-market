@@ -22,6 +22,7 @@ export const assistenteVendas: Product = {
   inStock: true,
   delivery: "Ativação em 5 dias úteis",
   specs: "Pagamento Mensal - R$ 500/mês",
+  systemPath: "/sistema/assistente-vendas",
   content: `
 # Assistente de Vendas com IA
 
