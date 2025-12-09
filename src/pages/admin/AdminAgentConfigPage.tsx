@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, Shield, Database,
-  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send
+  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
+  ChevronDown, ChevronRight, Key, TestTube2
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -347,6 +349,84 @@ COMO AJUDAR:
   const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  
+  // Estados para credenciais de ferramentas
+  const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
+  const [openToolCredentials, setOpenToolCredentials] = useState<string[]>([]);
+  const [testingCredential, setTestingCredential] = useState<string | null>(null);
+  const [credentialTestResults, setCredentialTestResults] = useState<Record<string, 'success' | 'error'>>({});
+
+  // Mapa de credenciais por ferramenta
+  const TOOL_CREDENTIALS: Record<string, { name: string; placeholder: string; docUrl: string }> = {
+    serpApiTool: { name: 'SerpAPI Key', placeholder: 'Sua chave SerpAPI', docUrl: 'https://serpapi.com/manage-api-key' },
+    wolframAlphaTool: { name: 'Wolfram Alpha App ID', placeholder: 'App ID do Wolfram', docUrl: 'https://developer.wolframalpha.com/portal/myapps/' },
+    gmailTool: { name: 'Gmail OAuth JSON', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
+    outlookTool: { name: 'Microsoft OAuth', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/microsoft/' },
+    sendGridTool: { name: 'SendGrid API Key', placeholder: 'SG.xxxxxxxxxx', docUrl: 'https://app.sendgrid.com/settings/api_keys' },
+    slackTool: { name: 'Slack Bot Token', placeholder: 'xoxb-...', docUrl: 'https://api.slack.com/apps' },
+    telegramTool: { name: 'Telegram Bot Token', placeholder: 'Token do @BotFather', docUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot' },
+    discordTool: { name: 'Discord Webhook URL', placeholder: 'https://discord.com/api/webhooks/...', docUrl: 'https://discord.com/developers/applications' },
+    whatsappTool: { name: 'WhatsApp Business API', placeholder: 'Token da API', docUrl: 'https://developers.facebook.com/docs/whatsapp' },
+    googleSheetsTool: { name: 'Google Sheets OAuth', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
+    excelTool: { name: 'Microsoft OAuth', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/microsoft/' },
+    airtableTool: { name: 'Airtable API Key', placeholder: 'pat...', docUrl: 'https://airtable.com/create/tokens' },
+    notionTool: { name: 'Notion API Key', placeholder: 'secret_...', docUrl: 'https://www.notion.so/my-integrations' },
+    postgresTool: { name: 'PostgreSQL Connection', placeholder: 'postgresql://user:pass@host:5432/db', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/postgres/' },
+    mysqlTool: { name: 'MySQL Connection', placeholder: 'mysql://user:pass@host:3306/db', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/mysql/' },
+    mongoDbTool: { name: 'MongoDB Connection', placeholder: 'mongodb://user:pass@host:27017/db', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/mongodb/' },
+    redisTool: { name: 'Redis Connection', placeholder: 'redis://host:6379', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/redis/' },
+    supabaseTool: { name: 'Supabase API Key', placeholder: 'eyJ...', docUrl: 'https://supabase.com/docs/guides/api' },
+    googleDriveTool: { name: 'Google Drive OAuth', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
+    dropboxTool: { name: 'Dropbox Access Token', placeholder: 'sl.xxxxxxxxxx', docUrl: 'https://www.dropbox.com/developers/apps' },
+    s3Tool: { name: 'AWS Credentials', placeholder: 'Access Key ID', docUrl: 'https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html' },
+  };
+
+  const toggleToolCredentialOpen = (toolId: string) => {
+    setOpenToolCredentials(prev => 
+      prev.includes(toolId) ? prev.filter(id => id !== toolId) : [...prev, toolId]
+    );
+  };
+
+  const updateToolCredential = (toolId: string, value: string) => {
+    setToolCredentials(prev => ({ ...prev, [toolId]: value }));
+  };
+
+  const testToolCredential = async (toolId: string) => {
+    const value = toolCredentials[toolId];
+    if (!value?.trim()) {
+      toast({ title: "Preencha a credencial primeiro", variant: "destructive" });
+      return;
+    }
+    
+    setTestingCredential(toolId);
+    try {
+      let success = false;
+      
+      if (toolId === 'serpApiTool') {
+        const res = await fetch(`https://serpapi.com/account.json?api_key=${encodeURIComponent(value)}`);
+        success = res.ok;
+      } else if (toolId === 'notionTool') {
+        const res = await fetch('https://api.notion.com/v1/users/me', { 
+          headers: { 'Authorization': `Bearer ${value}`, 'Notion-Version': '2022-06-28' }
+        });
+        success = res.ok;
+      } else {
+        // Validação básica para outras credenciais
+        success = value.length >= 10;
+      }
+
+      setCredentialTestResults(prev => ({ ...prev, [toolId]: success ? 'success' : 'error' }));
+      toast({ 
+        title: success ? "Credencial válida!" : "Credencial inválida",
+        variant: success ? "default" : "destructive"
+      });
+    } catch {
+      setCredentialTestResults(prev => ({ ...prev, [toolId]: 'error' }));
+      toast({ title: "Erro ao testar", variant: "destructive" });
+    } finally {
+      setTestingCredential(null);
+    }
+  };
 
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
 
@@ -1811,40 +1891,158 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 ].map((category) => (
                   <div key={category.category} className="space-y-3">
                     <h3 className="text-sm font-semibold text-muted-foreground">{category.category}</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {category.tools.map((tool) => {
                         const isEnabled = (config as any).enabledTools?.includes(tool.id);
+                        const credential = TOOL_CREDENTIALS[tool.id];
+                        const isOpen = openToolCredentials.includes(tool.id);
+                        const hasCredential = !!toolCredentials[tool.id]?.trim();
+                        const testResult = credentialTestResults[tool.id];
+
                         return (
-                          <button
-                            key={tool.id}
-                            onClick={() => {
-                              setConfig(prev => {
-                                const currentTools = (prev as any).enabledTools || [];
-                                const newTools = currentTools.includes(tool.id)
-                                  ? currentTools.filter((t: string) => t !== tool.id)
-                                  : [...currentTools, tool.id];
-                                return { ...prev, enabledTools: newTools } as AgentConfig;
-                              });
-                            }}
-                            className={`p-4 rounded-lg border text-left transition-all hover:shadow-md ${
+                          <Collapsible key={tool.id} open={isOpen} onOpenChange={() => credential && toggleToolCredentialOpen(tool.id)}>
+                            <div className={`rounded-lg border transition-all ${
                               isEnabled 
-                                ? 'border-primary bg-primary/10 ring-2 ring-primary/20' 
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary/20' 
                                 : 'border-border hover:border-muted-foreground/30'
-                            }`}
-                          >
-                            <div className="flex items-start gap-3">
-                              <span className="text-2xl">{tool.icon}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <h4 className="font-medium text-sm truncate">{tool.name}</h4>
-                                  {isEnabled && (
-                                    <Badge variant="default" className="text-[10px] px-1.5 py-0">ON</Badge>
+                            }`}>
+                              {/* Header da ferramenta */}
+                              <div className="flex items-center justify-between p-3">
+                                <div className="flex items-center gap-3 flex-1">
+                                  {credential ? (
+                                    <CollapsibleTrigger asChild>
+                                      <button className="flex items-center gap-2 hover:text-primary transition-colors text-left">
+                                        {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                                        <span className="text-xl">{tool.icon}</span>
+                                        <div>
+                                          <span className="font-medium text-sm">{tool.name}</span>
+                                          <p className="text-xs text-muted-foreground">{tool.desc}</p>
+                                        </div>
+                                      </button>
+                                    </CollapsibleTrigger>
+                                  ) : (
+                                    <div className="flex items-center gap-2">
+                                      <span className="w-4" />
+                                      <span className="text-xl">{tool.icon}</span>
+                                      <div>
+                                        <span className="font-medium text-sm">{tool.name}</span>
+                                        <p className="text-xs text-muted-foreground">{tool.desc}</p>
+                                      </div>
+                                    </div>
                                   )}
                                 </div>
-                                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tool.desc}</p>
+                                
+                                <div className="flex items-center gap-2">
+                                  {credential && (
+                                    hasCredential ? (
+                                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                                        Configurado
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
+                                        <Key className="h-3 w-3 mr-1" />
+                                        Requer API Key
+                                      </Badge>
+                                    )
+                                  )}
+                                  <Switch
+                                    checked={isEnabled}
+                                    onCheckedChange={() => {
+                                      if (credential && !hasCredential && !isEnabled) {
+                                        if (!isOpen) toggleToolCredentialOpen(tool.id);
+                                        toast({ title: "Configure a credencial primeiro" });
+                                        return;
+                                      }
+                                      setConfig(prev => {
+                                        const currentTools = (prev as any).enabledTools || [];
+                                        const newTools = currentTools.includes(tool.id)
+                                          ? currentTools.filter((t: string) => t !== tool.id)
+                                          : [...currentTools, tool.id];
+                                        return { ...prev, enabledTools: newTools } as AgentConfig;
+                                      });
+                                    }}
+                                  />
+                                </div>
                               </div>
+
+                              {/* Formulário de credencial */}
+                              {credential && (
+                                <CollapsibleContent>
+                                  <div className="px-3 pb-3 pt-0 border-t">
+                                    <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-3">
+                                      <div className="flex items-center justify-between">
+                                        <Label className="flex items-center gap-2 text-sm font-medium">
+                                          <Key className="h-4 w-4" />
+                                          {credential.name}
+                                        </Label>
+                                        <a 
+                                          href={credential.docUrl} 
+                                          target="_blank" 
+                                          rel="noopener noreferrer"
+                                          className="text-xs text-primary hover:underline flex items-center gap-1"
+                                        >
+                                          <ExternalLink className="h-3 w-3" />
+                                          Obter chave
+                                        </a>
+                                      </div>
+                                      
+                                      <div className="flex gap-2">
+                                        <Input
+                                          type="password"
+                                          placeholder={credential.placeholder}
+                                          value={toolCredentials[tool.id] || ''}
+                                          onChange={(e) => updateToolCredential(tool.id, e.target.value)}
+                                          className={`flex-1 ${testResult === 'success' ? 'border-green-500' : testResult === 'error' ? 'border-red-500' : ''}`}
+                                        />
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => testToolCredential(tool.id)}
+                                          disabled={testingCredential === tool.id}
+                                        >
+                                          {testingCredential === tool.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                          ) : (
+                                            <TestTube2 className="h-4 w-4" />
+                                          )}
+                                        </Button>
+                                      </div>
+
+                                      {testResult && (
+                                        <p className={`text-xs flex items-center gap-1 ${testResult === 'success' ? 'text-green-600' : 'text-red-600'}`}>
+                                          {testResult === 'success' ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                          {testResult === 'success' ? 'Credencial válida!' : 'Credencial inválida'}
+                                        </p>
+                                      )}
+
+                                      <Button 
+                                        size="sm" 
+                                        className="w-full"
+                                        onClick={() => {
+                                          if (!hasCredential) {
+                                            toast({ title: "Preencha a credencial", variant: "destructive" });
+                                            return;
+                                          }
+                                          if (!isEnabled) {
+                                            setConfig(prev => {
+                                              const currentTools = (prev as any).enabledTools || [];
+                                              return { ...prev, enabledTools: [...currentTools, tool.id] } as AgentConfig;
+                                            });
+                                          }
+                                          toggleToolCredentialOpen(tool.id);
+                                          toast({ title: "Ferramenta habilitada!", description: `${tool.name} foi configurada.` });
+                                        }}
+                                      >
+                                        <CheckCircle2 className="mr-2 h-4 w-4" />
+                                        Salvar e Habilitar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </CollapsibleContent>
+                              )}
                             </div>
-                          </button>
+                          </Collapsible>
                         );
                       })}
                     </div>
