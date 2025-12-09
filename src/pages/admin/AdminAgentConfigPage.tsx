@@ -492,12 +492,23 @@ COMO AJUDAR:
             enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
           }));
 
-          // Carregar API key das credenciais se existir
+          // Carregar API key e credenciais das ferramentas
           if (configData.ai_credentials) {
             const credentials = configData.ai_credentials as Record<string, string>;
             const apiKey = credentials.openai_api_key || credentials.google_api_key || '';
             if (apiKey) {
               setConfig(prev => ({ ...prev, apiKey }));
+            }
+            
+            // Carregar credenciais das ferramentas (excluindo as chaves de AI)
+            const toolCreds: Record<string, string> = {};
+            Object.entries(credentials).forEach(([key, value]) => {
+              if (key !== 'openai_api_key' && key !== 'google_api_key' && value) {
+                toolCreds[key] = value;
+              }
+            });
+            if (Object.keys(toolCreds).length > 0) {
+              setToolCredentials(toolCreds);
             }
           }
         }
@@ -549,6 +560,7 @@ COMO AJUDAR:
         tools_enabled: config.enabledTools,
         ai_credentials: {
           [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
+          ...toolCredentials, // Incluir credenciais das ferramentas
         },
         updated_at: new Date().toISOString(),
       };
@@ -974,10 +986,13 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       });
 
       if (result.success) {
-        const summary = result.summary;
+        const summary = result.summary || {};
+        const addedCount = summary.added?.length || 0;
+        const removedCount = summary.removed?.length || 0;
+        const totalTools = summary.totalTools || config.enabledTools.length;
         toast({
           title: "Ferramentas sincronizadas!",
-          description: `${summary.totalTools} ferramentas no workflow. Adicionadas: ${summary.added.length}, Removidas: ${summary.removed.length}`,
+          description: `${totalTools} ferramentas no workflow. Adicionadas: ${addedCount}, Removidas: ${removedCount}`,
         });
       } else {
         throw new Error(result.error || 'Falha ao sincronizar ferramentas');
