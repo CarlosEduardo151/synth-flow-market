@@ -90,42 +90,89 @@ export default function AdminOrdersPage() {
 
       if (error) throw error;
 
-      // Se o pedido foi confirmado e tem parcelas, criar as parcelas se ainda não existem
-      if (newStatus === 'confirmed' && order.installment_count > 1) {
-        // Verificar se já existem parcelas criadas
-        const { data: existingInstallments } = await supabase
-          .from('order_installments')
-          .select('id')
-          .eq('order_id', orderId)
-          .limit(1);
+      // Se o pedido foi confirmado, entregar os produtos ao cliente
+      if (newStatus === 'confirmed') {
+        // Buscar itens do pedido
+        const { data: orderItems, error: itemsError } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', orderId);
 
-        // Se não existem parcelas, criar
-        if (!existingInstallments || existingInstallments.length === 0) {
-          const installmentsData = [];
-          const installmentValue = order.installment_value || Math.round(order.total_amount / order.installment_count);
-          
-          for (let i = 1; i <= order.installment_count; i++) {
-            const dueDate = new Date();
-            dueDate.setMonth(dueDate.getMonth() + (i - 1));
-            
-            installmentsData.push({
+        if (itemsError) {
+          console.error('Erro ao buscar itens do pedido:', itemsError);
+        } else if (orderItems && orderItems.length > 0) {
+          // Verificar se já existem produtos entregues para este pedido
+          const { data: existingProducts } = await supabase
+            .from('customer_products')
+            .select('id')
+            .eq('order_id', orderId)
+            .limit(1);
+
+          // Se não existem produtos entregues, criar
+          if (!existingProducts || existingProducts.length === 0) {
+            const customerProductsData = orderItems.map(item => ({
+              user_id: order.user_id,
               order_id: orderId,
-              installment_number: i,
-              total_installments: order.installment_count,
-              amount: installmentValue,
-              due_date: dueDate.toISOString(),
-              status: i === 1 ? 'paid' : 'pending',
-              payment_proof_url: i === 1 ? order.payment_receipt_url : null,
-              paid_at: i === 1 ? new Date().toISOString() : null
-            });
+              product_slug: item.product_slug,
+              product_title: item.product_title,
+              acquisition_type: 'purchase' as const,
+              is_active: true,
+              download_count: 0,
+              max_downloads: 3,
+            }));
+
+            const { error: productsError } = await supabase
+              .from('customer_products')
+              .insert(customerProductsData);
+
+            if (productsError) {
+              console.error('Erro ao entregar produtos:', productsError);
+              toast({
+                title: "Atenção",
+                description: "Pedido confirmado, mas houve erro ao entregar produtos. Tente entregar manualmente.",
+                variant: "destructive",
+              });
+            } else {
+              console.log(`${customerProductsData.length} produto(s) entregue(s) ao cliente`);
+            }
           }
+        }
 
-          const { error: installmentsError } = await supabase
+        // Se tem parcelas, criar as parcelas se ainda não existem
+        if (order.installment_count > 1) {
+          const { data: existingInstallments } = await supabase
             .from('order_installments')
-            .insert(installmentsData);
+            .select('id')
+            .eq('order_id', orderId)
+            .limit(1);
 
-          if (installmentsError) {
-            console.error('Erro ao criar parcelas:', installmentsError);
+          if (!existingInstallments || existingInstallments.length === 0) {
+            const installmentsData = [];
+            const installmentValue = order.installment_value || Math.round(order.total_amount / order.installment_count);
+            
+            for (let i = 1; i <= order.installment_count; i++) {
+              const dueDate = new Date();
+              dueDate.setMonth(dueDate.getMonth() + (i - 1));
+              
+              installmentsData.push({
+                order_id: orderId,
+                installment_number: i,
+                total_installments: order.installment_count,
+                amount: installmentValue,
+                due_date: dueDate.toISOString(),
+                status: i === 1 ? 'paid' : 'pending',
+                payment_proof_url: i === 1 ? order.payment_receipt_url : null,
+                paid_at: i === 1 ? new Date().toISOString() : null
+              });
+            }
+
+            const { error: installmentsError } = await supabase
+              .from('order_installments')
+              .insert(installmentsData);
+
+            if (installmentsError) {
+              console.error('Erro ao criar parcelas:', installmentsError);
+            }
           }
         }
       }
@@ -136,7 +183,7 @@ export default function AdminOrdersPage() {
 
       toast({
         title: "Sucesso",
-        description: newStatus === 'confirmed' ? "Pedido confirmado com sucesso." : "Pedido cancelado.",
+        description: newStatus === 'confirmed' ? "Pedido confirmado e produtos entregues!" : "Pedido cancelado.",
       });
     } catch (error) {
       console.error('Error updating order status:', error);
