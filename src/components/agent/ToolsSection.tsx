@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+
 import { useToast } from '@/hooks/use-toast';
 import {
   Key,
@@ -136,20 +136,17 @@ export function ToolsSection({
   const { toast } = useToast();
   
   // Estados simples
-  const [credentialDialogOpen, setCredentialDialogOpen] = useState(false);
   const [currentTool, setCurrentTool] = useState<ToolType | null>(null);
   const [testingCredential, setTestingCredential] = useState<string | null>(null);
   const [credentialTestResults, setCredentialTestResults] = useState<Record<string, 'success' | 'error' | null>>({});
 
-  // Abrir dialog - SIMPLES como um botão
+  // Abrir/selecionar ferramenta
   function abrirDialog(tool: ToolType) {
-    setCurrentTool(tool);
-    setCredentialDialogOpen(true);
+    setCurrentTool(currentTool?.id === tool.id ? null : tool);
   }
 
-  // Fechar dialog
+  // Fechar
   function fecharDialog() {
-    setCredentialDialogOpen(false);
     setCurrentTool(null);
   }
 
@@ -316,41 +313,114 @@ export function ToolsSection({
                   const hasCreds = temCredenciais(tool.id);
                   
                   return (
-                    <div
-                      key={tool.id}
-                      onClick={() => onClickCard(tool)}
-                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                        isEnabled 
-                          ? 'border-primary bg-primary/5' 
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">{tool.icon}</span>
-                          <span className="font-medium text-sm">{tool.name}</span>
+                    <div key={tool.id} className="space-y-2">
+                      {/* Card da ferramenta */}
+                      <div
+                        onClick={() => onClickCard(tool)}
+                        className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                          isEnabled 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg">{tool.icon}</span>
+                            <span className="font-medium text-sm">{tool.name}</span>
+                          </div>
+                          <div onClick={(e) => onClickSwitch(e, tool)}>
+                            <Switch checked={isEnabled} />
+                          </div>
                         </div>
-                        <div onClick={(e) => onClickSwitch(e, tool)}>
-                          <Switch 
-                            checked={isEnabled}
-                          />
-                        </div>
+                        <p className="text-xs text-muted-foreground">{tool.description}</p>
+                        
+                        {needsCreds && (
+                          <div className="mt-2">
+                            {hasCreds ? (
+                              <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Credencial configurada
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
+                                <Key className="h-3 w-3 mr-1" />
+                                Clique para configurar
+                              </Badge>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-muted-foreground">{tool.description}</p>
                       
-                      {needsCreds && (
-                        <div className="mt-2">
-                          {hasCreds ? (
-                            <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Credencial configurada
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
-                              <Key className="h-3 w-3 mr-1" />
-                              Clique para configurar
-                            </Badge>
-                          )}
+                      {/* EMBED de credenciais - aparece quando ferramenta é selecionada */}
+                      {currentTool?.id === tool.id && needsCreds && (
+                        <div className="p-4 border rounded-lg bg-muted/30 space-y-4 animate-in slide-in-from-top-2">
+                          <div className="flex items-center justify-between">
+                            <h4 className="font-medium text-sm flex items-center gap-2">
+                              <Key className="h-4 w-4" />
+                              Configurar {tool.name}
+                            </h4>
+                            <Button variant="ghost" size="sm" onClick={fecharDialog}>
+                              ✕
+                            </Button>
+                          </div>
+                          
+                          {getCredenciaisAtuais().map((credInfo) => {
+                            if (!credInfo) return null;
+                            const testStatus = credentialTestResults[credInfo.id];
+                            const isTesting = testingCredential === credInfo.id;
+                            
+                            return (
+                              <div key={credInfo.id} className="space-y-2">
+                                <Label className="flex items-center gap-2 text-sm">
+                                  <span>{credInfo.icon}</span>
+                                  {credInfo.name}
+                                  {credInfo.docUrl && (
+                                    <a href={credInfo.docUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+                                      <ExternalLink className="h-3 w-3" />
+                                    </a>
+                                  )}
+                                </Label>
+                                <p className="text-xs text-muted-foreground">{credInfo.description}</p>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="password"
+                                    placeholder={credInfo.placeholder}
+                                    value={aiCredentials[credInfo.id] || ''}
+                                    onChange={(e) => onUpdateCredential(credInfo.id, e.target.value)}
+                                    className={testStatus === 'success' ? 'border-green-500' : testStatus === 'error' ? 'border-red-500' : ''}
+                                  />
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => testCredential(credInfo.id)}
+                                    disabled={isTesting}
+                                  >
+                                    {isTesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <TestTube2 className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                                {testStatus === 'success' && (
+                                  <p className="text-xs text-green-600 flex items-center gap-1">
+                                    <CheckCircle className="h-3 w-3" /> Credencial válida
+                                  </p>
+                                )}
+                                {testStatus === 'error' && (
+                                  <p className="text-xs text-red-600 flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> Credencial inválida
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                          
+                          <div className="flex gap-2 pt-2">
+                            <Button variant="outline" size="sm" onClick={fecharDialog}>
+                              Cancelar
+                            </Button>
+                            <Button size="sm" onClick={salvarEHabilitar}>
+                              <CheckCircle className="mr-2 h-4 w-4" />
+                              Salvar e Habilitar
+                            </Button>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -382,119 +452,6 @@ export function ToolsSection({
         </Button>
       </div>
 
-      {/* Dialog de Credenciais */}
-      <Dialog open={credentialDialogOpen} onOpenChange={(open) => !open && fecharDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{currentTool?.icon}</span>
-              Configurar {currentTool?.name}
-            </DialogTitle>
-            <DialogDescription>
-              Insira as credenciais necessárias para usar esta ferramenta
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            {getCredenciaisAtuais().map((credInfo) => {
-              if (!credInfo) return null;
-              
-              const testStatus = credentialTestResults[credInfo.id];
-              const isTesting = testingCredential === credInfo.id;
-              
-              return (
-                <div key={credInfo.id} className="space-y-3 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={`dialog-${credInfo.id}`} className="flex items-center gap-2 font-medium">
-                      <span className="text-lg">{credInfo.icon}</span>
-                      {credInfo.name}
-                    </Label>
-                    <a 
-                      href={credInfo.docUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Obter chave
-                    </a>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{credInfo.description}</p>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`dialog-${credInfo.id}`}
-                      type="password"
-                      value={aiCredentials[credInfo.id] || ''}
-                      onChange={(e) => {
-                        onUpdateCredential(credInfo.id, e.target.value);
-                        setCredentialTestResults(prev => ({ ...prev, [credInfo.id]: null }));
-                      }}
-                      placeholder={credInfo.placeholder}
-                      className="flex-1"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => testCredential(credInfo.id)}
-                      disabled={isTesting || !aiCredentials[credInfo.id]}
-                      className="shrink-0"
-                    >
-                      {isTesting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <>
-                          <TestTube2 className="h-4 w-4 mr-1" />
-                          Testar
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                  
-                  {aiCredentials[credInfo.id] && (
-                    <Badge 
-                      variant={testStatus === 'success' ? 'default' : testStatus === 'error' ? 'destructive' : 'secondary'} 
-                      className="text-xs"
-                    >
-                      {testStatus === 'success' ? (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Verificado
-                        </>
-                      ) : testStatus === 'error' ? (
-                        <>
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Inválido
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Configurado
-                        </>
-                      )}
-                    </Badge>
-                  )}
-                </div>
-              );
-            })}
-            
-            {currentTool && !precisaCredencial(currentTool.id) && (
-              <div className="text-center py-4 text-muted-foreground">
-                Esta ferramenta não requer credenciais adicionais.
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="flex gap-2">
-            <Button variant="outline" onClick={fecharDialog}>
-              Cancelar
-            </Button>
-            <Button onClick={salvarEHabilitar}>
-              <CheckCircle className="mr-2 h-4 w-4" />
-              Salvar e Habilitar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
