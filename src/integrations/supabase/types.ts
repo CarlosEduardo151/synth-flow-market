@@ -1684,6 +1684,340 @@ export type Database = {
         }
         Relationships: []
       }
+      sales_assistant_config: {
+        Row: {
+          ai_prospecting_enabled: boolean | null
+          auto_follow_up_enabled: boolean | null
+          auto_prioritization_enabled: boolean | null
+          created_at: string
+          crm_api_key: string | null
+          crm_integration_enabled: boolean | null
+          customer_product_id: string
+          follow_up_delay_hours: number | null
+          id: string
+          lead_scoring_enabled: boolean | null
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          ai_prospecting_enabled?: boolean | null
+          auto_follow_up_enabled?: boolean | null
+          auto_prioritization_enabled?: boolean | null
+          created_at?: string
+          crm_api_key?: string | null
+          crm_integration_enabled?: boolean | null
+          customer_product_id: string
+          follow_up_delay_hours?: number | null
+          id?: string
+          lead_scoring_enabled?: boolean | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          ai_prospecting_enabled?: boolean | null
+          auto_follow_up_enabled?: boolean | null
+          auto_prioritization_enabled?: boolean | null
+          created_at?: string
+          crm_api_key?: string | null
+          crm_integration_enabled?: boolean | null
+          customer_product_id?: string
+          follow_up_delay_hours?: number | null
+          id?: string
+          lead_scoring_enabled?: boolean | null
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_assistant_config_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_follow_ups: {
+        Row: {
+          completed_at: string | null
+          content: string | null
+          created_at: string
+          id: string
+          lead_id: string
+          outcome: string | null
+          scheduled_at: string
+          status: string | null
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          completed_at?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          lead_id: string
+          outcome?: string | null
+          scheduled_at: string
+          status?: string | null
+          subject?: string | null
+          type: string
+        }
+        Update: {
+          completed_at?: string | null
+          content?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string
+          outcome?: string | null
+          scheduled_at?: string
+          status?: string | null
+          subject?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_follow_ups_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_goals: {
+        Row: {
+          achieved_leads: number | null
+          achieved_meetings: number | null
+          achieved_proposals: number | null
+          achieved_revenue: number | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          period_end: string
+          period_start: string
+          period_type: string
+          target_leads: number | null
+          target_meetings: number | null
+          target_proposals: number | null
+          target_revenue: number | null
+          updated_at: string
+        }
+        Insert: {
+          achieved_leads?: number | null
+          achieved_meetings?: number | null
+          achieved_proposals?: number | null
+          achieved_revenue?: number | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          period_end: string
+          period_start: string
+          period_type: string
+          target_leads?: number | null
+          target_meetings?: number | null
+          target_proposals?: number | null
+          target_revenue?: number | null
+          updated_at?: string
+        }
+        Update: {
+          achieved_leads?: number | null
+          achieved_meetings?: number | null
+          achieved_proposals?: number | null
+          achieved_revenue?: number | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          period_type?: string
+          target_leads?: number | null
+          target_meetings?: number | null
+          target_proposals?: number | null
+          target_revenue?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_goals_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_leads: {
+        Row: {
+          company: string | null
+          created_at: string
+          customer_product_id: string
+          email: string | null
+          estimated_value: number | null
+          id: string
+          last_contact_at: string | null
+          name: string
+          next_follow_up_at: string | null
+          notes: string | null
+          phone: string | null
+          position: string | null
+          priority: string | null
+          score: number | null
+          source: string | null
+          status: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          customer_product_id: string
+          email?: string | null
+          estimated_value?: number | null
+          id?: string
+          last_contact_at?: string | null
+          name: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          priority?: string | null
+          score?: number | null
+          source?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          customer_product_id?: string
+          email?: string | null
+          estimated_value?: number | null
+          id?: string
+          last_contact_at?: string | null
+          name?: string
+          next_follow_up_at?: string | null
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          priority?: string | null
+          score?: number | null
+          source?: string | null
+          status?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_leads_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_meetings: {
+        Row: {
+          created_at: string
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          lead_id: string
+          location: string | null
+          meeting_link: string | null
+          meeting_type: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          lead_id: string
+          location?: string | null
+          meeting_link?: string | null
+          meeting_type?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          lead_id?: string
+          location?: string | null
+          meeting_link?: string | null
+          meeting_type?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_meetings_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_pipeline: {
+        Row: {
+          customer_product_id: string
+          entered_at: string
+          exited_at: string | null
+          id: string
+          lead_id: string
+          notes: string | null
+          stage: string
+        }
+        Insert: {
+          customer_product_id: string
+          entered_at?: string
+          exited_at?: string | null
+          id?: string
+          lead_id: string
+          notes?: string | null
+          stage: string
+        }
+        Update: {
+          customer_product_id?: string
+          entered_at?: string
+          exited_at?: string | null
+          id?: string
+          lead_id?: string
+          notes?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_pipeline_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_pipeline_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "sales_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       social_posts: {
         Row: {
           content: string
