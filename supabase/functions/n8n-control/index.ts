@@ -6,8 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// URL fixa do webhook n8n para controle do agente
-const N8N_CONTROL_WEBHOOK = 'https://n8n.starai.com.br/webhook-test/control-agente';
+// URL fixa do webhook n8n para controle do agente (produção, não test)
+const N8N_CONTROL_WEBHOOK = 'https://n8n.starai.com.br/webhook/control-agente';
 
 // Armazenamento em memória do último comando por agente (para persistência simples)
 const agentLastCommands = new Map<string, { action: string; timestamp: string; status: string }>();
