@@ -33,6 +33,7 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
 
   const fetchStats = async () => {
     try {
+      console.log('TokenUsageStats: Buscando dados para workflowId:', workflowId);
       const today = new Date();
       const weekStart = startOfWeek(today, { weekStartsOn: 0 });
       const monthStart = startOfMonth(today);
@@ -46,6 +47,7 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
         .gte('date', format(thirtyDaysAgo, 'yyyy-MM-dd'))
         .order('date', { ascending: true });
 
+      console.log('TokenUsageStats: Dados recebidos:', data, 'Erro:', error);
       if (error) throw error;
 
       const todayStr = format(today, 'yyyy-MM-dd');
