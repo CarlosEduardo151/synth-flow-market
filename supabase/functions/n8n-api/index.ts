@@ -67,7 +67,7 @@ const N8N_TOOLS_CONFIG: Record<string, { type: string; typeVersion: number; defa
 
 interface N8nApiRequest {
   action: 'list_workflows' | 'get_workflow' | 'activate_workflow' | 'deactivate_workflow' | 
-          'get_executions' | 'get_execution' | 'create_workflow' | 'update_workflow' | 
+          'get_executions' | 'get_execution' | 'get_execution_token_usage' | 'create_workflow' | 'update_workflow' | 
           'delete_workflow' | 'get_workflow_tags' | 'test_connection' | 'duplicate_workflow' |
           'update_system_prompt' | 'create_credential' | 'list_credentials' | 'delete_credential' |
           'update_llm_config' | 'update_memory_config' | 'sync_tools' | 'get_available_tools';
@@ -307,12 +307,188 @@ serve(async (req) => {
       case 'get_execution': {
         if (!executionId) throw new Error('executionId é obrigatório');
         
-        const execution = await n8nRequest(`/executions/${executionId}`);
+        // Busca com includeData=true para obter todos os detalhes
+        const execution = await n8nRequest(`/executions/${executionId}?includeData=true`);
         
         result = {
           success: true,
           execution,
         };
+        break;
+      }
+
+      // ========== GET EXECUTION TOKEN USAGE (Buscar tokens de uma execução) ==========
+      case 'get_execution_token_usage': {
+        if (!executionId) throw new Error('executionId é obrigatório');
+        
+        console.log(`n8n-api: Buscando token usage da execução ${executionId}`);
+        
+        // Busca com includeData=true para obter os dados completos
+        const execution = await n8nRequest(`/executions/${executionId}?includeData=true`);
+        
+        // Extrair token usage dos dados da execução
+        let tokenUsage = {
+          promptTokens: 0,
+          completionTokens: 0,
+          totalTokens: 0,
+          model: null as string | null,
+          provider: null as string | null,
+          nodeBreakdown: [] as Array<{
+            nodeName: string;
+            nodeType: string;
+            promptTokens: number;
+            completionTokens: number;
+            totalTokens: number;
+            model?: string;
+          }>,
+        };
+        
+        // Percorrer os dados de execução para encontrar token usage
+        if (execution.data?.resultData?.runData) {
+          const runData = execution.data.resultData.runData;
+          
+          for (const [nodeName, nodeExecutions] of Object.entries(runData)) {
+            if (!Array.isArray(nodeExecutions)) continue;
+            
+            for (const nodeExec of nodeExecutions) {
+              const execData = nodeExec as any;
+              
+              // Verificar se é um nó de modelo de IA (Chat Model, LLM, etc)
+              const nodeType = execData.node?.type || '';
+              const isAINode = nodeType.includes('langchain') || 
+                               nodeType.includes('openAi') || 
+                               nodeType.includes('ChatModel') ||
+                               nodeType.includes('gemini') ||
+                               nodeType.includes('anthropic');
+              
+              // Buscar token usage nos dados de saída
+              const mainData = execData.data?.main;
+              if (mainData && Array.isArray(mainData)) {
+                for (const outputArray of mainData) {
+                  if (!Array.isArray(outputArray)) continue;
+                  
+                  for (const output of outputArray) {
+                    const json = output?.json;
+                    
+                    // Formato padrão n8n/OpenAI: tokenUsage
+                    if (json?.tokenUsage) {
+                      const usage = json.tokenUsage;
+                      const nodeTokens = {
+                        nodeName,
+                        nodeType,
+                        promptTokens: usage.promptTokens || 0,
+                        completionTokens: usage.completionTokens || 0,
+                        totalTokens: usage.totalTokens || 0,
+                        model: json.model || json.modelUsed || undefined,
+                      };
+                      
+                      tokenUsage.promptTokens += nodeTokens.promptTokens;
+                      tokenUsage.completionTokens += nodeTokens.completionTokens;
+                      tokenUsage.totalTokens += nodeTokens.totalTokens;
+                      tokenUsage.nodeBreakdown.push(nodeTokens);
+                      
+                      if (nodeTokens.model && !tokenUsage.model) {
+                        tokenUsage.model = nodeTokens.model;
+                      }
+                    }
+                    
+                    // Formato OpenAI direto: usage
+                    if (json?.usage) {
+                      const usage = json.usage;
+                      const nodeTokens = {
+                        nodeName,
+                        nodeType,
+                        promptTokens: usage.prompt_tokens || usage.promptTokens || 0,
+                        completionTokens: usage.completion_tokens || usage.completionTokens || 0,
+                        totalTokens: usage.total_tokens || usage.totalTokens || 0,
+                        model: json.model || undefined,
+                      };
+                      
+                      tokenUsage.promptTokens += nodeTokens.promptTokens;
+                      tokenUsage.completionTokens += nodeTokens.completionTokens;
+                      tokenUsage.totalTokens += nodeTokens.totalTokens;
+                      tokenUsage.nodeBreakdown.push(nodeTokens);
+                      
+                      if (nodeTokens.model && !tokenUsage.model) {
+                        tokenUsage.model = nodeTokens.model;
+                      }
+                    }
+                    
+                    // Formato Gemini: usageMetadata
+                    if (json?.usageMetadata) {
+                      const usage = json.usageMetadata;
+                      const nodeTokens = {
+                        nodeName,
+                        nodeType,
+                        promptTokens: usage.promptTokenCount || 0,
+                        completionTokens: usage.candidatesTokenCount || 0,
+                        totalTokens: usage.totalTokenCount || 0,
+                        model: json.modelVersion || undefined,
+                      };
+                      
+                      tokenUsage.promptTokens += nodeTokens.promptTokens;
+                      tokenUsage.completionTokens += nodeTokens.completionTokens;
+                      tokenUsage.totalTokens += nodeTokens.totalTokens;
+                      tokenUsage.nodeBreakdown.push(nodeTokens);
+                      
+                      if (nodeTokens.model && !tokenUsage.model) {
+                        tokenUsage.model = nodeTokens.model;
+                        tokenUsage.provider = 'gemini';
+                      }
+                    }
+                    
+                    // Formato Anthropic/Claude
+                    if (json?.usage?.input_tokens || json?.usage?.output_tokens) {
+                      const usage = json.usage;
+                      const nodeTokens = {
+                        nodeName,
+                        nodeType,
+                        promptTokens: usage.input_tokens || 0,
+                        completionTokens: usage.output_tokens || 0,
+                        totalTokens: (usage.input_tokens || 0) + (usage.output_tokens || 0),
+                        model: json.model || undefined,
+                      };
+                      
+                      tokenUsage.promptTokens += nodeTokens.promptTokens;
+                      tokenUsage.completionTokens += nodeTokens.completionTokens;
+                      tokenUsage.totalTokens += nodeTokens.totalTokens;
+                      tokenUsage.nodeBreakdown.push(nodeTokens);
+                      
+                      if (nodeTokens.model && !tokenUsage.model) {
+                        tokenUsage.model = nodeTokens.model;
+                        tokenUsage.provider = 'anthropic';
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // Detectar provider baseado no modelo
+        if (tokenUsage.model && !tokenUsage.provider) {
+          const modelLower = tokenUsage.model.toLowerCase();
+          if (modelLower.includes('gpt') || modelLower.includes('openai')) {
+            tokenUsage.provider = 'openai';
+          } else if (modelLower.includes('gemini')) {
+            tokenUsage.provider = 'gemini';
+          } else if (modelLower.includes('claude')) {
+            tokenUsage.provider = 'anthropic';
+          }
+        }
+        
+        result = {
+          success: true,
+          executionId,
+          workflowId: execution.workflowId,
+          status: execution.status,
+          startedAt: execution.startedAt,
+          stoppedAt: execution.stoppedAt,
+          tokenUsage,
+        };
+        
+        console.log(`n8n-api: Token usage encontrado: ${tokenUsage.totalTokens} tokens (${tokenUsage.nodeBreakdown.length} nodes)`);
         break;
       }
 
