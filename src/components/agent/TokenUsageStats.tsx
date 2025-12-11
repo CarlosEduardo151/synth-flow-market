@@ -61,10 +61,7 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
 
   const fetchStats = useCallback(async () => {
     try {
-      console.log('TokenUsageStats: Buscando dados para workflowId:', workflowId);
       const today = new Date();
-      const weekStart = startOfWeek(today, { weekStartsOn: 0 });
-      const monthStart = startOfMonth(today);
       const thirtyDaysAgo = subDays(today, 30);
 
       const { data, error } = await supabase
@@ -76,45 +73,16 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
 
       if (error) throw error;
 
-      const todayStr = format(today, 'yyyy-MM-dd');
-      const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-      const monthStartStr = format(monthStart, 'yyyy-MM-dd');
-
-      let todayTokens = 0, todayRequests = 0;
-      let weekTokens = 0, weekRequests = 0;
-      let monthTokens = 0, monthRequests = 0;
-
       const dailyData: { date: string; tokens: number; requests: number }[] = [];
 
       (data || []).forEach((row: any) => {
         const rowDate = row.date;
         const tokens = row.tokens_used || 0;
         const requests = row.requests_count || 0;
-
         dailyData.push({ date: rowDate, tokens, requests });
-
-        if (rowDate === todayStr) {
-          todayTokens += tokens;
-          todayRequests += requests;
-        }
-
-        if (rowDate >= weekStartStr) {
-          weekTokens += tokens;
-          weekRequests += requests;
-        }
-
-        if (rowDate >= monthStartStr) {
-          monthTokens += tokens;
-          monthRequests += requests;
-        }
       });
 
-      setStats({
-        today: { tokens: todayTokens, requests: todayRequests },
-        week: { tokens: weekTokens, requests: weekRequests },
-        month: { tokens: monthTokens, requests: monthRequests },
-        dailyData,
-      });
+      setStats(prev => ({ ...prev, dailyData }));
     } catch (error) {
       console.error('Error fetching token usage:', error);
     } finally {
@@ -253,33 +221,6 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
     );
   }
 
-  const statCards = [
-    {
-      title: 'Hoje',
-      tokens: stats.today.tokens,
-      requests: stats.today.requests,
-      icon: Calendar,
-      color: 'text-blue-500',
-      bgColor: 'bg-blue-500/10',
-    },
-    {
-      title: 'Esta Semana',
-      tokens: stats.week.tokens,
-      requests: stats.week.requests,
-      icon: TrendingUp,
-      color: 'text-green-500',
-      bgColor: 'bg-green-500/10',
-    },
-    {
-      title: 'Este Mês',
-      tokens: stats.month.tokens,
-      requests: stats.month.requests,
-      icon: BarChart3,
-      color: 'text-purple-500',
-      bgColor: 'bg-purple-500/10',
-    },
-  ];
-
   const maxTokens = Math.max(...stats.dailyData.map(d => d.tokens), 1);
 
   // Calcular totais das execuções carregadas
@@ -294,33 +235,6 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {statCards.map((card) => (
-          <Card key={card.title} className="relative overflow-hidden">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-amber-500" />
-                      <span className="text-2xl font-bold">{formatNumber(card.tokens)}</span>
-                      <span className="text-sm text-muted-foreground">tokens</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {card.requests} requisições
-                    </p>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-full ${card.bgColor}`}>
-                  <card.icon className={`h-5 w-5 ${card.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {/* Execuções em Tempo Real */}
       <Card>
