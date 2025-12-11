@@ -2142,6 +2142,48 @@ export type Database = {
         }
         Relationships: []
       }
+      starai_purchases: {
+        Row: {
+          amount_brl: number
+          created_at: string
+          id: string
+          mercadopago_payment_id: string | null
+          payment_id: string | null
+          payment_method: string | null
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          amount_brl: number
+          created_at?: string
+          id?: string
+          mercadopago_payment_id?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string
+          user_email: string
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          amount_brl?: number
+          created_at?: string
+          id?: string
+          mercadopago_payment_id?: string | null
+          payment_id?: string | null
+          payment_method?: string | null
+          status?: string
+          updated_at?: string
+          user_email?: string
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       starai_transactions: {
         Row: {
           amount_brl: number
