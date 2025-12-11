@@ -46,6 +46,20 @@ interface N8nExecution {
   status: string;
 }
 
+interface TokenUsageStats {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  executionCount: number;
+  byExecution: Array<{
+    executionId: string;
+    tokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    date: string;
+  }>;
+}
+
 type CommunicationTone = 'profissional' | 'amigavel' | 'tecnico' | 'entusiasmado' | 'empatico' | 'direto';
 
 interface AgentConfig {
@@ -307,6 +321,14 @@ const AdminAgentConfigPage = () => {
   const [syncingTools, setSyncingTools] = useState(false);
   const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
   const [syncingMemory, setSyncingMemory] = useState(false);
+  const [tokenStats, setTokenStats] = useState<TokenUsageStats>({
+    totalTokens: 0,
+    promptTokens: 0,
+    completionTokens: 0,
+    executionCount: 0,
+    byExecution: [],
+  });
+  const [loadingTokenStats, setLoadingTokenStats] = useState(false);
   
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
@@ -681,6 +703,124 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       console.error('Error loading executions:', error);
     } finally {
       setLoadingExecutions(false);
+    }
+  };
+
+  const loadTokenUsage = async (workflowId?: string) => {
+    const wfId = workflowId || config.n8nWorkflowId;
+    if (!wfId) return;
+
+    setLoadingTokenStats(true);
+    try {
+      // Primeiro busca as execuções
+      const execResult = await n8nApiCall('get_executions', { 
+        workflowId: wfId,
+        limit: 50 
+      });
+
+      if (!execResult.success || !execResult.executions?.length) {
+        setTokenStats({
+          totalTokens: 0,
+          promptTokens: 0,
+          completionTokens: 0,
+          executionCount: 0,
+          byExecution: [],
+        });
+        return;
+      }
+
+      // Para cada execução com sucesso, busca os detalhes para extrair token usage
+      const successfulExecs = execResult.executions.filter(
+        (e: N8nExecution) => e.status === 'success'
+      ).slice(0, 20); // Limita a 20 para não sobrecarregar
+
+      const tokenData: TokenUsageStats['byExecution'] = [];
+      let totalPrompt = 0;
+      let totalCompletion = 0;
+
+      // Busca detalhes de cada execução em paralelo (máximo 5 de cada vez)
+      const batchSize = 5;
+      for (let i = 0; i < successfulExecs.length; i += batchSize) {
+        const batch = successfulExecs.slice(i, i + batchSize);
+        const details = await Promise.all(
+          batch.map((exec: N8nExecution) => 
+            n8nApiCall('get_execution', { executionId: exec.id }).catch(() => null)
+          )
+        );
+
+        details.forEach((detail, idx) => {
+          if (!detail?.success || !detail.execution) return;
+          
+          const exec = batch[idx];
+          const execution = detail.execution;
+          
+          // Extrair tokenUsage dos nós de IA (resultData.runData contém os outputs dos nós)
+          let execPromptTokens = 0;
+          let execCompletionTokens = 0;
+
+          try {
+            const runData = execution.data?.resultData?.runData;
+            if (runData) {
+              Object.values(runData).forEach((nodeRuns: any) => {
+                if (Array.isArray(nodeRuns)) {
+                  nodeRuns.forEach((run: any) => {
+                    // Procura por tokenUsage em diferentes locais do output
+                    const outputs = run.data?.main || [];
+                    outputs.forEach((outputArray: any[]) => {
+                      if (Array.isArray(outputArray)) {
+                        outputArray.forEach((item: any) => {
+                          const usage = item.json?.tokenUsage || 
+                                       item.json?.usage ||
+                                       item.json?.response?.usage ||
+                                       item.json?.metadata?.tokenUsage;
+                          if (usage) {
+                            execPromptTokens += usage.promptTokens || usage.prompt_tokens || 0;
+                            execCompletionTokens += usage.completionTokens || usage.completion_tokens || 0;
+                          }
+                        });
+                      }
+                    });
+                  });
+                }
+              });
+            }
+          } catch (e) {
+            console.warn('Error extracting token usage:', e);
+          }
+
+          if (execPromptTokens > 0 || execCompletionTokens > 0) {
+            tokenData.push({
+              executionId: exec.id,
+              tokens: execPromptTokens + execCompletionTokens,
+              promptTokens: execPromptTokens,
+              completionTokens: execCompletionTokens,
+              date: exec.startedAt,
+            });
+            totalPrompt += execPromptTokens;
+            totalCompletion += execCompletionTokens;
+          }
+        });
+      }
+
+      setTokenStats({
+        totalTokens: totalPrompt + totalCompletion,
+        promptTokens: totalPrompt,
+        completionTokens: totalCompletion,
+        executionCount: tokenData.length,
+        byExecution: tokenData.sort((a, b) => 
+          new Date(b.date).getTime() - new Date(a.date).getTime()
+        ),
+      });
+
+    } catch (error: any) {
+      console.error('Error loading token usage:', error);
+      toast({
+        title: "Erro ao carregar uso de tokens",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingTokenStats(false);
     }
   };
 
@@ -2284,37 +2424,134 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
             </Card>
           </TabsContent>
 
-          {/* USO / EXECUÇÕES */}
+          {/* USO / TOKENS */}
           <TabsContent value="usage" className="space-y-6">
             {config.n8nWorkflowId ? (
               <>
+                {/* Card de Token Usage */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <BarChart3 className="h-5 w-5" />
-                      Estatísticas de Execuções
+                      Uso de Tokens (IA)
                     </CardTitle>
                     <CardDescription>
-                      Workflow selecionado: <Badge variant="secondary">{config.n8nWorkflowId}</Badge>
+                      Consumo de tokens nas execuções do workflow: <Badge variant="secondary">{config.n8nWorkflowId}</Badge>
                       {selectedWorkflow && <span className="ml-2">({selectedWorkflow.name})</span>}
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={() => loadExecutions(config.n8nWorkflowId)}
-                      disabled={loadingExecutions}
-                    >
-                      {loadingExecutions ? (
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                      )}
-                      Atualizar Execuções
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => loadTokenUsage(config.n8nWorkflowId)}
+                        disabled={loadingTokenStats}
+                      >
+                        {loadingTokenStats ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                        )}
+                        Carregar Uso de Tokens
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={() => loadExecutions(config.n8nWorkflowId)}
+                        disabled={loadingExecutions}
+                      >
+                        {loadingExecutions ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Activity className="h-4 w-4 mr-2" />
+                        )}
+                        Atualizar Execuções
+                      </Button>
+                    </div>
                     
-                    {/* Resumo de execuções */}
+                    {/* Resumo de Tokens */}
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                      <Card className="bg-primary/5 border-primary/20">
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-primary">
+                            {tokenStats.totalTokens.toLocaleString('pt-BR')}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Total de Tokens</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-blue-500">
+                            {tokenStats.promptTokens.toLocaleString('pt-BR')}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Prompt Tokens</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-green-500">
+                            {tokenStats.completionTokens.toLocaleString('pt-BR')}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Completion Tokens</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-orange-500">
+                            {tokenStats.executionCount}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Execuções com IA</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Detalhes por Execução */}
+                    {tokenStats.byExecution.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="font-medium mb-3">Consumo por Execução</h4>
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {tokenStats.byExecution.map((item) => (
+                            <div key={item.executionId} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                              <div className="flex items-center gap-3">
+                                <Brain className="h-4 w-4 text-primary" />
+                                <div>
+                                  <p className="text-sm font-medium">#{item.executionId.slice(0, 8)}...</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(item.date).toLocaleString('pt-BR')}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-bold">{item.tokens.toLocaleString('pt-BR')} tokens</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {item.promptTokens.toLocaleString('pt-BR')} / {item.completionTokens.toLocaleString('pt-BR')}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {tokenStats.executionCount === 0 && !loadingTokenStats && (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Brain className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>Nenhum dado de token encontrado.</p>
+                        <p className="text-xs mt-1">Clique em "Carregar Uso de Tokens" para buscar os dados.</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Card de Execuções */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Activity className="h-5 w-5" />
+                      Estatísticas de Execuções
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <Card>
                         <CardContent className="pt-6">
                           <div className="text-2xl font-bold">{executions.length}</div>
@@ -2347,12 +2584,11 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       </Card>
                     </div>
                     
-                    {/* Lista de execuções recentes */}
                     {executions.length > 0 && (
                       <div className="mt-6">
                         <h4 className="font-medium mb-3">Execuções Recentes</h4>
-                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
-                          {executions.slice(0, 20).map((exec) => (
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                          {executions.slice(0, 10).map((exec) => (
                             <div key={exec.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                               <div className="flex items-center gap-3">
                                 {exec.status === 'success' ? (
@@ -2363,7 +2599,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                                   <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />
                                 )}
                                 <div>
-                                  <p className="text-sm font-medium">Execução #{exec.id.slice(0, 8)}...</p>
+                                  <p className="text-sm font-medium">#{exec.id.slice(0, 8)}...</p>
                                   <p className="text-xs text-muted-foreground">
                                     {new Date(exec.startedAt).toLocaleString('pt-BR')}
                                   </p>
@@ -2384,7 +2620,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Selecione um workflow na aba "Status" para ver as estatísticas de execução.</p>
+                  <p>Selecione um workflow na aba "Status" para ver o uso de tokens e estatísticas.</p>
                 </CardContent>
               </Card>
             )}
