@@ -351,9 +351,10 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   
-  // Estados para seleção de workflow na aba de uso de tokens
-  const [n8nWorkflows, setN8nWorkflows] = useState<{ id: string; workflow_id: string }[]>([]);
+  // Estados para seleção de workflow na aba de uso de tokens (direto do n8n)
+  const [n8nWorkflows, setN8nWorkflows] = useState<{ id: string; name: string; active: boolean }[]>([]);
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [loadingN8nWorkflows, setLoadingN8nWorkflows] = useState(false);
   
   // Estados para credenciais de ferramentas
   const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
@@ -433,6 +434,36 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
     }
   };
 
+  // Buscar workflows do n8n via API
+  const fetchN8nWorkflows = async () => {
+    setLoadingN8nWorkflows(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('n8n-api', {
+        body: { action: 'list_workflows', limit: 100 }
+      });
+      
+      if (error) throw error;
+      
+      if (data?.success && data?.workflows) {
+        const workflows = data.workflows.map((wf: any) => ({
+          id: wf.id,
+          name: wf.name,
+          active: wf.active
+        }));
+        setN8nWorkflows(workflows);
+        if (workflows.length > 0 && !selectedWorkflowId) {
+          setSelectedWorkflowId(workflows[0].id);
+        }
+        toast({ title: `${workflows.length} workflows carregados do n8n` });
+      }
+    } catch (error) {
+      console.error('Erro ao buscar workflows:', error);
+      toast({ title: 'Erro ao carregar workflows do n8n', variant: 'destructive' });
+    } finally {
+      setLoadingN8nWorkflows(false);
+    }
+  };
+
   const availableModels = config.provider === 'openai' ? OPENAI_MODELS : GOOGLE_MODELS;
 
   // Carregar configuração do banco de dados
@@ -449,19 +480,6 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
         .order('created_at', { ascending: false });
 
       if (allProducts && allProducts.length > 0) {
-        // Extrair workflows únicos do n8n
-        const uniqueWorkflows = allProducts
-          .filter(p => p.n8n_workflow_id)
-          .map(p => ({ id: p.id, workflow_id: p.n8n_workflow_id! }))
-          .filter((item, index, self) => 
-            index === self.findIndex(t => t.workflow_id === item.workflow_id)
-          );
-        
-        setN8nWorkflows(uniqueWorkflows);
-        if (uniqueWorkflows.length > 0) {
-          setSelectedWorkflowId(uniqueWorkflows[0].workflow_id);
-        }
-        
         const productId = allProducts[0].id;
         setCustomerProductId(productId);
         const customerProducts = allProducts; // Para compatibilidade com código abaixo
@@ -2312,7 +2330,20 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   Escolha qual workflow você deseja visualizar o uso de tokens
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                <Button 
+                  variant="outline" 
+                  onClick={fetchN8nWorkflows}
+                  disabled={loadingN8nWorkflows}
+                >
+                  {loadingN8nWorkflows ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Carregar Workflows do n8n
+                </Button>
+                
                 {n8nWorkflows.length > 0 ? (
                   <Select 
                     value={selectedWorkflowId || ''} 
@@ -2323,15 +2354,15 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                     </SelectTrigger>
                     <SelectContent>
                       {n8nWorkflows.map(workflow => (
-                        <SelectItem key={workflow.workflow_id} value={workflow.workflow_id}>
-                          Workflow: {workflow.workflow_id}
+                        <SelectItem key={workflow.id} value={workflow.id}>
+                          {workflow.name} {workflow.active ? '(Ativo)' : '(Inativo)'}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Nenhum workflow n8n configurado. Configure o ID do workflow nas configurações do produto.
+                    Clique no botão acima para carregar os workflows do n8n.
                   </p>
                 )}
               </CardContent>
@@ -2344,7 +2375,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {n8nWorkflows.length > 0 
                     ? 'Selecione um workflow acima para ver o uso de tokens'
-                    : 'Nenhum workflow n8n configurado para monitorar tokens'
+                    : 'Carregue os workflows do n8n para monitorar tokens'
                   }
                 </CardContent>
               </Card>
