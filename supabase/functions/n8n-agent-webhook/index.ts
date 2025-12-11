@@ -6,6 +6,85 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-n8n-token',
 };
 
+// Helper function to detect provider and extract token usage from different API formats
+function extractTokenUsage(data: any): { tokensUsed: number; modelUsed: string; provider: string } {
+  // Default values
+  let tokensUsed = 0;
+  let modelUsed = 'unknown';
+  let provider = 'unknown';
+
+  if (!data) return { tokensUsed, modelUsed, provider };
+
+  // Check for direct tokensUsed/modelUsed (legacy format)
+  if (data.tokensUsed !== undefined) {
+    tokensUsed = Number(data.tokensUsed) || 0;
+    modelUsed = data.modelUsed || 'unknown';
+    provider = detectProviderFromModel(modelUsed);
+    return { tokensUsed, modelUsed, provider };
+  }
+
+  // Check for OpenAI format: { usage: { total_tokens, prompt_tokens, completion_tokens }, model }
+  if (data.usage && typeof data.usage === 'object') {
+    tokensUsed = data.usage.total_tokens || (data.usage.prompt_tokens || 0) + (data.usage.completion_tokens || 0);
+    modelUsed = data.model || 'openai-unknown';
+    provider = 'openai';
+    return { tokensUsed, modelUsed, provider };
+  }
+
+  // Check for Gemini format: { usageMetadata: { totalTokenCount, promptTokenCount, candidatesTokenCount }, modelVersion }
+  if (data.usageMetadata && typeof data.usageMetadata === 'object') {
+    tokensUsed = data.usageMetadata.totalTokenCount || 
+                 (data.usageMetadata.promptTokenCount || 0) + (data.usageMetadata.candidatesTokenCount || 0);
+    modelUsed = data.modelVersion || data.model || 'gemini-unknown';
+    provider = 'gemini';
+    return { tokensUsed, modelUsed, provider };
+  }
+
+  // Check for nested response format from n8n (response.usage or response.usageMetadata)
+  if (data.response) {
+    return extractTokenUsage(data.response);
+  }
+
+  // Check for Gemini alternative format with candidates
+  if (data.candidates && Array.isArray(data.candidates)) {
+    // This is a Gemini response, look for usageMetadata at root level
+    if (data.usageMetadata) {
+      tokensUsed = data.usageMetadata.totalTokenCount || 0;
+      modelUsed = data.modelVersion || 'gemini';
+      provider = 'gemini';
+    }
+    return { tokensUsed, modelUsed, provider };
+  }
+
+  // Check for OpenAI alternative format with choices
+  if (data.choices && Array.isArray(data.choices)) {
+    // This is an OpenAI response, usage should be at root level
+    if (data.usage) {
+      tokensUsed = data.usage.total_tokens || 0;
+      modelUsed = data.model || 'openai';
+      provider = 'openai';
+    }
+    return { tokensUsed, modelUsed, provider };
+  }
+
+  return { tokensUsed, modelUsed, provider };
+}
+
+// Helper to detect provider from model name
+function detectProviderFromModel(model: string): string {
+  const modelLower = model.toLowerCase();
+  if (modelLower.includes('gpt') || modelLower.includes('openai') || modelLower.includes('o1') || modelLower.includes('o3') || modelLower.includes('o4')) {
+    return 'openai';
+  }
+  if (modelLower.includes('gemini') || modelLower.includes('google') || modelLower.includes('palm')) {
+    return 'gemini';
+  }
+  if (modelLower.includes('claude') || modelLower.includes('anthropic')) {
+    return 'anthropic';
+  }
+  return 'unknown';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -94,12 +173,15 @@ serve(async (req) => {
         );
 
       case 'token_usage':
-        // n8n is reporting token usage - now tracked by workflow_id
-        const { customerProductId, tokensUsed, modelUsed, workflowId } = data || {};
-        const effectiveWorkflowId = workflowId || agentId; // Use agentId as fallback workflow identifier
-        console.log(`Workflow ${effectiveWorkflowId} token usage: ${tokensUsed} tokens with ${modelUsed}`);
+        // n8n is reporting token usage - supports both OpenAI and Gemini formats
+        const { customerProductId, workflowId } = data || {};
+        const effectiveWorkflowId = workflowId || agentId;
         
-        if (tokensUsed && effectiveWorkflowId) {
+        // Detect provider and extract token usage
+        const tokenInfo = extractTokenUsage(data);
+        console.log(`Workflow ${effectiveWorkflowId} token usage: ${tokenInfo.tokensUsed} tokens with ${tokenInfo.modelUsed} (provider: ${tokenInfo.provider})`);
+        
+        if (tokenInfo.tokensUsed && effectiveWorkflowId) {
           const today = new Date().toISOString().split('T')[0];
           
           // Find customer_product_id by workflow_id if not provided (optional - can be null)
@@ -131,9 +213,9 @@ serve(async (req) => {
             const { error: updateError } = await supabase
               .from('ai_token_usage')
               .update({
-                tokens_used: existingUsage.tokens_used + tokensUsed,
+                tokens_used: existingUsage.tokens_used + tokenInfo.tokensUsed,
                 requests_count: existingUsage.requests_count + 1,
-                model_used: modelUsed,
+                model_used: tokenInfo.modelUsed,
               })
               .eq('id', existingUsage.id);
             
@@ -146,9 +228,9 @@ serve(async (req) => {
                 customer_product_id: finalCustomerProductId,
                 n8n_workflow_id: effectiveWorkflowId,
                 date: today,
-                tokens_used: tokensUsed,
+                tokens_used: tokenInfo.tokensUsed,
                 requests_count: 1,
-                model_used: modelUsed,
+                model_used: tokenInfo.modelUsed,
               });
             
             console.log(`Inserted token usage, error:`, insertError);
@@ -159,7 +241,10 @@ serve(async (req) => {
           JSON.stringify({ 
             success: true, 
             message: 'Uso de tokens registrado',
-            workflow_id: effectiveWorkflowId
+            workflow_id: effectiveWorkflowId,
+            provider: tokenInfo.provider,
+            tokens: tokenInfo.tokensUsed,
+            model: tokenInfo.modelUsed
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
