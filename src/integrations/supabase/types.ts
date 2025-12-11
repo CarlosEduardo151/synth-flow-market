@@ -135,6 +135,47 @@ export type Database = {
           },
         ]
       }
+      ai_token_usage: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          date: string
+          id: string
+          model_used: string | null
+          requests_count: number
+          tokens_used: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          date?: string
+          id?: string
+          model_used?: string | null
+          requests_count?: number
+          tokens_used?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          date?: string
+          id?: string
+          model_used?: string | null
+          requests_count?: number
+          tokens_used?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_token_usage_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_clients: {
         Row: {
           cpf_cnpj: string | null
