@@ -65,7 +65,7 @@ type CommunicationTone = 'profissional' | 'amigavel' | 'tecnico' | 'entusiasmado
 interface AgentConfig {
   isActive: boolean;
   n8nWorkflowId: string;
-  provider: 'openai' | 'google';
+  provider: 'openai' | 'google' | 'starai';
   apiKey: string;
   model: string;
   temperature: number;
@@ -329,6 +329,14 @@ const AdminAgentConfigPage = () => {
     byExecution: [],
   });
   const [loadingTokenStats, setLoadingTokenStats] = useState(false);
+  
+  // Estado para créditos StarAI
+  const [staraiCredits, setStaraiCredits] = useState({
+    balanceBRL: 75, // 15 USD = 75 BRL grátis por padrão
+    freeBalanceBRL: 75,
+    depositedBRL: 0,
+  });
+  const [depositAmount, setDepositAmount] = useState<number>(50);
   
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
@@ -911,11 +919,15 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
     }
   }, [config.n8nWorkflowId, workflows]);
 
-  const handleProviderChange = (provider: 'openai' | 'google') => {
+  const handleProviderChange = (provider: 'openai' | 'google' | 'starai') => {
+    // StarAI usa OpenAI por baixo, então mantém modelos OpenAI
+    const defaultModel = provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
     setConfig(prev => ({
       ...prev,
       provider,
-      model: provider === 'openai' ? 'gpt-4o' : 'models/gemini-2.5-flash',
+      model: defaultModel,
+      // Limpa a API key se for StarAI (usaremos credencial gerenciada)
+      apiKey: provider === 'starai' ? '' : prev.apiKey,
     }));
   };
 
@@ -1026,7 +1038,8 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       return;
     }
 
-    if (!config.apiKey) {
+    // StarAI não precisa de API key do usuário
+    if (config.provider !== 'starai' && !config.apiKey) {
       toast({
         title: "API Key não informada",
         description: "Insira a chave de API do provedor selecionado.",
@@ -1037,17 +1050,25 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
     setSyncingLlm(true);
     try {
-      const result = await n8nApiCall('update_llm_config', {
+      // Para StarAI, usamos credencial gerenciada (sem apiKey do usuário)
+      const payload = {
         workflowId: config.n8nWorkflowId,
-        provider: config.provider,
-        apiKey: config.apiKey,
+        provider: config.provider === 'starai' ? 'openai' : config.provider, // StarAI usa OpenAI por baixo
         model: config.model,
-      });
+        ...(config.provider === 'starai' 
+          ? { credentialName: 'StarAI', useExistingCredential: true }
+          : { apiKey: config.apiKey }
+        ),
+      };
+
+      const result = await n8nApiCall('update_llm_config', payload);
 
       if (result.success) {
         toast({
-          title: "Motor IA sincronizado!",
-          description: `${result.provider}/${result.model} configurado no workflow. Credencial ID: ${result.credentialId}`,
+          title: config.provider === 'starai' ? "StarAI ativado!" : "Motor IA sincronizado!",
+          description: config.provider === 'starai' 
+            ? `Usando credencial StarAI com modelo ${config.model}. R$ 75,00 de bônus disponíveis!`
+            : `${result.provider}/${result.model} configurado no workflow. Credencial ID: ${result.credentialId}`,
         });
       } else {
         throw new Error(result.error || 'Falha ao sincronizar LLM');
@@ -1180,22 +1201,28 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
         // Sincronizar credenciais e modelo LLM
         let llmResult = { success: true };
-        if (config.apiKey && config.apiKey !== '***ENCRYPTED***') {
-          llmResult = await n8nApiCall('update_llm_config', {
+        // StarAI usa credencial gerenciada, não precisa de apiKey do usuário
+        if (config.provider === 'starai' || (config.apiKey && config.apiKey !== '***ENCRYPTED***')) {
+          const payload = {
             workflowId: config.n8nWorkflowId,
-            provider: config.provider,
-            apiKey: config.apiKey,
+            provider: config.provider === 'starai' ? 'openai' : config.provider,
             model: config.model,
-          });
+            ...(config.provider === 'starai' 
+              ? { credentialName: 'StarAI', useExistingCredential: true }
+              : { apiKey: config.apiKey }
+            ),
+          };
+          llmResult = await n8nApiCall('update_llm_config', payload);
         }
 
         // Também sincroniza outras configurações via n8n-sync-config
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
         if (dbSaved && promptResult?.success && llmResult?.success && syncResult?.success) {
+          const providerLabel = config.provider === 'starai' ? 'StarAI' : config.provider;
           toast({
             title: "Tudo salvo e sincronizado!",
-            description: `Configurações salvas permanentemente. Motor IA: ${config.provider}/${config.model}`,
+            description: `Configurações salvas permanentemente. Motor IA: ${providerLabel}/${config.model}`,
           });
         } else if (dbSaved && promptResult?.success && llmResult?.success) {
           toast({
@@ -1542,42 +1569,133 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
                     <Label>Provedor (Provider)</Label>
-                    <Select value={config.provider} onValueChange={(v) => handleProviderChange(v as 'openai' | 'google')}>
+                    <Select value={config.provider} onValueChange={(v) => handleProviderChange(v as 'openai' | 'google' | 'starai')}>
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="starai">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500">⭐</span>
+                            StarAI (Recomendado)
+                          </div>
+                        </SelectItem>
                         <SelectItem value="openai">OpenAI (GPT)</SelectItem>
                         <SelectItem value="google">Google (Gemini)</SelectItem>
                       </SelectContent>
                     </Select>
+                    {config.provider === 'starai' && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⭐ Use nossa infraestrutura gerenciada sem precisar de API Key própria
+                      </p>
+                    )}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>API Key (Chave Secreta)</Label>
-                    <div className="relative">
-                      <Input
-                        type={showApiKey ? 'text' : 'password'}
-                        placeholder={config.provider === 'openai' ? 'sk-...' : 'AIza...'}
-                        value={config.apiKey}
-                        onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                        className="pr-10"
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute right-0 top-0 h-full"
-                        onClick={() => setShowApiKey(!showApiKey)}
-                      >
-                        {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </Button>
+                  {/* Sistema de Créditos StarAI */}
+                  {config.provider === 'starai' ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/30">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                            <span className="text-xl">⭐</span> Créditos StarAI
+                          </span>
+                          <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:text-green-400">
+                            Gerenciado
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                          <div className="text-center p-3 bg-background/50 rounded-lg">
+                            <p className="text-2xl font-bold text-primary">
+                              R$ {staraiCredits.balanceBRL.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Saldo Total</p>
+                          </div>
+                          <div className="text-center p-3 bg-background/50 rounded-lg">
+                            <p className="text-2xl font-bold text-green-600">
+                              R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Bônus Grátis</p>
+                          </div>
+                        </div>
+
+                        <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
+                          <p className="text-sm text-green-700 dark:text-green-400">
+                            🎁 <strong>R$ 75,00 por conta da casa!</strong>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Equivalente a $15 USD para você começar
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Adicionar Créditos (R$)</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              value={depositAmount}
+                              onChange={(e) => setDepositAmount(Number(e.target.value))}
+                              min={10}
+                              step={10}
+                              placeholder="50"
+                              className="flex-1"
+                            />
+                            <Button 
+                              variant="default"
+                              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                              onClick={() => {
+                                toast({
+                                  title: "Em breve!",
+                                  description: "Sistema de pagamento será implementado em breve.",
+                                });
+                              }}
+                            >
+                              Depositar
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Mínimo: R$ 10,00
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="p-3 bg-muted/50 rounded-lg border text-sm">
+                        <p className="font-medium mb-1">Como funciona:</p>
+                        <ul className="text-xs text-muted-foreground space-y-1">
+                          <li>• Você não precisa criar conta na OpenAI</li>
+                          <li>• Usamos nossa credencial gerenciada (StarAI)</li>
+                          <li>• Cobrança por uso real dos tokens</li>
+                          <li>• Suporte a todos os modelos GPT</li>
+                        </ul>
+                      </div>
                     </div>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Shield className="h-3 w-3" />
-                      Armazenamento criptografado
-                    </p>
-                  </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>API Key (Chave Secreta)</Label>
+                      <div className="relative">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          placeholder={config.provider === 'openai' ? 'sk-...' : 'AIza...'}
+                          value={config.apiKey}
+                          onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                        >
+                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Shield className="h-3 w-3" />
+                        Armazenamento criptografado
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label>Modelo</Label>
@@ -1586,8 +1704,8 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                         <SelectValue placeholder="Selecione um modelo" />
                       </SelectTrigger>
                       <SelectContent className="bg-popover max-h-[400px]">
-                        {config.provider === 'openai' ? (
-                          // OpenAI Models - agrupado por categoria
+                        {(config.provider === 'openai' || config.provider === 'starai') ? (
+                          // OpenAI Models - agrupado por categoria (StarAI também usa OpenAI)
                           (['flagship', 'mini', 'reasoning', 'audio', 'image', 'search', 'codex'] as OpenAIModelCategory[]).map((category) => {
                             const modelsInCategory = OPENAI_MODELS.filter(m => m.category === category);
                             if (modelsInCategory.length === 0) return null;
@@ -1626,7 +1744,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      {config.provider === 'openai' 
+                      {(config.provider === 'openai' || config.provider === 'starai')
                         ? OPENAI_MODELS.find(m => m.value === config.model)?.description
                         : GOOGLE_MODELS.find(m => m.value === config.model)?.description}
                     </p>
@@ -1634,7 +1752,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
                   <Button 
                     onClick={syncLlmConfigToN8n} 
-                    disabled={syncingLlm || !config.n8nWorkflowId || !config.apiKey}
+                    disabled={syncingLlm || !config.n8nWorkflowId || (config.provider !== 'starai' && !config.apiKey)}
                     className="w-full gap-2"
                     variant="outline"
                   >
@@ -1643,7 +1761,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
-                    {syncingLlm ? 'Sincronizando...' : 'Salvar Credencial no n8n'}
+                    {syncingLlm ? 'Sincronizando...' : config.provider === 'starai' ? 'Ativar StarAI no n8n' : 'Salvar Credencial no n8n'}
                   </Button>
                   
                   {!config.n8nWorkflowId && (
