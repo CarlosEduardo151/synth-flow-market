@@ -1296,7 +1296,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="status" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
