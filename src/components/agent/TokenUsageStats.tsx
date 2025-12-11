@@ -2,10 +2,15 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BarChart3, Calendar, TrendingUp, Zap } from 'lucide-react';
-import { format, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart3, Calendar, TrendingUp, Zap, RefreshCw, Clock, Cpu, Loader2, ChevronDown, ChevronRight } from 'lucide-react';
+import { format, subDays, startOfWeek, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface TokenUsageStatsProps {
   workflowId: string;
@@ -18,14 +23,42 @@ interface UsageStats {
   dailyData: { date: string; tokens: number; requests: number }[];
 }
 
+interface ExecutionTokenUsage {
+  executionId: string;
+  workflowId: string;
+  status: string;
+  startedAt: string;
+  stoppedAt: string;
+  tokenUsage: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    model: string | null;
+    provider: string | null;
+    nodeBreakdown: Array<{
+      nodeName: string;
+      nodeType: string;
+      promptTokens: number;
+      completionTokens: number;
+      totalTokens: number;
+      model?: string;
+    }>;
+  };
+}
+
 export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
   const [loading, setLoading] = useState(true);
+  const [loadingExecutions, setLoadingExecutions] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState<UsageStats>({
     today: { tokens: 0, requests: 0 },
     week: { tokens: 0, requests: 0 },
     month: { tokens: 0, requests: 0 },
     dailyData: [],
   });
+  const [executionTokens, setExecutionTokens] = useState<ExecutionTokenUsage[]>([]);
+  const [expandedExecutions, setExpandedExecutions] = useState<Set<string>>(new Set());
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchStats();
@@ -100,10 +133,86 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
     }
   };
 
+  const fetchExecutionTokenUsage = async () => {
+    if (!workflowId) return;
+    
+    setLoadingExecutions(true);
+    try {
+      // Primeiro, buscar as últimas execuções
+      const { data: executionsData, error: executionsError } = await supabase.functions.invoke('n8n-api', {
+        body: { action: 'get_executions', workflowId, limit: 10 }
+      });
+
+      if (executionsError) throw executionsError;
+      
+      const executions = executionsData.executions || [];
+      const tokenUsageResults: ExecutionTokenUsage[] = [];
+
+      // Para cada execução, buscar o token usage
+      for (const exec of executions.slice(0, 5)) { // Limitar a 5 para não sobrecarregar
+        try {
+          const { data: tokenData, error: tokenError } = await supabase.functions.invoke('n8n-api', {
+            body: { action: 'get_execution_token_usage', executionId: exec.id }
+          });
+
+          if (!tokenError && tokenData.success) {
+            tokenUsageResults.push({
+              executionId: tokenData.executionId,
+              workflowId: tokenData.workflowId,
+              status: tokenData.status,
+              startedAt: tokenData.startedAt,
+              stoppedAt: tokenData.stoppedAt,
+              tokenUsage: tokenData.tokenUsage,
+            });
+          }
+        } catch (e) {
+          console.warn(`Erro ao buscar tokens da execução ${exec.id}:`, e);
+        }
+      }
+
+      setExecutionTokens(tokenUsageResults);
+      
+      if (tokenUsageResults.length > 0) {
+        toast({
+          title: 'Dados carregados',
+          description: `Token usage de ${tokenUsageResults.length} execuções carregado com sucesso.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching execution token usage:', error);
+      toast({
+        title: 'Erro ao carregar',
+        description: 'Não foi possível buscar os dados de token usage das execuções.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingExecutions(false);
+    }
+  };
+
+  const toggleExpanded = (executionId: string) => {
+    const newExpanded = new Set(expandedExecutions);
+    if (newExpanded.has(executionId)) {
+      newExpanded.delete(executionId);
+    } else {
+      newExpanded.add(executionId);
+    }
+    setExpandedExecutions(newExpanded);
+  };
+
   const formatNumber = (num: number) => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
+  };
+
+  const getProviderColor = (provider: string | null) => {
+    switch (provider?.toLowerCase()) {
+      case 'openai': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30';
+      case 'gemini': return 'bg-blue-500/10 text-blue-600 border-blue-500/30';
+      case 'anthropic': return 'bg-orange-500/10 text-orange-600 border-orange-500/30';
+      default: return 'bg-gray-500/10 text-gray-600 border-gray-500/30';
+    }
   };
 
   if (loading) {
@@ -154,131 +263,307 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {statCards.map((card) => (
-          <Card key={card.title} className="relative overflow-hidden">
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-amber-500" />
-                      <span className="text-2xl font-bold">{formatNumber(card.tokens)}</span>
-                      <span className="text-sm text-muted-foreground">tokens</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {card.requests} requisições
-                    </p>
-                  </div>
-                </div>
-                <div className={`p-3 rounded-full ${card.bgColor}`}>
-                  <card.icon className={`h-5 w-5 ${card.color}`} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-4">
+          <TabsTrigger value="overview" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="executions" className="gap-2">
+            <Cpu className="h-4 w-4" />
+            Por Execução
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Usage Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-5 w-5" />
-            Histórico de Uso (Últimos 30 dias)
-          </CardTitle>
-          <CardDescription>
-            Visualize o consumo de tokens ao longo do tempo
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {stats.dailyData.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-              <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">Nenhum uso registrado</p>
-              <p className="text-sm">Os dados de uso aparecerão aqui conforme você utiliza o agente.</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {/* Simple bar chart */}
-              <div className="flex items-end gap-1 h-48 px-2">
-                {stats.dailyData.slice(-14).map((day, index) => {
-                  const height = (day.tokens / maxTokens) * 100;
-                  return (
-                    <div
-                      key={day.date}
-                      className="flex-1 flex flex-col items-center gap-1 group"
-                    >
-                      <div className="relative w-full">
-                        <div
-                          className="w-full bg-primary/80 rounded-t transition-all hover:bg-primary cursor-pointer"
-                          style={{ height: `${Math.max(height, 2)}%`, minHeight: '4px' }}
-                          title={`${day.date}: ${formatNumber(day.tokens)} tokens`}
-                        />
-                        {/* Tooltip on hover */}
-                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
-                          <div className="bg-popover border rounded-md shadow-lg p-2 text-xs whitespace-nowrap">
-                            <p className="font-medium">{format(new Date(day.date), 'dd/MM', { locale: ptBR })}</p>
-                            <p>{formatNumber(day.tokens)} tokens</p>
-                            <p>{day.requests} req.</p>
-                          </div>
+        {/* Visão Geral */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {statCards.map((card) => (
+              <Card key={card.title} className="relative overflow-hidden">
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-muted-foreground">{card.title}</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Zap className="h-4 w-4 text-amber-500" />
+                          <span className="text-2xl font-bold">{formatNumber(card.tokens)}</span>
+                          <span className="text-sm text-muted-foreground">tokens</span>
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                          {card.requests} requisições
+                        </p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              {/* X-axis labels */}
-              <div className="flex gap-1 px-2">
-                {stats.dailyData.slice(-14).map((day, index) => (
-                  <div key={day.date} className="flex-1 text-center">
-                    <span className="text-[10px] text-muted-foreground">
-                      {format(new Date(day.date), 'dd', { locale: ptBR })}
-                    </span>
+                    <div className={`p-3 rounded-full ${card.bgColor}`}>
+                      <card.icon className={`h-5 w-5 ${card.color}`} />
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-      {/* Recent Activity Table */}
-      {stats.dailyData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Detalhamento Diário</CardTitle>
-            <CardDescription>Últimos 7 dias de uso</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {stats.dailyData.slice(-7).reverse().map((day) => (
-                <div
-                  key={day.date}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">
-                      {format(new Date(day.date), "dd 'de' MMMM", { locale: ptBR })}
-                    </span>
+          {/* Usage Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Histórico de Uso (Últimos 30 dias)
+              </CardTitle>
+              <CardDescription>
+                Visualize o consumo de tokens ao longo do tempo
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {stats.dailyData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Nenhum uso registrado</p>
+                  <p className="text-sm">Os dados de uso aparecerão aqui conforme você utiliza o agente.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Simple bar chart */}
+                  <div className="flex items-end gap-1 h-48 px-2">
+                    {stats.dailyData.slice(-14).map((day) => {
+                      const height = (day.tokens / maxTokens) * 100;
+                      return (
+                        <div
+                          key={day.date}
+                          className="flex-1 flex flex-col items-center gap-1 group"
+                        >
+                          <div className="relative w-full">
+                            <div
+                              className="w-full bg-primary/80 rounded-t transition-all hover:bg-primary cursor-pointer"
+                              style={{ height: `${Math.max(height, 2)}%`, minHeight: '4px' }}
+                              title={`${day.date}: ${formatNumber(day.tokens)} tokens`}
+                            />
+                            {/* Tooltip on hover */}
+                            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-10">
+                              <div className="bg-popover border rounded-md shadow-lg p-2 text-xs whitespace-nowrap">
+                                <p className="font-medium">{format(new Date(day.date), 'dd/MM', { locale: ptBR })}</p>
+                                <p>{formatNumber(day.tokens)} tokens</p>
+                                <p>{day.requests} req.</p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary" className="font-mono">
-                      {formatNumber(day.tokens)} tokens
-                    </Badge>
-                    <Badge variant="outline" className="font-mono">
-                      {day.requests} req.
-                    </Badge>
+                  {/* X-axis labels */}
+                  <div className="flex gap-1 px-2">
+                    {stats.dailyData.slice(-14).map((day) => (
+                      <div key={day.date} className="flex-1 text-center">
+                        <span className="text-[10px] text-muted-foreground">
+                          {format(new Date(day.date), 'dd', { locale: ptBR })}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Recent Activity Table */}
+          {stats.dailyData.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Detalhamento Diário</CardTitle>
+                <CardDescription>Últimos 7 dias de uso</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {stats.dailyData.slice(-7).reverse().map((day) => (
+                    <div
+                      key={day.date}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">
+                          {format(new Date(day.date), "dd 'de' MMMM", { locale: ptBR })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <Badge variant="secondary" className="font-mono">
+                          {formatNumber(day.tokens)} tokens
+                        </Badge>
+                        <Badge variant="outline" className="font-mono">
+                          {day.requests} req.
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Por Execução */}
+        <TabsContent value="executions" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Cpu className="h-5 w-5" />
+                  Token Usage por Execução
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={fetchExecutionTokenUsage}
+                  disabled={loadingExecutions}
+                >
+                  {loadingExecutions ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Buscar via API n8n
+                </Button>
+              </CardTitle>
+              <CardDescription>
+                Clique no botão para buscar o consumo detalhado de tokens diretamente da API do n8n
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {executionTokens.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Cpu className="h-12 w-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Nenhum dado carregado</p>
+                  <p className="text-sm text-center max-w-md">
+                    Clique em "Buscar via API n8n" para carregar os dados de token usage das últimas execuções.
+                  </p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[500px]">
+                  <div className="space-y-3">
+                    {executionTokens.map((exec) => (
+                      <Collapsible 
+                        key={exec.executionId}
+                        open={expandedExecutions.has(exec.executionId)}
+                        onOpenChange={() => toggleExpanded(exec.executionId)}
+                      >
+                        <div className="border rounded-lg overflow-hidden">
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
+                              <div className="flex items-center gap-4">
+                                {expandedExecutions.has(exec.executionId) ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                                <div className={`w-2.5 h-2.5 rounded-full ${
+                                  exec.status === 'success' ? 'bg-green-500' :
+                                  exec.status === 'error' ? 'bg-red-500' : 'bg-gray-400'
+                                }`} />
+                                <div className="text-left">
+                                  <p className="font-mono text-sm font-medium">#{exec.executionId}</p>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <Clock className="h-3 w-3" />
+                                    {new Date(exec.startedAt).toLocaleString('pt-BR')}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                {exec.tokenUsage.provider && (
+                                  <Badge variant="outline" className={getProviderColor(exec.tokenUsage.provider)}>
+                                    {exec.tokenUsage.provider}
+                                  </Badge>
+                                )}
+                                {exec.tokenUsage.model && (
+                                  <Badge variant="secondary" className="font-mono text-xs">
+                                    {exec.tokenUsage.model}
+                                  </Badge>
+                                )}
+                                <div className="flex items-center gap-2 bg-amber-500/10 text-amber-600 px-3 py-1.5 rounded-full">
+                                  <Zap className="h-4 w-4" />
+                                  <span className="font-bold">{formatNumber(exec.tokenUsage.totalTokens)}</span>
+                                  <span className="text-xs">tokens</span>
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+
+                          <CollapsibleContent>
+                            <div className="border-t bg-muted/30 p-4 space-y-4">
+                              {/* Resumo de tokens */}
+                              <div className="grid grid-cols-3 gap-4">
+                                <div className="bg-background rounded-lg p-3 border">
+                                  <p className="text-xs text-muted-foreground">Prompt Tokens</p>
+                                  <p className="text-xl font-bold text-blue-500">
+                                    {formatNumber(exec.tokenUsage.promptTokens)}
+                                  </p>
+                                </div>
+                                <div className="bg-background rounded-lg p-3 border">
+                                  <p className="text-xs text-muted-foreground">Completion Tokens</p>
+                                  <p className="text-xl font-bold text-green-500">
+                                    {formatNumber(exec.tokenUsage.completionTokens)}
+                                  </p>
+                                </div>
+                                <div className="bg-background rounded-lg p-3 border">
+                                  <p className="text-xs text-muted-foreground">Total</p>
+                                  <p className="text-xl font-bold text-amber-500">
+                                    {formatNumber(exec.tokenUsage.totalTokens)}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Breakdown por node */}
+                              {exec.tokenUsage.nodeBreakdown.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium mb-2">Detalhamento por Node:</p>
+                                  <div className="space-y-2">
+                                    {exec.tokenUsage.nodeBreakdown.map((node, idx) => (
+                                      <div 
+                                        key={idx}
+                                        className="flex items-center justify-between bg-background rounded-lg p-3 border text-sm"
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <Cpu className="h-4 w-4 text-muted-foreground" />
+                                          <span className="font-medium">{node.nodeName}</span>
+                                          {node.model && (
+                                            <Badge variant="outline" className="text-xs">
+                                              {node.model}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-4 text-xs">
+                                          <span className="text-blue-500">{node.promptTokens} prompt</span>
+                                          <span className="text-green-500">{node.completionTokens} completion</span>
+                                          <Badge className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20">
+                                            {node.totalTokens} total
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
+                              {exec.tokenUsage.nodeBreakdown.length === 0 && exec.tokenUsage.totalTokens === 0 && (
+                                <p className="text-sm text-muted-foreground text-center py-2">
+                                  Nenhum dado de token encontrado nesta execução. O workflow pode não usar nós de IA.
+                                </p>
+                              )}
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
