@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ToolsConfigSection } from '@/components/agent/ToolsConfigSection';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -390,6 +391,22 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [openToolCredentials, setOpenToolCredentials] = useState<string[]>([]);
   const [testingCredential, setTestingCredential] = useState<string | null>(null);
   const [credentialTestResults, setCredentialTestResults] = useState<Record<string, 'success' | 'error'>>({});
+  
+  // Estado para configurações completas das ferramentas
+  const [toolConfigs, setToolConfigs] = useState<Record<string, any>>({
+    httpRequest: { enabled: true, httpMethod: 'GET', httpFollowRedirects: true },
+    webhook: { enabled: false, webhookHttpMethod: 'POST', webhookResponseMode: 'onReceived', webhookResponseCode: 200 },
+    code: { enabled: false, codeLanguage: 'javascript' },
+    calculator: { enabled: true },
+  });
+  
+  // Handler para atualizar configurações das ferramentas
+  const updateToolConfig = (toolId: string, updates: Partial<any>) => {
+    setToolConfigs(prev => ({
+      ...prev,
+      [toolId]: { ...prev[toolId], ...updates }
+    }));
+  };
 
   // Mapa de credenciais por ferramenta
   const TOOL_CREDENTIALS: Record<string, { name: string; placeholder: string; docUrl: string }> = {
@@ -1275,7 +1292,12 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       return;
     }
 
-    if (!config.enabledTools || config.enabledTools.length === 0) {
+    // Extrair ferramentas habilitadas do toolConfigs
+    const enabledTools = Object.entries(toolConfigs)
+      .filter(([_, cfg]) => cfg?.enabled)
+      .map(([toolId]) => toolId);
+
+    if (enabledTools.length === 0) {
       toast({
         title: "Nenhuma ferramenta selecionada",
         description: "Selecione pelo menos uma ferramenta para sincronizar.",
@@ -1288,14 +1310,15 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
     try {
       const result = await n8nApiCall('sync_tools', {
         workflowId: config.n8nWorkflowId,
-        enabledTools: config.enabledTools,
+        enabledTools,
+        toolConfigs, // Envia as configurações completas
       });
 
       if (result.success) {
         const summary = result.summary || {};
         const addedCount = summary.added?.length || 0;
         const removedCount = summary.removed?.length || 0;
-        const totalTools = summary.totalTools || config.enabledTools.length;
+        const totalTools = summary.totalTools || enabledTools.length;
         toast({
           title: "Ferramentas sincronizadas!",
           description: `${totalTools} ferramentas no workflow. Adicionadas: ${addedCount}, Removidas: ${removedCount}`,
@@ -2240,350 +2263,13 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
           {/* FERRAMENTAS */}
           <TabsContent value="tools" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plug className="h-5 w-5 text-primary" />
-                  Ferramentas do Agente (n8n Tools)
-                </CardTitle>
-                <CardDescription>
-                  Selecione as ferramentas que o agente poderá utilizar
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Ferramentas organizadas por categoria */}
-                {(() => {
-                  const TOOL_LOGOS: Record<string, string> = {
-                    httpRequestTool: '/images/tools/n8n.svg',
-                    webhookTool: '/images/tools/n8n.svg',
-                    graphqlTool: '/images/tools/graphql.svg',
-                    serpApiTool: '/images/tools/google.svg',
-                    wikipediaTool: '/images/tools/wikipedia.svg',
-                    wolframAlphaTool: '/images/tools/wolfram.svg',
-                    duckDuckGoTool: '/images/tools/duckduckgo.svg',
-                    gmailTool: '/images/tools/gmail.svg',
-                    outlookTool: '/images/tools/outlook.svg',
-                    sendGridTool: '/images/tools/sendgrid.svg',
-                    slackTool: '/images/tools/slack.svg',
-                    telegramTool: '/images/tools/telegram.svg',
-                    discordTool: '/images/tools/discord.svg',
-                    whatsappTool: '/images/tools/whatsapp.svg',
-                    googleSheetsTool: '/images/tools/googlesheets.svg',
-                    excelTool: '/images/tools/excel.svg',
-                    airtableTool: '/images/tools/airtable.svg',
-                    notionTool: '/images/tools/notion.svg',
-                    postgresTool: '/images/tools/postgresql.svg',
-                    mysqlTool: '/images/tools/mysql.svg',
-                    mongoDbTool: '/images/tools/mongodb.svg',
-                    redisTool: '/images/tools/redis.svg',
-                    supabaseTool: '/images/tools/supabase.svg',
-                    googleDriveTool: '/images/tools/googledrive.svg',
-                    dropboxTool: '/images/tools/dropbox.svg',
-                    s3Tool: '/images/tools/s3.svg',
-                    ftpTool: '/images/tools/n8n.svg',
-                    calculatorTool: '/images/tools/n8n.svg',
-                    codeTool: '/images/tools/code.svg',
-                    dateTimeTool: '/images/tools/n8n.svg',
-                    cryptoTool: '/images/tools/n8n.svg',
-                    htmlExtractTool: '/images/tools/n8n.svg',
-                    jsonTool: '/images/tools/json.svg',
-                  };
-                  
-                  const TOOL_CATEGORIES = [
-                  {
-                    category: '🌐 Requisições e APIs',
-                    tools: [
-                      { id: 'httpRequestTool', name: 'HTTP Request', desc: 'Fazer requisições HTTP para qualquer API', logo: TOOL_LOGOS.httpRequestTool },
-                      { id: 'webhookTool', name: 'Webhook', desc: 'Receber dados via webhook', logo: TOOL_LOGOS.webhookTool },
-                      { id: 'graphqlTool', name: 'GraphQL', desc: 'Fazer consultas GraphQL', logo: TOOL_LOGOS.graphqlTool },
-                    ]
-                  },
-                  {
-                    category: '🔍 Busca e Pesquisa',
-                    tools: [
-                      { id: 'serpApiTool', name: 'SerpAPI (Google)', desc: 'Buscar no Google via SerpAPI', logo: TOOL_LOGOS.serpApiTool },
-                      { id: 'wikipediaTool', name: 'Wikipedia', desc: 'Buscar artigos na Wikipedia', logo: TOOL_LOGOS.wikipediaTool },
-                      { id: 'wolframAlphaTool', name: 'Wolfram Alpha', desc: 'Cálculos e conhecimento', logo: TOOL_LOGOS.wolframAlphaTool },
-                      { id: 'duckDuckGoTool', name: 'DuckDuckGo', desc: 'Busca privada na web', logo: TOOL_LOGOS.duckDuckGoTool },
-                    ]
-                  },
-                  {
-                    category: '📧 Email e Comunicação',
-                    tools: [
-                      { id: 'gmailTool', name: 'Gmail', desc: 'Enviar e ler emails do Gmail', logo: TOOL_LOGOS.gmailTool },
-                      { id: 'outlookTool', name: 'Microsoft Outlook', desc: 'Gerenciar emails do Outlook', logo: TOOL_LOGOS.outlookTool },
-                      { id: 'sendGridTool', name: 'SendGrid', desc: 'Enviar emails transacionais', logo: TOOL_LOGOS.sendGridTool },
-                      { id: 'slackTool', name: 'Slack', desc: 'Enviar mensagens no Slack', logo: TOOL_LOGOS.slackTool },
-                      { id: 'telegramTool', name: 'Telegram', desc: 'Enviar mensagens no Telegram', logo: TOOL_LOGOS.telegramTool },
-                      { id: 'discordTool', name: 'Discord', desc: 'Enviar mensagens no Discord', logo: TOOL_LOGOS.discordTool },
-                      { id: 'whatsappTool', name: 'WhatsApp', desc: 'Enviar mensagens via WhatsApp', logo: TOOL_LOGOS.whatsappTool },
-                    ]
-                  },
-                  {
-                    category: '📊 Planilhas e Dados',
-                    tools: [
-                      { id: 'googleSheetsTool', name: 'Google Sheets', desc: 'Ler e escrever em planilhas', logo: TOOL_LOGOS.googleSheetsTool },
-                      { id: 'excelTool', name: 'Microsoft Excel', desc: 'Gerenciar arquivos Excel', logo: TOOL_LOGOS.excelTool },
-                      { id: 'airtableTool', name: 'Airtable', desc: 'Gerenciar dados no Airtable', logo: TOOL_LOGOS.airtableTool },
-                      { id: 'notionTool', name: 'Notion', desc: 'Gerenciar páginas e databases', logo: TOOL_LOGOS.notionTool },
-                    ]
-                  },
-                  {
-                    category: '🗄️ Banco de Dados',
-                    tools: [
-                      { id: 'postgresTool', name: 'PostgreSQL', desc: 'Executar queries SQL', logo: TOOL_LOGOS.postgresTool },
-                      { id: 'mysqlTool', name: 'MySQL', desc: 'Executar queries MySQL', logo: TOOL_LOGOS.mysqlTool },
-                      { id: 'mongoDbTool', name: 'MongoDB', desc: 'Operações no MongoDB', logo: TOOL_LOGOS.mongoDbTool },
-                      { id: 'redisTool', name: 'Redis', desc: 'Cache e dados em memória', logo: TOOL_LOGOS.redisTool },
-                      { id: 'supabaseTool', name: 'Supabase', desc: 'Operações no Supabase', logo: TOOL_LOGOS.supabaseTool },
-                    ]
-                  },
-                  {
-                    category: '📁 Arquivos e Storage',
-                    tools: [
-                      { id: 'googleDriveTool', name: 'Google Drive', desc: 'Upload e download de arquivos', logo: TOOL_LOGOS.googleDriveTool },
-                      { id: 'dropboxTool', name: 'Dropbox', desc: 'Gerenciar arquivos Dropbox', logo: TOOL_LOGOS.dropboxTool },
-                      { id: 's3Tool', name: 'AWS S3', desc: 'Armazenamento S3', logo: TOOL_LOGOS.s3Tool },
-                      { id: 'ftpTool', name: 'FTP', desc: 'Transferência de arquivos FTP', logo: TOOL_LOGOS.ftpTool },
-                    ]
-                  },
-                  {
-                    category: '🛠️ Utilidades',
-                    tools: [
-                      { id: 'calculatorTool', name: 'Calculadora', desc: 'Fazer cálculos matemáticos', logo: TOOL_LOGOS.calculatorTool },
-                      { id: 'codeTool', name: 'Executar Código', desc: 'Executar JavaScript/Python', logo: TOOL_LOGOS.codeTool },
-                      { id: 'dateTimeTool', name: 'Data e Hora', desc: 'Manipular datas e horários', logo: TOOL_LOGOS.dateTimeTool },
-                      { id: 'cryptoTool', name: 'Crypto', desc: 'Criptografia e hash', logo: TOOL_LOGOS.cryptoTool },
-                      { id: 'htmlExtractTool', name: 'HTML Extract', desc: 'Extrair dados de HTML', logo: TOOL_LOGOS.htmlExtractTool },
-                      { id: 'jsonTool', name: 'JSON', desc: 'Manipular dados JSON', logo: TOOL_LOGOS.jsonTool },
-                    ]
-                  },
-                ];
-                
-                return TOOL_CATEGORIES.map((category) => (
-                  <div key={category.category} className="space-y-3">
-                    <h3 className="text-sm font-semibold text-muted-foreground">{category.category}</h3>
-                    <div className="grid grid-cols-1 gap-3">
-                      {category.tools.map((tool) => {
-                        const isEnabled = (config as any).enabledTools?.includes(tool.id);
-                        const credential = TOOL_CREDENTIALS[tool.id];
-                        const isOpen = openToolCredentials.includes(tool.id);
-                        const hasCredential = !!toolCredentials[tool.id]?.trim();
-                        const testResult = credentialTestResults[tool.id];
-
-                        return (
-                          <Collapsible key={tool.id} open={isOpen} onOpenChange={() => credential && toggleToolCredentialOpen(tool.id)}>
-                            <div className={`rounded-lg border transition-all ${
-                              isEnabled 
-                                ? 'border-primary bg-primary/5 ring-1 ring-primary/20' 
-                                : 'border-border hover:border-muted-foreground/30'
-                            }`}>
-                              {/* Header da ferramenta */}
-                              <div className="flex items-center justify-between p-3">
-                                <div className="flex items-center gap-3 flex-1">
-                                  {credential ? (
-                                    <CollapsibleTrigger asChild>
-                                      <button className="flex items-center gap-2 hover:text-primary transition-colors text-left">
-                                        {isOpen ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
-                                        <img src={tool.logo} alt={tool.name} className="w-5 h-5 object-contain" />
-                                        <div>
-                                          <span className="font-medium text-sm">{tool.name}</span>
-                                          <p className="text-xs text-muted-foreground">{tool.desc}</p>
-                                        </div>
-                                      </button>
-                                    </CollapsibleTrigger>
-                                  ) : (
-                                    <div className="flex items-center gap-2">
-                                      <span className="w-4" />
-                                      <img src={tool.logo} alt={tool.name} className="w-5 h-5 object-contain" />
-                                      <div>
-                                        <span className="font-medium text-sm">{tool.name}</span>
-                                        <p className="text-xs text-muted-foreground">{tool.desc}</p>
-                                      </div>
-                                    </div>
-                                  )}
-                                </div>
-                                
-                                <div className="flex items-center gap-2">
-                                  {credential && (
-                                    hasCredential ? (
-                                      <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/30">
-                                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                                        Configurado
-                                      </Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-500/50 bg-yellow-500/10">
-                                        <Key className="h-3 w-3 mr-1" />
-                                        Requer API Key
-                                      </Badge>
-                                    )
-                                  )}
-                                  <Switch
-                                    checked={isEnabled}
-                                    onCheckedChange={() => {
-                                      if (credential && !hasCredential && !isEnabled) {
-                                        if (!isOpen) toggleToolCredentialOpen(tool.id);
-                                        toast({ title: "Configure a credencial primeiro" });
-                                        return;
-                                      }
-                                      setConfig(prev => {
-                                        const currentTools = (prev as any).enabledTools || [];
-                                        const newTools = currentTools.includes(tool.id)
-                                          ? currentTools.filter((t: string) => t !== tool.id)
-                                          : [...currentTools, tool.id];
-                                        return { ...prev, enabledTools: newTools } as AgentConfig;
-                                      });
-                                    }}
-                                  />
-                                </div>
-                              </div>
-
-                              {/* Formulário de credencial */}
-                              {credential && (
-                                <CollapsibleContent>
-                                  <div className="px-3 pb-3 pt-0 border-t">
-                                    <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-3">
-                                      <div className="flex items-center justify-between">
-                                        <Label className="flex items-center gap-2 text-sm font-medium">
-                                          <Key className="h-4 w-4" />
-                                          {credential.name}
-                                        </Label>
-                                        <a 
-                                          href={credential.docUrl} 
-                                          target="_blank" 
-                                          rel="noopener noreferrer"
-                                          className="text-xs text-primary hover:underline flex items-center gap-1"
-                                        >
-                                          <ExternalLink className="h-3 w-3" />
-                                          Obter chave
-                                        </a>
-                                      </div>
-                                      
-                                      <div className="flex gap-2">
-                                        <Input
-                                          type="password"
-                                          placeholder={credential.placeholder}
-                                          value={toolCredentials[tool.id] || ''}
-                                          onChange={(e) => updateToolCredential(tool.id, e.target.value)}
-                                          className={`flex-1 ${testResult === 'success' ? 'border-green-500' : testResult === 'error' ? 'border-red-500' : ''}`}
-                                        />
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          onClick={() => testToolCredential(tool.id)}
-                                          disabled={testingCredential === tool.id}
-                                        >
-                                          {testingCredential === tool.id ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                          ) : (
-                                            <TestTube2 className="h-4 w-4" />
-                                          )}
-                                        </Button>
-                                      </div>
-
-                                      {testResult && (
-                                        <p className={`text-xs flex items-center gap-1 ${testResult === 'success' ? 'text-green-600' : 'text-red-600'}`}>
-                                          {testResult === 'success' ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                          {testResult === 'success' ? 'Credencial válida!' : 'Credencial inválida'}
-                                        </p>
-                                      )}
-
-                                      <Button 
-                                        size="sm" 
-                                        className="w-full"
-                                        onClick={() => {
-                                          if (!hasCredential) {
-                                            toast({ title: "Preencha a credencial", variant: "destructive" });
-                                            return;
-                                          }
-                                          if (!isEnabled) {
-                                            setConfig(prev => {
-                                              const currentTools = (prev as any).enabledTools || [];
-                                              return { ...prev, enabledTools: [...currentTools, tool.id] } as AgentConfig;
-                                            });
-                                          }
-                                          toggleToolCredentialOpen(tool.id);
-                                          toast({ title: "Ferramenta habilitada!", description: `${tool.name} foi configurada.` });
-                                        }}
-                                      >
-                                        <CheckCircle2 className="mr-2 h-4 w-4" />
-                                        Salvar e Habilitar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </CollapsibleContent>
-                              )}
-                            </div>
-                          </Collapsible>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ));
-                })()}
-
-                {/* Resumo das ferramentas ativas */}
-                <div className="p-4 bg-muted/50 rounded-lg border mt-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-medium">Ferramentas Ativas</p>
-                      <p className="text-xs text-muted-foreground">
-                        {((config as any).enabledTools || []).length} ferramentas selecionadas
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {((config as any).enabledTools || []).length > 0 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setConfig(prev => ({ ...prev, enabledTools: [] } as AgentConfig))}
-                        >
-                          Limpar todas
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  {((config as any).enabledTools || []).length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-3">
-                      {((config as any).enabledTools || []).map((toolId: string) => (
-                        <Badge key={toolId} variant="secondary" className="text-xs">
-                          {toolId.replace('Tool', '')}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Botão de sincronização */}
-                <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/20 mt-4">
-                  <div>
-                    <p className="text-sm font-medium">Sincronizar com n8n</p>
-                    <p className="text-xs text-muted-foreground">
-                      {config.n8nWorkflowId 
-                        ? `Workflow: ${config.n8nWorkflowId.substring(0, 8)}...`
-                        : 'Selecione um workflow na aba Status'}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={syncToolsToN8n}
-                    disabled={syncingTools || !config.n8nWorkflowId || (config.enabledTools || []).length === 0}
-                    className="gap-2"
-                  >
-                    {syncingTools ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        Sincronizando...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="h-4 w-4" />
-                        Sincronizar Ferramentas
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ToolsConfigSection
+              toolConfigs={toolConfigs}
+              onUpdateToolConfig={updateToolConfig}
+              onSyncToN8n={syncToolsToN8n}
+              syncing={syncingTools}
+              workflowId={config.n8nWorkflowId}
+            />
           </TabsContent>
 
           {/* MONITORAMENTO */}
