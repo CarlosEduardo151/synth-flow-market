@@ -25,8 +25,6 @@ import {
   Trash2,
   Copy,
   Globe,
-  Webhook,
-  Code,
   Calculator,
   Search,
   Mail,
@@ -113,14 +111,6 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     category: 'request',
     docUrl: 'https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.httprequest/'
   },
-  {
-    id: 'webhook',
-    name: 'Webhook',
-    icon: <Webhook className="h-4 w-4" />,
-    description: 'Receber dados via webhook',
-    category: 'request',
-    docUrl: 'https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/'
-  },
   // COMMUNICATION TOOLS
   {
     id: 'gmail',
@@ -165,17 +155,6 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     credentialName: 'Telegram Bot Token',
     credentialPlaceholder: 'Token do @BotFather',
     docUrl: 'https://core.telegram.org/bots'
-  },
-  {
-    id: 'whatsapp',
-    name: 'WhatsApp',
-    icon: <MessageSquare className="h-4 w-4" />,
-    description: 'WhatsApp Business API',
-    category: 'communication',
-    hasCredential: true,
-    credentialName: 'WhatsApp Business API Token',
-    credentialPlaceholder: 'Token da API',
-    docUrl: 'https://developers.facebook.com/docs/whatsapp'
   },
   // DATA TOOLS
   {
@@ -275,15 +254,7 @@ const TOOL_DEFINITIONS: ToolDefinition[] = [
     credentialPlaceholder: 'App ID',
     docUrl: 'https://developer.wolframalpha.com/portal/myapps/'
   },
-  // UTILITY/CODE TOOLS
-  {
-    id: 'code',
-    name: 'Code',
-    icon: <Code className="h-4 w-4" />,
-    description: 'Executar código JavaScript/Python',
-    category: 'code',
-    docUrl: 'https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.code/'
-  },
+  // UTILITY TOOLS
   {
     id: 'calculator',
     name: 'Calculadora',
@@ -299,7 +270,6 @@ const CATEGORIES = [
   { id: 'communication', label: 'Comunicação', icon: <MessageSquare className="h-4 w-4" /> },
   { id: 'data', label: 'Dados', icon: <Database className="h-4 w-4" /> },
   { id: 'search', label: 'Busca', icon: <Search className="h-4 w-4" /> },
-  { id: 'code', label: 'Código', icon: <Code className="h-4 w-4" /> },
   { id: 'utility', label: 'Utilitários', icon: <Calculator className="h-4 w-4" /> },
 ];
 
