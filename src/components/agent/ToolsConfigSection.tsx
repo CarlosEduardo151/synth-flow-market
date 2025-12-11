@@ -1079,20 +1079,6 @@ export function ToolsConfigSection({
                                 </p>
                               )}
 
-                              {/* Link para documentação */}
-                              {tool.docUrl && (
-                                <div className="mt-4 pt-3 border-t">
-                                  <a 
-                                    href={tool.docUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                                  >
-                                    <ExternalLink className="h-3 w-3" />
-                                    Ver documentação completa no n8n
-                                  </a>
-                                </div>
-                              )}
                             </div>
                           </div>
                         </CollapsibleContent>
