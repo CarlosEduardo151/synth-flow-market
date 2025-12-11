@@ -2109,6 +2109,69 @@ export type Database = {
           },
         ]
       }
+      starai_credits: {
+        Row: {
+          balance_brl: number
+          created_at: string
+          deposited_brl: number
+          free_balance_brl: number
+          id: string
+          total_used_brl: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_brl?: number
+          created_at?: string
+          deposited_brl?: number
+          free_balance_brl?: number
+          id?: string
+          total_used_brl?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_brl?: number
+          created_at?: string
+          deposited_brl?: number
+          free_balance_brl?: number
+          id?: string
+          total_used_brl?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      starai_transactions: {
+        Row: {
+          amount_brl: number
+          created_at: string
+          description: string | null
+          id: string
+          payment_id: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount_brl: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_id?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount_brl?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          payment_id?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ticket_messages: {
         Row: {
           attachment_url: string | null
