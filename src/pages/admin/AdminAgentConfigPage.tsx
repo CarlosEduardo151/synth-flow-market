@@ -352,7 +352,7 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [configLoaded, setConfigLoaded] = useState(false);
   
   // Estados para seleção de produto na aba de uso de tokens
-  const [userProducts, setUserProducts] = useState<{ id: string; product_title: string; product_slug: string }[]>([]);
+  const [userProducts, setUserProducts] = useState<{ id: string; product_title: string; n8n_workflow_id: string | null }[]>([]);
   const [selectedUsageProductId, setSelectedUsageProductId] = useState<string | null>(null);
   
   // Estados para credenciais de ferramentas
@@ -449,8 +449,8 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
         .order('created_at', { ascending: false });
 
       if (allProducts && allProducts.length > 0) {
-        // Salvar todos os produtos para o seletor de uso de tokens
-        setUserProducts(allProducts.map(p => ({ id: p.id, product_title: p.product_title, product_slug: p.product_slug })));
+        // Salvar todos os produtos para o seletor de uso de tokens (com workflow ID)
+        setUserProducts(allProducts.map(p => ({ id: p.id, product_title: p.product_title, n8n_workflow_id: p.n8n_workflow_id })));
         setSelectedUsageProductId(allProducts[0].id);
         
         const productId = allProducts[0].id;
@@ -2309,12 +2309,12 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   onValueChange={setSelectedUsageProductId}
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um produto..." />
+                    <SelectValue placeholder="Selecione um workflow..." />
                   </SelectTrigger>
                   <SelectContent>
                     {userProducts.map(product => (
                       <SelectItem key={product.id} value={product.id}>
-                        {product.product_title} ({product.product_slug})
+                        {product.product_title} {product.n8n_workflow_id ? `(Workflow: ${product.n8n_workflow_id})` : '(Sem workflow)'}
                       </SelectItem>
                     ))}
                   </SelectContent>
