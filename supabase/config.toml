@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.provision-workflow]
 verify_jwt = false
+
+[functions.starai-credits]
+verify_jwt = false

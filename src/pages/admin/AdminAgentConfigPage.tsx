@@ -332,11 +332,13 @@ const AdminAgentConfigPage = () => {
   
   // Estado para créditos StarAI
   const [staraiCredits, setStaraiCredits] = useState({
-    balanceBRL: 75, // 15 USD = 75 BRL grátis por padrão
-    freeBalanceBRL: 75,
+    balanceBRL: 0,
+    freeBalanceBRL: 0,
     depositedBRL: 0,
   });
+  const [loadingCredits, setLoadingCredits] = useState(false);
   const [depositAmount, setDepositAmount] = useState<number>(50);
+  const [processingDeposit, setProcessingDeposit] = useState(false);
   
   const [metrics, setMetrics] = useState<AgentMetrics>({
     totalMessages: 0,
@@ -929,7 +931,147 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       // Limpa a API key se for StarAI (usaremos credencial gerenciada)
       apiKey: provider === 'starai' ? '' : prev.apiKey,
     }));
+    
+    // Carregar créditos StarAI se selecionado
+    if (provider === 'starai') {
+      loadStaraiCredits();
+    }
   };
+
+  // Funções StarAI Credits
+  const loadStaraiCredits = async () => {
+    setLoadingCredits(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Faça login",
+          description: "Você precisa estar logado para usar StarAI.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/balance`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setStaraiCredits({
+          balanceBRL: Number(result.data.balance_brl) || 0,
+          freeBalanceBRL: Number(result.data.free_balance_brl) || 0,
+          depositedBRL: Number(result.data.deposited_brl) || 0,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading StarAI credits:', error);
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  const handleStaraiDeposit = async () => {
+    if (depositAmount < 10) {
+      toast({
+        title: "Valor inválido",
+        description: "O valor mínimo de depósito é R$ 10,00",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingDeposit(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Faça login",
+          description: "Você precisa estar logado para depositar.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const response = await fetch(
+        `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/deposit`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount_brl: depositAmount,
+            success_url: `${window.location.origin}/admin/agent-config?payment=success`,
+            failure_url: `${window.location.origin}/admin/agent-config?payment=failure`,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      
+      if (result.success && result.data?.payment_link) {
+        // Redirecionar para o Mercado Pago
+        window.location.href = result.data.payment_link;
+      } else {
+        throw new Error(result.message || 'Erro ao criar pagamento');
+      }
+    } catch (error: any) {
+      console.error('Error creating deposit:', error);
+      toast({
+        title: "Erro ao criar pagamento",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingDeposit(false);
+    }
+  };
+
+  // Verificar parâmetros de URL para status de pagamento
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      toast({
+        title: "Pagamento aprovado!",
+        description: "Seus créditos StarAI foram adicionados à sua conta.",
+      });
+      // Limpar parâmetro da URL
+      window.history.replaceState({}, '', window.location.pathname);
+      // Recarregar créditos
+      loadStaraiCredits();
+    } else if (paymentStatus === 'failure') {
+      toast({
+        title: "Pagamento não aprovado",
+        description: "O pagamento não foi concluído. Tente novamente.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (paymentStatus === 'pending') {
+      toast({
+        title: "Pagamento pendente",
+        description: "Aguardando confirmação do pagamento.",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  // Carregar créditos ao montar se provider for StarAI
+  useEffect(() => {
+    if (config.provider === 'starai') {
+      loadStaraiCredits();
+    }
+  }, []);
 
   const addInstruction = () => {
     if (!newInstruction.trim()) return;
@@ -1599,34 +1741,63 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                           <span className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
                             <span className="text-xl">⭐</span> Créditos StarAI
                           </span>
-                          <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:text-green-400">
-                            Gerenciado
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={loadStaraiCredits}
+                              disabled={loadingCredits}
+                              className="h-7 w-7"
+                            >
+                              <RefreshCw className={`h-4 w-4 ${loadingCredits ? 'animate-spin' : ''}`} />
+                            </Button>
+                            <Badge variant="secondary" className="bg-green-500/20 text-green-700 dark:text-green-400">
+                              Gerenciado
+                            </Badge>
+                          </div>
                         </div>
                         
-                        <div className="grid grid-cols-2 gap-4 mb-4">
-                          <div className="text-center p-3 bg-background/50 rounded-lg">
-                            <p className="text-2xl font-bold text-primary">
-                              R$ {staraiCredits.balanceBRL.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Saldo Total</p>
+                        {loadingCredits ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
                           </div>
-                          <div className="text-center p-3 bg-background/50 rounded-lg">
-                            <p className="text-2xl font-bold text-green-600">
-                              R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
-                            </p>
-                            <p className="text-xs text-muted-foreground">Bônus Grátis</p>
-                          </div>
-                        </div>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="text-center p-3 bg-background/50 rounded-lg">
+                                <p className="text-2xl font-bold text-primary">
+                                  R$ {staraiCredits.balanceBRL.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Saldo Total</p>
+                              </div>
+                              <div className="text-center p-3 bg-background/50 rounded-lg">
+                                <p className="text-2xl font-bold text-green-600">
+                                  R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Bônus Grátis</p>
+                              </div>
+                            </div>
 
-                        <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
-                          <p className="text-sm text-green-700 dark:text-green-400">
-                            🎁 <strong>R$ 75,00 por conta da casa!</strong>
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Equivalente a $15 USD para você começar
-                          </p>
-                        </div>
+                            {staraiCredits.depositedBRL > 0 && (
+                              <div className="text-center p-2 bg-background/30 rounded-lg mb-4">
+                                <p className="text-sm text-muted-foreground">
+                                  Total depositado: <span className="font-medium text-foreground">R$ {staraiCredits.depositedBRL.toFixed(2)}</span>
+                                </p>
+                              </div>
+                            )}
+
+                            {staraiCredits.balanceBRL === 0 && (
+                              <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  🎁 <strong>R$ 75,00 por conta da casa!</strong>
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Equivalente a $15 USD para você começar
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
 
                         <div className="space-y-2">
                           <Label>Adicionar Créditos (R$)</Label>
@@ -1639,22 +1810,22 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                               step={10}
                               placeholder="50"
                               className="flex-1"
+                              disabled={processingDeposit}
                             />
                             <Button 
                               variant="default"
                               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                              onClick={() => {
-                                toast({
-                                  title: "Em breve!",
-                                  description: "Sistema de pagamento será implementado em breve.",
-                                });
-                              }}
+                              onClick={handleStaraiDeposit}
+                              disabled={processingDeposit || depositAmount < 10}
                             >
-                              Depositar
+                              {processingDeposit ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : null}
+                              {processingDeposit ? 'Processando...' : 'Depositar'}
                             </Button>
                           </div>
                           <p className="text-xs text-muted-foreground">
-                            Mínimo: R$ 10,00
+                            Mínimo: R$ 10,00 • Pagamento via Mercado Pago
                           </p>
                         </div>
                       </div>
@@ -1666,6 +1837,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                           <li>• Usamos nossa credencial gerenciada (StarAI)</li>
                           <li>• Cobrança por uso real dos tokens</li>
                           <li>• Suporte a todos os modelos GPT</li>
+                          <li>• Pagamento seguro via Mercado Pago</li>
                         </ul>
                       </div>
                     </div>
