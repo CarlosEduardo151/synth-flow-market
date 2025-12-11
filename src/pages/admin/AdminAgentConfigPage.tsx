@@ -347,9 +347,13 @@ COMO AJUDAR:
 
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
-  const [syncingPrompt, setSyncingPrompt] = useState(false);
+const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+  
+  // Estados para seleção de produto na aba de uso de tokens
+  const [userProducts, setUserProducts] = useState<{ id: string; product_title: string; product_slug: string }[]>([]);
+  const [selectedUsageProductId, setSelectedUsageProductId] = useState<string | null>(null);
   
   // Estados para credenciais de ferramentas
   const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
@@ -437,17 +441,21 @@ COMO AJUDAR:
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar o primeiro customer_product do usuário para usar como referência
-      const { data: customerProducts } = await supabase
+      // Buscar TODOS os customer_products do usuário
+      const { data: allProducts } = await supabase
         .from('customer_products')
-        .select('id, n8n_workflow_id')
+        .select('id, product_title, product_slug, n8n_workflow_id')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
-      if (customerProducts && customerProducts.length > 0) {
-        const productId = customerProducts[0].id;
+      if (allProducts && allProducts.length > 0) {
+        // Salvar todos os produtos para o seletor de uso de tokens
+        setUserProducts(allProducts.map(p => ({ id: p.id, product_title: p.product_title, product_slug: p.product_slug })));
+        setSelectedUsageProductId(allProducts[0].id);
+        
+        const productId = allProducts[0].id;
         setCustomerProductId(productId);
+        const customerProducts = allProducts; // Para compatibilidade com código abaixo
 
         // Carregar configuração existente
         const { data: configData } = await supabase
@@ -2284,7 +2292,45 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
           {/* USO DE TOKENS */}
           <TabsContent value="usage" className="space-y-6">
-            <TokenUsageStats customerProductId={customerProductId || ''} />
+            {/* Seletor de Produto/Workflow */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5" />
+                  Selecionar Produto/Workflow
+                </CardTitle>
+                <CardDescription>
+                  Escolha qual produto você deseja visualizar o uso de tokens
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Select 
+                  value={selectedUsageProductId || ''} 
+                  onValueChange={setSelectedUsageProductId}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione um produto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {userProducts.map(product => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.product_title} ({product.product_slug})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+            
+            {selectedUsageProductId ? (
+              <TokenUsageStats customerProductId={selectedUsageProductId} />
+            ) : (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  Selecione um produto acima para ver o uso de tokens
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>
