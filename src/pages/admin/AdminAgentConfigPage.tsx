@@ -6,7 +6,7 @@ import {
   ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
   ChevronDown, ChevronRight, Key, TestTube2, BarChart3
 } from 'lucide-react';
-import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
+
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -351,10 +351,7 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   
-  // Estados para seleção de workflow na aba de uso de tokens (direto do n8n)
-  const [n8nWorkflows, setN8nWorkflows] = useState<{ id: string; name: string; active: boolean }[]>([]);
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
-  const [loadingN8nWorkflows, setLoadingN8nWorkflows] = useState(false);
+  // Removido: estados de seleção de workflow separados (agora usa config.n8nWorkflowId)
   
   // Estados para credenciais de ferramentas
   const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
@@ -431,36 +428,6 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       toast({ title: "Erro ao testar", variant: "destructive" });
     } finally {
       setTestingCredential(null);
-    }
-  };
-
-  // Buscar workflows do n8n via API
-  const fetchN8nWorkflows = async () => {
-    setLoadingN8nWorkflows(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('n8n-api', {
-        body: { action: 'list_workflows', limit: 100 }
-      });
-      
-      if (error) throw error;
-      
-      if (data?.success && data?.workflows) {
-        const workflows = data.workflows.map((wf: any) => ({
-          id: wf.id,
-          name: wf.name,
-          active: wf.active
-        }));
-        setN8nWorkflows(workflows);
-        if (workflows.length > 0 && !selectedWorkflowId) {
-          setSelectedWorkflowId(workflows[0].id);
-        }
-        toast({ title: `${workflows.length} workflows carregados do n8n` });
-      }
-    } catch (error) {
-      console.error('Erro ao buscar workflows:', error);
-      toast({ title: 'Erro ao carregar workflows do n8n', variant: 'destructive' });
-    } finally {
-      setLoadingN8nWorkflows(false);
     }
   };
 
@@ -2317,66 +2284,107 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
             </Card>
           </TabsContent>
 
-          {/* USO DE TOKENS */}
+          {/* USO / EXECUÇÕES */}
           <TabsContent value="usage" className="space-y-6">
-            {/* Seletor de Workflow n8n */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Selecionar Workflow n8n
-                </CardTitle>
-                <CardDescription>
-                  Escolha qual workflow você deseja visualizar o uso de tokens
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button 
-                  variant="outline" 
-                  onClick={fetchN8nWorkflows}
-                  disabled={loadingN8nWorkflows}
-                >
-                  {loadingN8nWorkflows ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                  )}
-                  Carregar Workflows do n8n
-                </Button>
-                
-                {n8nWorkflows.length > 0 ? (
-                  <Select 
-                    value={selectedWorkflowId || ''} 
-                    onValueChange={setSelectedWorkflowId}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione um workflow..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {n8nWorkflows.map(workflow => (
-                        <SelectItem key={workflow.id} value={workflow.id}>
-                          {workflow.name} {workflow.active ? '(Ativo)' : '(Inativo)'}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Clique no botão acima para carregar os workflows do n8n.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-            
-            {selectedWorkflowId ? (
-              <TokenUsageStats workflowId={selectedWorkflowId} />
+            {config.n8nWorkflowId ? (
+              <>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Estatísticas de Execuções
+                    </CardTitle>
+                    <CardDescription>
+                      Workflow selecionado: <Badge variant="secondary">{config.n8nWorkflowId}</Badge>
+                      {selectedWorkflow && <span className="ml-2">({selectedWorkflow.name})</span>}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => loadExecutions(config.n8nWorkflowId)}
+                      disabled={loadingExecutions}
+                    >
+                      {loadingExecutions ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Atualizar Execuções
+                    </Button>
+                    
+                    {/* Resumo de execuções */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold">{executions.length}</div>
+                          <p className="text-sm text-muted-foreground">Total de Execuções</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-green-500">
+                            {executions.filter(e => e.status === 'success').length}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Sucesso</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-red-500">
+                            {executions.filter(e => e.status === 'error' || e.status === 'crashed').length}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Erros</p>
+                        </CardContent>
+                      </Card>
+                      <Card>
+                        <CardContent className="pt-6">
+                          <div className="text-2xl font-bold text-yellow-500">
+                            {executions.filter(e => e.status === 'running' || e.status === 'waiting').length}
+                          </div>
+                          <p className="text-sm text-muted-foreground">Em Execução</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+                    
+                    {/* Lista de execuções recentes */}
+                    {executions.length > 0 && (
+                      <div className="mt-6">
+                        <h4 className="font-medium mb-3">Execuções Recentes</h4>
+                        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                          {executions.slice(0, 20).map((exec) => (
+                            <div key={exec.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                              <div className="flex items-center gap-3">
+                                {exec.status === 'success' ? (
+                                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                ) : exec.status === 'error' || exec.status === 'crashed' ? (
+                                  <XCircle className="h-4 w-4 text-red-500" />
+                                ) : (
+                                  <Loader2 className="h-4 w-4 text-yellow-500 animate-spin" />
+                                )}
+                                <div>
+                                  <p className="text-sm font-medium">Execução #{exec.id.slice(0, 8)}...</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {new Date(exec.startedAt).toLocaleString('pt-BR')}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge variant={exec.status === 'success' ? 'default' : exec.status === 'error' ? 'destructive' : 'secondary'}>
+                                {exec.status}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
             ) : (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {n8nWorkflows.length > 0 
-                    ? 'Selecione um workflow acima para ver o uso de tokens'
-                    : 'Carregue os workflows do n8n para monitorar tokens'
-                  }
+                  <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>Selecione um workflow na aba "Status" para ver as estatísticas de execução.</p>
                 </CardContent>
               </Card>
             )}
