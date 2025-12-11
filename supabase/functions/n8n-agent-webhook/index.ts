@@ -94,18 +94,19 @@ serve(async (req) => {
         );
 
       case 'token_usage':
-        // n8n is reporting token usage
-        const { customerProductId, tokensUsed, modelUsed } = data || {};
-        console.log(`Agent ${agentId} token usage: ${tokensUsed} tokens with ${modelUsed}`);
+        // n8n is reporting token usage - now tracked by workflow_id
+        const { customerProductId, tokensUsed, modelUsed, workflowId } = data || {};
+        const effectiveWorkflowId = workflowId || agentId; // Use agentId as fallback workflow identifier
+        console.log(`Workflow ${effectiveWorkflowId} token usage: ${tokensUsed} tokens with ${modelUsed}`);
         
-        if (customerProductId && tokensUsed) {
+        if (tokensUsed && effectiveWorkflowId) {
           const today = new Date().toISOString().split('T')[0];
           
-          // Try to update existing record, or insert new one
+          // Try to update existing record by workflow_id, or insert new one
           const { data: existingUsage } = await supabase
             .from('ai_token_usage')
             .select('id, tokens_used, requests_count')
-            .eq('customer_product_id', customerProductId)
+            .eq('n8n_workflow_id', effectiveWorkflowId)
             .eq('date', today)
             .maybeSingle();
 
@@ -120,11 +121,12 @@ serve(async (req) => {
               })
               .eq('id', existingUsage.id);
           } else {
-            // Insert new record
+            // Insert new record - customer_product_id can be null if only tracking by workflow
             await supabase
               .from('ai_token_usage')
               .insert({
-                customer_product_id: customerProductId,
+                customer_product_id: customerProductId || '00000000-0000-0000-0000-000000000000', // Placeholder if not provided
+                n8n_workflow_id: effectiveWorkflowId,
                 date: today,
                 tokens_used: tokensUsed,
                 requests_count: 1,
@@ -136,7 +138,8 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            message: 'Uso de tokens registrado'
+            message: 'Uso de tokens registrado',
+            workflow_id: effectiveWorkflowId
           }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );

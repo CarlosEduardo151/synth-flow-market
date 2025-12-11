@@ -142,6 +142,7 @@ export type Database = {
           date: string
           id: string
           model_used: string | null
+          n8n_workflow_id: string | null
           requests_count: number
           tokens_used: number
           updated_at: string
@@ -152,6 +153,7 @@ export type Database = {
           date?: string
           id?: string
           model_used?: string | null
+          n8n_workflow_id?: string | null
           requests_count?: number
           tokens_used?: number
           updated_at?: string
@@ -162,6 +164,7 @@ export type Database = {
           date?: string
           id?: string
           model_used?: string | null
+          n8n_workflow_id?: string | null
           requests_count?: number
           tokens_used?: number
           updated_at?: string

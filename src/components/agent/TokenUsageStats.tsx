@@ -8,7 +8,7 @@ import { format, subDays, startOfWeek, startOfMonth, endOfWeek, endOfMonth } fro
 import { ptBR } from 'date-fns/locale';
 
 interface TokenUsageStatsProps {
-  customerProductId: string;
+  workflowId: string;
 }
 
 interface UsageStats {
@@ -18,7 +18,7 @@ interface UsageStats {
   dailyData: { date: string; tokens: number; requests: number }[];
 }
 
-export function TokenUsageStats({ customerProductId }: TokenUsageStatsProps) {
+export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<UsageStats>({
     today: { tokens: 0, requests: 0 },
@@ -29,7 +29,7 @@ export function TokenUsageStats({ customerProductId }: TokenUsageStatsProps) {
 
   useEffect(() => {
     fetchStats();
-  }, [customerProductId]);
+  }, [workflowId]);
 
   const fetchStats = async () => {
     try {
@@ -38,11 +38,11 @@ export function TokenUsageStats({ customerProductId }: TokenUsageStatsProps) {
       const monthStart = startOfMonth(today);
       const thirtyDaysAgo = subDays(today, 30);
 
-      // Fetch usage data for the last 30 days
+      // Fetch usage data for the last 30 days by workflow_id
       const { data, error } = await supabase
         .from('ai_token_usage')
         .select('*')
-        .eq('customer_product_id', customerProductId)
+        .eq('n8n_workflow_id', workflowId)
         .gte('date', format(thirtyDaysAgo, 'yyyy-MM-dd'))
         .order('date', { ascending: true });
 

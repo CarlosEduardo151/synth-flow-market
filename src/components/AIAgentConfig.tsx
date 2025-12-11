@@ -870,7 +870,15 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
 
         {/* USAGE TAB */}
         <TabsContent value="usage">
-          <TokenUsageStats customerProductId={customerProductId} />
+          {workflowId ? (
+            <TokenUsageStats workflowId={workflowId} />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Nenhum workflow n8n vinculado a este produto.</p>
+              <p className="text-sm">Configure o ID do workflow nas configurações do produto.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
