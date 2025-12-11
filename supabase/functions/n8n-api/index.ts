@@ -816,8 +816,17 @@ serve(async (req) => {
         console.log(`n8n-api: Configurações recebidas:`, JSON.stringify(toolsConfig, null, 2));
         
         // Mapeamento de IDs do frontend para tipos n8n
+        // IMPORTANTE: Ferramentas Langchain (isLangchain: true) são conectadas ao AI Agent via ai_tool
         const TOOL_TYPE_MAP: Record<string, { type: string; typeVersion: number; isLangchain: boolean }> = {
-          httpRequest: { type: 'n8n-nodes-base.httpRequest', typeVersion: 4.3, isLangchain: false },
+          // Ferramentas do AI Agent (Langchain Tools) - conectam via ai_tool
+          httpRequest: { type: '@n8n/n8n-nodes-langchain.toolHttpRequest', typeVersion: 1.1, isLangchain: true },
+          serpApi: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, isLangchain: true },
+          wikipedia: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, isLangchain: true },
+          wolframAlpha: { type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', typeVersion: 1, isLangchain: true },
+          code: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1.1, isLangchain: true },
+          calculator: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, isLangchain: true },
+          
+          // Nós regulares do n8n (não são ferramentas do AI Agent)
           webhook: { type: 'n8n-nodes-base.webhook', typeVersion: 2.1, isLangchain: false },
           gmail: { type: 'n8n-nodes-base.gmail', typeVersion: 2.1, isLangchain: false },
           slack: { type: 'n8n-nodes-base.slack', typeVersion: 2.2, isLangchain: false },
@@ -830,78 +839,76 @@ serve(async (req) => {
           supabase: { type: 'n8n-nodes-base.supabase', typeVersion: 1, isLangchain: false },
           postgres: { type: 'n8n-nodes-base.postgres', typeVersion: 2.5, isLangchain: false },
           mongodb: { type: 'n8n-nodes-base.mongoDb', typeVersion: 1.1, isLangchain: false },
-          serpApi: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, isLangchain: true },
-          wikipedia: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, isLangchain: true },
-          wolframAlpha: { type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', typeVersion: 1, isLangchain: true },
-          code: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1, isLangchain: true },
-          calculator: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, isLangchain: true },
+          
           // Compatibilidade com IDs antigos
-          httpRequestTool: { type: 'n8n-nodes-base.httpRequest', typeVersion: 4.3, isLangchain: false },
+          httpRequestTool: { type: '@n8n/n8n-nodes-langchain.toolHttpRequest', typeVersion: 1.1, isLangchain: true },
           calculatorTool: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, isLangchain: true },
           serpApiTool: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, isLangchain: true },
           wikipediaTool: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, isLangchain: true },
-          codeTool: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1, isLangchain: true },
+          codeTool: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1.1, isLangchain: true },
         };
 
         // Função para converter configurações do frontend para parâmetros n8n
         const convertToolConfig = (toolId: string, cfg: any): any => {
           const params: any = {};
           
-          // HTTP Request
+          // HTTP Request Tool (Langchain version for AI Agent)
           if (toolId === 'httpRequest' || toolId === 'httpRequestTool') {
+            // Parâmetros específicos do toolHttpRequest (Langchain)
             if (cfg.httpMethod) params.method = cfg.httpMethod;
             if (cfg.httpUrl) params.url = cfg.httpUrl;
-            if (cfg.httpAuthentication && cfg.httpAuthentication !== 'none') {
-              params.authentication = cfg.httpAuthentication;
-            }
+            
+            // Headers
             if (cfg.httpHeaders?.length > 0) {
-              params.sendHeaders = true;
-              params.headerParameters = {
-                parameters: cfg.httpHeaders.filter((h: any) => h.name && h.value)
-              };
-            }
-            if (cfg.httpQueryParams?.length > 0) {
-              params.sendQuery = true;
-              params.queryParameters = {
-                parameters: cfg.httpQueryParams.filter((p: any) => p.name && p.value)
-              };
-            }
-            if (cfg.httpBody && ['POST', 'PUT', 'PATCH'].includes(cfg.httpMethod)) {
-              params.sendBody = true;
-              params.contentType = cfg.httpBodyContentType || 'json';
-              if (cfg.httpBodyContentType === 'json') {
-                try {
-                  params.bodyParameters = { parameters: JSON.parse(cfg.httpBody) };
-                } catch {
-                  params.body = cfg.httpBody;
-                }
-              } else {
-                params.body = cfg.httpBody;
+              const validHeaders = cfg.httpHeaders.filter((h: any) => h.name && h.value);
+              if (validHeaders.length > 0) {
+                params.sendHeaders = true;
+                params.specifyHeaders = 'keypair';
+                params.headers = {
+                  entries: validHeaders.map((h: any) => ({
+                    name: h.name,
+                    value: h.value
+                  }))
+                };
               }
             }
-            if (cfg.httpTimeout) params.timeout = cfg.httpTimeout;
-            if (cfg.httpFollowRedirects === false) params.allowUnauthorizedCerts = false;
-            if (cfg.httpIgnoreSSL) params.allowUnauthorizedCerts = true;
-            if (cfg.httpRetryOnFail) {
-              params.options = params.options || {};
-              params.options.retry = { enabled: true, maxTries: cfg.httpMaxRetries || 3 };
+            
+            // Query Parameters
+            if (cfg.httpQueryParams?.length > 0) {
+              const validParams = cfg.httpQueryParams.filter((p: any) => p.name && p.value);
+              if (validParams.length > 0) {
+                params.sendQuery = true;
+                params.specifyQuery = 'keypair';
+                params.queryParameters = {
+                  entries: validParams.map((p: any) => ({
+                    name: p.name,
+                    value: p.value
+                  }))
+                };
+              }
             }
-            if (cfg.httpResponseFormat && cfg.httpResponseFormat !== 'autodetect') {
-              params.options = params.options || {};
-              params.options.response = { response: { responseFormat: cfg.httpResponseFormat } };
+            
+            // Body
+            if (cfg.httpBody && ['POST', 'PUT', 'PATCH'].includes(cfg.httpMethod)) {
+              params.sendBody = true;
+              params.specifyBody = 'json';
+              params.jsonBody = cfg.httpBody;
             }
-            // Auth específico
-            if (cfg.httpAuthentication === 'basicAuth') {
-              params.genericCredentialType = 'httpBasicAuth';
+            
+            // Authentication
+            if (cfg.httpAuthentication && cfg.httpAuthentication !== 'none') {
+              params.authentication = cfg.httpAuthentication;
+              
+              if (cfg.httpAuthentication === 'genericCredentialType') {
+                params.genericAuthType = 'httpBasicAuth';
+              }
             }
-            if (cfg.httpAuthentication === 'headerAuth' && cfg.httpHeaderAuthName) {
-              params.sendHeaders = true;
-              params.headerParameters = params.headerParameters || { parameters: [] };
-              params.headerParameters.parameters.push({
-                name: cfg.httpHeaderAuthName,
-                value: cfg.httpHeaderAuthValue || ''
-              });
-            }
+            
+            // Options
+            params.options = params.options || {};
+            if (cfg.httpTimeout) params.options.timeout = cfg.httpTimeout;
+            if (cfg.httpIgnoreSSL) params.options.allowUnauthorizedCerts = true;
+            if (cfg.httpFollowRedirects === false) params.options.redirect = { redirect: { followRedirects: false } };
           }
           
           // Webhook
