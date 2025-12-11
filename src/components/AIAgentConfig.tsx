@@ -27,8 +27,10 @@ import {
   AlertCircle,
   ExternalLink,
   Loader2,
-  TestTube2
+  TestTube2,
+  BarChart3
 } from 'lucide-react';
+import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 
 interface AIAgentConfigProps {
   customerProductId: string;
@@ -519,7 +521,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
       </Card>
 
       <Tabs defaultValue="model" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="model" className="flex items-center gap-2">
             <Sparkles className="h-4 w-4" />
             Modelo
@@ -539,6 +541,10 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           <TabsTrigger value="credentials" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
             Credenciais
+          </TabsTrigger>
+          <TabsTrigger value="usage" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Uso
           </TabsTrigger>
         </TabsList>
 
@@ -860,6 +866,11 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* USAGE TAB */}
+        <TabsContent value="usage">
+          <TokenUsageStats customerProductId={customerProductId} />
         </TabsContent>
       </Tabs>
 
