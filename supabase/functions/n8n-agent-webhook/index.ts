@@ -102,17 +102,45 @@ serve(async (req) => {
         if (tokensUsed && effectiveWorkflowId) {
           const today = new Date().toISOString().split('T')[0];
           
+          // Find customer_product_id by workflow_id if not provided
+          let finalCustomerProductId = customerProductId;
+          if (!finalCustomerProductId) {
+            const { data: customerProduct } = await supabase
+              .from('customer_products')
+              .select('id')
+              .eq('n8n_workflow_id', effectiveWorkflowId)
+              .limit(1)
+              .maybeSingle();
+            
+            finalCustomerProductId = customerProduct?.id;
+            console.log(`Found customer_product_id: ${finalCustomerProductId} for workflow ${effectiveWorkflowId}`);
+          }
+          
+          if (!finalCustomerProductId) {
+            console.error(`No customer_product found for workflow ${effectiveWorkflowId}`);
+            return new Response(
+              JSON.stringify({ 
+                success: false, 
+                message: 'Workflow não vinculado a nenhum produto',
+                workflow_id: effectiveWorkflowId
+              }),
+              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
           // Try to update existing record by workflow_id, or insert new one
-          const { data: existingUsage } = await supabase
+          const { data: existingUsage, error: selectError } = await supabase
             .from('ai_token_usage')
             .select('id, tokens_used, requests_count')
             .eq('n8n_workflow_id', effectiveWorkflowId)
             .eq('date', today)
             .maybeSingle();
 
+          console.log(`Existing usage for today:`, existingUsage, selectError);
+
           if (existingUsage) {
             // Update existing record
-            await supabase
+            const { error: updateError } = await supabase
               .from('ai_token_usage')
               .update({
                 tokens_used: existingUsage.tokens_used + tokensUsed,
@@ -120,18 +148,22 @@ serve(async (req) => {
                 model_used: modelUsed,
               })
               .eq('id', existingUsage.id);
+            
+            console.log(`Updated token usage, error:`, updateError);
           } else {
-            // Insert new record - customer_product_id can be null if only tracking by workflow
-            await supabase
+            // Insert new record
+            const { error: insertError } = await supabase
               .from('ai_token_usage')
               .insert({
-                customer_product_id: customerProductId || '00000000-0000-0000-0000-000000000000', // Placeholder if not provided
+                customer_product_id: finalCustomerProductId,
                 n8n_workflow_id: effectiveWorkflowId,
                 date: today,
                 tokens_used: tokensUsed,
                 requests_count: 1,
                 model_used: modelUsed,
               });
+            
+            console.log(`Inserted token usage, error:`, insertError);
           }
         }
         
