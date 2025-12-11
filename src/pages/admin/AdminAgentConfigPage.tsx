@@ -2002,28 +2002,13 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
-                    <div className="flex items-center gap-3 mb-3">
+                    <div className="flex items-center gap-3">
                       <CheckCircle2 className="h-5 w-5 text-green-500" />
-                      <span className="font-semibold text-green-700 dark:text-green-400">PostgreSQL Configurado</span>
+                      <span className="font-semibold text-green-700 dark:text-green-400">Memória PostgreSQL Ativa</span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Host:</span>
-                        <code className="bg-muted px-2 py-0.5 rounded">151.243.24.146</code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Database:</span>
-                        <code className="bg-muted px-2 py-0.5 rounded">n8n</code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">User:</span>
-                        <code className="bg-muted px-2 py-0.5 rounded">n8n</code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted-foreground">Porta:</span>
-                        <code className="bg-muted px-2 py-0.5 rounded">5432</code>
-                      </div>
-                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      A memória persistente está configurada e gerenciada automaticamente pelo sistema.
+                    </p>
                   </div>
 
                   <div className="space-y-2">
