@@ -102,8 +102,8 @@ serve(async (req) => {
         if (tokensUsed && effectiveWorkflowId) {
           const today = new Date().toISOString().split('T')[0];
           
-          // Find customer_product_id by workflow_id if not provided
-          let finalCustomerProductId = customerProductId;
+          // Find customer_product_id by workflow_id if not provided (optional - can be null)
+          let finalCustomerProductId = customerProductId || null;
           if (!finalCustomerProductId) {
             const { data: customerProduct } = await supabase
               .from('customer_products')
@@ -112,20 +112,8 @@ serve(async (req) => {
               .limit(1)
               .maybeSingle();
             
-            finalCustomerProductId = customerProduct?.id;
-            console.log(`Found customer_product_id: ${finalCustomerProductId} for workflow ${effectiveWorkflowId}`);
-          }
-          
-          if (!finalCustomerProductId) {
-            console.error(`No customer_product found for workflow ${effectiveWorkflowId}`);
-            return new Response(
-              JSON.stringify({ 
-                success: false, 
-                message: 'Workflow não vinculado a nenhum produto',
-                workflow_id: effectiveWorkflowId
-              }),
-              { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+            finalCustomerProductId = customerProduct?.id || null;
+            console.log(`Found customer_product_id: ${finalCustomerProductId || 'null (workflow não vinculado)'} for workflow ${effectiveWorkflowId}`);
           }
           
           // Try to update existing record by workflow_id, or insert new one

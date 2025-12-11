@@ -138,7 +138,7 @@ export type Database = {
       ai_token_usage: {
         Row: {
           created_at: string
-          customer_product_id: string
+          customer_product_id: string | null
           date: string
           id: string
           model_used: string | null
@@ -149,7 +149,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
-          customer_product_id: string
+          customer_product_id?: string | null
           date?: string
           id?: string
           model_used?: string | null
@@ -160,7 +160,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
-          customer_product_id?: string
+          customer_product_id?: string | null
           date?: string
           id?: string
           model_used?: string | null
