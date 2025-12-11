@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { AIAgentConfig } from '@/components/AIAgentConfig';
+import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 import { 
   Settings, 
   Webhook, 
@@ -26,7 +27,8 @@ import {
   CheckCircle,
   AlertCircle,
   ExternalLink,
-  Bot
+  Bot,
+  BarChart3
 } from 'lucide-react';
 
 interface AIConfig {
@@ -259,10 +261,14 @@ const AIControlSystem = () => {
         </div>
 
         <Tabs defaultValue="agent" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="agent" className="flex items-center gap-1">
               <Bot className="h-4 w-4" />
               Agente IA
+            </TabsTrigger>
+            <TabsTrigger value="monitoring" className="flex items-center gap-1">
+              <BarChart3 className="h-4 w-4" />
+              Monitoramento
             </TabsTrigger>
             <TabsTrigger value="config">Webhook</TabsTrigger>
             <TabsTrigger value="control">Controle</TabsTrigger>
@@ -275,6 +281,20 @@ const AIControlSystem = () => {
                 customerProductId={productId} 
                 workflowId={workflowId}
               />
+            )}
+          </TabsContent>
+
+          <TabsContent value="monitoring" className="space-y-4">
+            {workflowId ? (
+              <TokenUsageStats workflowId={workflowId} />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Workflow não configurado</p>
+                  <p className="text-sm">Configure um workflow n8n para visualizar as estatísticas de uso.</p>
+                </CardContent>
+              </Card>
             )}
           </TabsContent>
 
