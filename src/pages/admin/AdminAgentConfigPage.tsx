@@ -4,8 +4,9 @@ import {
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, Shield, Database,
   ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
-  ChevronDown, ChevronRight, Key, TestTube2
+  ChevronDown, ChevronRight, Key, TestTube2, BarChart3
 } from 'lucide-react';
+import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1153,7 +1154,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-7 lg:w-auto lg:inline-grid">
             <TabsTrigger value="status" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -1177,6 +1178,10 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
             <TabsTrigger value="monitoring" className="gap-2">
               <Activity className="h-4 w-4" />
               <span className="hidden sm:inline">Monitoramento</span>
+            </TabsTrigger>
+            <TabsTrigger value="usage" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Uso</span>
             </TabsTrigger>
           </TabsList>
 
@@ -2275,6 +2280,11 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 </ScrollArea>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* USO DE TOKENS */}
+          <TabsContent value="usage" className="space-y-6">
+            <TokenUsageStats customerProductId={customerProductId || ''} />
           </TabsContent>
         </Tabs>
       </main>
