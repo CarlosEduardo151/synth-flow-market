@@ -351,9 +351,9 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   
-  // Estados para seleção de produto na aba de uso de tokens
-  const [userProducts, setUserProducts] = useState<{ id: string; product_title: string; n8n_workflow_id: string | null }[]>([]);
-  const [selectedUsageProductId, setSelectedUsageProductId] = useState<string | null>(null);
+  // Estados para seleção de workflow na aba de uso de tokens
+  const [n8nWorkflows, setN8nWorkflows] = useState<{ id: string; workflow_id: string }[]>([]);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   
   // Estados para credenciais de ferramentas
   const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
@@ -449,9 +449,18 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
         .order('created_at', { ascending: false });
 
       if (allProducts && allProducts.length > 0) {
-        // Salvar todos os produtos para o seletor de uso de tokens (com workflow ID)
-        setUserProducts(allProducts.map(p => ({ id: p.id, product_title: p.product_title, n8n_workflow_id: p.n8n_workflow_id })));
-        setSelectedUsageProductId(allProducts[0].id);
+        // Extrair workflows únicos do n8n
+        const uniqueWorkflows = allProducts
+          .filter(p => p.n8n_workflow_id)
+          .map(p => ({ id: p.id, workflow_id: p.n8n_workflow_id! }))
+          .filter((item, index, self) => 
+            index === self.findIndex(t => t.workflow_id === item.workflow_id)
+          );
+        
+        setN8nWorkflows(uniqueWorkflows);
+        if (uniqueWorkflows.length > 0) {
+          setSelectedWorkflowId(uniqueWorkflows[0].workflow_id);
+        }
         
         const productId = allProducts[0].id;
         setCustomerProductId(productId);
@@ -2292,42 +2301,51 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
           {/* USO DE TOKENS */}
           <TabsContent value="usage" className="space-y-6">
-            {/* Seletor de Produto/Workflow */}
+            {/* Seletor de Workflow n8n */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
-                  Selecionar Produto/Workflow
+                  Selecionar Workflow n8n
                 </CardTitle>
                 <CardDescription>
-                  Escolha qual produto você deseja visualizar o uso de tokens
+                  Escolha qual workflow você deseja visualizar o uso de tokens
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Select 
-                  value={selectedUsageProductId || ''} 
-                  onValueChange={setSelectedUsageProductId}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione um workflow..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {userProducts.map(product => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.product_title} {product.n8n_workflow_id ? `(Workflow: ${product.n8n_workflow_id})` : '(Sem workflow)'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {n8nWorkflows.length > 0 ? (
+                  <Select 
+                    value={selectedWorkflowId || ''} 
+                    onValueChange={setSelectedWorkflowId}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione um workflow..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {n8nWorkflows.map(workflow => (
+                        <SelectItem key={workflow.workflow_id} value={workflow.workflow_id}>
+                          Workflow: {workflow.workflow_id}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Nenhum workflow n8n configurado. Configure o ID do workflow nas configurações do produto.
+                  </p>
+                )}
               </CardContent>
             </Card>
             
-            {selectedUsageProductId ? (
-              <TokenUsageStats customerProductId={selectedUsageProductId} />
+            {selectedWorkflowId ? (
+              <TokenUsageStats workflowId={selectedWorkflowId} />
             ) : (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  Selecione um produto acima para ver o uso de tokens
+                  {n8nWorkflows.length > 0 
+                    ? 'Selecione um workflow acima para ver o uso de tokens'
+                    : 'Nenhum workflow n8n configurado para monitorar tokens'
+                  }
                 </CardContent>
               </Card>
             )}
