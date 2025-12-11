@@ -9,6 +9,7 @@ import {
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ToolsConfigSection } from '@/components/agent/ToolsConfigSection';
+import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -2290,6 +2291,20 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
           {/* MONITORAMENTO */}
           <TabsContent value="monitoring" className="space-y-6">
+            {/* Estatísticas de Tokens */}
+            {config.n8nWorkflowId ? (
+              <TokenUsageStats workflowId={config.n8nWorkflowId} />
+            ) : (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Workflow não selecionado</p>
+                  <p className="text-sm">Selecione um workflow na aba "Status" para ver as estatísticas de uso de tokens.</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Cards de métricas */}
             <div className="grid gap-6 lg:grid-cols-4">
               <Card>
                 <CardHeader className="pb-2">
