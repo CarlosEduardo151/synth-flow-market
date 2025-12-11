@@ -801,7 +801,7 @@ serve(async (req) => {
         break;
       }
 
-      // ========== SYNC TOOLS (Adicionar/Remover ferramentas do workflow) ==========
+      // ========== SYNC TOOLS (Sincronizar ferramentas completas com configurações) ==========
       case 'sync_tools': {
         if (!workflowId) throw new Error('workflowId é obrigatório');
         if (!requestBody.enabledTools || !Array.isArray(requestBody.enabledTools)) {
@@ -809,10 +809,135 @@ serve(async (req) => {
         }
         
         const enabledToolIds = requestBody.enabledTools as string[];
-        const customToolsConfig = requestBody.toolsConfig || {};
+        const toolsConfig = requestBody.toolsConfig || {};
         
         console.log(`n8n-api: Sincronizando ${enabledToolIds.length} ferramentas com workflow ${workflowId}`);
         console.log(`n8n-api: Ferramentas habilitadas: ${enabledToolIds.join(', ')}`);
+        console.log(`n8n-api: Configurações recebidas:`, JSON.stringify(toolsConfig, null, 2));
+        
+        // Mapeamento de IDs do frontend para tipos n8n
+        const TOOL_TYPE_MAP: Record<string, { type: string; typeVersion: number; isLangchain: boolean }> = {
+          httpRequest: { type: 'n8n-nodes-base.httpRequest', typeVersion: 4.3, isLangchain: false },
+          webhook: { type: 'n8n-nodes-base.webhook', typeVersion: 2.1, isLangchain: false },
+          gmail: { type: 'n8n-nodes-base.gmail', typeVersion: 2.1, isLangchain: false },
+          slack: { type: 'n8n-nodes-base.slack', typeVersion: 2.2, isLangchain: false },
+          discord: { type: 'n8n-nodes-base.discord', typeVersion: 2, isLangchain: false },
+          telegram: { type: 'n8n-nodes-base.telegram', typeVersion: 1.2, isLangchain: false },
+          whatsapp: { type: 'n8n-nodes-base.whatsApp', typeVersion: 1, isLangchain: false },
+          googleSheets: { type: 'n8n-nodes-base.googleSheets', typeVersion: 4.5, isLangchain: false },
+          airtable: { type: 'n8n-nodes-base.airtable', typeVersion: 2.1, isLangchain: false },
+          notion: { type: 'n8n-nodes-base.notion', typeVersion: 2.2, isLangchain: false },
+          supabase: { type: 'n8n-nodes-base.supabase', typeVersion: 1, isLangchain: false },
+          postgres: { type: 'n8n-nodes-base.postgres', typeVersion: 2.5, isLangchain: false },
+          mongodb: { type: 'n8n-nodes-base.mongoDb', typeVersion: 1.1, isLangchain: false },
+          serpApi: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, isLangchain: true },
+          wikipedia: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, isLangchain: true },
+          wolframAlpha: { type: '@n8n/n8n-nodes-langchain.toolWolframAlpha', typeVersion: 1, isLangchain: true },
+          code: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1, isLangchain: true },
+          calculator: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, isLangchain: true },
+          // Compatibilidade com IDs antigos
+          httpRequestTool: { type: 'n8n-nodes-base.httpRequest', typeVersion: 4.3, isLangchain: false },
+          calculatorTool: { type: '@n8n/n8n-nodes-langchain.toolCalculator', typeVersion: 1, isLangchain: true },
+          serpApiTool: { type: '@n8n/n8n-nodes-langchain.toolSerpApi', typeVersion: 1, isLangchain: true },
+          wikipediaTool: { type: '@n8n/n8n-nodes-langchain.toolWikipedia', typeVersion: 1, isLangchain: true },
+          codeTool: { type: '@n8n/n8n-nodes-langchain.toolCode', typeVersion: 1, isLangchain: true },
+        };
+
+        // Função para converter configurações do frontend para parâmetros n8n
+        const convertToolConfig = (toolId: string, cfg: any): any => {
+          const params: any = {};
+          
+          // HTTP Request
+          if (toolId === 'httpRequest' || toolId === 'httpRequestTool') {
+            if (cfg.httpMethod) params.method = cfg.httpMethod;
+            if (cfg.httpUrl) params.url = cfg.httpUrl;
+            if (cfg.httpAuthentication && cfg.httpAuthentication !== 'none') {
+              params.authentication = cfg.httpAuthentication;
+            }
+            if (cfg.httpHeaders?.length > 0) {
+              params.sendHeaders = true;
+              params.headerParameters = {
+                parameters: cfg.httpHeaders.filter((h: any) => h.name && h.value)
+              };
+            }
+            if (cfg.httpQueryParams?.length > 0) {
+              params.sendQuery = true;
+              params.queryParameters = {
+                parameters: cfg.httpQueryParams.filter((p: any) => p.name && p.value)
+              };
+            }
+            if (cfg.httpBody && ['POST', 'PUT', 'PATCH'].includes(cfg.httpMethod)) {
+              params.sendBody = true;
+              params.contentType = cfg.httpBodyContentType || 'json';
+              if (cfg.httpBodyContentType === 'json') {
+                try {
+                  params.bodyParameters = { parameters: JSON.parse(cfg.httpBody) };
+                } catch {
+                  params.body = cfg.httpBody;
+                }
+              } else {
+                params.body = cfg.httpBody;
+              }
+            }
+            if (cfg.httpTimeout) params.timeout = cfg.httpTimeout;
+            if (cfg.httpFollowRedirects === false) params.allowUnauthorizedCerts = false;
+            if (cfg.httpIgnoreSSL) params.allowUnauthorizedCerts = true;
+            if (cfg.httpRetryOnFail) {
+              params.options = params.options || {};
+              params.options.retry = { enabled: true, maxTries: cfg.httpMaxRetries || 3 };
+            }
+            if (cfg.httpResponseFormat && cfg.httpResponseFormat !== 'autodetect') {
+              params.options = params.options || {};
+              params.options.response = { response: { responseFormat: cfg.httpResponseFormat } };
+            }
+            // Auth específico
+            if (cfg.httpAuthentication === 'basicAuth') {
+              params.genericCredentialType = 'httpBasicAuth';
+            }
+            if (cfg.httpAuthentication === 'headerAuth' && cfg.httpHeaderAuthName) {
+              params.sendHeaders = true;
+              params.headerParameters = params.headerParameters || { parameters: [] };
+              params.headerParameters.parameters.push({
+                name: cfg.httpHeaderAuthName,
+                value: cfg.httpHeaderAuthValue || ''
+              });
+            }
+          }
+          
+          // Webhook
+          if (toolId === 'webhook') {
+            if (cfg.webhookPath) params.path = cfg.webhookPath;
+            if (cfg.webhookHttpMethod) params.httpMethod = cfg.webhookHttpMethod;
+            if (cfg.webhookAuthentication && cfg.webhookAuthentication !== 'none') {
+              params.authentication = cfg.webhookAuthentication;
+            }
+            if (cfg.webhookResponseMode) params.responseMode = cfg.webhookResponseMode;
+            if (cfg.webhookResponseData) params.responseData = cfg.webhookResponseData;
+            if (cfg.webhookResponseCode) params.responseCode = cfg.webhookResponseCode;
+            if (cfg.webhookResponseHeaders?.length > 0) {
+              params.options = params.options || {};
+              params.options.responseHeaders = {
+                entries: cfg.webhookResponseHeaders.filter((h: any) => h.name && h.value)
+              };
+            }
+          }
+          
+          // Code
+          if (toolId === 'code' || toolId === 'codeTool') {
+            if (cfg.codeLanguage) params.language = cfg.codeLanguage === 'python' ? 'python' : 'javaScript';
+            if (cfg.codeContent) params.jsCode = cfg.codeContent;
+          }
+          
+          // Credenciais genéricas
+          if (cfg.apiKey) {
+            params._credentials = { apiKey: cfg.apiKey };
+          }
+          if (cfg.accessToken) {
+            params._credentials = { ...params._credentials, accessToken: cfg.accessToken };
+          }
+          
+          return params;
+        };
         
         // 1. Buscar workflow completo
         const workflow = await n8nRequest(`/workflows/${workflowId}`);
@@ -820,7 +945,7 @@ serve(async (req) => {
         
         // 2. Identificar o nó AI Agent para conectar as ferramentas
         let agentNodeName: string | null = null;
-        let agentNodeIndex = workflow.nodes.findIndex((node: any) => 
+        const agentNodeIndex = workflow.nodes.findIndex((node: any) => 
           node.type === '@n8n/n8n-nodes-langchain.agent'
         );
         
@@ -831,76 +956,109 @@ serve(async (req) => {
           console.warn(`n8n-api: AI Agent não encontrado, ferramentas serão adicionadas sem conexão`);
         }
         
-        // 3. ABORDAGEM SEGURA: Manter TODOS os nós existentes, apenas adicionar novas ferramentas
-        // Tipos de ferramentas que criamos (usar para verificar se já existe)
-        const toolNodeTypes = Object.values(N8N_TOOLS_CONFIG).map(t => t.type);
+        // 3. Coletar tipos existentes e nós que NÃO são ferramentas gerenciadas
+        const managedToolTypes = Object.values(TOOL_TYPE_MAP).map(t => t.type);
+        const existingManagedNodes: any[] = [];
+        const nonToolNodes: any[] = [];
         
-        // NUNCA remover nenhum nó - preservar TODOS os nós existentes
-        const allExistingNodes = [...workflow.nodes];
+        workflow.nodes.forEach((node: any) => {
+          if (managedToolTypes.includes(node.type)) {
+            existingManagedNodes.push(node);
+          } else {
+            nonToolNodes.push(node);
+          }
+        });
         
-        // Verificar quais ferramentas já existem (por tipo)
-        const existingTypes = new Set(allExistingNodes.map((n: any) => n.type));
+        console.log(`n8n-api: Workflow tem ${nonToolNodes.length} nós não-ferramenta e ${existingManagedNodes.length} ferramentas existentes`);
         
-        console.log(`n8n-api: Workflow tem ${allExistingNodes.length} nós existentes`);
-        console.log(`n8n-api: Tipos existentes: ${Array.from(existingTypes).join(', ')}`);
-        
-        // 4. Verificar quais ferramentas NOVAS precisam ser adicionadas
+        // 4. Criar/Atualizar nós de ferramentas
         const newToolNodes: any[] = [];
-        const baseX = 1400;
+        const updatedToolNodes: any[] = [];
         let currentY = 200;
-        const ySpacing = 120;
+        const baseX = 1400;
+        const ySpacing = 150;
         
         for (const toolId of enabledToolIds) {
-          const toolConfig = N8N_TOOLS_CONFIG[toolId];
-          if (!toolConfig) {
+          const toolMapping = TOOL_TYPE_MAP[toolId];
+          if (!toolMapping) {
             console.warn(`n8n-api: Ferramenta desconhecida: ${toolId}`);
             continue;
           }
           
-          // Verificar se já existe um nó desse tipo no workflow
-          if (existingTypes.has(toolConfig.type)) {
-            console.log(`n8n-api: Ferramenta ${toolId} já existe no workflow, ignorando`);
-            continue;
+          const toolConfig = toolsConfig[toolId] || {};
+          const convertedParams = convertToolConfig(toolId, toolConfig);
+          
+          // Verificar se já existe um nó desse tipo
+          const existingNode = existingManagedNodes.find(n => n.type === toolMapping.type);
+          
+          if (existingNode) {
+            // Atualizar nó existente com novas configurações
+            console.log(`n8n-api: Atualizando ferramenta existente: ${existingNode.name} (${toolMapping.type})`);
+            const updatedNode = {
+              ...existingNode,
+              parameters: {
+                ...existingNode.parameters,
+                ...convertedParams,
+              },
+            };
+            // Remover campos internos de credenciais
+            if (updatedNode.parameters._credentials) {
+              delete updatedNode.parameters._credentials;
+            }
+            updatedToolNodes.push(updatedNode);
+          } else {
+            // Criar novo nó
+            const toolName = toolId.charAt(0).toUpperCase() + toolId.slice(1).replace(/([A-Z])/g, ' $1').trim();
+            console.log(`n8n-api: Criando nova ferramenta: ${toolName} (${toolMapping.type})`);
+            
+            const newNode: any = {
+              parameters: convertedParams,
+              type: toolMapping.type,
+              typeVersion: toolMapping.typeVersion,
+              position: [baseX, currentY],
+              id: crypto.randomUUID(),
+              name: toolName,
+            };
+            // Remover campos internos de credenciais
+            if (newNode.parameters._credentials) {
+              delete newNode.parameters._credentials;
+            }
+            newToolNodes.push(newNode);
+            currentY += ySpacing;
           }
-          
-          // Criar novo nó apenas se não existe
-          const toolName = toolId.replace(/Tool$/, '').replace(/([A-Z])/g, ' $1').trim();
-          const customParams = customToolsConfig[toolId] || {};
-          
-          const newNode = {
-            parameters: {
-              ...toolConfig.defaultParams,
-              ...customParams,
-            },
-            type: toolConfig.type,
-            typeVersion: toolConfig.typeVersion,
-            position: [baseX, currentY],
-            id: crypto.randomUUID(),
-            name: toolName,
-          };
-          
-          console.log(`n8n-api: Adicionando nova ferramenta: ${toolName} (${toolConfig.type})`);
-          newToolNodes.push(newNode);
-          currentY += ySpacing;
         }
         
-        // 5. Montar array final: TODOS os nós existentes + novas ferramentas
-        const updatedNodes = [...allExistingNodes, ...newToolNodes];
-        console.log(`n8n-api: Total de nós: ${allExistingNodes.length} existentes + ${newToolNodes.length} novas = ${updatedNodes.length}`);
+        // 5. Montar array final de nós
+        const allToolNodes = [...updatedToolNodes, ...newToolNodes];
+        const updatedNodes = [...nonToolNodes, ...allToolNodes];
         
-        // 6. Preservar TODAS as conexões existentes e adicionar novas
+        console.log(`n8n-api: Total de nós: ${nonToolNodes.length} base + ${allToolNodes.length} ferramentas = ${updatedNodes.length}`);
+        
+        // 6. Atualizar conexões
         const updatedConnections = { ...workflow.connections };
         
-        // Adicionar conexões das novas ferramentas ao AI Agent
-        if (agentNodeName && newToolNodes.length > 0) {
-          for (const toolNode of newToolNodes) {
-            const isLangchainTool = toolNode.type.includes('langchain') || toolNode.type.includes('Tool');
-            
-            if (isLangchainTool) {
-              updatedConnections[toolNode.name] = {
-                ai_tool: [[{ node: agentNodeName, type: 'ai_tool', index: 0 }]]
-              };
-              console.log(`n8n-api: Conectando ${toolNode.name} ao ${agentNodeName}`);
+        // Remover conexões antigas de ferramentas gerenciadas que não existem mais
+        const currentToolNames = allToolNodes.map(n => n.name);
+        Object.keys(updatedConnections).forEach(nodeName => {
+          const node = existingManagedNodes.find(n => n.name === nodeName);
+          if (node && !currentToolNames.includes(nodeName)) {
+            delete updatedConnections[nodeName];
+          }
+        });
+        
+        // Adicionar conexões das novas ferramentas Langchain ao AI Agent
+        if (agentNodeName) {
+          for (const toolNode of allToolNodes) {
+            const toolMapping = Object.values(TOOL_TYPE_MAP).find(t => t.type === toolNode.type);
+            if (toolMapping?.isLangchain) {
+              // Ferramentas Langchain conectam via ai_tool
+              if (!updatedConnections[toolNode.name] || !updatedConnections[toolNode.name].ai_tool) {
+                updatedConnections[toolNode.name] = {
+                  ...updatedConnections[toolNode.name],
+                  ai_tool: [[{ node: agentNodeName, type: 'ai_tool', index: 0 }]]
+                };
+                console.log(`n8n-api: Conectando ${toolNode.name} ao ${agentNodeName} via ai_tool`);
+              }
             }
           }
         }
@@ -913,7 +1071,7 @@ serve(async (req) => {
           ...(workflow.settings && { settings: workflow.settings }),
         };
         
-        console.log(`n8n-api: Enviando workflow com ${updatedNodes.length} nós e ${Object.keys(updatedConnections).length} conexões`);
+        console.log(`n8n-api: Enviando workflow com ${updatedNodes.length} nós`);
         const savedWorkflow = await n8nRequest(`/workflows/${workflowId}`, 'PUT', updatePayload);
         
         // 8. Reativar workflow se estava ativo
@@ -932,11 +1090,17 @@ serve(async (req) => {
           message: `Ferramentas sincronizadas com sucesso`,
           workflowId: savedWorkflow.id,
           summary: {
-            totalTools: allExistingNodes.length + newToolNodes.length,
+            totalTools: allToolNodes.length,
             added: newToolNodes.map(t => t.name),
-            existing: allExistingNodes.length,
+            updated: updatedToolNodes.map(t => t.name),
+            baseNodes: nonToolNodes.length,
           },
-          toolNodes: newToolNodes.map(t => ({ name: t.name, type: t.type, id: t.id })),
+          toolNodes: allToolNodes.map(t => ({ 
+            name: t.name, 
+            type: t.type, 
+            id: t.id,
+            hasParams: Object.keys(t.parameters || {}).length > 0
+          })),
         };
         break;
       }
