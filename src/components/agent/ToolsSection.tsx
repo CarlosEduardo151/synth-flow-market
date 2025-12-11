@@ -11,7 +11,6 @@ import {
   Key,
   CheckCircle,
   AlertCircle,
-  ExternalLink,
   Loader2,
   TestTube2,
   Zap,
@@ -32,21 +31,21 @@ interface ToolsSectionProps {
 
 // Credenciais
 const CREDENTIALS = {
-  serpapi_api_key: { name: 'SerpAPI Key', icon: '🔎', placeholder: 'Sua chave SerpAPI', docUrl: 'https://serpapi.com/manage-api-key' },
-  wolfram_alpha_app_id: { name: 'Wolfram Alpha App ID', icon: '🔢', placeholder: 'App ID', docUrl: 'https://developer.wolframalpha.com/portal/myapps/' },
-  gmail_credentials: { name: 'Gmail OAuth', icon: '📧', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
-  google_sheets_credentials: { name: 'Google Sheets OAuth', icon: '📊', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
-  google_calendar_credentials: { name: 'Google Calendar OAuth', icon: '📅', placeholder: 'JSON de credenciais OAuth', docUrl: 'https://docs.n8n.io/integrations/builtin/credentials/google/' },
-  notion_api_key: { name: 'Notion API Key', icon: '📝', placeholder: 'secret_...', docUrl: 'https://www.notion.so/my-integrations' },
-  slack_bot_token: { name: 'Slack Bot Token', icon: '💬', placeholder: 'xoxb-...', docUrl: 'https://api.slack.com/apps' },
-  discord_bot_token: { name: 'Discord Bot Token', icon: '🎮', placeholder: 'Token do bot', docUrl: 'https://discord.com/developers/applications' },
-  telegram_bot_token: { name: 'Telegram Bot Token', icon: '📱', placeholder: 'Token do @BotFather', docUrl: 'https://core.telegram.org/bots#how-do-i-create-a-bot' },
-  whatsapp_api_token: { name: 'WhatsApp Business API', icon: '📲', placeholder: 'Token da API', docUrl: 'https://developers.facebook.com/docs/whatsapp' },
-  airtable_api_key: { name: 'Airtable API Key', icon: '📋', placeholder: 'pat...', docUrl: 'https://airtable.com/create/tokens' },
-  github_token: { name: 'GitHub Token', icon: '🐙', placeholder: 'ghp_...', docUrl: 'https://github.com/settings/tokens' },
-  hubspot_api_key: { name: 'HubSpot API Key', icon: '🧲', placeholder: 'pat-...', docUrl: 'https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key' },
-  stripe_api_key: { name: 'Stripe API Key', icon: '💳', placeholder: 'sk_live_... ou sk_test_...', docUrl: 'https://dashboard.stripe.com/apikeys' },
-  openweather_api_key: { name: 'OpenWeather API Key', icon: '🌤️', placeholder: 'Sua chave API', docUrl: 'https://openweathermap.org/api' },
+  serpapi_api_key: { name: 'SerpAPI Key', icon: '🔎', placeholder: 'Sua chave SerpAPI' },
+  wolfram_alpha_app_id: { name: 'Wolfram Alpha App ID', icon: '🔢', placeholder: 'App ID' },
+  gmail_credentials: { name: 'Gmail OAuth', icon: '📧', placeholder: 'JSON de credenciais OAuth' },
+  google_sheets_credentials: { name: 'Google Sheets OAuth', icon: '📊', placeholder: 'JSON de credenciais OAuth' },
+  google_calendar_credentials: { name: 'Google Calendar OAuth', icon: '📅', placeholder: 'JSON de credenciais OAuth' },
+  notion_api_key: { name: 'Notion API Key', icon: '📝', placeholder: 'secret_...' },
+  slack_bot_token: { name: 'Slack Bot Token', icon: '💬', placeholder: 'xoxb-...' },
+  discord_bot_token: { name: 'Discord Bot Token', icon: '🎮', placeholder: 'Token do bot' },
+  telegram_bot_token: { name: 'Telegram Bot Token', icon: '📱', placeholder: 'Token do @BotFather' },
+  whatsapp_api_token: { name: 'WhatsApp Business API', icon: '📲', placeholder: 'Token da API' },
+  airtable_api_key: { name: 'Airtable API Key', icon: '📋', placeholder: 'pat...' },
+  github_token: { name: 'GitHub Token', icon: '🐙', placeholder: 'ghp_...' },
+  hubspot_api_key: { name: 'HubSpot API Key', icon: '🧲', placeholder: 'pat-...' },
+  stripe_api_key: { name: 'Stripe API Key', icon: '💳', placeholder: 'sk_live_... ou sk_test_...' },
+  openweather_api_key: { name: 'OpenWeather API Key', icon: '🌤️', placeholder: 'Sua chave API' },
 };
 
 // Ferramentas e suas credenciais
@@ -250,21 +249,10 @@ export function ToolsSection({
                     <CollapsibleContent>
                       <div className="px-3 pb-3 pt-0 border-t">
                         <div className="mt-3 p-3 bg-muted/50 rounded-lg space-y-3">
-                          <div className="flex items-center justify-between">
-                            <Label className="flex items-center gap-2 text-sm font-medium">
-                              <span>{credential.icon}</span>
-                              {credential.name}
-                            </Label>
-                            <a 
-                              href={credential.docUrl} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="text-xs text-primary hover:underline flex items-center gap-1"
-                            >
-                              <ExternalLink className="h-3 w-3" />
-                              Obter chave
-                            </a>
-                          </div>
+                          <Label className="flex items-center gap-2 text-sm font-medium">
+                            <span>{credential.icon}</span>
+                            {credential.name}
+                          </Label>
                           
                           <div className="flex gap-2">
                             <Input
