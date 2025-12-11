@@ -1308,25 +1308,41 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
     setSyncingTools(true);
     try {
+      // Preparar configurações completas para envio
+      const fullToolConfigs: Record<string, any> = {};
+      enabledTools.forEach(toolId => {
+        if (toolConfigs[toolId]) {
+          fullToolConfigs[toolId] = toolConfigs[toolId];
+        }
+      });
+
+      console.log('Sincronizando ferramentas:', enabledTools);
+      console.log('Configurações:', fullToolConfigs);
+
       const result = await n8nApiCall('sync_tools', {
         workflowId: config.n8nWorkflowId,
         enabledTools,
-        toolConfigs, // Envia as configurações completas
+        toolsConfig: fullToolConfigs,
       });
 
       if (result.success) {
         const summary = result.summary || {};
         const addedCount = summary.added?.length || 0;
-        const removedCount = summary.removed?.length || 0;
+        const updatedCount = summary.updated?.length || 0;
         const totalTools = summary.totalTools || enabledTools.length;
+        
         toast({
           title: "Ferramentas sincronizadas!",
-          description: `${totalTools} ferramentas no workflow. Adicionadas: ${addedCount}, Removidas: ${removedCount}`,
+          description: `${totalTools} ferramenta(s) no workflow. Adicionadas: ${addedCount}, Atualizadas: ${updatedCount}`,
         });
+
+        // Salvar configurações no banco após sync bem-sucedido
+        await saveConfigToDatabase();
       } else {
         throw new Error(result.error || 'Falha ao sincronizar ferramentas');
       }
     } catch (error: any) {
+      console.error('Erro ao sincronizar ferramentas:', error);
       toast({
         title: "Erro ao sincronizar ferramentas",
         description: error.message || "Não foi possível sincronizar as ferramentas.",
