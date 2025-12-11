@@ -22,7 +22,8 @@ import {
   CheckCircle,
   Calendar,
   MessageCircle,
-  Bot
+  Bot,
+  CreditCard
 } from 'lucide-react';
 import { N8nAgentControl } from '@/components/admin/N8nAgentControl';
 import N8nAgentChat from '@/components/admin/N8nAgentChat';
@@ -121,6 +122,14 @@ const AdminDashboard = () => {
       link: '/admin/agent-config',
       color: 'bg-cyan-500',
       stats: 'Protótipo'
+    },
+    {
+      title: 'Compras StarAI',
+      description: 'Histórico de compras de créditos',
+      icon: CreditCard,
+      link: '/admin/starai-purchases',
+      color: 'bg-violet-500',
+      stats: 'Ver todas'
     }
   ];
 
