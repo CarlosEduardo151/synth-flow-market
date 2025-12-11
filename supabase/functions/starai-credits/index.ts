@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Resend } from 'npm:resend@4.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +17,8 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split('/').filter(Boolean);
@@ -145,6 +148,8 @@ serve(async (req) => {
         external_reference: JSON.stringify({
           type: 'starai_credits',
           user_id: user.id,
+          user_email: customerEmail,
+          user_name: customerName,
           amount_brl: amount_brl,
         }),
         notification_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/starai-credits/webhook`,
@@ -212,6 +217,23 @@ serve(async (req) => {
             if (externalRef.type === 'starai_credits' && externalRef.user_id) {
               const userId = externalRef.user_id;
               const amountBrl = externalRef.amount_brl;
+              const userEmail = externalRef.user_email;
+              const userName = externalRef.user_name;
+
+              // Verificar se já foi processado
+              const { data: existingTx } = await supabaseClient
+                .from('starai_transactions')
+                .select('id')
+                .eq('payment_id', body.data.id.toString())
+                .maybeSingle();
+
+              if (existingTx) {
+                console.log('Payment already processed:', body.data.id);
+                return new Response(
+                  JSON.stringify({ success: true, message: 'Already processed' }),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
 
               // Atualizar créditos do usuário
               const { data: currentCredits } = await supabaseClient
@@ -248,7 +270,106 @@ serve(async (req) => {
                 payment_id: body.data.id.toString(),
               });
 
+              // Registrar compra na tabela de compras
+              await supabaseClient.from('starai_purchases').insert({
+                user_id: userId,
+                user_email: userEmail,
+                user_name: userName,
+                amount_brl: amountBrl,
+                payment_id: body.data.id.toString(),
+                mercadopago_payment_id: body.data.id.toString(),
+                payment_method: paymentData.payment_method_id || 'mercadopago',
+                status: 'approved',
+              });
+
               console.log(`Credits added for user ${userId}: R$ ${amountBrl}`);
+
+              // Enviar email de confirmação
+              if (resendApiKey && userEmail) {
+                try {
+                  const resend = new Resend(resendApiKey);
+                  const now = new Date();
+                  const formattedDate = now.toLocaleDateString('pt-BR', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  });
+
+                  await resend.emails.send({
+                    from: 'StarAI <onboarding@resend.dev>',
+                    to: [userEmail],
+                    subject: '✅ Confirmação de Pagamento - StarAI Credits',
+                    html: `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <meta charset="utf-8">
+                        <style>
+                          body { font-family: 'Segoe UI', Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
+                          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+                          .header { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 30px; text-align: center; }
+                          .header h1 { margin: 0; font-size: 24px; }
+                          .content { padding: 30px; }
+                          .success-badge { background: #10b981; color: white; padding: 8px 16px; border-radius: 20px; display: inline-block; font-weight: bold; margin-bottom: 20px; }
+                          .info-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+                          .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #e2e8f0; }
+                          .info-row:last-child { border-bottom: none; }
+                          .info-label { color: #64748b; }
+                          .info-value { font-weight: 600; color: #1e293b; }
+                          .amount { font-size: 28px; color: #10b981; font-weight: bold; text-align: center; margin: 20px 0; }
+                          .footer { background: #f8fafc; padding: 20px; text-align: center; color: #64748b; font-size: 14px; }
+                        </style>
+                      </head>
+                      <body>
+                        <div class="container">
+                          <div class="header">
+                            <h1>🌟 StarAI Credits</h1>
+                          </div>
+                          <div class="content">
+                            <div class="success-badge">✓ Pagamento Aprovado</div>
+                            <p>Olá <strong>${userName || 'Cliente'}</strong>,</p>
+                            <p>Seu pagamento foi confirmado com sucesso! Os créditos já foram adicionados à sua conta.</p>
+                            
+                            <div class="amount">R$ ${amountBrl.toFixed(2)}</div>
+                            
+                            <div class="info-box">
+                              <div class="info-row">
+                                <span class="info-label">Data do Pagamento</span>
+                                <span class="info-value">${formattedDate}</span>
+                              </div>
+                              <div class="info-row">
+                                <span class="info-label">ID da Transação</span>
+                                <span class="info-value">#${body.data.id}</span>
+                              </div>
+                              <div class="info-row">
+                                <span class="info-label">Método de Pagamento</span>
+                                <span class="info-value">${paymentData.payment_method_id || 'Mercado Pago'}</span>
+                              </div>
+                              <div class="info-row">
+                                <span class="info-label">Email</span>
+                                <span class="info-value">${userEmail}</span>
+                              </div>
+                            </div>
+                            
+                            <p>Agora você pode usar seus créditos para consumir recursos de IA nos seus agentes.</p>
+                            <p>Obrigado por escolher a StarAI! 🚀</p>
+                          </div>
+                          <div class="footer">
+                            <p>Este é um email automático. Por favor, não responda.</p>
+                            <p>© ${now.getFullYear()} StarAI - Todos os direitos reservados</p>
+                          </div>
+                        </div>
+                      </body>
+                      </html>
+                    `,
+                  });
+                  console.log('Confirmation email sent to:', userEmail);
+                } catch (emailError) {
+                  console.error('Error sending email:', emailError);
+                }
+              }
             }
           } catch (e) {
             console.error('Error processing external_reference:', e);
@@ -293,6 +414,52 @@ serve(async (req) => {
 
       return new Response(
         JSON.stringify({ success: true, data: transactions }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // GET /starai-credits/purchases - Lista de compras (admin)
+    if (req.method === 'GET' && action === 'purchases') {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Authorization required' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const token = authHeader.replace('Bearer ', '');
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+      
+      if (authError || !user) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Invalid token' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Verificar se é admin
+      const { data: isAdmin } = await supabaseClient.rpc('is_admin', { user_id: user.id });
+
+      if (!isAdmin) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Access denied' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      const { data: purchases, error } = await supabaseClient
+        .from('starai_purchases')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching purchases:', error);
+        throw error;
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, data: purchases }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

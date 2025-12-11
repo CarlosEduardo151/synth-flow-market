@@ -53,6 +53,7 @@ import AIControlSystem from "./pages/systems/AIControlSystem";
 import SalesAssistantSystem from "./pages/systems/SalesAssistantSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 import AdminAgentConfigPage from "./pages/admin/AdminAgentConfigPage";
+import AdminStaraiPurchasesPage from "./pages/admin/AdminStaraiPurchasesPage";
 
 import NotFound from "./pages/NotFound";
 import { useState } from "react";
@@ -122,6 +123,8 @@ const App = () => (
               <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
               <Route path="/admin/whatsapp-leads" element={<AdminWhatsAppLeadsPage />} />
               <Route path="/admin/agent-config" element={<AdminAgentConfigPage />} />
+              <Route path="/admin/starai-purchases" element={<AdminStaraiPurchasesPage />} />
+              <Route path="/admin/tickets" element={<AdminTicketsPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />
