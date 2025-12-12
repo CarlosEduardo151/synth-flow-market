@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
@@ -647,6 +647,52 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   useEffect(() => {
     loadConfigFromDatabase();
   }, []);
+
+  // Auto-save com debounce
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstRender = useRef(true);
+  const [autoSaving, setAutoSaving] = useState(false);
+
+  const autoSave = useCallback(async () => {
+    if (!configLoaded || !customerProductId) return;
+    
+    setAutoSaving(true);
+    try {
+      await saveConfigToDatabase();
+    } catch (error) {
+      console.error('Auto-save error:', error);
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [configLoaded, customerProductId, config, toolCredentials]);
+
+  // Observar mudanças no config e salvar automaticamente
+  useEffect(() => {
+    // Não salvar na primeira renderização (quando carrega do banco)
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
+    // Não salvar se ainda não carregou
+    if (!configLoaded) return;
+
+    // Limpar timeout anterior
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+
+    // Debounce de 1 segundo
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave();
+    }, 1000);
+
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [config, toolCredentials, configLoaded]);
 
   const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
     const { data, error } = await supabase.functions.invoke('n8n-api', {
@@ -1494,9 +1540,12 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                    agentStatus === 'loading' ? 'Processando...' : 'Desconhecido'}
                 </span>
               </div>
+              {autoSaving && (
+                <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>
+              )}
               <Button onClick={handleSave} disabled={loading}>
                 <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Salvando...' : 'Salvar e Sincronizar'}
+                {loading ? 'Sincronizando...' : 'Sincronizar'}
               </Button>
             </div>
           </div>
