@@ -51,6 +51,8 @@ import FinancialReportsSystem from "./pages/systems/FinancialReportsSystem";
 import LoyaltySystem from "./pages/systems/LoyaltySystem";
 import AIControlSystem from "./pages/systems/AIControlSystem";
 import SalesAssistantSystem from "./pages/systems/SalesAssistantSystem";
+import BotsAutomacaoSystem from "./pages/systems/BotsAutomacaoSystem";
+import WhatsAppBotConfigSystem from "./pages/systems/WhatsAppBotConfigSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 import AdminAgentConfigPage from "./pages/admin/AdminAgentConfigPage";
 import AdminStaraiPurchasesPage from "./pages/admin/AdminStaraiPurchasesPage";
@@ -109,6 +111,8 @@ const App = () => (
               <Route path="/sistema/fidelidade-digital/:productId" element={<LoyaltySystem />} />
               <Route path="/sistema/ai-control/:productId" element={<AIControlSystem />} />
               <Route path="/sistema/assistente-vendas" element={<SalesAssistantSystem />} />
+              <Route path="/sistema/bots-automacao" element={<BotsAutomacaoSystem />} />
+              <Route path="/sistema/bots-automacao/whatsapp/:productId" element={<WhatsAppBotConfigSystem />} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />
