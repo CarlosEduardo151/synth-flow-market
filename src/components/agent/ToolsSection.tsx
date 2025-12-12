@@ -312,7 +312,7 @@ export function ToolsSection({
           ) : (
             <>
               <Zap className="mr-2 h-4 w-4" />
-              Sincronizar {toolsEnabled.length} Ferramenta(s) com n8n
+              Sincronizar {toolsEnabled.length} Ferramenta(s)
             </>
           )}
         </Button>

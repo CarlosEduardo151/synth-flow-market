@@ -39,7 +39,7 @@ const N8nAgentChat = () => {
       setAgentEstado(savedEstado);
     }
     
-    // Listen for estado changes from N8nAgentControl
+    // Listen for estado changes from AgentControl
     const handleEstadoChange = (event: CustomEvent<{ estado: AgentEstado }>) => {
       setAgentEstado(event.detail.estado);
       localStorage.setItem('agentEstado', event.detail.estado);
@@ -111,7 +111,7 @@ const N8nAgentChat = () => {
           })
         });
       } catch (e) {
-        console.log('n8n webhook call failed (may be expected):', e);
+        console.log('Webhook call failed (may be expected):', e);
       }
     }
 
@@ -167,7 +167,7 @@ const N8nAgentChat = () => {
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
-            Chat com AI Agent (n8n)
+            Chat com Agente de IA
           </CardTitle>
           <Button variant="outline" size="sm" onClick={loadMessages}>
             <RefreshCw className="h-4 w-4" />
@@ -176,7 +176,7 @@ const N8nAgentChat = () => {
         
         {/* Webhook URL display */}
         <div className="mt-2 p-3 bg-muted rounded-lg">
-          <p className="text-xs text-muted-foreground mb-1">URL para n8n enviar mensagens:</p>
+          <p className="text-xs text-muted-foreground mb-1">URL para enviar mensagens:</p>
           <div className="flex items-center gap-2">
             <code className="text-xs bg-background p-2 rounded flex-1 overflow-x-auto">
               {webhookUrl}
@@ -198,7 +198,7 @@ const N8nAgentChat = () => {
               <div className="text-center text-muted-foreground py-8">
                 <Bot className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>Nenhuma mensagem ainda.</p>
-                <p className="text-xs">Configure o n8n para enviar mensagens para a URL acima.</p>
+                <p className="text-xs">Configure o sistema para enviar mensagens para a URL acima.</p>
               </div>
             ) : (
               messages.map((msg) => (

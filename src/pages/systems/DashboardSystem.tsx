@@ -248,7 +248,7 @@ const DashboardSystem = () => {
   const copyWebhookUrl = () => {
     if (config?.webhook_url) {
       navigator.clipboard.writeText(config.webhook_url);
-      toast({ title: "URL copiada!", description: "Cole no seu n8n" });
+      toast({ title: "URL copiada!", description: "Cole no seu sistema de automação" });
     }
   };
 
@@ -868,8 +868,8 @@ const DashboardSystem = () => {
         {config?.webhook_url && (
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle>Integração via Webhook (n8n)</CardTitle>
-              <CardDescription>Configure o n8n para enviar dados automaticamente para este dashboard</CardDescription>
+              <CardTitle>Integração via Webhook</CardTitle>
+              <CardDescription>Configure para enviar dados automaticamente para este dashboard</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
@@ -908,7 +908,7 @@ const DashboardSystem = () => {
               </div>
 
               <div className="text-xs text-muted-foreground">
-                <p>💡 <strong>Dica:</strong> No n8n, use um nó HTTP Request configurado como POST para este endpoint.</p>
+                <p>💡 <strong>Dica:</strong> Use uma requisição HTTP POST para este endpoint.</p>
                 <p className="mt-1">Os dados serão atualizados automaticamente no dashboard em tempo real.</p>
               </div>
             </CardContent>

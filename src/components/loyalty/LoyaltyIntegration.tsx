@@ -107,10 +107,10 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
       <div>
         <h2 className="text-2xl font-bold flex items-center gap-2">
           <Webhook className="w-6 h-6 text-primary" />
-          Integração via HTTP Request (n8n)
+          Integração via HTTP Request
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Configure webhooks para integrar com n8n e automatizar operações
+          Configure webhooks para automatizar operações de fidelidade
         </p>
       </div>
 
@@ -126,7 +126,7 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
         <CardHeader>
           <CardTitle>URL do Webhook de Entrada</CardTitle>
           <CardDescription>
-            Use esta URL no n8n para enviar dados ao sistema de fidelidade
+            Use esta URL para enviar dados ao sistema de fidelidade
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -210,13 +210,13 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label htmlFor="webhook_url">URL do seu Webhook n8n</Label>
+            <Label htmlFor="webhook_url">URL do seu Webhook de Saída</Label>
             <Input
               id="webhook_url"
               type="url"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://seu-n8n.com/webhook/..."
+              placeholder="https://seu-webhook.com/..."
             />
             <p className="text-xs text-muted-foreground mt-1">
               O sistema enviará notificações para esta URL quando houver novas transações
@@ -250,8 +250,8 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
                 2
               </div>
               <div className="flex-1">
-                <p className="font-semibold">Z-API → n8n</p>
-                <p className="text-muted-foreground">n8n processa e formata dados</p>
+                <p className="font-semibold">Z-API → Automação</p>
+                <p className="text-muted-foreground">Sistema processa e formata dados</p>
               </div>
             </div>
             
@@ -260,7 +260,7 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
                 3
               </div>
               <div className="flex-1">
-                <p className="font-semibold">n8n → Sistema de Fidelidade</p>
+                <p className="font-semibold">Automação → Sistema de Fidelidade</p>
                 <p className="text-muted-foreground">HTTP Request para o webhook acima</p>
               </div>
             </div>
@@ -284,9 +284,9 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
         </CardHeader>
         <CardContent className="space-y-2">
           <Button variant="outline" className="w-full justify-start" asChild>
-            <a href="https://n8n.io/integrations/webhook" target="_blank" rel="noopener noreferrer">
+            <a href="https://docs.starai.com.br/webhooks" target="_blank" rel="noopener noreferrer">
               <ExternalLink className="w-4 h-4 mr-2" />
-              Documentação n8n Webhooks
+              Documentação de Webhooks
             </a>
           </Button>
           <Button variant="outline" className="w-full justify-start" asChild>

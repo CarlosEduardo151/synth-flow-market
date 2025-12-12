@@ -56,7 +56,7 @@ export function N8nAgentControl({
         setStatus({ type: 'success', message: data.message });
         toast.success(data.message);
         
-        // Dispatch event to notify N8nAgentChat about estado change
+        // Dispatch event to notify AgentChat about estado change
         const estadoMap: Record<ActionType, string> = {
           'ativar': 'ativado',
           'desativar': 'desativado',
@@ -115,10 +115,10 @@ export function N8nAgentControl({
       <CardHeader className="text-center">
         <div className="flex items-center justify-center gap-2 mb-2">
           <Bot className="h-6 w-6 text-primary" />
-          <CardTitle className="text-xl">Gerenciamento do Agente de Automação n8n</CardTitle>
+          <CardTitle className="text-xl">Gerenciamento do Agente de Automação</CardTitle>
         </div>
         <CardDescription>
-          Controle o workflow de automação e integre com n8n
+          Controle o workflow de automação
         </CardDescription>
       </CardHeader>
       
@@ -138,14 +138,14 @@ export function N8nAgentControl({
         <div className="space-y-3">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <ExternalLink className="h-4 w-4" />
-            URLs para configurar no n8n
+            URLs de Integração
           </h3>
           
-          {/* Webhook URL - n8n calls this */}
+          {/* Webhook URL */}
           <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
-                URL do Webhook (n8n → Supabase)
+                URL do Webhook (Entrada de Dados)
               </span>
               <Button
                 size="sm"
@@ -161,15 +161,15 @@ export function N8nAgentControl({
               {webhookUrl}
             </code>
             <p className="text-xs text-muted-foreground">
-              Use esta URL no node "HTTP Request" do n8n para enviar dados para o Supabase.
+              Use esta URL para enviar dados para o sistema.
             </p>
           </div>
 
-          {/* Control URL - to control n8n */}
+          {/* Control URL */}
           <div className="p-3 rounded-lg bg-muted/50 border border-border space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
-                URL de Controle (Supabase → n8n)
+                URL de Controle
               </span>
               <Button
                 size="sm"
@@ -185,7 +185,7 @@ export function N8nAgentControl({
               {controlUrl}
             </code>
             <p className="text-xs text-muted-foreground">
-              Esta URL é usada internamente para enviar comandos ao n8n.
+              Esta URL é usada internamente para enviar comandos ao agente.
             </p>
           </div>
         </div>
@@ -268,11 +268,11 @@ export function N8nAgentControl({
         {/* Help Alert */}
         <Alert>
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Como configurar no n8n</AlertTitle>
+          <AlertTitle>Como configurar</AlertTitle>
           <AlertDescription className="text-xs space-y-1">
-            <p>1. Crie um workflow com um node <strong>Webhook</strong> para receber comandos (ligar/desligar/reiniciar)</p>
-            <p>2. Use um node <strong>HTTP Request</strong> para enviar status/logs para a URL do Webhook acima</p>
-            <p>3. Configure o Header: <code className="bg-muted px-1 rounded">x-n8n-token</code> com seu token de segurança</p>
+            <p>1. Configure um workflow para receber comandos (ligar/desligar/reiniciar)</p>
+            <p>2. Use requisições HTTP para enviar status/logs para a URL do Webhook acima</p>
+            <p>3. Configure o Header de autenticação com seu token de segurança</p>
           </AlertDescription>
         </Alert>
       </CardContent>
