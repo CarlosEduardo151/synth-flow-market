@@ -1075,7 +1075,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
             <TabsTrigger value="status" className="gap-2">
               <Power className="h-4 w-4" />
               <span className="hidden sm:inline">Status</span>
@@ -1095,6 +1095,10 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
             <TabsTrigger value="tools" className="gap-2">
               <Plug className="h-4 w-4" />
               <span className="hidden sm:inline">Ferramentas</span>
+            </TabsTrigger>
+            <TabsTrigger value="monitoring" className="gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Monitoramento</span>
             </TabsTrigger>
           </TabsList>
 
@@ -1801,6 +1805,25 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               syncing={syncingTools}
               workflowId={config.n8nWorkflowId}
             />
+          </TabsContent>
+
+          {/* MONITORAMENTO */}
+          <TabsContent value="monitoring" className="space-y-6">
+            {config.n8nWorkflowId ? (
+              <TokenUsageStats workflowId={config.n8nWorkflowId} />
+            ) : (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center py-8">
+                    <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-medium mb-2">Monitoramento não disponível</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Selecione um workflow na aba Status para ver as estatísticas de uso.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </main>
