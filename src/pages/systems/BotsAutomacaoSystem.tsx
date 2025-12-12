@@ -43,18 +43,21 @@ const BotsAutomacaoSystem = () => {
 
     try {
       // Check if user has access to this product
-      const { data: product, error } = await supabase
+      const { data: products, error } = await supabase
         .from('customer_products')
         .select('*')
         .eq('user_id', user.id)
         .eq('product_slug', 'bots-automacao')
         .eq('is_active', true)
-        .single();
+        .order('delivered_at', { ascending: false })
+        .limit(1);
 
-      if (error || !product) {
+      if (error || !products || products.length === 0) {
         navigate('/meus-produtos');
         return;
       }
+
+      const product = products[0];
 
       setCustomerProduct(product);
 
