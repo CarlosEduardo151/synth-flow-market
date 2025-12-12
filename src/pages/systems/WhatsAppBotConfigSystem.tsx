@@ -5,7 +5,8 @@ import {
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, Shield, Database, Pencil, Check,
   ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
-  ChevronDown, ChevronRight, Key, TestTube2, BarChart3, MessageCircle
+  ChevronDown, ChevronRight, Key, TestTube2, BarChart3, MessageCircle,
+  Sparkles, Wallet, TrendingUp, Gift, Zap, CreditCard, ArrowRight
 } from 'lucide-react';
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -1337,80 +1338,168 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   {/* Sistema de Créditos StarAI */}
                   {config.provider === 'starai' ? (
                     <div className="space-y-4">
-                      <div className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/30">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
-                            <span className="text-xl">⭐</span> Créditos StarAI
-                          </span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={loadStaraiCredits}
-                            disabled={loadingCredits}
-                            className="h-7 w-7"
-                          >
-                            <RefreshCw className={`h-4 w-4 ${loadingCredits ? 'animate-spin' : ''}`} />
-                          </Button>
+                      {/* Header com Logo StarAI */}
+                      <div className="relative overflow-hidden rounded-xl border border-amber-500/30 bg-gradient-to-br from-amber-500/5 via-orange-500/10 to-amber-600/5">
+                        {/* Background Pattern */}
+                        <div className="absolute inset-0 opacity-5">
+                          <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500 rounded-full blur-3xl" />
+                          <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500 rounded-full blur-3xl" />
                         </div>
                         
-                        {loadingCredits ? (
-                          <div className="flex items-center justify-center py-6">
-                            <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
-                          </div>
-                        ) : (
-                          <>
-                            <div className="grid grid-cols-2 gap-4 mb-4">
-                              <div className="text-center p-3 bg-background/50 rounded-lg">
-                                <p className="text-2xl font-bold text-primary">
-                                  R$ {staraiCredits.balanceBRL.toFixed(2)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">Saldo Total</p>
+                        <div className="relative p-5">
+                          {/* Logo e Título */}
+                          <div className="flex items-center justify-between mb-5">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                                  <Sparkles className="h-6 w-6 text-white" />
+                                </div>
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background flex items-center justify-center">
+                                  <Check className="h-2.5 w-2.5 text-white" />
+                                </div>
                               </div>
-                              <div className="text-center p-3 bg-background/50 rounded-lg">
-                                <p className="text-2xl font-bold text-green-600">
-                                  R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                              <div>
+                                <h3 className="font-bold text-lg bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                                  StarAI Credits
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                  Infraestrutura gerenciada
                                 </p>
-                                <p className="text-xs text-muted-foreground">Bônus Grátis</p>
                               </div>
                             </div>
-
-                            {staraiCredits.balanceBRL === 0 && (
-                              <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
-                                <p className="text-sm text-green-700 dark:text-green-400">
-                                  🎁 <strong>R$ 75,00 por conta da casa!</strong>
-                                </p>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Equivalente a $15 USD para você começar
-                                </p>
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <div className="space-y-2">
-                          <Label>Adicionar Créditos (R$)</Label>
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              value={depositAmount}
-                              onChange={(e) => setDepositAmount(Number(e.target.value))}
-                              min={10}
-                              step={10}
-                              placeholder="50"
-                              className="flex-1"
-                              disabled={processingDeposit}
-                            />
-                            <Button 
-                              variant="default"
-                              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                              onClick={handleStaraiDeposit}
-                              disabled={processingDeposit || depositAmount < 10}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={loadStaraiCredits}
+                              disabled={loadingCredits}
+                              className="h-8 w-8 hover:bg-amber-500/10"
                             >
-                              {processingDeposit ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : null}
-                              {processingDeposit ? 'Processando...' : 'Depositar'}
+                              <RefreshCw className={`h-4 w-4 ${loadingCredits ? 'animate-spin text-amber-500' : 'text-muted-foreground'}`} />
                             </Button>
+                          </div>
+                          
+                          {loadingCredits ? (
+                            <div className="flex items-center justify-center py-8">
+                              <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+                                <span className="text-sm text-muted-foreground">Carregando saldo...</span>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Cards de Saldo */}
+                              <div className="grid grid-cols-2 gap-3 mb-4">
+                                <div className="relative p-4 bg-background/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Wallet className="h-4 w-4 text-amber-500" />
+                                    <span className="text-xs font-medium text-muted-foreground">Saldo Total</span>
+                                  </div>
+                                  <p className="text-2xl font-bold text-foreground">
+                                    R$ {staraiCredits.balanceBRL.toFixed(2)}
+                                  </p>
+                                  <div className="absolute top-2 right-2 w-8 h-8 bg-amber-500/10 rounded-full flex items-center justify-center">
+                                    <TrendingUp className="h-4 w-4 text-amber-500" />
+                                  </div>
+                                </div>
+                                <div className="relative p-4 bg-background/80 backdrop-blur-sm rounded-xl border border-border/50 shadow-sm">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <Gift className="h-4 w-4 text-green-500" />
+                                    <span className="text-xs font-medium text-muted-foreground">Bônus Grátis</span>
+                                  </div>
+                                  <p className="text-2xl font-bold text-green-600">
+                                    R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                                  </p>
+                                  <div className="absolute top-2 right-2 w-8 h-8 bg-green-500/10 rounded-full flex items-center justify-center">
+                                    <Zap className="h-4 w-4 text-green-500" />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Stats Row */}
+                              <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg mb-4">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <CreditCard className="h-4 w-4" />
+                                  <span>Depositado: R$ {(staraiCredits as any).depositedBRL?.toFixed(2) || '0.00'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <BarChart3 className="h-4 w-4" />
+                                  <span>Usado: R$ {(staraiCredits as any).totalUsedBRL?.toFixed(2) || '0.00'}</span>
+                                </div>
+                              </div>
+
+                              {/* Bônus Welcome */}
+                              {staraiCredits.balanceBRL === 0 && (
+                                <div className="p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-xl border border-green-500/20 mb-4">
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                                      <Gift className="h-5 w-5 text-green-500" />
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-green-700 dark:text-green-400">
+                                        🎁 R$ 75,00 por conta da casa!
+                                      </p>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Equivalente a $15 USD para você começar sem gastar nada
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* Adicionar Créditos */}
+                          <div className="space-y-3 pt-2 border-t border-border/50">
+                            <div className="flex items-center justify-between">
+                              <Label className="flex items-center gap-2 text-sm font-medium">
+                                <Plus className="h-4 w-4 text-amber-500" />
+                                Adicionar Créditos
+                              </Label>
+                              <span className="text-xs text-muted-foreground">Mín. R$ 10,00</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">R$</span>
+                                <Input
+                                  type="number"
+                                  value={depositAmount}
+                                  onChange={(e) => setDepositAmount(Number(e.target.value))}
+                                  min={10}
+                                  step={10}
+                                  placeholder="50"
+                                  className="pl-10"
+                                  disabled={processingDeposit}
+                                />
+                              </div>
+                              <Button 
+                                className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-500/25 hover:shadow-amber-500/40 transition-all"
+                                onClick={handleStaraiDeposit}
+                                disabled={processingDeposit || depositAmount < 10}
+                              >
+                                {processingDeposit ? (
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                ) : (
+                                  <ArrowRight className="h-4 w-4 mr-2" />
+                                )}
+                                {processingDeposit ? 'Processando...' : 'Depositar'}
+                              </Button>
+                            </div>
+                            
+                            {/* Quick amounts */}
+                            <div className="flex gap-2">
+                              {[25, 50, 100, 200].map((amount) => (
+                                <Button
+                                  key={amount}
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1 text-xs hover:bg-amber-500/10 hover:border-amber-500/50"
+                                  onClick={() => setDepositAmount(amount)}
+                                >
+                                  R$ {amount}
+                                </Button>
+                              ))}
+                            </div>
                           </div>
                         </div>
                       </div>
