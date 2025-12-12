@@ -20,6 +20,7 @@ export type Database = {
           ai_credentials: Json | null
           ai_model: string | null
           auto_restart: boolean | null
+          business_name: string | null
           configuration: Json | null
           created_at: string | null
           current_requests_count: number | null
@@ -44,6 +45,7 @@ export type Database = {
           ai_credentials?: Json | null
           ai_model?: string | null
           auto_restart?: boolean | null
+          business_name?: string | null
           configuration?: Json | null
           created_at?: string | null
           current_requests_count?: number | null
@@ -68,6 +70,7 @@ export type Database = {
           ai_credentials?: Json | null
           ai_model?: string | null
           auto_restart?: boolean | null
+          business_name?: string | null
           configuration?: Json | null
           created_at?: string | null
           current_requests_count?: number | null

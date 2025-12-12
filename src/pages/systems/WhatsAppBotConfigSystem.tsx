@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
-  Power, RefreshCw, Wifi, WifiOff, Shield, Database,
+  Power, RefreshCw, Wifi, WifiOff, Shield, Database, Pencil, Check,
   ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
   ChevronDown, ChevronRight, Key, TestTube2, BarChart3, MessageCircle
 } from 'lucide-react';
@@ -83,6 +83,7 @@ interface AgentConfig {
   actionInstructions: ActionInstruction[];
   enableWebSearch: boolean;
   enabledTools: string[];
+  businessName: string;
 }
 
 const COMMUNICATION_TONES: Record<CommunicationTone, { emoji: string; label: string; desc: string; color: string; instruction: string }> = {
@@ -268,7 +269,10 @@ COMO AJUDAR:
     ],
     enableWebSearch: false,
     enabledTools: ['httpRequestTool', 'calculatorTool'],
+    businessName: 'Meu Negócio',
   });
+
+  const [editingBusinessName, setEditingBusinessName] = useState(false);
 
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
@@ -369,6 +373,7 @@ COMO AJUDAR:
           actionInstructions,
           sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
           enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
+          businessName: (configData as any).business_name || 'Meu Negócio',
         }));
 
         if (configData.ai_credentials) {
@@ -426,6 +431,7 @@ COMO AJUDAR:
           platform: 'whatsapp',
           configured_at: new Date().toISOString(),
         },
+        business_name: config.businessName,
         updated_at: new Date().toISOString(),
       };
 
@@ -959,9 +965,42 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                   <MessageCircle className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">Bot WhatsApp</h1>
+                  {editingBusinessName ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={config.businessName}
+                        onChange={(e) => setConfig(prev => ({ ...prev, businessName: e.target.value }))}
+                        className="h-8 text-xl font-bold w-48"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') setEditingBusinessName(false);
+                          if (e.key === 'Escape') setEditingBusinessName(false);
+                        }}
+                      />
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => setEditingBusinessName(false)}
+                      >
+                        <Check className="h-4 w-4 text-green-500" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 group">
+                      <h1 className="text-xl font-bold">{config.businessName}</h1>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setEditingBusinessName(true)}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>Configuração do Agente IA</span>
+                    <span>Bot WhatsApp • Configuração do Agente IA</span>
                     {n8nConnected === true && (
                       <Badge variant="outline" className="text-green-500 border-green-500">
                         <CheckCircle2 className="h-3 w-3 mr-1" />
