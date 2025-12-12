@@ -1420,7 +1420,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
         } else if (dbSaved) {
           toast({
             title: "Salvo no banco de dados",
-            description: "Configurações salvas, mas falha ao sincronizar com n8n.",
+            description: "Configurações salvas, mas falha ao sincronizar com o workflow.",
           });
         } else {
           toast({
@@ -1433,7 +1433,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
         if (dbSaved) {
           toast({
             title: "Configurações salvas!",
-            description: "Salvo permanentemente. Selecione um workflow para sincronizar com n8n.",
+            description: "Salvo permanentemente. Selecione um workflow para sincronizar.",
           });
         }
       }
@@ -2095,7 +2095,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                     ) : (
                       <Send className="h-4 w-4" />
                     )}
-                    {syncingMemory ? 'Configurando...' : 'Sincronizar Memória com n8n'}
+                    {syncingMemory ? 'Configurando...' : 'Sincronizar Memória'}
                   </Button>
 
                   {!config.n8nWorkflowId && (
@@ -2180,7 +2180,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 
                 {/* Preview do tom selecionado */}
                 <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
-                  <p className="text-xs text-muted-foreground mb-1">Instrução que será enviada ao n8n:</p>
+                  <p className="text-xs text-muted-foreground mb-1">Instrução que será aplicada ao agente:</p>
                   <p className="text-sm italic">{COMMUNICATION_TONES[config.communicationTone].instruction}</p>
                 </div>
               </CardContent>
@@ -2323,7 +2323,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       <p className="font-semibold">
                         {agentStatus === 'online' ? 'Online' : 'Offline'}
                       </p>
-                      <p className="text-xs text-muted-foreground">n8n Workflow</p>
+                      <p className="text-xs text-muted-foreground">Workflow</p>
                     </div>
                   </div>
                 </CardContent>
