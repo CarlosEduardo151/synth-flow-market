@@ -528,7 +528,38 @@ COMO AJUDAR:
     try {
       const result = await n8nApiCall('list_workflows', { limit: 100 });
       if (result.success) {
-        setWorkflows(result.workflows);
+        const isAdmin = user?.email === 'caduxim0@gmail.com';
+        
+        if (isAdmin) {
+          // Admin vê todos os workflows
+          setWorkflows(result.workflows);
+        } else {
+          // Cliente só vê o workflow que foi criado para ele
+          // Buscar o n8n_workflow_id do customer_products
+          const { data: customerProduct } = await supabase
+            .from('customer_products')
+            .select('n8n_workflow_id')
+            .eq('id', productId)
+            .single();
+          
+          const clientWorkflowId = customerProduct?.n8n_workflow_id;
+          
+          if (clientWorkflowId) {
+            // Filtrar apenas o workflow do cliente
+            const filteredWorkflows = result.workflows.filter(
+              (w: N8nWorkflow) => w.id === clientWorkflowId
+            );
+            setWorkflows(filteredWorkflows);
+            
+            // Se o cliente tem um workflow, seleciona automaticamente
+            if (filteredWorkflows.length > 0) {
+              setConfig(prev => ({ ...prev, n8nWorkflowId: clientWorkflowId }));
+            }
+          } else {
+            // Cliente não tem workflow ainda
+            setWorkflows([]);
+          }
+        }
       }
     } catch (error: any) {
       console.error('Error loading workflows:', error);
