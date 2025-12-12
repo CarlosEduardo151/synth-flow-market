@@ -798,7 +798,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                   ) : (
                     <>
                       <RefreshCw className="mr-2 h-3 w-3" />
-                      Sincronizar com n8n
+                      Sincronizar
                     </>
                   )}
                 </Button>
@@ -845,7 +845,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
                   <div>
                     <p className="font-medium text-green-600">Sincronização Automática</p>
                     <p className="text-sm text-muted-foreground">
-                      As credenciais de IA são sincronizadas automaticamente com o n8n quando você clica em "Sincronizar com n8n".
+                      As credenciais de IA são sincronizadas automaticamente quando você clica em "Sincronizar".
                       Isso configura os modelos no workflow sem necessidade de configuração manual.
                     </p>
                   </div>
@@ -938,7 +938,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
           ) : (
             <>
               <Zap className="mr-2 h-4 w-4" />
-              Sincronizar com n8n
+              Sincronizar Configurações
             </>
           )}
         </Button>

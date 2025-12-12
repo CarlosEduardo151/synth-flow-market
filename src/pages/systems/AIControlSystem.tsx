@@ -165,13 +165,13 @@ const AIControlSystem = () => {
           event: 'test',
           timestamp: new Date().toISOString(),
           product_id: productId,
-          message: 'Teste de conexão com n8n'
+          message: 'Teste de conexão'
         }),
       });
 
       toast({
         title: "Webhook testado",
-        description: "Verifique o histórico do seu workflow no n8n para confirmar o recebimento.",
+        description: "Verifique o histórico do seu workflow para confirmar o recebimento.",
       });
     } catch (error) {
       console.error('Error testing webhook:', error);
@@ -189,7 +189,7 @@ const AIControlSystem = () => {
     if (!webhookUrl) {
       toast({
         title: "Configure o webhook",
-        description: "Você precisa configurar a URL do n8n primeiro.",
+        description: "Você precisa configurar a URL do webhook primeiro.",
         variant: "destructive",
       });
       return;
@@ -254,7 +254,7 @@ const AIControlSystem = () => {
                 Controle de IA
               </h1>
               <p className="text-muted-foreground">
-                Gerencie sua IA via n8n - Pause, ative e controle tudo remotamente
+                Gerencie sua IA - Pause, ative e controle tudo remotamente
               </p>
             </div>
           </div>
@@ -292,7 +292,7 @@ const AIControlSystem = () => {
                 <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                   <BarChart3 className="h-12 w-12 mb-4 opacity-50" />
                   <p className="text-lg font-medium">Workflow não configurado</p>
-                  <p className="text-sm">Configure um workflow n8n para visualizar as estatísticas de uso.</p>
+                  <p className="text-sm">Configure um workflow para visualizar as estatísticas de uso.</p>
                 </CardContent>
               </Card>
             )}
@@ -303,10 +303,10 @@ const AIControlSystem = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Webhook className="h-5 w-5" />
-                  Webhook n8n
+                  Configuração de Webhook
                 </CardTitle>
                 <CardDescription>
-                  Configure a URL do webhook do seu workflow no n8n
+                  Configure a URL do webhook do seu workflow
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -315,7 +315,7 @@ const AIControlSystem = () => {
                   <div className="flex gap-2">
                     <Input
                       id="webhook-url"
-                      placeholder="https://seu-n8n.com/webhook/sua-url"
+                      placeholder="https://seu-servidor.com/webhook/sua-url"
                       value={webhookUrl}
                       onChange={(e) => setWebhookUrl(e.target.value)}
                     />
@@ -333,7 +333,7 @@ const AIControlSystem = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Cole aqui a URL do webhook que você criou no n8n
+                    Cole aqui a URL do webhook do seu sistema de automação
                   </p>
                 </div>
 

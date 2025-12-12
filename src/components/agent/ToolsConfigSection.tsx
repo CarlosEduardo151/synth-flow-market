@@ -1079,7 +1079,7 @@ export function ToolsConfigSection({
           ) : (
             <>
               <Zap className="mr-2 h-4 w-4" />
-              Sincronizar com n8n
+              Sincronizar Ferramentas
             </>
           )}
         </Button>
