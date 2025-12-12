@@ -1539,10 +1539,10 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <ServerCog className="h-5 w-5 text-primary" />
-                    Conexão com n8n
+                    Conexão com Motor de Automação
                   </CardTitle>
                   <CardDescription>
-                    Status da integração com sua instância n8n
+                    Status da integração com o motor de automação
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1565,7 +1565,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                            n8nConnected === false ? 'Desconectado' : 'Verificando...'}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          https://n8n.starai.com.br
+                          Motor de Automação StarAI
                         </p>
                       </div>
                     </div>
@@ -1598,7 +1598,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                     Selecionar Workflow
                   </CardTitle>
                   <CardDescription>
-                    Escolha o workflow do agente no n8n
+                    Escolha o workflow do agente
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -1654,7 +1654,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                         onClick={() => window.open(`https://n8n.starai.com.br/workflow/${selectedWorkflow.id}`, '_blank')}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Abrir no n8n
+                        Abrir Editor de Workflow
                       </Button>
                     </div>
                   )}
@@ -1689,7 +1689,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                       <div>
                         <Label className="text-lg font-semibold">Agente Ativo</Label>
                         <p className="text-sm text-muted-foreground">
-                          {config.isActive ? 'O workflow está ativo no n8n' : 'O workflow está desativado'}
+                          {config.isActive ? 'O workflow está ativo' : 'O workflow está desativado'}
                         </p>
                       </div>
                     </div>

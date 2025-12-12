@@ -233,7 +233,7 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        {/* N8n Agent Control Section */}
+        {/* Agent Control Section */}
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-4">

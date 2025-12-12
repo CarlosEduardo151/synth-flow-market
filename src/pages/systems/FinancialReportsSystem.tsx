@@ -666,7 +666,7 @@ const FinancialReportsSystem = () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <PieChart className="h-5 w-5" />
-                Integração com n8n via HTTP Request
+                Integração via HTTP Request
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -708,7 +708,7 @@ const FinancialReportsSystem = () => {
               </div>
 
               <div className="border-t pt-4">
-                <label className="text-sm font-medium mb-2 block">Configuração do HTTP Request no n8n:</label>
+                <label className="text-sm font-medium mb-2 block">Configuração do HTTP Request:</label>
                 <div className="bg-muted p-4 rounded-lg space-y-2">
                   <p className="text-sm"><strong>Método:</strong> POST</p>
                   <p className="text-sm"><strong>URL:</strong> Cole a URL acima</p>

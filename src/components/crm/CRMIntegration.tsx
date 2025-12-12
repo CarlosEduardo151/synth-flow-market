@@ -91,7 +91,7 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Integração com Agente de IA</CardTitle>
-              <CardDescription>Configure o webhook para receber dados automaticamente do n8n</CardDescription>
+              <CardDescription>Configure o webhook para receber dados automaticamente</CardDescription>
             </div>
             {isActive && (
               <Badge className="bg-green-500">
@@ -103,7 +103,7 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Endpoint do Webhook (Use esta URL exclusiva no n8n)</Label>
+            <Label>Endpoint do Webhook (Use esta URL exclusiva)</Label>
             <div className="flex gap-2">
               <Input value={endpointUrl} readOnly className="font-mono text-sm" />
               <Button
@@ -116,7 +116,7 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Configure o n8n para enviar requisições HTTP POST para este endpoint
+              Configure para enviar requisições HTTP POST para este endpoint
             </p>
             <p className="text-xs text-amber-600 dark:text-amber-400">
               ⚠️ Esta URL contém seu token exclusivo. Não compartilhe publicamente.
@@ -124,14 +124,14 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
           </div>
 
           <div className="space-y-2">
-            <Label>URL do seu Webhook n8n (opcional)</Label>
+            <Label>URL do seu Webhook (opcional)</Label>
             <Input
-              placeholder="https://seu-n8n.com/webhook/..."
+              placeholder="https://seu-webhook.com/..."
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
             />
             <p className="text-xs text-muted-foreground">
-              Se você quiser enviar notificações de volta para o n8n
+              Se você quiser receber notificações de volta
             </p>
           </div>
 
@@ -144,7 +144,7 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
       <Card>
         <CardHeader>
           <CardTitle>Formato do Payload JSON</CardTitle>
-          <CardDescription>Use este formato ao enviar dados do n8n</CardDescription>
+          <CardDescription>Use este formato ao enviar dados</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
