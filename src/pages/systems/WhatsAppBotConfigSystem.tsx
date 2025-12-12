@@ -1,29 +1,68 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
-import { Header } from '@/components/layout/Header';
-import { Footer } from '@/components/layout/Footer';
 import { 
-  ArrowLeft, Save, Bot, Brain, Plug, Database,
-  Plus, Trash2, BarChart3, MessageCircle, Power
+  ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
+  Power, RefreshCw, Wifi, WifiOff, Shield, Database,
+  ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
+  ChevronDown, ChevronRight, Key, TestTube2, BarChart3, MessageCircle
 } from 'lucide-react';
 
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { ToolsConfigSection } from '@/components/agent/ToolsConfigSection';
+import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Header } from '@/components/layout/Header';
+import { Footer } from '@/components/layout/Footer';
 
 interface ActionInstruction {
   id: string;
   instruction: string;
   type: 'do' | 'dont';
+}
+
+interface N8nWorkflow {
+  id: string;
+  name: string;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface N8nExecution {
+  id: string;
+  finished: boolean;
+  mode: string;
+  startedAt: string;
+  stoppedAt?: string;
+  workflowId: string;
+  status: string;
+}
+
+interface TokenUsageStatsData {
+  totalTokens: number;
+  promptTokens: number;
+  completionTokens: number;
+  executionCount: number;
+  byExecution: Array<{
+    executionId: string;
+    tokens: number;
+    promptTokens: number;
+    completionTokens: number;
+    date: string;
+  }>;
 }
 
 type CommunicationTone = 'profissional' | 'amigavel' | 'tecnico' | 'entusiasmado' | 'empatico' | 'direto';
@@ -62,194 +101,375 @@ const COMMUNICATION_TONES: Record<CommunicationTone, { emoji: string; label: str
     instruction: 'Use linguagem casual mas respeitosa. Emojis são bem-vindos com moderação. Trate por "você" e seja caloroso.'
   },
   tecnico: {
-    emoji: '🔧',
+    emoji: '🔬',
     label: 'Técnico',
     desc: 'Preciso e detalhado',
-    color: 'from-blue-500 to-cyan-500',
-    instruction: 'Use terminologia técnica apropriada. Seja preciso e detalhado. Ofereça explicações completas quando necessário.'
+    color: 'from-blue-500 to-indigo-500',
+    instruction: 'Use terminologia técnica precisa. Explique conceitos quando necessário. Seja detalhista nas explicações.'
   },
   entusiasmado: {
     emoji: '🎉',
     label: 'Entusiasmado',
     desc: 'Energético e motivador',
     color: 'from-pink-500 to-rose-500',
-    instruction: 'Seja energético e motivador. Use exclamações e linguagem positiva. Celebre as conquistas do usuário.'
+    instruction: 'Demonstre energia positiva! Celebre conquistas do usuário. Use exclamações com moderação. Mantenha otimismo.'
   },
   empatico: {
-    emoji: '💙',
+    emoji: '💚',
     label: 'Empático',
     desc: 'Compreensivo e atencioso',
-    color: 'from-purple-500 to-violet-500',
-    instruction: 'Demonstre compreensão e empatia. Valide os sentimentos do usuário. Seja atencioso e paciente.'
+    color: 'from-emerald-500 to-teal-500',
+    instruction: 'Demonstre compreensão genuína. Valide sentimentos do usuário. Seja paciente e acolhedor.'
   },
   direto: {
-    emoji: '⚡',
+    emoji: '🎯',
     label: 'Direto',
     desc: 'Objetivo e conciso',
-    color: 'from-green-500 to-emerald-500',
-    instruction: 'Seja direto ao ponto. Evite rodeios. Dê respostas concisas e acionáveis.'
-  }
+    color: 'from-violet-500 to-purple-500',
+    instruction: 'Vá direto ao ponto. Evite rodeios. Respostas concisas. Foque no essencial.'
+  },
 };
 
-const AI_MODELS = [
-  { value: 'gpt-4o', label: 'GPT-4o', provider: 'openai' },
-  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai' },
-  { value: 'gpt-4-turbo', label: 'GPT-4 Turbo', provider: 'openai' },
-  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', provider: 'openai' },
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash', provider: 'google' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', provider: 'google' },
-  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', provider: 'google' },
-  { value: 'starai-agent', label: 'StarAI Agent (Recomendado)', provider: 'starai' },
+interface AgentMetrics {
+  totalMessages: number;
+  errorRate: number;
+  lastActivity: string | null;
+}
+
+// Modelos OpenAI organizados por categoria
+type OpenAIModelCategory = 'flagship' | 'mini' | 'reasoning' | 'audio' | 'image' | 'search' | 'codex' | 'legacy';
+
+interface OpenAIModel {
+  value: string;
+  label: string;
+  description: string;
+  category: OpenAIModelCategory;
+}
+
+const OPENAI_MODELS: OpenAIModel[] = [
+  { value: 'gpt-5.1', label: 'GPT-5.1', description: 'Modelo mais recente e poderoso', category: 'flagship' },
+  { value: 'gpt-5', label: 'GPT-5', description: 'Modelo flagship anterior', category: 'flagship' },
+  { value: 'gpt-4o', label: 'GPT-4o', description: 'Modelo multimodal rápido', category: 'flagship' },
+  { value: 'gpt-4', label: 'GPT-4', description: 'Modelo GPT-4 original', category: 'flagship' },
+  { value: 'gpt-5-mini', label: 'GPT-5 Mini', description: 'Versão rápida do GPT-5', category: 'mini' },
+  { value: 'gpt-4o-mini', label: 'GPT-4o Mini', description: 'Versão rápida do GPT-4o', category: 'mini' },
+  { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', description: 'Modelo econômico e rápido', category: 'mini' },
+  { value: 'o4-mini', label: 'O4 Mini', description: 'Modelo de raciocínio rápido', category: 'reasoning' },
+  { value: 'o3', label: 'O3', description: 'Modelo de raciocínio poderoso', category: 'reasoning' },
+  { value: 'o1', label: 'O1', description: 'Modelo de raciocínio original', category: 'reasoning' },
+];
+
+const OPENAI_CATEGORY_LABELS: Record<OpenAIModelCategory, string> = {
+  flagship: '⭐ Flagship (Principais)',
+  mini: '⚡ Mini / Nano (Rápidos)',
+  reasoning: '🧠 Reasoning (Raciocínio)',
+  audio: '🎵 Audio',
+  image: '🖼️ Image',
+  search: '🔍 Search',
+  codex: '💻 Codex (Código)',
+  legacy: '📦 Legacy',
+};
+
+// Modelos Google organizados por categoria
+type GoogleModelCategory = 'chat' | 'image' | 'video' | 'tts' | 'special';
+
+interface GoogleModel {
+  value: string;
+  label: string;
+  description: string;
+  category: GoogleModelCategory;
+}
+
+const GOOGLE_MODELS: GoogleModel[] = [
+  { value: 'models/gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Versão estável', category: 'chat' },
+  { value: 'models/gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Multimodal rápido', category: 'chat' },
+  { value: 'models/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', description: 'Versão leve', category: 'chat' },
+  { value: 'models/gemini-2.0-flash', label: 'Gemini 2.0 Flash', description: 'Modelo multimodal rápido', category: 'chat' },
+  { value: 'models/gemini-2.5-flash-image', label: 'Gemini 2.5 Flash Image', description: 'Geração de imagem', category: 'image' },
+];
+
+const GOOGLE_CATEGORY_LABELS: Record<GoogleModelCategory, string> = {
+  chat: '💬 Chat / Conversação',
+  image: '🖼️ Geração de Imagem',
+  video: '🎬 Geração de Vídeo',
+  tts: '🔊 Text-to-Speech (TTS)',
+  special: '🤖 Especiais',
+};
+
+const RETENTION_OPTIONS = [
+  { value: '7days', label: '7 dias' },
+  { value: '30days', label: '30 dias' },
+  { value: '90days', label: '90 dias' },
+  { value: 'unlimited', label: 'Ilimitado' },
 ];
 
 const WhatsAppBotConfigSystem = () => {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { productId } = useParams();
   const { toast } = useToast();
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [configLoaded, setConfigLoaded] = useState(false);
-  const [autoSaving, setAutoSaving] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [agentStatus, setAgentStatus] = useState<'online' | 'offline' | 'loading' | 'unknown'>('unknown');
+  const [togglingAgent, setTogglingAgent] = useState(false);
+  const [syncingLlm, setSyncingLlm] = useState(false);
   
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isFirstRender = useRef(true);
-
+  const [n8nConnected, setN8nConnected] = useState<boolean | null>(null);
+  const [n8nTesting, setN8nTesting] = useState(false);
+  const [workflows, setWorkflows] = useState<N8nWorkflow[]>([]);
+  const [loadingWorkflows, setLoadingWorkflows] = useState(false);
+  const [executions, setExecutions] = useState<N8nExecution[]>([]);
+  const [loadingExecutions, setLoadingExecutions] = useState(false);
+  const [syncingTools, setSyncingTools] = useState(false);
+  const [selectedWorkflow, setSelectedWorkflow] = useState<N8nWorkflow | null>(null);
+  const [syncingMemory, setSyncingMemory] = useState(false);
+  
+  // Estado para créditos StarAI
+  const [staraiCredits, setStaraiCredits] = useState({
+    balanceBRL: 0,
+    freeBalanceBRL: 0,
+    depositedBRL: 0,
+  });
+  const [loadingCredits, setLoadingCredits] = useState(false);
+  const [depositAmount, setDepositAmount] = useState<number>(50);
+  const [processingDeposit, setProcessingDeposit] = useState(false);
+  
+  const [metrics, setMetrics] = useState<AgentMetrics>({
+    totalMessages: 0,
+    errorRate: 0,
+    lastActivity: null,
+  });
+  
   const [config, setConfig] = useState<AgentConfig>({
     isActive: false,
     n8nWorkflowId: '',
     provider: 'starai',
     apiKey: '',
-    model: 'starai-agent',
+    model: 'gpt-4o',
     temperature: 0.7,
     maxTokens: 2048,
     contextWindowSize: 10,
     retentionPolicy: '30days',
-    sessionKeyId: '',
+    sessionKeyId: '{{ $json.session_id }}',
     communicationTone: 'amigavel',
-    systemPrompt: 'Você é um assistente virtual inteligente para WhatsApp. Ajude os clientes de forma eficiente e amigável.',
-    actionInstructions: [],
+    systemPrompt: `Você é um assistente virtual inteligente para WhatsApp.
+
+SOBRE NÓS:
+- Atendemos clientes de forma rápida e eficiente
+- Horário: Segunda a sexta, 9h às 18h
+
+COMO AJUDAR:
+- Tire dúvidas sobre nossos produtos/serviços
+- Ajude com agendamentos
+- Encaminhe para um atendente humano quando necessário`,
+    actionInstructions: [
+      { id: '1', instruction: 'Sempre cumprimente o cliente pelo nome', type: 'do' },
+      { id: '2', instruction: 'Nunca invente informações sobre preços', type: 'dont' },
+    ],
     enableWebSearch: false,
-    enabledTools: []
+    enabledTools: ['httpRequestTool', 'calculatorTool'],
   });
 
+  const [newInstruction, setNewInstruction] = useState('');
+  const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
+  const [syncingPrompt, setSyncingPrompt] = useState(false);
+  const [customerProductId, setCustomerProductId] = useState<string | null>(null);
+  const [configLoaded, setConfigLoaded] = useState(false);
+  
+  // Estados para credenciais de ferramentas
+  const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
+  
+  // Estado para configurações completas das ferramentas
+  const [toolConfigs, setToolConfigs] = useState<Record<string, any>>({
+    httpRequest: { enabled: true, httpMethod: 'GET', httpFollowRedirects: true },
+    webhook: { enabled: false, webhookHttpMethod: 'POST', webhookResponseMode: 'onReceived', webhookResponseCode: 200 },
+    code: { enabled: false, codeLanguage: 'javascript' },
+    calculator: { enabled: true },
+  });
+  
+  // Handler para atualizar configurações das ferramentas
+  const updateToolConfig = (toolId: string, updates: Partial<any>) => {
+    setToolConfigs(prev => ({
+      ...prev,
+      [toolId]: { ...prev[toolId], ...updates }
+    }));
+  };
+
+  // Verificar acesso ao produto
   useEffect(() => {
-    if (!loading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     } else if (user && productId) {
-      loadConfig();
+      verifyAccessAndLoadConfig();
     }
-  }, [user, loading, productId, navigate]);
+  }, [user, authLoading, productId, navigate]);
 
-  const loadConfig = async () => {
-    if (!productId) return;
+  const verifyAccessAndLoadConfig = async () => {
+    if (!productId || !user) return;
 
     try {
-      // Verify access
+      // Verificar se o usuário tem acesso a este produto
       const { data: product, error: productError } = await supabase
         .from('customer_products')
         .select('*')
         .eq('id', productId)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .eq('is_active', true)
         .single();
 
       if (productError || !product) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem acesso a este produto.",
+          variant: "destructive"
+        });
         navigate('/meus-produtos');
         return;
       }
 
-      // Load config
+      setCustomerProductId(productId);
+
+      // Carregar configuração existente
       const { data: configData } = await supabase
         .from('ai_control_config')
         .select('*')
         .eq('customer_product_id', productId)
-        .single();
+        .maybeSingle();
 
       if (configData) {
-        const savedConfig = configData.configuration as any;
+        let actionInstructions: ActionInstruction[] = [];
+        
+        if (configData.action_instructions) {
+          try {
+            const parsed = JSON.parse(configData.action_instructions);
+            if (Array.isArray(parsed)) {
+              actionInstructions = parsed;
+            }
+          } catch (e) {
+            console.error('Error parsing action_instructions:', e);
+          }
+        }
+
+        const provider = configData.ai_model?.includes('gpt') ? 'openai' : 
+                        configData.ai_model?.includes('gemini') ? 'google' : 'starai';
+        
+        const savedTone = (configData.personality as CommunicationTone) || 'amigavel';
+        const validTone = Object.keys(COMMUNICATION_TONES).includes(savedTone) ? savedTone : 'amigavel';
+
         setConfig(prev => ({
           ...prev,
           isActive: configData.is_active || false,
-          n8nWorkflowId: configData.n8n_webhook_url || '',
-          provider: savedConfig?.provider || 'starai',
-          apiKey: savedConfig?.apiKey || '',
-          model: configData.ai_model || 'starai-agent',
+          n8nWorkflowId: product.n8n_workflow_id || '',
+          provider,
+          model: configData.ai_model || 'gpt-4o',
           temperature: configData.temperature || 0.7,
           maxTokens: configData.max_tokens || 2048,
-          contextWindowSize: savedConfig?.contextWindowSize || 10,
-          retentionPolicy: savedConfig?.retentionPolicy || '30days',
-          sessionKeyId: configData.memory_session_id || '',
-          communicationTone: savedConfig?.communicationTone || 'amigavel',
-          systemPrompt: configData.system_prompt || config.systemPrompt,
-          actionInstructions: savedConfig?.actionInstructions || [],
-          enableWebSearch: savedConfig?.enableWebSearch || false,
-          enabledTools: (configData.tools_enabled as string[]) || []
+          communicationTone: validTone,
+          systemPrompt: configData.system_prompt || prev.systemPrompt,
+          actionInstructions,
+          sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
+          enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
         }));
+
+        if (configData.ai_credentials) {
+          const credentials = configData.ai_credentials as Record<string, string>;
+          const apiKey = credentials.openai_api_key || credentials.google_api_key || '';
+          if (apiKey) {
+            setConfig(prev => ({ ...prev, apiKey }));
+          }
+          
+          const toolCreds: Record<string, string> = {};
+          Object.entries(credentials).forEach(([key, value]) => {
+            if (key !== 'openai_api_key' && key !== 'google_api_key' && value) {
+              toolCreds[key] = value;
+            }
+          });
+          if (Object.keys(toolCreds).length > 0) {
+            setToolCredentials(toolCreds);
+          }
+        }
       }
 
       setConfigLoaded(true);
+      
+      // Testar conexão n8n
+      testN8nConnection();
+      
     } catch (error) {
       console.error('Error loading config:', error);
-    } finally {
-      setIsLoading(false);
+      setConfigLoaded(true);
     }
   };
 
-  const saveConfig = async () => {
-    if (!productId) return;
+  // Salvar configuração no banco de dados
+  const saveConfigToDatabase = async () => {
+    if (!customerProductId) return false;
 
     try {
-      const configPayload = {
-        customer_product_id: productId,
+      const configToSave = {
+        customer_product_id: customerProductId,
         is_active: config.isActive,
-        n8n_webhook_url: config.n8nWorkflowId,
         ai_model: config.model,
         temperature: config.temperature,
         max_tokens: config.maxTokens,
         system_prompt: config.systemPrompt,
+        personality: config.communicationTone,
+        action_instructions: JSON.stringify(config.actionInstructions),
         memory_session_id: config.sessionKeyId,
+        n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
         tools_enabled: config.enabledTools,
-        configuration: JSON.parse(JSON.stringify({
+        ai_credentials: {
+          [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
+          ...toolCredentials,
+        },
+        configuration: {
           platform: 'whatsapp',
           configured_at: new Date().toISOString(),
-          provider: config.provider,
-          apiKey: config.apiKey,
-          contextWindowSize: config.contextWindowSize,
-          retentionPolicy: config.retentionPolicy,
-          communicationTone: config.communicationTone,
-          actionInstructions: config.actionInstructions,
-          enableWebSearch: config.enableWebSearch
-        }))
+        },
+        updated_at: new Date().toISOString(),
       };
 
-      // First check if config exists
-      const { data: existing } = await supabase
+      const { error } = await supabase
         .from('ai_control_config')
-        .select('id')
-        .eq('customer_product_id', productId)
-        .single();
+        .upsert(configToSave, { onConflict: 'customer_product_id' });
 
-      if (existing) {
-        const { error } = await supabase
-          .from('ai_control_config')
-          .update(configPayload)
-          .eq('customer_product_id', productId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('ai_control_config')
-          .insert([configPayload]);
-        if (error) throw error;
+      if (error) {
+        console.error('Error saving config:', error);
+        return false;
       }
+
+      if (config.n8nWorkflowId) {
+        await supabase
+          .from('customer_products')
+          .update({ n8n_workflow_id: config.n8nWorkflowId })
+          .eq('id', customerProductId);
+      }
+
+      return true;
     } catch (error) {
-      console.error('Error saving config:', error);
-      throw error;
+      console.error('Error saving config to database:', error);
+      return false;
     }
   };
 
-  // Auto-save
+  // Auto-save com debounce
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstRender = useRef(true);
+  const [autoSaving, setAutoSaving] = useState(false);
+
+  const autoSave = useCallback(async () => {
+    if (!configLoaded || !customerProductId) return;
+    
+    setAutoSaving(true);
+    try {
+      await saveConfigToDatabase();
+    } catch (error) {
+      console.error('Auto-save error:', error);
+    } finally {
+      setAutoSaving(false);
+    }
+  }, [configLoaded, customerProductId, config, toolCredentials]);
+
   useEffect(() => {
     if (isFirstRender.current) {
       isFirstRender.current = false;
@@ -262,15 +482,8 @@ const WhatsAppBotConfigSystem = () => {
       clearTimeout(autoSaveTimeoutRef.current);
     }
 
-    autoSaveTimeoutRef.current = setTimeout(async () => {
-      setAutoSaving(true);
-      try {
-        await saveConfig();
-      } catch (error) {
-        console.error('Auto-save error:', error);
-      } finally {
-        setAutoSaving(false);
-      }
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      autoSave();
     }, 1000);
 
     return () => {
@@ -278,46 +491,289 @@ const WhatsAppBotConfigSystem = () => {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [config, configLoaded]);
+  }, [config, toolCredentials, configLoaded]);
 
-  const handleSync = async () => {
-    setSyncing(true);
+  const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
+    const { data, error } = await supabase.functions.invoke('n8n-api', {
+      body: { action, ...params }
+    });
+    if (error) throw error;
+    return data;
+  }, []);
+
+  const testN8nConnection = async () => {
+    setN8nTesting(true);
     try {
-      await saveConfig();
-      toast({
-        title: "Sincronizado!",
-        description: "Configurações salvas e sincronizadas com sucesso.",
-      });
-    } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Falha ao sincronizar configurações.",
-        variant: "destructive"
-      });
+      const result = await n8nApiCall('test_connection');
+      setN8nConnected(result.success);
+      
+      if (result.success) {
+        loadWorkflows();
+      }
+    } catch (error: any) {
+      setN8nConnected(false);
     } finally {
-      setSyncing(false);
+      setN8nTesting(false);
     }
   };
 
-  const addInstruction = (type: 'do' | 'dont') => {
-    const newInstruction: ActionInstruction = {
-      id: crypto.randomUUID(),
-      instruction: '',
-      type
-    };
-    setConfig(prev => ({
-      ...prev,
-      actionInstructions: [...prev.actionInstructions, newInstruction]
-    }));
+  const loadWorkflows = async () => {
+    setLoadingWorkflows(true);
+    try {
+      const result = await n8nApiCall('list_workflows', { limit: 100 });
+      if (result.success) {
+        setWorkflows(result.workflows);
+      }
+    } catch (error: any) {
+      console.error('Error loading workflows:', error);
+    } finally {
+      setLoadingWorkflows(false);
+    }
   };
 
-  const updateInstruction = (id: string, instruction: string) => {
+  const loadExecutions = async (workflowId?: string) => {
+    setLoadingExecutions(true);
+    try {
+      const result = await n8nApiCall('get_executions', { 
+        workflowId: workflowId || config.n8nWorkflowId,
+        limit: 20 
+      });
+      if (result.success) {
+        setExecutions(result.executions);
+        
+        const successCount = result.executions.filter((e: N8nExecution) => e.status === 'success').length;
+        const errorCount = result.executions.filter((e: N8nExecution) => e.status === 'error').length;
+        const total = result.executions.length;
+        
+        setMetrics(prev => ({
+          ...prev,
+          totalMessages: total,
+          errorRate: total > 0 ? (errorCount / total) * 100 : 0,
+          lastActivity: result.executions[0]?.startedAt || null,
+        }));
+      }
+    } catch (error: any) {
+      console.error('Error loading executions:', error);
+    } finally {
+      setLoadingExecutions(false);
+    }
+  };
+
+  const activateWorkflow = async (workflowId: string) => {
+    setTogglingAgent(true);
+    try {
+      const result = await n8nApiCall('activate_workflow', { workflowId });
+      
+      if (result.success) {
+        toast({
+          title: "Workflow Ativado",
+          description: `Workflow está agora ativo.`,
+        });
+        setAgentStatus('online');
+        setConfig(prev => ({ ...prev, isActive: true }));
+        setWorkflows(prev => prev.map(w => 
+          w.id === workflowId ? { ...w, active: true } : w
+        ));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao ativar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingAgent(false);
+    }
+  };
+
+  const deactivateWorkflow = async (workflowId: string) => {
+    setTogglingAgent(true);
+    try {
+      const result = await n8nApiCall('deactivate_workflow', { workflowId });
+      
+      if (result.success) {
+        toast({
+          title: "Workflow Desativado",
+          description: `Workflow foi desativado.`,
+        });
+        setAgentStatus('offline');
+        setConfig(prev => ({ ...prev, isActive: false }));
+        setWorkflows(prev => prev.map(w => 
+          w.id === workflowId ? { ...w, active: false } : w
+        ));
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao desativar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setTogglingAgent(false);
+    }
+  };
+
+  const toggleWorkflowStatus = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Selecione um workflow",
+        description: "Escolha um workflow na lista antes de ativar/desativar.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (config.isActive) {
+      await deactivateWorkflow(config.n8nWorkflowId);
+    } else {
+      await activateWorkflow(config.n8nWorkflowId);
+    }
+  };
+
+  useEffect(() => {
+    if (config.n8nWorkflowId) {
+      const workflow = workflows.find(w => w.id === config.n8nWorkflowId);
+      if (workflow) {
+        setSelectedWorkflow(workflow);
+        setAgentStatus(workflow.active ? 'online' : 'offline');
+        setConfig(prev => ({ ...prev, isActive: workflow.active }));
+        loadExecutions(workflow.id);
+      }
+    }
+  }, [config.n8nWorkflowId, workflows]);
+
+  const handleProviderChange = (provider: 'openai' | 'google' | 'starai') => {
+    const defaultModel = provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
     setConfig(prev => ({
       ...prev,
-      actionInstructions: prev.actionInstructions.map(i => 
-        i.id === id ? { ...i, instruction } : i
-      )
+      provider,
+      model: defaultModel,
+      apiKey: provider === 'starai' ? '' : prev.apiKey,
     }));
+    
+    if (provider === 'starai') {
+      loadStaraiCredits();
+    }
+  };
+
+  const loadStaraiCredits = async () => {
+    setLoadingCredits(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/balance`,
+        {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      const result = await response.json();
+      
+      if (result.success && result.data) {
+        setStaraiCredits({
+          balanceBRL: Number(result.data.balance_brl) || 0,
+          freeBalanceBRL: Number(result.data.free_balance_brl) || 0,
+          depositedBRL: Number(result.data.deposited_brl) || 0,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading StarAI credits:', error);
+    } finally {
+      setLoadingCredits(false);
+    }
+  };
+
+  const handleStaraiDeposit = async () => {
+    if (depositAmount < 10) {
+      toast({
+        title: "Valor inválido",
+        description: "O valor mínimo de depósito é R$ 10,00",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessingDeposit(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const response = await fetch(
+        `https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/deposit`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount_brl: depositAmount,
+            success_url: `${window.location.origin}/sistema/bots-automacao/whatsapp/${productId}?payment=success`,
+            failure_url: `${window.location.origin}/sistema/bots-automacao/whatsapp/${productId}?payment=failure`,
+          }),
+        }
+      );
+
+      const result = await response.json();
+      
+      if (result.success && result.data?.payment_link) {
+        window.location.href = result.data.payment_link;
+      } else {
+        throw new Error(result.message || 'Erro ao criar pagamento');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao criar pagamento",
+        description: error.message || "Tente novamente mais tarde.",
+        variant: "destructive",
+      });
+    } finally {
+      setProcessingDeposit(false);
+    }
+  };
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+    
+    if (paymentStatus === 'success') {
+      toast({
+        title: "Pagamento aprovado!",
+        description: "Seus créditos StarAI foram adicionados à sua conta.",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
+      loadStaraiCredits();
+    } else if (paymentStatus === 'failure') {
+      toast({
+        title: "Pagamento não aprovado",
+        description: "O pagamento não foi concluído. Tente novamente.",
+        variant: "destructive",
+      });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (config.provider === 'starai') {
+      loadStaraiCredits();
+    }
+  }, []);
+
+  const addInstruction = () => {
+    if (!newInstruction.trim()) return;
+    setConfig(prev => ({
+      ...prev,
+      actionInstructions: [
+        ...prev.actionInstructions,
+        { id: Date.now().toString(), instruction: newInstruction, type: newInstructionType }
+      ]
+    }));
+    setNewInstruction('');
   };
 
   const removeInstruction = (id: string) => {
@@ -327,7 +783,158 @@ const WhatsAppBotConfigSystem = () => {
     }));
   };
 
-  if (loading || isLoading) {
+  const syncSystemPromptToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        description: "Selecione um workflow na aba Status antes de sincronizar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingPrompt(true);
+    try {
+      const fullPrompt = `${config.systemPrompt}
+
+=== INSTRUÇÕES DE AÇÃO ===
+${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NUNCA FAÇA:'} ${i.instruction}`).join('\n')}`;
+
+      const result = await n8nApiCall('update_system_prompt', {
+        workflowId: config.n8nWorkflowId,
+        newSystemMessage: fullPrompt,
+      });
+
+      if (result.success) {
+        toast({
+          title: "System Prompt sincronizado!",
+          description: `Atualizado no workflow`,
+        });
+      } else {
+        throw new Error(result.error || 'Falha ao sincronizar');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar",
+        description: error.message || "Não foi possível sincronizar o System Prompt.",
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingPrompt(false);
+    }
+  };
+
+  const syncLlmConfigToN8n = async () => {
+    if (!config.n8nWorkflowId) {
+      toast({
+        title: "Workflow não selecionado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSyncingLlm(true);
+    try {
+      const result = await n8nApiCall('update_llm_config', {
+        workflowId: config.n8nWorkflowId,
+        model: config.model,
+        temperature: config.temperature,
+        maxTokens: config.maxTokens,
+        provider: config.provider,
+        apiKey: config.provider === 'starai' ? undefined : config.apiKey,
+      });
+
+      if (result.success) {
+        toast({
+          title: "Configuração do LLM sincronizada!",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar LLM",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingLlm(false);
+    }
+  };
+
+  const syncMemoryToN8n = async () => {
+    if (!config.n8nWorkflowId) return;
+    
+    setSyncingMemory(true);
+    try {
+      const result = await n8nApiCall('update_memory_config', {
+        workflowId: config.n8nWorkflowId,
+        sessionKeyId: config.sessionKeyId,
+        contextWindowSize: config.contextWindowSize,
+      });
+
+      if (result.success) {
+        toast({ title: "Configuração de memória sincronizada!" });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar memória",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingMemory(false);
+    }
+  };
+
+  const syncToolsToN8n = async () => {
+    if (!config.n8nWorkflowId) return;
+    
+    setSyncingTools(true);
+    try {
+      const result = await n8nApiCall('update_tools_config', {
+        workflowId: config.n8nWorkflowId,
+        toolConfigs,
+        toolCredentials,
+      });
+
+      if (result.success) {
+        toast({ title: "Ferramentas sincronizadas!" });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Erro ao sincronizar ferramentas",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSyncingTools(false);
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      await saveConfigToDatabase();
+      
+      if (config.n8nWorkflowId) {
+        await syncSystemPromptToN8n();
+      }
+      
+      toast({
+        title: "Configurações salvas!",
+        description: "Todas as configurações foram sincronizadas.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Erro ao salvar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (authLoading || !configLoaded) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -339,384 +946,791 @@ const WhatsAppBotConfigSystem = () => {
     <div className="min-h-screen bg-background">
       <Header />
 
-      <main className="container mx-auto px-4 py-6">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/sistema/bots-automacao')}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
+      {/* Header */}
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate('/meus-produtos')}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-green-500/10">
+                  <MessageCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h1 className="text-xl font-bold">Bot WhatsApp</h1>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <span>Configuração do Agente IA</span>
+                    {n8nConnected === true && (
+                      <Badge variant="outline" className="text-green-500 border-green-500">
+                        <CheckCircle2 className="h-3 w-3 mr-1" />
+                        Conectado
+                      </Badge>
+                    )}
+                    {n8nConnected === false && (
+                      <Badge variant="outline" className="text-red-500 border-red-500">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Desconectado
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
-                <MessageCircle className="h-6 w-6 text-green-600" />
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
+                <div className={`w-2.5 h-2.5 rounded-full ${
+                  agentStatus === 'online' ? 'bg-green-500 animate-pulse' : 
+                  agentStatus === 'offline' ? 'bg-red-500' : 
+                  agentStatus === 'loading' ? 'bg-yellow-500 animate-pulse' : 'bg-gray-400'
+                }`} />
+                <span className="text-sm font-medium">
+                  {agentStatus === 'online' ? 'Online' : 
+                   agentStatus === 'offline' ? 'Offline' : 
+                   agentStatus === 'loading' ? 'Processando...' : 'Desconhecido'}
+                </span>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold">Bot WhatsApp</h1>
-                <p className="text-sm text-muted-foreground">Configure seu agente de IA para WhatsApp</p>
-              </div>
+              {autoSaving && (
+                <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>
+              )}
+              <Button onClick={handleSave} disabled={loading}>
+                <Save className="h-4 w-4 mr-2" />
+                {loading ? 'Sincronizando...' : 'Sincronizar'}
+              </Button>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${config.isActive ? 'bg-green-500' : 'bg-gray-400'}`} />
-              <span className="text-sm text-muted-foreground">
-                {config.isActive ? 'Ativo' : 'Inativo'}
-              </span>
-            </div>
-            {autoSaving && (
-              <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>
-            )}
-            <Button onClick={handleSync} disabled={syncing}>
-              <Save className="h-4 w-4 mr-2" />
-              {syncing ? 'Sincronizando...' : 'Sincronizar'}
-            </Button>
           </div>
         </div>
+      </header>
 
-        {/* Main Content */}
-        <Tabs defaultValue="agent" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="agent" className="gap-2">
-              <Bot className="h-4 w-4" />
-              Agente
+      <main className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="status" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="status" className="gap-2">
+              <Power className="h-4 w-4" />
+              <span className="hidden sm:inline">Status</span>
             </TabsTrigger>
-            <TabsTrigger value="personality" className="gap-2">
+            <TabsTrigger value="engine" className="gap-2">
               <Brain className="h-4 w-4" />
-              Personalidade
-            </TabsTrigger>
-            <TabsTrigger value="tools" className="gap-2">
-              <Plug className="h-4 w-4" />
-              Ferramentas
+              <span className="hidden sm:inline">Motor IA</span>
             </TabsTrigger>
             <TabsTrigger value="memory" className="gap-2">
               <Database className="h-4 w-4" />
-              Memória
+              <span className="hidden sm:inline">Memória</span>
+            </TabsTrigger>
+            <TabsTrigger value="personality" className="gap-2">
+              <Bot className="h-4 w-4" />
+              <span className="hidden sm:inline">Personalidade</span>
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="gap-2">
+              <Plug className="h-4 w-4" />
+              <span className="hidden sm:inline">Ferramentas</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* Agent Tab */}
-          <TabsContent value="agent" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Power className="h-5 w-5" />
-                  Status do Agente
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Ativar Agente</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Quando ativo, o bot responderá automaticamente às mensagens
-                    </p>
+          {/* STATUS */}
+          <TabsContent value="status" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ServerCog className="h-5 w-5 text-primary" />
+                    Conexão com Motor de Automação
+                  </CardTitle>
+                  <CardDescription>
+                    Status da integração com o motor de automação
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className={`flex items-center justify-between p-4 rounded-lg border-2 ${
+                    n8nConnected === true ? 'border-green-500 bg-green-500/10' :
+                    n8nConnected === false ? 'border-red-500 bg-red-500/10' :
+                    'border-border'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      {n8nConnected === true ? (
+                        <CheckCircle2 className="h-8 w-8 text-green-500" />
+                      ) : n8nConnected === false ? (
+                        <XCircle className="h-8 w-8 text-red-500" />
+                      ) : (
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                      )}
+                      <div>
+                        <p className="font-semibold">
+                          {n8nConnected === true ? 'Conectado' :
+                           n8nConnected === false ? 'Desconectado' : 'Verificando...'}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Motor de Automação StarAI
+                        </p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      onClick={testN8nConnection}
+                      disabled={n8nTesting}
+                    >
+                      {n8nTesting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
                   </div>
-                  <Switch
-                    checked={config.isActive}
-                    onCheckedChange={(checked) => setConfig(prev => ({ ...prev, isActive: checked }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Modelo de IA</CardTitle>
-                <CardDescription>Escolha o modelo que alimentará seu bot</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Provedor</Label>
-                  <Select
-                    value={config.provider}
-                    onValueChange={(value: 'openai' | 'google' | 'starai') => 
-                      setConfig(prev => ({ ...prev, provider: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="starai">StarAI (Recomendado)</SelectItem>
-                      <SelectItem value="openai">OpenAI</SelectItem>
-                      <SelectItem value="google">Google</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                  {n8nConnected && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Workflows disponíveis:</span>
+                      <Badge>{workflows.length}</Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-                <div className="space-y-2">
-                  <Label>Modelo</Label>
-                  <Select
-                    value={config.model}
-                    onValueChange={(value) => setConfig(prev => ({ ...prev, model: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {AI_MODELS.filter(m => m.provider === config.provider).map(model => (
-                        <SelectItem key={model.value} value={model.value}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <List className="h-5 w-5 text-primary" />
+                    Selecionar Workflow
+                  </CardTitle>
+                  <CardDescription>
+                    Escolha o workflow do seu bot
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Select 
+                      value={config.n8nWorkflowId} 
+                      onValueChange={(v) => setConfig(prev => ({ ...prev, n8nWorkflowId: v }))}
+                    >
+                      <SelectTrigger className="flex-1">
+                        <SelectValue placeholder="Selecione um workflow..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {workflows.map(wf => (
+                          <SelectItem key={wf.id} value={wf.id}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                              {wf.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button 
+                      variant="outline" 
+                      size="icon"
+                      onClick={loadWorkflows}
+                      disabled={loadingWorkflows}
+                    >
+                      {loadingWorkflows ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
 
-                {config.provider !== 'starai' && (
-                  <div className="space-y-2">
-                    <Label>API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="Sua chave de API"
-                      value={config.apiKey}
-                      onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                  {selectedWorkflow && (
+                    <div className="p-4 rounded-lg bg-muted/50 border space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{selectedWorkflow.name}</span>
+                        <Badge variant={selectedWorkflow.active ? "default" : "secondary"}>
+                          {selectedWorkflow.active ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        <p>ID: {selectedWorkflow.id}</p>
+                        <p>Atualizado: {new Date(selectedWorkflow.updatedAt).toLocaleString('pt-BR')}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Power className="h-5 w-5 text-primary" />
+                    Controle do Agente
+                  </CardTitle>
+                  <CardDescription>
+                    Ative ou desative o workflow selecionado
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between p-6 rounded-xl border-2 transition-colors duration-300" style={{
+                    borderColor: config.isActive ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                    backgroundColor: config.isActive ? 'hsl(var(--primary) / 0.05)' : 'transparent'
+                  }}>
+                    <div className="flex items-center gap-4">
+                      <div className={`p-3 rounded-full transition-colors ${
+                        config.isActive ? 'bg-green-500/20' : 'bg-muted'
+                      }`}>
+                        {config.isActive ? (
+                          <Wifi className="h-6 w-6 text-green-500" />
+                        ) : (
+                          <WifiOff className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <Label className="text-lg font-semibold">Agente Ativo</Label>
+                        <p className="text-sm text-muted-foreground">
+                          {config.isActive ? 'O bot está ativo e respondendo' : 'O bot está desativado'}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={config.isActive}
+                      onCheckedChange={toggleWorkflowStatus}
+                      disabled={togglingAgent || !config.n8nWorkflowId || !n8nConnected}
+                      className="scale-125"
                     />
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <Label>Temperatura: {config.temperature}</Label>
-                  </div>
-                  <Slider
-                    value={[config.temperature]}
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    onValueChange={([value]) => setConfig(prev => ({ ...prev, temperature: value }))}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Controla a criatividade das respostas (0 = mais focado, 1 = mais criativo)
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Máximo de Tokens</Label>
-                  <Input
-                    type="number"
-                    value={config.maxTokens}
-                    onChange={(e) => setConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 2048 }))}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Webhook URL</CardTitle>
-                <CardDescription>URL do seu sistema de automação</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Input
-                  placeholder="https://seu-webhook.com/..."
-                  value={config.n8nWorkflowId}
-                  onChange={(e) => setConfig(prev => ({ ...prev, n8nWorkflowId: e.target.value }))}
-                />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Personality Tab */}
-          <TabsContent value="personality" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tom de Comunicação</CardTitle>
-                <CardDescription>Como o bot deve se comunicar com os clientes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {Object.entries(COMMUNICATION_TONES).map(([key, tone]) => (
-                    <Card
-                      key={key}
-                      className={`cursor-pointer transition-all ${
-                        config.communicationTone === key 
-                          ? 'ring-2 ring-primary' 
-                          : 'hover:bg-muted/50'
-                      }`}
-                      onClick={() => setConfig(prev => ({ ...prev, communicationTone: key as CommunicationTone }))}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button 
+                      variant={config.isActive ? "destructive" : "default"}
+                      onClick={toggleWorkflowStatus}
+                      disabled={togglingAgent || !config.n8nWorkflowId || !n8nConnected}
                     >
-                      <CardContent className="p-4 text-center">
-                        <span className="text-2xl">{tone.emoji}</span>
-                        <p className="font-medium mt-1">{tone.label}</p>
-                        <p className="text-xs text-muted-foreground">{tone.desc}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Prompt do Sistema</CardTitle>
-                <CardDescription>Instrução principal que define o comportamento do bot</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Textarea
-                  rows={6}
-                  placeholder="Você é um assistente virtual..."
-                  value={config.systemPrompt}
-                  onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Instruções de Ação</CardTitle>
-                <CardDescription>Defina o que o bot deve ou não fazer</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  {/* Do */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-green-600">✓ Deve fazer</Label>
-                      <Button size="sm" variant="outline" onClick={() => addInstruction('do')}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {config.actionInstructions.filter(i => i.type === 'do').map(instruction => (
-                      <div key={instruction.id} className="flex gap-2">
-                        <Input
-                          value={instruction.instruction}
-                          onChange={(e) => updateInstruction(instruction.id, e.target.value)}
-                          placeholder="Ex: Sempre cumprimentar o cliente"
-                        />
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          onClick={() => removeInstruction(instruction.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
+                      {togglingAgent ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : config.isActive ? (
+                        <Square className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Play className="h-4 w-4 mr-2" />
+                      )}
+                      {config.isActive ? 'Desativar' : 'Ativar'}
+                    </Button>
+                    
+                    <Button 
+                      variant="outline"
+                      onClick={() => loadExecutions()}
+                      disabled={loadingExecutions || !config.n8nWorkflowId}
+                    >
+                      {loadingExecutions ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                      )}
+                      Atualizar Status
+                    </Button>
                   </div>
-
-                  {/* Don't */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-red-600">✗ Não deve fazer</Label>
-                      <Button size="sm" variant="outline" onClick={() => addInstruction('dont')}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {config.actionInstructions.filter(i => i.type === 'dont').map(instruction => (
-                      <div key={instruction.id} className="flex gap-2">
-                        <Input
-                          value={instruction.instruction}
-                          onChange={(e) => updateInstruction(instruction.id, e.target.value)}
-                          placeholder="Ex: Nunca revelar informações sensíveis"
-                        />
-                        <Button 
-                          size="icon" 
-                          variant="ghost"
-                          onClick={() => removeInstruction(instruction.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
-          {/* Tools Tab */}
-          <TabsContent value="tools" className="space-y-4">
+          {/* MOTOR IA */}
+          <TabsContent value="engine" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Brain className="h-5 w-5 text-primary" />
+                    Credenciais e Modelo
+                  </CardTitle>
+                  <CardDescription>
+                    Configure o provedor de IA e suas credenciais
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Provedor</Label>
+                    <Select value={config.provider} onValueChange={(v) => handleProviderChange(v as 'openai' | 'google' | 'starai')}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="starai">
+                          <div className="flex items-center gap-2">
+                            <span className="text-amber-500">⭐</span>
+                            StarAI (Recomendado)
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="openai">OpenAI (GPT)</SelectItem>
+                        <SelectItem value="google">Google (Gemini)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {config.provider === 'starai' && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        ⭐ Use nossa infraestrutura gerenciada sem precisar de API Key própria
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Sistema de Créditos StarAI */}
+                  {config.provider === 'starai' ? (
+                    <div className="space-y-4">
+                      <div className="p-4 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-lg border border-amber-500/30">
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-semibold text-amber-700 dark:text-amber-400 flex items-center gap-2">
+                            <span className="text-xl">⭐</span> Créditos StarAI
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={loadStaraiCredits}
+                            disabled={loadingCredits}
+                            className="h-7 w-7"
+                          >
+                            <RefreshCw className={`h-4 w-4 ${loadingCredits ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </div>
+                        
+                        {loadingCredits ? (
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="h-6 w-6 animate-spin text-amber-500" />
+                          </div>
+                        ) : (
+                          <>
+                            <div className="grid grid-cols-2 gap-4 mb-4">
+                              <div className="text-center p-3 bg-background/50 rounded-lg">
+                                <p className="text-2xl font-bold text-primary">
+                                  R$ {staraiCredits.balanceBRL.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Saldo Total</p>
+                              </div>
+                              <div className="text-center p-3 bg-background/50 rounded-lg">
+                                <p className="text-2xl font-bold text-green-600">
+                                  R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">Bônus Grátis</p>
+                              </div>
+                            </div>
+
+                            {staraiCredits.balanceBRL === 0 && (
+                              <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  🎁 <strong>R$ 75,00 por conta da casa!</strong>
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Equivalente a $15 USD para você começar
+                                </p>
+                              </div>
+                            )}
+                          </>
+                        )}
+
+                        <div className="space-y-2">
+                          <Label>Adicionar Créditos (R$)</Label>
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              value={depositAmount}
+                              onChange={(e) => setDepositAmount(Number(e.target.value))}
+                              min={10}
+                              step={10}
+                              placeholder="50"
+                              className="flex-1"
+                              disabled={processingDeposit}
+                            />
+                            <Button 
+                              variant="default"
+                              className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                              onClick={handleStaraiDeposit}
+                              disabled={processingDeposit || depositAmount < 10}
+                            >
+                              {processingDeposit ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : null}
+                              {processingDeposit ? 'Processando...' : 'Depositar'}
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>API Key</Label>
+                      <div className="relative">
+                        <Input
+                          type={showApiKey ? 'text' : 'password'}
+                          placeholder={config.provider === 'openai' ? 'sk-...' : 'AIza...'}
+                          value={config.apiKey}
+                          onChange={(e) => setConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                          className="pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-0 top-0 h-full"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                        >
+                          {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label>Modelo</Label>
+                    <Select value={config.model} onValueChange={(v) => setConfig(prev => ({ ...prev, model: v }))}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um modelo" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[400px]">
+                        {(config.provider === 'openai' || config.provider === 'starai') ? (
+                          (['flagship', 'mini', 'reasoning'] as OpenAIModelCategory[]).map((category) => {
+                            const modelsInCategory = OPENAI_MODELS.filter(m => m.category === category);
+                            if (modelsInCategory.length === 0) return null;
+                            return (
+                              <SelectGroup key={category}>
+                                <SelectLabel className="bg-muted/50 text-muted-foreground">
+                                  {OPENAI_CATEGORY_LABELS[category]}
+                                </SelectLabel>
+                                {modelsInCategory.map((model) => (
+                                  <SelectItem key={model.value} value={model.value}>
+                                    {model.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            );
+                          })
+                        ) : (
+                          (['chat', 'image'] as GoogleModelCategory[]).map((category) => {
+                            const modelsInCategory = GOOGLE_MODELS.filter(m => m.category === category);
+                            if (modelsInCategory.length === 0) return null;
+                            return (
+                              <SelectGroup key={category}>
+                                <SelectLabel className="bg-muted/50 text-muted-foreground">
+                                  {GOOGLE_CATEGORY_LABELS[category]}
+                                </SelectLabel>
+                                {modelsInCategory.map((model) => (
+                                  <SelectItem key={model.value} value={model.value}>
+                                    {model.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            );
+                          })
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={syncLlmConfigToN8n} 
+                    disabled={syncingLlm || !config.n8nWorkflowId || (config.provider !== 'starai' && !config.apiKey)}
+                    className="w-full gap-2"
+                    variant="outline"
+                  >
+                    {syncingLlm ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {syncingLlm ? 'Sincronizando...' : 'Sincronizar com Workflow'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Parâmetros do Modelo</CardTitle>
+                  <CardDescription>
+                    Ajuste o comportamento da IA
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <Label>Temperatura (Criatividade)</Label>
+                      <span className="text-sm font-mono bg-muted px-2 py-1 rounded">
+                        {config.temperature.toFixed(2)}
+                      </span>
+                    </div>
+                    <Slider
+                      value={[config.temperature]}
+                      onValueChange={([v]) => setConfig(prev => ({ ...prev, temperature: v }))}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Preciso (0.0)</span>
+                      <span>Criativo (1.0)</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Max Tokens (Limite de Resposta)</Label>
+                    <Input
+                      type="number"
+                      value={config.maxTokens}
+                      onChange={(e) => setConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) || 0 }))}
+                      min={100}
+                      max={128000}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* MEMÓRIA */}
+          <TabsContent value="memory" className="space-y-6">
+            <div className="grid gap-6 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5 text-primary" />
+                    Memória PostgreSQL
+                  </CardTitle>
+                  <CardDescription>
+                    Memória persistente usando PostgreSQL
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="p-4 bg-green-500/10 rounded-lg border border-green-500/30">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle2 className="h-5 w-5 text-green-500" />
+                      <span className="font-semibold text-green-700 dark:text-green-400">Memória PostgreSQL Ativa</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      A memória persistente está configurada automaticamente.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Janela de Contexto (Mensagens)</Label>
+                    <Input
+                      type="number"
+                      value={config.contextWindowSize}
+                      onChange={(e) => setConfig(prev => ({ ...prev, contextWindowSize: parseInt(e.target.value) || 10 }))}
+                      min={1}
+                      max={100}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Número de mensagens anteriores que o agente lembra
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Política de Retenção</Label>
+                    <Select 
+                      value={config.retentionPolicy} 
+                      onValueChange={(v) => setConfig(prev => ({ ...prev, retentionPolicy: v as any }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {RETENTION_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button 
+                    onClick={syncMemoryToN8n} 
+                    disabled={syncingMemory || !config.n8nWorkflowId}
+                    className="w-full gap-2"
+                    variant="outline"
+                  >
+                    {syncingMemory ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                    {syncingMemory ? 'Configurando...' : 'Sincronizar Memória'}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Isolamento e Sessão</CardTitle>
+                  <CardDescription>
+                    Configure como identificar sessões únicas
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Session Key ID</Label>
+                    <Input
+                      value={config.sessionKeyId}
+                      onChange={(e) => setConfig(prev => ({ ...prev, sessionKeyId: e.target.value }))}
+                      className="font-mono text-sm"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Variável usada para identificar sessões únicas
+                    </p>
+                  </div>
+
+                  <div className="p-3 bg-muted/50 rounded-lg border">
+                    <p className="text-sm font-medium mb-2">Tabela de Histórico</p>
+                    <code className="text-xs bg-background px-2 py-1 rounded block">
+                      n8n_chat_histories
+                    </code>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* PERSONALIDADE */}
+          <TabsContent value="personality" className="space-y-6">
+            {/* Tom de Comunicação */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Plug className="h-5 w-5" />
-                  Ferramentas do Agente
+                  <Bot className="h-5 w-5 text-primary" />
+                  Tom de Comunicação
                 </CardTitle>
                 <CardDescription>
-                  Configure as ferramentas que o bot pode utilizar
+                  Escolha como seu bot vai se comunicar
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                    <div>
-                      <Label>Busca na Web</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Permite que o bot faça buscas na internet
-                      </p>
-                    </div>
-                    <Switch
-                      checked={config.enableWebSearch}
-                      onCheckedChange={(checked) => setConfig(prev => ({ ...prev, enableWebSearch: checked }))}
-                    />
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Mais ferramentas serão disponibilizadas em breve.
-                  </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {(Object.entries(COMMUNICATION_TONES) as [CommunicationTone, typeof COMMUNICATION_TONES[CommunicationTone]][]).map(([id, tone]) => (
+                    <button
+                      key={id}
+                      onClick={() => setConfig(prev => ({ ...prev, communicationTone: id }))}
+                      className={`relative overflow-hidden rounded-xl p-6 text-left transition-all hover:scale-[1.02] hover:shadow-lg border-2 ${
+                        config.communicationTone === id 
+                          ? 'border-primary ring-2 ring-primary/20' 
+                          : 'border-border hover:border-muted-foreground/30'
+                      }`}
+                    >
+                      <div className={`absolute inset-0 bg-gradient-to-br ${tone.color} opacity-10`} />
+                      <div className="relative">
+                        <span className="text-4xl mb-3 block">{tone.emoji}</span>
+                        <h3 className="font-semibold text-lg">{tone.label}</h3>
+                        <p className="text-sm text-muted-foreground mt-1">{tone.desc}</p>
+                        {config.communicationTone === id && (
+                          <Badge className="absolute top-0 right-0 bg-primary">Ativo</Badge>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg border">
+                  <p className="text-xs text-muted-foreground mb-1">Instrução que será aplicada ao agente:</p>
+                  <p className="text-sm italic">{COMMUNICATION_TONES[config.communicationTone].instruction}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Instruções Específicas */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Brain className="h-5 w-5 text-primary" />
+                  Instruções Específicas
+                </CardTitle>
+                <CardDescription>
+                  Adicione instruções personalizadas para o seu bot
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea
+                  value={config.systemPrompt}
+                  onChange={(e) => setConfig(prev => ({ ...prev, systemPrompt: e.target.value }))}
+                  className="min-h-[150px] text-sm"
+                  placeholder="Ex: Você é o assistente da loja XYZ. Nossos horários são de 9h às 18h..."
+                />
+                
+                <Button 
+                  onClick={syncSystemPromptToN8n}
+                  disabled={syncingPrompt || !config.n8nWorkflowId}
+                  className="w-full gap-2"
+                  variant="outline"
+                >
+                  {syncingPrompt ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  {syncingPrompt ? 'Sincronizando...' : 'Sincronizar Prompt'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Regras do Agente */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Regras do Agente
+                </CardTitle>
+                <CardDescription>
+                  O que o bot deve ou não fazer
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex gap-2">
+                  <Select value={newInstructionType} onValueChange={(v) => setNewInstructionType(v as 'do' | 'dont')}>
+                    <SelectTrigger className="w-[130px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="do">✅ Faça</SelectItem>
+                      <SelectItem value="dont">❌ Não faça</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    value={newInstruction}
+                    onChange={(e) => setNewInstruction(e.target.value)}
+                    placeholder="Ex: Sempre cumprimente o cliente"
+                    onKeyPress={(e) => e.key === 'Enter' && addInstruction()}
+                    className="flex-1"
+                  />
+                  <Button onClick={addInstruction} size="icon">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                  {config.actionInstructions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      Nenhuma regra configurada
+                    </p>
+                  ) : (
+                    config.actionInstructions.map((item) => (
+                      <div
+                        key={item.id}
+                        className={`flex items-center justify-between p-3 rounded-lg ${
+                          item.type === 'do' 
+                            ? 'bg-green-500/10 border border-green-500/20' 
+                            : 'bg-red-500/10 border border-red-500/20'
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-sm">
+                          {item.type === 'do' ? '✅' : '❌'} {item.instruction}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeInstruction(item.id)}
+                          className="h-7 w-7"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
-          {/* Memory Tab */}
-          <TabsContent value="memory" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  Configuração de Memória
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Tamanho da Janela de Contexto</Label>
-                  <div className="flex items-center gap-4">
-                    <Slider
-                      value={[config.contextWindowSize]}
-                      min={1}
-                      max={50}
-                      step={1}
-                      onValueChange={([value]) => setConfig(prev => ({ ...prev, contextWindowSize: value }))}
-                      className="flex-1"
-                    />
-                    <span className="w-12 text-center font-mono">{config.contextWindowSize}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Número de mensagens anteriores que o bot lembra
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>ID da Sessão</Label>
-                  <Input
-                    placeholder="Deixe vazio para gerar automaticamente"
-                    value={config.sessionKeyId}
-                    onChange={(e) => setConfig(prev => ({ ...prev, sessionKeyId: e.target.value }))}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Política de Retenção</Label>
-                  <Select
-                    value={config.retentionPolicy}
-                    onValueChange={(value: '7days' | '30days' | '90days' | 'unlimited') => 
-                      setConfig(prev => ({ ...prev, retentionPolicy: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7days">7 dias</SelectItem>
-                      <SelectItem value="30days">30 dias</SelectItem>
-                      <SelectItem value="90days">90 dias</SelectItem>
-                      <SelectItem value="unlimited">Ilimitado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          {/* FERRAMENTAS */}
+          <TabsContent value="tools" className="space-y-6">
+            <ToolsConfigSection
+              toolConfigs={toolConfigs}
+              onUpdateToolConfig={updateToolConfig}
+              onSyncToN8n={syncToolsToN8n}
+              syncing={syncingTools}
+              workflowId={config.n8nWorkflowId}
+            />
           </TabsContent>
         </Tabs>
       </main>
