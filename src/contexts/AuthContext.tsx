@@ -22,7 +22,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
+        console.log('Auth event:', event);
+        
+        // Handle token refresh error - force re-login
+        if (event === 'TOKEN_REFRESHED') {
+          console.log('Token refreshed successfully');
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -37,12 +44,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    // Check for existing session and refresh if needed
+    const initSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Error getting session:', error);
+          // Clear any stale session data
+          await supabase.auth.signOut();
+          setSession(null);
+          setUser(null);
+          setLoading(false);
+          return;
+        }
+        
+        if (session) {
+          // Check if token is about to expire (within 5 minutes)
+          const expiresAt = session.expires_at;
+          const now = Math.floor(Date.now() / 1000);
+          const fiveMinutes = 5 * 60;
+          
+          if (expiresAt && (expiresAt - now) < fiveMinutes) {
+            console.log('Token expiring soon, refreshing...');
+            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+            
+            if (refreshError) {
+              console.error('Error refreshing session:', refreshError);
+              toast.error('Sessão expirada. Por favor, faça login novamente.');
+              await supabase.auth.signOut();
+              setSession(null);
+              setUser(null);
+            } else if (refreshData.session) {
+              setSession(refreshData.session);
+              setUser(refreshData.session.user);
+            }
+          } else {
+            setSession(session);
+            setUser(session.user);
+          }
+        }
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Session initialization error:', err);
+        setLoading(false);
+      }
+    };
+
+    initSession();
 
     return () => subscription.unsubscribe();
   }, []);
