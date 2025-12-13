@@ -90,8 +90,8 @@ export default function AdminOrdersPage() {
 
       if (error) throw error;
 
-      // Se o pedido foi confirmado, entregar os produtos ao cliente
-      if (newStatus === 'confirmed') {
+      // Se o pedido foi confirmado ou completado, entregar os produtos ao cliente
+      if (newStatus === 'confirmed' || newStatus === 'completed') {
         // Buscar itens do pedido
         const { data: orderItems, error: itemsError } = await supabase
           .from('order_items')
