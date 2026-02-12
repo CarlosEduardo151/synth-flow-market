@@ -57,15 +57,15 @@ export default function MercadoPagoPaymentPage() {
       const paymentItems = [];
       for (const item of order.order_items) {
         const productId = await syncProductFromCart({
-          title: item.product_title,
+          title: (item as any).product_name || item.product_slug,
           slug: item.product_slug,
-          price: item.product_price,
+          price: (item as any).unit_price,
         });
 
         if (productId) {
           paymentItems.push({
             product_id: productId,
-            quantity: item.quantity,
+            quantity: (item as any).quantity || 1,
           });
         }
       }

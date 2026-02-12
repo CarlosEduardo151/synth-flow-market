@@ -73,124 +73,66 @@ export default function AdminOrdersPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      // Buscar informações do pedido
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', orderId)
-        .single();
-
-      if (orderError) throw orderError;
-
-      // Atualizar status do pedido
-      const { error } = await supabase
+      // Atualizar status do pedido (e garantir que 1 linha foi afetada)
+      const { data: updatedOrder, error } = await supabase
         .from('orders')
         .update({ status: newStatus })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('id,status,user_id,total_amount')
+        .single();
 
       if (error) throw error;
 
-      // Se o pedido foi confirmado ou completado, entregar os produtos ao cliente
-      if (newStatus === 'confirmed' || newStatus === 'completed') {
-        // Buscar itens do pedido
-        const { data: orderItems, error: itemsError } = await supabase
-          .from('order_items')
-          .select('*')
-          .eq('order_id', orderId);
+      // Entrega automática via trigger (status approved/paid/completed).
+      // Chamamos a RPC também para garantir entrega imediata e idempotente.
+      if (['approved', 'paid', 'completed'].includes(newStatus)) {
+        const { data: deliverResult, error: deliverError } = await supabase.rpc(
+          'deliver_order_products',
+          { order_id_param: orderId }
+        );
 
-        if (itemsError) {
-          console.error('Erro ao buscar itens do pedido:', itemsError);
-        } else if (orderItems && orderItems.length > 0) {
-          // Verificar se já existem produtos entregues para este pedido
-          const { data: existingProducts } = await supabase
-            .from('customer_products')
-            .select('id')
-            .eq('order_id', orderId)
-            .limit(1);
-
-          // Se não existem produtos entregues, criar
-          if (!existingProducts || existingProducts.length === 0) {
-            const customerProductsData = orderItems.map(item => ({
-              user_id: order.user_id,
-              order_id: orderId,
-              product_slug: item.product_slug,
-              product_title: item.product_title,
-              acquisition_type: 'purchase' as const,
-              is_active: true,
-              download_count: 0,
-              max_downloads: 3,
-            }));
-
-            const { error: productsError } = await supabase
-              .from('customer_products')
-              .insert(customerProductsData);
-
-            if (productsError) {
-              console.error('Erro ao entregar produtos:', productsError);
-              toast({
-                title: "Atenção",
-                description: "Pedido confirmado, mas houve erro ao entregar produtos. Tente entregar manualmente.",
-                variant: "destructive",
-              });
-            } else {
-              console.log(`${customerProductsData.length} produto(s) entregue(s) ao cliente`);
-            }
-          }
-        }
-
-        // Se tem parcelas, criar as parcelas se ainda não existem
-        if (order.installment_count > 1) {
-          const { data: existingInstallments } = await supabase
-            .from('order_installments')
-            .select('id')
-            .eq('order_id', orderId)
-            .limit(1);
-
-          if (!existingInstallments || existingInstallments.length === 0) {
-            const installmentsData = [];
-            const installmentValue = order.installment_value || Math.round(order.total_amount / order.installment_count);
-            
-            for (let i = 1; i <= order.installment_count; i++) {
-              const dueDate = new Date();
-              dueDate.setMonth(dueDate.getMonth() + (i - 1));
-              
-              installmentsData.push({
-                order_id: orderId,
-                installment_number: i,
-                total_installments: order.installment_count,
-                amount: installmentValue,
-                due_date: dueDate.toISOString(),
-                status: i === 1 ? 'paid' : 'pending',
-                payment_proof_url: i === 1 ? order.payment_receipt_url : null,
-                paid_at: i === 1 ? new Date().toISOString() : null
-              });
-            }
-
-            const { error: installmentsError } = await supabase
-              .from('order_installments')
-              .insert(installmentsData);
-
-            if (installmentsError) {
-              console.error('Erro ao criar parcelas:', installmentsError);
-            }
-          }
+        if (deliverError) {
+          console.error('Erro ao entregar produtos (RPC):', deliverError);
+          toast({
+            title: 'Atenção',
+            description:
+              'Status atualizado, mas a entrega automática falhou. Tente novamente em alguns segundos.',
+            variant: 'destructive',
+          });
+        } else if ((deliverResult as any)?.success === false) {
+          toast({
+            title: 'Atenção',
+            description:
+              (deliverResult as any)?.error ||
+              'Status atualizado, mas a entrega retornou um erro.',
+            variant: 'destructive',
+          });
         }
       }
 
-      setOrders(orders.map(order => 
-        order.id === orderId ? { ...order, status: newStatus } : order
-      ));
+      setOrders(
+        orders.map((order) =>
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
 
       toast({
-        title: "Sucesso",
-        description: newStatus === 'confirmed' ? "Pedido confirmado e produtos entregues!" : "Pedido cancelado.",
+        title: 'Sucesso',
+        description:
+          newStatus === 'approved'
+            ? 'Pagamento aprovado e entrega iniciada!'
+            : newStatus === 'completed'
+              ? 'Pedido concluído!'
+              : newStatus === 'cancelled'
+                ? 'Pedido cancelado.'
+                : 'Status atualizado.',
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating order status:', error);
       toast({
-        title: "Erro",
-        description: "Não foi possível atualizar o status.",
-        variant: "destructive",
+        title: 'Erro',
+        description: `Não foi possível atualizar o status. ${error?.message || ''}`.trim(),
+        variant: 'destructive',
       });
     }
   };
@@ -199,6 +141,8 @@ export default function AdminOrdersPage() {
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><Clock className="w-3 h-3 mr-1" />Aguardando Pagamento</Badge>;
+      case 'approved':
+      case 'paid':
       case 'confirmed':
         return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Confirmado</Badge>;
       case 'processing':
@@ -408,7 +352,7 @@ export default function AdminOrdersPage() {
                                       <>
                                         <Button
                                           onClick={() => {
-                                            updateOrderStatus(order.id, 'confirmed');
+                                            updateOrderStatus(order.id, 'approved');
                                           }}
                                           className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
                                         >
@@ -454,7 +398,7 @@ export default function AdminOrdersPage() {
                                 <Button
                                   size="sm"
                                   variant="default"
-                                  onClick={() => updateOrderStatus(order.id, 'confirmed')}
+                                  onClick={() => updateOrderStatus(order.id, 'approved')}
                                   className="w-full bg-green-600 hover:bg-green-700 gap-1"
                                 >
                                   <CheckCircle className="w-3 h-3" />
@@ -471,7 +415,7 @@ export default function AdminOrdersPage() {
                                 </Button>
                               </>
                             )}
-                            {order.status === 'confirmed' && (
+                            {(order.status === 'approved' || order.status === 'paid') && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -480,7 +424,8 @@ export default function AdminOrdersPage() {
                               >
                                 ✓ Concluir
                               </Button>
-                            )}
+                            )
+                            }
                             {(order.status === 'completed' || order.status === 'cancelled') && (
                               <Badge variant="outline" className="justify-center">
                                 Finalizado

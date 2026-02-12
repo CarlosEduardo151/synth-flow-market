@@ -41,7 +41,8 @@ export function ChatWidget() {
     if (!email) return;
 
     const channel = supabase
-      .channel('chat_messages')
+      // `channel()` is typed to known channel names; cast to avoid type-block when DB types are not synced.
+      .channel('chat_messages' as any)
       .on(
         'postgres_changes',
         {
@@ -81,16 +82,15 @@ export function ChatWidget() {
     if (!email) return null;
 
     try {
-      const { data: messageData, error } = await supabase
-        .from("chat_messages")
+      const { data: messageData, error } = await (supabase
+        .from("chat_messages" as any)
         .insert({
           gmail: email,
-          type: messageType,
-          content: content,
-          direction: "user_to_bot",
-        })
+          message: content,
+          is_from_user: true
+        } as any)
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
       return messageData.id;
@@ -302,7 +302,7 @@ export function ChatWidget() {
                 <div className="absolute bottom-0 right-0 h-3 w-3 bg-green-400 rounded-full border-2 border-white"></div>
               </div>
               <div>
-                <h3 className="font-semibold text-base">StarAI</h3>
+                <h3 className="font-semibold text-base">NovaLink</h3>
                 <p className="text-xs text-white/90 flex items-center gap-1">
                   <span className="h-2 w-2 bg-green-400 rounded-full animate-pulse"></span>
                   Online agora
@@ -465,7 +465,7 @@ export function ChatWidget() {
                     </Button>
                   </form>
                   <p className="text-xs text-center text-muted-foreground">
-                    Desenvolvido por StarAI
+                    Desenvolvido por NovaLink
                   </p>
                 </div>
               </>

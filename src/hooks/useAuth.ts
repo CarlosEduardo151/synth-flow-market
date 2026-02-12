@@ -20,13 +20,10 @@ export const useAdminCheck = () => {
       }
 
       try {
-        const { data: userRole } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .single();
-
-        setIsAdmin(userRole?.role === 'admin');
+        // Prefer RPC (server-side) to avoid direct table permission issues
+        const { data, error } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+        if (error) throw error;
+        setIsAdmin(Boolean(data));
       } catch (error) {
         console.error('Error checking admin status:', error);
         setIsAdmin(false);

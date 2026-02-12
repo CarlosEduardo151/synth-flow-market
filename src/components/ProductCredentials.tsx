@@ -20,11 +20,12 @@ interface Credential {
 
 interface RequiredCredential {
   id: string;
-  credential_type: string;
-  credential_name: string;
-  description: string | null;
-  n8n_doc_url: string | null;
-  is_required: boolean;
+  credential_key: string;
+  credential_label: string;
+  credential_type: string | null;
+  is_required: boolean | null;
+  product_slug: string;
+  created_at: string | null;
 }
 
 interface ProductCredentialsProps {
@@ -50,10 +51,10 @@ export function ProductCredentials({ customerProductId, productSlug, isRental }:
       const { data, error } = await supabase
         .from('product_credentials')
         .select('*')
-        .eq('customer_product_id', customerProductId);
+        .eq('user_id', customerProductId) as any;
 
       if (error) throw error;
-      setCredentials(data || []);
+      setCredentials((data || []) as Credential[]);
     } catch (error) {
       console.error('Error fetching credentials:', error);
     }
@@ -142,35 +143,13 @@ export function ProductCredentials({ customerProductId, productSlug, isRental }:
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <Label className="text-base font-semibold">
-                      {required.credential_name}
+                      {required.credential_label}
                     </Label>
                     {required.is_required && (
                       <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
                     )}
                   </div>
-                  {required.description && (
-                    <p className="text-sm text-muted-foreground mb-3">
-                      {required.description}
-                    </p>
-                  )}
                 </div>
-                {required.n8n_doc_url && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                  >
-                    <a
-                      href={required.n8n_doc_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                      <span className="text-xs">Documentação</span>
-                    </a>
-                  </Button>
-                )}
               </div>
 
               {credential ? (
@@ -187,7 +166,7 @@ export function ProductCredentials({ customerProductId, productSlug, isRental }:
                       <Input
                         type="password"
                         defaultValue={credential.credential_value || ''}
-                        placeholder={`Digite ${required.credential_name.toLowerCase()}`}
+                        placeholder={`Digite ${required.credential_label.toLowerCase()}`}
                         id={`credential-${credential.id}`}
                       />
                       <Button

@@ -25,7 +25,7 @@ import { Link } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { ProductContent } from '@/components/ProductContent';
 
-interface ProductContent {
+interface ProductContentData {
   id: string;
   product_slug: string;
   product_title: string;
@@ -56,7 +56,7 @@ const ProductViewPage = () => {
   const { toast } = useToast();
   
   const [product, setProduct] = useState<CustomerProduct | null>(null);
-  const [content, setContent] = useState<ProductContent | null>(null);
+  const [content, setContent] = useState<ProductContentData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
 
@@ -72,14 +72,44 @@ const ProductViewPage = () => {
     if (!user || !slug) return;
 
     try {
-      // Check if user has access to this product
-      const { data: customerProduct, error: accessError } = await supabase
-        .from('customer_products')
+      // First check for active free trial
+      const { data: trial } = await (supabase
+        .from as any)('free_trials')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('product_slug', slug)
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (trial) {
+        // Check if trial hasn't expired
+        const trialExpired = new Date((trial as any).expires_at) < new Date();
+        if (!trialExpired) {
+          setHasAccess(true);
+          setProduct({
+            id: `trial-${(trial as any).id}`,
+            product_slug: (trial as any).product_slug,
+            product_title: (trial as any).product_title,
+            delivered_at: (trial as any).started_at,
+            access_expires_at: (trial as any).expires_at,
+            download_count: 0,
+            max_downloads: 0,
+            is_active: true,
+            acquisition_type: 'rental' as const
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // Check if user has purchased access to this product
+      const { data: customerProduct, error: accessError } = await (supabase
+        .from as any)('customer_products')
         .select('*')
         .eq('user_id', user.id)
         .eq('product_slug', slug)
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (accessError || !customerProduct) {
         setHasAccess(false);
@@ -88,8 +118,8 @@ const ProductViewPage = () => {
       }
 
       // Check if access has expired
-      const expired = customerProduct.access_expires_at 
-        ? new Date(customerProduct.access_expires_at) < new Date()
+      const expired = (customerProduct as any).access_expires_at 
+        ? new Date((customerProduct as any).access_expires_at) < new Date()
         : false;
 
       if (expired) {
@@ -98,12 +128,12 @@ const ProductViewPage = () => {
         return;
       }
 
-      setProduct(customerProduct);
+      setProduct(customerProduct as CustomerProduct);
       setHasAccess(true);
 
       // Fetch product content
-      const { data: productContent, error: contentError } = await supabase
-        .from('products_content')
+      const { data: productContent, error: contentError } = await (supabase
+        .from as any)('products_content')
         .select('*')
         .eq('product_slug', slug)
         .eq('is_active', true)
@@ -112,7 +142,7 @@ const ProductViewPage = () => {
       if (contentError) {
         console.error('Error fetching content:', contentError);
       } else {
-        setContent(productContent);
+        setContent(productContent as ProductContentData);
       }
 
     } catch (error) {
@@ -252,8 +282,7 @@ const ProductViewPage = () => {
                   product?.product_slug === 'crm-simples' ||
                   product?.product_slug === 'relatorios-financeiros' ||
                   product?.product_slug === 'posts-sociais' ||
-                  product?.product_slug === 'fidelidade-digital' ||
-                  product?.product_slug === 'starapp') && (
+                  product?.product_slug === 'fidelidade-digital') && (
                   <div className="space-y-2">
                     <Button
                       className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
@@ -277,7 +306,7 @@ const ProductViewPage = () => {
                  product?.product_slug !== 'relatorios-financeiros' &&
                  product?.product_slug !== 'posts-sociais' &&
                  product?.product_slug !== 'fidelidade-digital' &&
-                 product?.product_slug !== 'starapp' && (
+                  (
                   <div className="space-y-2">
                     <a
                       href={`/produtos/${encodeURIComponent(product?.product_title || 'produto')}.zip`}

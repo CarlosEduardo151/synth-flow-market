@@ -30,10 +30,10 @@ export function LoyaltyDashboard({ customerProductId }: DashboardProps) {
 
   const fetchDashboardData = async () => {
     // Buscar estatísticas gerais
-    const { data: clients } = await supabase
-      .from('loyalty_clients')
+    const { data: clients } = await (supabase
+      .from('loyalty_clients' as any)
       .select('points_balance, total_points_earned, total_points_redeemed, status, last_transaction_date')
-      .eq('customer_product_id', customerProductId);
+      .eq('customer_product_id', customerProductId) as any);
 
     if (clients) {
       const totalClients = clients.length;
@@ -43,48 +43,48 @@ export function LoyaltyDashboard({ customerProductId }: DashboardProps) {
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
       
-      const activeClientsThisMonth = clients.filter(c => {
+      const activeClientsThisMonth = clients.filter((c: any) => {
         if (!c.last_transaction_date) return false;
         const lastTransaction = new Date(c.last_transaction_date);
         return lastTransaction >= startOfMonth;
       }).length;
       
-      const totalPointsIssued = clients.reduce((sum, c) => sum + c.total_points_earned, 0);
-      const totalRewardsRedeemed = clients.reduce((sum, c) => sum + c.total_points_redeemed, 0);
+      const totalPointsIssued = clients.reduce((sum: number, c: any) => sum + c.total_points_earned, 0);
+      const totalRewardsRedeemed = clients.reduce((sum: number, c: any) => sum + c.total_points_redeemed, 0);
 
       setStats({ totalClients, activeClientsThisMonth, totalPointsIssued, totalRewardsRedeemed });
     }
 
     // Buscar top 10 clientes
-    const { data: topClientsData } = await supabase
-      .from('loyalty_clients')
+    const { data: topClientsData } = await (supabase
+      .from('loyalty_clients' as any)
       .select('name, points_balance')
       .eq('customer_product_id', customerProductId)
       .order('points_balance', { ascending: false })
-      .limit(10);
+      .limit(10) as any);
 
     setTopClients(topClientsData || []);
 
     // Buscar transações recentes
-    const { data: transactions } = await supabase
-      .from('loyalty_transactions')
+    const { data: transactions } = await (supabase
+      .from('loyalty_transactions' as any)
       .select('*, client:loyalty_clients(name)')
       .eq('customer_product_id', customerProductId)
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(10) as any);
 
     setRecentTransactions(transactions || []);
 
     // Buscar dados mensais (últimos 6 meses)
-    const { data: monthlyTransactions } = await supabase
-      .from('loyalty_transactions')
+    const { data: monthlyTransactions } = await (supabase
+      .from('loyalty_transactions' as any)
       .select('created_at, transaction_type, points_amount')
       .eq('customer_product_id', customerProductId)
-      .gte('created_at', new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString());
+      .gte('created_at', new Date(new Date().setMonth(new Date().getMonth() - 6)).toISOString()) as any);
 
     if (monthlyTransactions) {
       const monthlyMap = new Map();
-      monthlyTransactions.forEach(t => {
+      monthlyTransactions.forEach((t: any) => {
         const month = new Date(t.created_at).toLocaleDateString('pt-BR', { month: 'short' });
         if (!monthlyMap.has(month)) {
           monthlyMap.set(month, { month, ganhos: 0, trocas: 0 });
@@ -100,13 +100,13 @@ export function LoyaltyDashboard({ customerProductId }: DashboardProps) {
     }
 
     // Buscar recompensas mais resgatadas
-    const { data: rewards } = await supabase
-      .from('loyalty_rewards')
+    const { data: rewards } = await (supabase
+      .from('loyalty_rewards' as any)
       .select('name, total_redeemed')
       .eq('customer_product_id', customerProductId)
       .gt('total_redeemed', 0)
       .order('total_redeemed', { ascending: false })
-      .limit(5);
+      .limit(5) as any);
 
     setRewardsData(rewards || []);
   };

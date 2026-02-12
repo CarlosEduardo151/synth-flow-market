@@ -21,6 +21,48 @@ export const botsAutomacao: Product = {
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
   specs: "Pagamento Mensal - R$ 250/mês",
+  operationManual: [
+    {
+      step: "01",
+      action: "Selecionar Plataforma",
+      detail: "Escolha entre WhatsApp ou Telegram como plataforma principal. Você pode adicionar mais plataformas posteriormente."
+    },
+    {
+      step: "02",
+      action: "Conectar Conta",
+      detail: "Para WhatsApp: escaneie o QR Code com seu celular. Para Telegram: insira o token do BotFather."
+    },
+    {
+      step: "03",
+      action: "Configurar Personalidade",
+      detail: "Defina nome, tom de voz (formal/informal) e área de atuação do bot (vendas, suporte, atendimento)."
+    },
+    {
+      step: "04",
+      action: "Criar Respostas Base",
+      detail: "Configure as respostas para perguntas frequentes. O bot aprenderá a melhorar com o tempo."
+    },
+    {
+      step: "05",
+      action: "Definir Horários",
+      detail: "Configure horários de funcionamento automático e mensagens fora do expediente."
+    },
+    {
+      step: "06",
+      action: "Testar Bot",
+      detail: "Envie mensagens de teste antes de ativar. Verifique se as respostas estão corretas."
+    },
+    {
+      step: "07",
+      action: "Ativar Produção",
+      detail: "Após validar os testes, ative o bot em produção. Monitore as primeiras conversas."
+    },
+    {
+      step: "08",
+      action: "Treinar Continuamente",
+      detail: "Revise conversas semanalmente para melhorar respostas. O bot aprende com cada interação."
+    }
+  ],
   content: `
 # Bots de Automação
 

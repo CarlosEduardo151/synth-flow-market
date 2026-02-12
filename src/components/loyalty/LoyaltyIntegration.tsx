@@ -29,22 +29,22 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
 
   const fetchSettings = async () => {
     // Carregar token do customer_product
-    const { data: cpData } = await supabase
-      .from('customer_products')
+    const { data: cpData } = await (supabase
+      .from('customer_products' as any)
       .select('webhook_token')
       .eq('id', customerProductId)
-      .single();
+      .single() as any);
 
     if (cpData?.webhook_token) {
       setWebhookToken(cpData.webhook_token);
     }
 
     // Carregar webhook de saída
-    const { data } = await supabase
-      .from('loyalty_settings')
+    const { data } = await (supabase
+      .from('loyalty_settings' as any)
       .select('webhook_url')
       .eq('customer_product_id', customerProductId)
-      .single();
+      .single() as any);
 
     if (data?.webhook_url) {
       setWebhookUrl(data.webhook_url);
@@ -60,11 +60,11 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
   };
 
   const handleSaveWebhook = async () => {
-    const { data: existing } = await supabase
-      .from('loyalty_settings')
+    const { data: existing } = await (supabase
+      .from('loyalty_settings' as any)
       .select('id')
       .eq('customer_product_id', customerProductId)
-      .single();
+      .single() as any);
 
     const dataToSave = {
       customer_product_id: customerProductId,
@@ -73,15 +73,15 @@ export function LoyaltyIntegration({ customerProductId }: LoyaltyIntegrationProp
 
     let error;
     if (existing) {
-      const result = await supabase
-        .from('loyalty_settings')
+      const result = await (supabase
+        .from('loyalty_settings' as any)
         .update(dataToSave)
-        .eq('customer_product_id', customerProductId);
+        .eq('customer_product_id', customerProductId) as any);
       error = result.error;
     } else {
-      const result = await supabase
-        .from('loyalty_settings')
-        .insert({ ...dataToSave, conversion_rate: 1.0, auto_send_messages: true });
+      const result = await (supabase
+        .from('loyalty_settings' as any)
+        .insert({ ...dataToSave, conversion_rate: 1.0, auto_send_messages: true }) as any);
       error = result.error;
     }
 

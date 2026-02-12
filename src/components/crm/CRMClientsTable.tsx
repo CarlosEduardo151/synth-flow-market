@@ -29,22 +29,32 @@ interface CRMClientsTableProps {
   onViewDetails: (customer: CRMCustomer) => void;
   onEdit: (customer: CRMCustomer) => void;
   onDelete: (customerId: string) => void;
+  onRowClick?: (customer: CRMCustomer) => void;
 }
 
-export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete }: CRMClientsTableProps) => {
+export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, onRowClick }: CRMClientsTableProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'created_at' | 'name'>('created_at');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Filtrar clientes
   const filteredCustomers = customers.filter(customer => {
     const matchesSearch = 
       customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone?.includes(searchTerm);
+      customer.phone?.includes(searchTerm) ||
+      customer.company?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === 'all' || customer.status === statusFilter;
     
     return matchesSearch && matchesStatus;
+  });
+
+  const sortedCustomers = [...filteredCustomers].sort((a, b) => {
+    const dir = sortDir === 'asc' ? 1 : -1;
+    if (sortBy === 'name') return a.name.localeCompare(b.name) * dir;
+    return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
   });
 
   // Exportar para XLSX
@@ -116,6 +126,24 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete }: 
                 <SelectItem value="inactive">Inativos</SelectItem>
               </SelectContent>
             </Select>
+            <Select
+              value={`${sortBy}:${sortDir}`}
+              onValueChange={(v) => {
+                const [by, dir] = v.split(':') as ['created_at' | 'name', 'asc' | 'desc'];
+                setSortBy(by);
+                setSortDir(dir);
+              }}
+            >
+              <SelectTrigger className="w-full md:w-44">
+                <SelectValue placeholder="Ordenar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at:desc">Mais recentes</SelectItem>
+                <SelectItem value="created_at:asc">Mais antigos</SelectItem>
+                <SelectItem value="name:asc">Nome (A-Z)</SelectItem>
+                <SelectItem value="name:desc">Nome (Z-A)</SelectItem>
+              </SelectContent>
+            </Select>
             <Button onClick={exportToXLSX} variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Exportar XLSX
@@ -129,6 +157,7 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete }: 
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Empresa</TableHead>
                 <TableHead>E-mail</TableHead>
                 <TableHead>Telefone</TableHead>
                 <TableHead>Status</TableHead>
@@ -137,16 +166,26 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete }: 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredCustomers.length === 0 ? (
+              {sortedCustomers.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
                     Nenhum cliente encontrado
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCustomers.map((customer) => (
-                  <TableRow key={customer.id}>
+                sortedCustomers.map((customer) => (
+                  <TableRow
+                    key={customer.id}
+                    className={onRowClick ? 'cursor-pointer' : undefined}
+                    onClick={(e) => {
+                      // evita disparar quando clicar nos botões
+                      const target = e.target as HTMLElement;
+                      if (target.closest('button')) return;
+                      onRowClick?.(customer);
+                    }}
+                  >
                     <TableCell className="font-medium">{customer.name}</TableCell>
+                    <TableCell>{customer.company || '-'}</TableCell>
                     <TableCell>{customer.email || '-'}</TableCell>
                     <TableCell>{customer.phone || '-'}</TableCell>
                     <TableCell>
@@ -191,7 +230,7 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete }: 
           </Table>
         </div>
         <div className="mt-4 text-sm text-muted-foreground">
-          Mostrando {filteredCustomers.length} de {customers.length} clientes
+          Mostrando {sortedCustomers.length} de {customers.length} clientes
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,5 @@
 import { useAuth, useAdminCheck } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
@@ -10,14 +10,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Save, Store, Mail, Globe, Palette, Shield } from 'lucide-react';
+import { ArrowLeft, Save, Store, Mail, Globe, Palette, Shield, Bot, Megaphone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { CRMAIConfig } from '@/components/crm/CRMAIConfig';
+import { AdminAISettings } from '@/components/admin/ai/AdminAISettings';
+import { PromoCarouselAdmin } from '@/components/admin/PromoCarouselAdmin';
 
 export default function AdminSettingsPage() {
   const { user, loading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdminCheck();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
+  
+  const defaultTab = searchParams.get('tab') || 'store';
   
   const [storeSettings, setStoreSettings] = useState({
     name: 'Loja de IA',
@@ -142,8 +148,8 @@ export default function AdminSettingsPage() {
           <h1 className="text-3xl font-bold">Configurações</h1>
         </div>
 
-        <Tabs defaultValue="store" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+        <Tabs defaultValue={defaultTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="store" className="flex items-center gap-2">
               <Store className="w-4 h-4" />
               Loja
@@ -164,7 +170,19 @@ export default function AdminSettingsPage() {
               <Shield className="w-4 h-4" />
               Segurança
             </TabsTrigger>
+            <TabsTrigger value="ai" className="flex items-center gap-2">
+              <Bot className="w-4 h-4" />
+              IA
+            </TabsTrigger>
+            <TabsTrigger value="carousel" className="flex items-center gap-2">
+              <Megaphone className="w-4 h-4" />
+              Carrossel
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="carousel">
+            <PromoCarouselAdmin />
+          </TabsContent>
 
           <TabsContent value="store">
             <Card>
@@ -568,6 +586,11 @@ export default function AdminSettingsPage() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="ai" className="space-y-6">
+            <AdminAISettings />
+            <CRMAIConfig />
           </TabsContent>
         </Tabs>
       </main>

@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useProductAccess } from '@/hooks/useProductAccess';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { MessageCircle, Send, ArrowRight, Bot, Sparkles, Check } from 'lucide-react';
+import { ProductTutorial } from '@/components/ProductTutorial';
+import { botsAutomacaoTutorial } from '@/data/tutorials/bots-automacao';
 
 interface CustomerProduct {
   id: string;
@@ -24,6 +27,7 @@ interface PlatformConfig {
 const BotsAutomacaoSystem = () => {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const access = useProductAccess('bots-automacao');
   const [customerProduct, setCustomerProduct] = useState<CustomerProduct | null>(null);
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,56 +37,52 @@ const BotsAutomacaoSystem = () => {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    } else if (user) {
-      checkAccess();
+      return;
     }
-  }, [user, loading, navigate]);
+    if (!user || access.loading) return;
 
-  const checkAccess = async () => {
-    if (!user) return;
+    if (!access.hasAccess || !access.customerId) {
+      navigate('/meus-produtos');
+      return;
+    }
 
-    try {
-      // Check if user has access to this product
-      const { data: products, error } = await supabase
-        .from('customer_products')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('product_slug', 'bots-automacao')
-        .eq('is_active', true)
-        .order('delivered_at', { ascending: false })
-        .limit(1);
+    const customerProductId = access.customerId;
+    setCustomerProduct({
+      id: customerProductId,
+      product_slug: 'bots-automacao',
+      product_title: 'Bots de Automação',
+      is_active: true,
+    });
 
-      if (error || !products || products.length === 0) {
-        navigate('/meus-produtos');
-        return;
-      }
+    const loadPlatformConfig = async () => {
+      try {
+        const { data: cfg, error } = await supabase
+          .from('ai_control_config')
+          .select('configuration')
+          .eq('customer_product_id', customerProductId)
+          .maybeSingle();
 
-      const product = products[0];
+        if (error) throw error;
 
-      setCustomerProduct(product);
+        const configuration = (cfg as any)?.configuration as any;
+        const platform = configuration?.bots_automacao?.platform as PlatformConfig['platform'] | undefined;
+        const configured_at = configuration?.bots_automacao?.configured_at as string | undefined;
 
-      // Check if platform was already configured
-      const { data: config } = await supabase
-        .from('ai_control_config')
-        .select('configuration')
-        .eq('customer_product_id', product.id)
-        .single();
-
-      if (config?.configuration) {
-        const configData = config.configuration as any;
-        if (configData.platform) {
+        if (platform) {
           setPlatformConfig({
-            platform: configData.platform,
-            configured_at: configData.configured_at
+            platform,
+            configured_at: configured_at ?? null,
           });
         }
+      } catch (error) {
+        console.error('Error loading bots config:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error checking access:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    loadPlatformConfig();
+  }, [user, loading, access.loading, access.hasAccess, access.customerId, navigate]);
 
   const handleSelectPlatform = async (platform: 'whatsapp' | 'telegram') => {
     if (!customerProduct) return;
@@ -91,18 +91,46 @@ const BotsAutomacaoSystem = () => {
     setSelectedPlatform(platform);
 
     try {
-      // Save platform selection to ai_control_config
-      const { error } = await supabase
+      // Save platform selection to ai_control_config (stored under configuration.bots_automacao)
+      const now = new Date().toISOString();
+      const { data: existingRow } = await supabase
         .from('ai_control_config')
-        .upsert({
-          customer_product_id: customerProduct.id,
-          configuration: {
-            platform,
-            configured_at: new Date().toISOString()
-          }
-        }, {
-          onConflict: 'customer_product_id'
-        });
+        .select('id, configuration')
+        .eq('customer_product_id', customerProduct.id)
+        .maybeSingle();
+
+      const prevConfiguration = ((existingRow as any)?.configuration ?? {}) as any;
+
+      const nextConfiguration = {
+        ...prevConfiguration,
+        bots_automacao: {
+          ...(prevConfiguration?.bots_automacao ?? {}),
+          platform,
+          configured_at: now,
+        },
+      };
+
+      // Não usamos upsert com onConflict aqui porque a tabela não tem constraint UNIQUE em customer_product_id.
+      // Fluxo:
+      // - se já existe registro, atualiza pelo id
+      // - senão, insere
+      const { error } = (existingRow as any)?.id
+        ? await supabase
+            .from('ai_control_config')
+            .update({
+              configuration: nextConfiguration,
+              is_active: true,
+              user_id: user?.id,
+            } as any)
+            .eq('id', (existingRow as any).id)
+        : await supabase
+            .from('ai_control_config')
+            .insert({
+              customer_product_id: customerProduct.id,
+              user_id: user?.id,
+              is_active: true,
+              configuration: nextConfiguration,
+            } as any);
 
       if (error) throw error;
 
@@ -178,6 +206,13 @@ const BotsAutomacaoSystem = () => {
   return (
     <div className="min-h-screen bg-background">
       <Header />
+
+      <ProductTutorial
+        productSlug="bots-automacao"
+        productTitle="Bots de Automação"
+        steps={botsAutomacaoTutorial}
+        onComplete={() => {}}
+      />
       
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">

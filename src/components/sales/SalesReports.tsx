@@ -5,13 +5,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { 
   TrendingUp,
-  TrendingDown,
   DollarSign,
   Users,
   Target,
   Calendar,
-  Download,
-  ArrowUpRight
+  Download
 } from 'lucide-react';
 import {
   AreaChart,
@@ -26,12 +24,9 @@ import {
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   Legend
 } from 'recharts';
-import { format, subDays, startOfMonth, endOfMonth, eachDayOfInterval, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format, subDays, parseISO } from 'date-fns';
 
 interface SalesReportsProps {
   customerProductId: string;
@@ -69,20 +64,20 @@ export function SalesReports({ customerProductId }: SalesReportsProps) {
     const startDate = subDays(new Date(), parseInt(period)).toISOString();
 
     const [leadsRes, meetingsRes] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('sales_leads')
         .select('*')
         .eq('customer_product_id', customerProductId)
         .gte('created_at', startDate),
-      supabase
+      (supabase as any)
         .from('sales_meetings')
         .select('*, sales_leads!inner(customer_product_id)')
         .eq('sales_leads.customer_product_id', customerProductId)
         .gte('created_at', startDate)
     ]);
 
-    if (leadsRes.data) setLeads(leadsRes.data);
-    if (meetingsRes.data) setMeetings(meetingsRes.data);
+    if (leadsRes.data) setLeads(leadsRes.data as Lead[]);
+    if (meetingsRes.data) setMeetings(meetingsRes.data as Meeting[]);
     setIsLoading(false);
   };
 

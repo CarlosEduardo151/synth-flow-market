@@ -68,10 +68,16 @@ export default function AdminReviewsPage() {
       const { data, error } = await supabase
         .from('customer_reviews')
         .select('*')
-        .order('display_order', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setReviews(data || []);
+      // Map to interface
+      const mappedReviews = (data || []).map((r: any) => ({
+        ...r,
+        customer_photo_url: r.avatar_url || '',
+        display_order: 0,
+      }));
+      setReviews(mappedReviews);
     } catch (error) {
       console.error('Error fetching reviews:', error);
       toast({

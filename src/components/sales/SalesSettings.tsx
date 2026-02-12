@@ -54,7 +54,7 @@ export function SalesSettings({ customerProductId }: SalesSettingsProps) {
   }, [customerProductId]);
 
   const loadWebhookToken = async () => {
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('customer_products')
       .select('webhook_token')
       .eq('id', customerProductId)
@@ -67,7 +67,7 @@ export function SalesSettings({ customerProductId }: SalesSettingsProps) {
 
   const loadConfig = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('sales_assistant_config')
       .select('*')
       .eq('customer_product_id', customerProductId)
@@ -91,7 +91,7 @@ export function SalesSettings({ customerProductId }: SalesSettingsProps) {
   const handleSave = async () => {
     setIsSaving(true);
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('sales_assistant_config')
       .upsert({
         customer_product_id: customerProductId,

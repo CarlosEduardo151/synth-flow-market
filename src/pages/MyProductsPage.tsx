@@ -13,13 +13,17 @@ import { Separator } from '@/components/ui/separator';
 
 import { 
   Package, 
-  Download, 
+  Star, 
   Eye, 
   Calendar,
   Clock,
   Shield,
-  FileText
+  FileText,
+  Gift,
+  Timer
 } from 'lucide-react';
+
+import { useFreeTrial, FreeTrial } from '@/hooks/useFreeTrial';
 
 interface CustomerProduct {
   id: string;
@@ -42,6 +46,7 @@ const MyProductsPage = () => {
   const navigate = useNavigate();
   const [products, setProducts] = useState<CustomerProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { activeTrials, loading: trialsLoading, getTrialTimeRemaining } = useFreeTrial();
 
   useEffect(() => {
     if (!loading && !user) {
@@ -62,7 +67,7 @@ const MyProductsPage = () => {
         .order('delivered_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      setProducts((data as CustomerProduct[]) || []);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -91,7 +96,7 @@ const MyProductsPage = () => {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  if (loading || isLoading) {
+  if (loading || isLoading || trialsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
@@ -130,20 +135,86 @@ const MyProductsPage = () => {
           </div>
         </div>
 
-        {products.length === 0 ? (
+        {/* Active Trials Section */}
+        {activeTrials.length > 0 && (
+          <div className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Gift className="h-6 w-6 text-primary" />
+              <h2 className="text-xl font-bold">Testes Grátis Ativos</h2>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {activeTrials.map((trial) => (
+                <Card key={trial.id} className="border-primary/30 bg-primary/5">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/20 rounded-lg">
+                          <Timer className="h-5 w-5 text-primary" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">{trial.product_slug}</CardTitle>
+                          <CardDescription className="flex items-center gap-2 mt-1">
+                            <Calendar className="h-4 w-4" />
+                            Iniciado em {new Date(trial.created_at).toLocaleDateString('pt-BR')}
+                          </CardDescription>
+                        </div>
+                      </div>
+                      <Badge className="bg-primary/20 text-primary">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {getTrialTimeRemaining(trial)}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <Button
+                      asChild
+                      className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                    >
+                      <Link to={`/sistema/${trial.product_slug}`}>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Acessar Sistema (Teste)
+                      </Link>
+                    </Button>
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Expira em {new Date(trial.expires_at).toLocaleDateString('pt-BR')} às {new Date(trial.expires_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Purchased Products Section */}
+        {products.length === 0 && activeTrials.length === 0 ? (
           <Card className="text-center py-12">
             <CardContent>
               <Package className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">Nenhum produto encontrado</h3>
               <p className="text-muted-foreground mb-6">
-                Você ainda não possui produtos digitais. Explore nossa loja para encontrar soluções incríveis!
+                Você ainda não possui produtos digitais. Explore nossa loja ou experimente um teste grátis!
               </p>
-              <Button asChild>
-                <Link to="/">Explorar Produtos</Link>
-              </Button>
+              <div className="flex gap-4 justify-center">
+                <Button asChild>
+                  <Link to="/">Explorar Produtos</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/teste-gratis">
+                    <Gift className="h-4 w-4 mr-2" />
+                    Teste Grátis
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        ) : (
+        ) : products.length > 0 ? (
+          <>
+            {activeTrials.length > 0 && (
+              <div className="flex items-center gap-2 mb-4">
+                <Package className="h-6 w-6 text-foreground" />
+                <h2 className="text-xl font-bold">Produtos Adquiridos</h2>
+              </div>
+            )}
           <div className="grid gap-6">
             {products.map((product) => {
               const expired = isExpired(product.access_expires_at);
@@ -191,13 +262,15 @@ const MyProductsPage = () => {
                   <CardContent className="space-y-4">
                     <Separator />
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex items-center gap-2">
-                        <Download className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">
-                          Downloads: {product.download_count}/{product.max_downloads || '∞'}
-                        </span>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {product.access_expires_at && (
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">
+                            Expira em: {formatDate(product.access_expires_at)}
+                          </span>
+                        </div>
+                      )}
 
                       {product.access_expires_at && (
                         <div className="flex items-center gap-2">
@@ -219,7 +292,7 @@ const MyProductsPage = () => {
                     <Separator />
 
                     <div className="flex gap-3">
-                      {['crm-simples', 'dashboards-personalizados', 'gestao-cobrancas', 'posts-sociais', 'relatorios-financeiros', 'fidelidade-digital', 'starapp', 'assistente-vendas', 'bots-automacao'].includes(product.product_slug) ? (
+                      {['crm-simples', 'dashboards-personalizados', 'gestao-cobrancas', 'posts-sociais', 'relatorios-financeiros', 'fidelidade-digital', 'assistente-vendas', 'bots-automacao', 'agente-financeiro', 'agente-rh'].includes(product.product_slug) ? (
                         <Button
                           asChild
                           className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
@@ -245,29 +318,17 @@ const MyProductsPage = () => {
                     </div>
 
 
-                    {product.acquisition_type === 'purchase' && (
-                      <Button
-                        className="w-full"
-                        size="sm"
-                        variant="outline"
-                        disabled={
-                          expired ||
-                          !product.is_active ||
-                          (product?.max_downloads
-                            ? product?.download_count >= product?.max_downloads
-                            : false)
-                        }
-                      >
-                        <a
-                          href={`/produtos/${encodeURIComponent(product.product_title || "produto")}.zip`}
-                          download
-                          className="flex items-center justify-center"
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Baixar {product.product_title}
-                        </a>
-                      </Button>
-                    )}
+                    <Button
+                      asChild
+                      className="w-full"
+                      size="sm"
+                      variant="outline"
+                    >
+                      <Link to={`/avaliar/${product.product_slug}`}>
+                        <Star className="h-4 w-4 mr-2" />
+                        Avaliar Produto
+                      </Link>
+                    </Button>
 
                     {product.acquisition_type === 'rental' && (
                       <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
@@ -299,8 +360,9 @@ const MyProductsPage = () => {
                 </Card>
               );
             })}
-          </div>
-        )}
+            </div>
+          </>
+        ) : null}
       </main>
 
       <Footer />

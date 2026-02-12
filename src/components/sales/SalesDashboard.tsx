@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from '@/hooks/use-toast';
 import { 
   Users, 
   TrendingUp, 
@@ -10,10 +13,17 @@ import {
   DollarSign,
   Target,
   ArrowUpRight,
-  ArrowDownRight,
   Clock,
   Flame,
-  Star
+  Star,
+  Sparkles,
+  Brain,
+  Loader2,
+  RefreshCw,
+  Lightbulb,
+  AlertTriangle,
+  CheckCircle2,
+  Zap
 } from 'lucide-react';
 import {
   AreaChart,
@@ -39,22 +49,17 @@ interface Lead {
   id: string;
   name: string;
   status: string;
-  priority: string;
-  score: number;
-  estimated_value: number;
+  ai_score: number;
   created_at: string;
 }
 
-interface Meeting {
-  id: string;
-  status: string;
-  scheduled_at: string;
-}
-
-interface FollowUp {
-  id: string;
-  status: string;
-  scheduled_at: string;
+interface AIInsight {
+  kpi_summary?: any;
+  alerts?: Array<{ type: string; message: string; priority: string }>;
+  opportunities?: Array<{ description: string; potential_value: string }>;
+  trends?: string[];
+  weekly_goals?: string[];
+  ai_recommendations?: Array<{ title: string; description: string; impact: string }>;
 }
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -70,36 +75,50 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [followUps, setFollowUps] = useState<FollowUp[]>([]);
+  const [followUps, setFollowUps] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [pipeline, setPipeline] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [aiInsights, setAiInsights] = useState<AIInsight | null>(null);
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [hasCRMIntegration, setHasCRMIntegration] = useState(false);
 
   useEffect(() => {
-    loadData();
-  }, [customerProductId]);
+    if (user) {
+      loadData();
+      checkCRMIntegration();
+    }
+  }, [user]);
+
+  const checkCRMIntegration = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('customer_products')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('product_slug', 'crm-simples')
+      .eq('is_active', true)
+      .maybeSingle();
+    setHasCRMIntegration(!!data);
+  };
 
   const loadData = async () => {
+    if (!user) return;
     setIsLoading(true);
     try {
-      const [leadsRes, meetingsRes, followUpsRes] = await Promise.all([
-        supabase
-          .from('sales_leads')
-          .select('*')
-          .eq('customer_product_id', customerProductId),
-        supabase
-          .from('sales_meetings')
-          .select('*, sales_leads!inner(customer_product_id)')
-          .eq('sales_leads.customer_product_id', customerProductId),
-        supabase
-          .from('sales_follow_ups')
-          .select('*, sales_leads!inner(customer_product_id)')
-          .eq('sales_leads.customer_product_id', customerProductId)
+      const [leadsRes, followUpsRes, meetingsRes, pipelineRes] = await Promise.all([
+        supabase.from('sales_leads').select('*').eq('user_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('sales_follow_ups').select('*').eq('user_id', user.id).eq('status', 'pending'),
+        supabase.from('sales_meetings').select('*').eq('user_id', user.id).gte('scheduled_at', new Date().toISOString()),
+        supabase.from('sales_pipeline').select('*, sales_leads(*)').eq('user_id', user.id)
       ]);
 
       if (leadsRes.data) setLeads(leadsRes.data);
-      if (meetingsRes.data) setMeetings(meetingsRes.data);
       if (followUpsRes.data) setFollowUps(followUpsRes.data);
+      if (meetingsRes.data) setMeetings(meetingsRes.data);
+      if (pipelineRes.data) setPipeline(pipelineRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -107,20 +126,41 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
     }
   };
 
+  const generateAIInsights = async () => {
+    if (!user) return;
+    setIsLoadingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sales-ai', {
+        body: { action: 'dashboard_insights', userId: user.id }
+      });
+
+      if (error) throw error;
+      if (data?.success && data?.data) {
+        setAiInsights(data.data);
+        toast({ title: 'Insights gerados com sucesso!' });
+      } else if (data?.error) {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      console.error('AI Error:', error);
+      toast({ 
+        title: 'Erro ao gerar insights', 
+        description: error.message || 'Tente novamente',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
+  };
+
   // Calculate stats
   const totalLeads = leads.length;
-  const qualifiedLeads = leads.filter(l => l.status === 'qualified' || l.status === 'proposal' || l.status === 'negotiation').length;
+  const qualifiedLeads = leads.filter(l => ['qualified', 'proposal', 'negotiation'].includes(l.status)).length;
   const wonLeads = leads.filter(l => l.status === 'won').length;
   const conversionRate = totalLeads > 0 ? ((wonLeads / totalLeads) * 100).toFixed(1) : '0';
-  const totalRevenue = leads.filter(l => l.status === 'won').reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-  const potentialRevenue = leads.filter(l => l.status !== 'won' && l.status !== 'lost').reduce((sum, l) => sum + (l.estimated_value || 0), 0);
-  
-  const upcomingMeetings = meetings.filter(m => 
-    m.status === 'scheduled' || m.status === 'confirmed'
-  ).length;
-  
-  const pendingFollowUps = followUps.filter(f => f.status === 'pending').length;
-  const urgentLeads = leads.filter(l => l.priority === 'urgent' || l.priority === 'high').length;
+  const pendingFollowUps = followUps.length;
+  const upcomingMeetings = meetings.length;
+  const urgentLeads = leads.filter(l => (l as any).priority === 'urgent' || (l as any).priority === 'high').length;
 
   // Charts data
   const statusData = [
@@ -130,10 +170,9 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
     { name: 'Proposta', value: leads.filter(l => l.status === 'proposal').length, color: STATUS_COLORS.proposal },
     { name: 'Negociação', value: leads.filter(l => l.status === 'negotiation').length, color: STATUS_COLORS.negotiation },
     { name: 'Ganhos', value: leads.filter(l => l.status === 'won').length, color: STATUS_COLORS.won },
-    { name: 'Perdidos', value: leads.filter(l => l.status === 'lost').length, color: STATUS_COLORS.lost },
   ].filter(d => d.value > 0);
 
-  // Weekly leads trend (last 7 days)
+  // Weekly leads trend
   const weeklyData = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - i));
@@ -141,24 +180,11 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
       const leadDate = new Date(l.created_at);
       return leadDate.toDateString() === date.toDateString();
     }).length;
-    return {
-      day: date.toLocaleDateString('pt-BR', { weekday: 'short' }),
-      leads: dayLeads
-    };
+    return { day: date.toLocaleDateString('pt-BR', { weekday: 'short' }), leads: dayLeads };
   });
 
-  // Priority distribution
-  const priorityData = [
-    { name: 'Urgente', value: leads.filter(l => l.priority === 'urgent').length, fill: '#ef4444' },
-    { name: 'Alta', value: leads.filter(l => l.priority === 'high').length, fill: '#f59e0b' },
-    { name: 'Média', value: leads.filter(l => l.priority === 'medium').length, fill: '#3b82f6' },
-    { name: 'Baixa', value: leads.filter(l => l.priority === 'low').length, fill: '#6b7280' },
-  ];
-
-  // Top leads by score
-  const topLeads = [...leads]
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5);
+  // Top leads by AI score
+  const topLeads = [...leads].sort((a, b) => (b.ai_score || 0) - (a.ai_score || 0)).slice(0, 5);
 
   if (isLoading) {
     return (
@@ -170,6 +196,91 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
 
   return (
     <div className="space-y-6">
+      {/* AI Insights Section */}
+      <Card className="bg-gradient-to-r from-violet-500/10 via-purple-500/10 to-fuchsia-500/10 border-purple-500/20">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                <Brain className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Insights com IA</CardTitle>
+                <CardDescription>Análise inteligente do seu pipeline de vendas</CardDescription>
+              </div>
+            </div>
+            <Button 
+              onClick={generateAIInsights} 
+              disabled={isLoadingAI}
+              className="gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+            >
+              {isLoadingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {isLoadingAI ? 'Analisando...' : 'Gerar Insights'}
+            </Button>
+          </div>
+        </CardHeader>
+        {aiInsights && (
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Alerts */}
+              {aiInsights.alerts && aiInsights.alerts.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-500" />
+                    Alertas
+                  </h4>
+                  {aiInsights.alerts.slice(0, 3).map((alert, i) => (
+                    <div key={i} className="text-xs p-2 rounded bg-amber-500/10 border border-amber-500/20">
+                      {alert.message}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Opportunities */}
+              {aiInsights.opportunities && aiInsights.opportunities.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Lightbulb className="h-4 w-4 text-emerald-500" />
+                    Oportunidades
+                  </h4>
+                  {aiInsights.opportunities.slice(0, 3).map((opp, i) => (
+                    <div key={i} className="text-xs p-2 rounded bg-emerald-500/10 border border-emerald-500/20">
+                      {opp.description}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Recommendations */}
+              {aiInsights.ai_recommendations && aiInsights.ai_recommendations.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Zap className="h-4 w-4 text-blue-500" />
+                    Recomendações
+                  </h4>
+                  {aiInsights.ai_recommendations.slice(0, 3).map((rec, i) => (
+                    <div key={i} className="text-xs p-2 rounded bg-blue-500/10 border border-blue-500/20">
+                      <strong>{rec.title}:</strong> {rec.description}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* CRM Integration Badge */}
+      {hasCRMIntegration && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+          <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+          <span className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+            Integração com CRM ativa - Dados do CRM estão sendo usados para enriquecer análises
+          </span>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
@@ -212,17 +323,15 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Receita Potencial</p>
-                <p className="text-3xl font-bold">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(potentialRevenue)}
-                </p>
+                <p className="text-sm text-muted-foreground">Follow-ups Pendentes</p>
+                <p className="text-3xl font-bold">{pendingFollowUps}</p>
                 <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
-                  <DollarSign className="h-3 w-3" />
-                  Em negociação
+                  <Clock className="h-3 w-3" />
+                  Aguardando ação
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                <DollarSign className="h-6 w-6 text-amber-500" />
+                <Clock className="h-6 w-6 text-amber-500" />
               </div>
             </div>
           </CardContent>
@@ -236,7 +345,7 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
                 <p className="text-3xl font-bold">{upcomingMeetings}</p>
                 <p className="text-xs text-purple-500 flex items-center gap-1 mt-1">
                   <Calendar className="h-3 w-3" />
-                  {pendingFollowUps} follow-ups pendentes
+                  Próximas reuniões
                 </p>
               </div>
               <div className="h-12 w-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
@@ -284,10 +393,8 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
                 <DollarSign className="h-5 w-5 text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold">
-                  {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact' }).format(totalRevenue)}
-                </p>
-                <p className="text-sm text-muted-foreground">Receita Fechada</p>
+                <p className="text-2xl font-bold">{pipeline.length}</p>
+                <p className="text-sm text-muted-foreground">Deals no Pipeline</p>
               </div>
             </div>
           </CardContent>
@@ -296,7 +403,6 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
 
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Leads by Status */}
         <Card>
           <CardHeader>
             <CardTitle>Distribuição por Status</CardTitle>
@@ -337,7 +443,6 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
           </CardContent>
         </Card>
 
-        {/* Weekly Trend */}
         <Card>
           <CardHeader>
             <CardTitle>Novos Leads por Dia</CardTitle>
@@ -375,71 +480,39 @@ export function SalesDashboard({ customerProductId }: SalesDashboardProps) {
         </Card>
       </div>
 
-      {/* Bottom Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Priority Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Leads por Prioridade</CardTitle>
-            <CardDescription>Distribuição de prioridades</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={priorityData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis type="number" className="text-xs" />
-                <YAxis dataKey="name" type="category" className="text-xs" width={70} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {priorityData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Top Leads */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Star className="h-5 w-5 text-amber-500" />
-              Top Leads por Score
-            </CardTitle>
-            <CardDescription>Leads mais qualificados</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topLeads.length > 0 ? topLeads.map((lead, index) => (
-                <div key={lead.id} className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{lead.name}</p>
-                    <div className="flex items-center gap-2">
-                      <Progress value={lead.score} className="h-2 flex-1" />
-                      <span className="text-sm text-muted-foreground">{lead.score}%</span>
-                    </div>
-                  </div>
-                  <Badge variant={lead.priority === 'urgent' ? 'destructive' : lead.priority === 'high' ? 'default' : 'secondary'}>
-                    {lead.priority}
-                  </Badge>
+      {/* Top Leads by AI Score */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Star className="h-5 w-5 text-amber-500" />
+            Top Leads por Score IA
+          </CardTitle>
+          <CardDescription>Leads mais qualificados pela inteligência artificial</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {topLeads.length > 0 ? topLeads.map((lead, index) => (
+              <div key={lead.id} className="flex items-center gap-4">
+                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+                  {index + 1}
                 </div>
-              )) : (
-                <p className="text-muted-foreground text-center py-8">Nenhum lead cadastrado</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{lead.name}</p>
+                  <div className="flex items-center gap-2">
+                    <Progress value={lead.ai_score || 0} className="h-2 flex-1" />
+                    <span className="text-sm text-muted-foreground">{lead.ai_score || 0}%</span>
+                  </div>
+                </div>
+                <Badge variant={lead.status === 'won' ? 'default' : 'secondary'}>
+                  {lead.status}
+                </Badge>
+              </div>
+            )) : (
+              <p className="text-muted-foreground text-center py-8">Nenhum lead cadastrado</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -18,6 +18,16 @@ export const dashboardsPersonalizados: Product = {
     "Relatórios exportáveis",
     "Suporte técnico"
   ],
+  operationManual: [
+    { step: "01", action: "Definir métricas", detail: "Liste as principais métricas que você precisa acompanhar (vendas, clientes, finanças)." },
+    { step: "02", action: "Conectar fontes de dados", detail: "Integre planilhas Excel, Google Sheets ou banco de dados existente." },
+    { step: "03", action: "Configurar atualização", detail: "Defina a frequência de atualização dos dados (tempo real, diário, semanal)." },
+    { step: "04", action: "Personalizar visualização", detail: "Escolha tipos de gráficos e cores que melhor representam seus dados." },
+    { step: "05", action: "Configurar alertas", detail: "Defina notificações para quando métricas atingirem valores críticos." },
+    { step: "06", action: "Definir permissões", detail: "Configure quem pode visualizar cada dashboard e seção." },
+    { step: "07", action: "Testar integrações", detail: "Valide que todos os dados estão sendo exibidos corretamente." },
+    { step: "08", action: "Agendar relatórios", detail: "Configure envio automático de relatórios por email em PDF/Excel." }
+  ],
   inStock: true,
   delivery: "Entrega em até 15 dias úteis",
   specs: "Pagamento Mensal - R$ 400/mês",

@@ -15,7 +15,8 @@ import {
   Package,
   TrendingUp,
   DollarSign,
-  Star
+  Star,
+  Settings
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
@@ -44,7 +45,7 @@ const CustomerDashboard = () => {
       const { data: profileData } = await supabase
         .from('profiles')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('id', user.id)
         .single();
       
       setProfile(profileData);
@@ -64,23 +65,17 @@ const CustomerDashboard = () => {
       
       setOrders(ordersData || []);
 
-      // Fetch tickets
+      // Fetch tickets (using support_tickets table)
       const { data: ticketsData } = await supabase
-        .from('tickets')
+        .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
       
       setTickets(ticketsData || []);
 
-      // Fetch coupon usages
-      const { data: couponsData } = await supabase
-        .from('coupon_usages')
-        .select('*, coupons(*)')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-      
-      setCouponsUsed(couponsData || []);
+      // Coupon usages - skip if table doesn't exist
+      setCouponsUsed([]);
     } catch (error) {
       console.error('Error fetching user data:', error);
     }
@@ -124,12 +119,12 @@ const CustomerDashboard = () => {
       stats: `${tickets.length} tickets`
     },
     {
-      title: 'Meus Cupons',
-      description: 'Cupons de desconto disponíveis',
-      icon: Ticket,
-      link: '/customer/coupons',
-      color: 'bg-pink-500',
-      stats: `${couponsUsed.length} usados`
+      title: 'Configurações',
+      description: 'Segurança e preferências',
+      icon: Settings,
+      link: '/customer/settings',
+      color: 'bg-purple-500',
+      stats: 'Gerenciar'
     }
   ];
 

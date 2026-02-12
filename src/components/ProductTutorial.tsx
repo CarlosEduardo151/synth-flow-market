@@ -74,12 +74,13 @@ export const ProductTutorial = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuário não autenticado");
 
-      const { error } = await supabase
+      const { error } = await (supabase
         .from("tutorial_completions")
         .insert({
           user_id: user.id,
           product_slug: productSlug,
-        });
+          step_id: 'completed'
+        } as any) as any);
 
       if (error) throw error;
 

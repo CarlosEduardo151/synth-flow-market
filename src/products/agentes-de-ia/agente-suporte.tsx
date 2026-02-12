@@ -21,6 +21,58 @@ export const agenteSuporte: Product = {
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
   specs: "Pagamento Mensal - R$ 350/mês",
+  operationManual: [
+    {
+      step: "01",
+      action: "Criar Base de Conhecimento",
+      detail: "Documente problemas comuns e soluções. Quanto mais completa, melhor o desempenho do bot."
+    },
+    {
+      step: "02",
+      action: "Importar FAQs",
+      detail: "Importe perguntas frequentes existentes (planilhas, docs) para alimentar o sistema."
+    },
+    {
+      step: "03",
+      action: "Configurar Categorias",
+      detail: "Defina categorias de chamados (técnico, comercial, financeiro) para direcionamento."
+    },
+    {
+      step: "04",
+      action: "Definir Níveis de Suporte",
+      detail: "Configure níveis (N1 automático, N2 humano, N3 especialista) e critérios de escalonamento."
+    },
+    {
+      step: "05",
+      action: "Integrar Canais",
+      detail: "Conecte canais de atendimento: email, chat do site, WhatsApp, formulário de contato."
+    },
+    {
+      step: "06",
+      action: "Configurar SLA",
+      detail: "Defina tempo máximo de resposta por categoria e prioridade (crítico, alto, médio, baixo)."
+    },
+    {
+      step: "07",
+      action: "Criar Fluxos de Diagnóstico",
+      detail: "Configure perguntas sequenciais para diagnóstico automático de problemas."
+    },
+    {
+      step: "08",
+      action: "Definir Escalonamento",
+      detail: "Configure quando e para quem escalonar: palavras-chave, tempo sem solução, frustração."
+    },
+    {
+      step: "09",
+      action: "Ativar Pesquisa de Satisfação",
+      detail: "Configure CSAT automático após cada atendimento para medir qualidade."
+    },
+    {
+      step: "10",
+      action: "Treinar com Histórico",
+      detail: "Importe histórico de atendimentos anteriores para o bot aprender com casos reais."
+    }
+  ],
   content: `
 # Agente de Suporte Técnico
 

@@ -57,7 +57,7 @@ const About = () => {
     {
       name: "Carlos Eduardo P. B.",
       role: "Diretor de Operações",
-      description: "Executor de estratégias inteligentes, unindo operações, marketing e automação para impulsionar o crescimento e a inovação da StarAI.",
+      description: "Executor de estratégias inteligentes, unindo operações, marketing e automação para impulsionar o crescimento e a inovação da NovaLink.",
       icon: Lightbulb
     }
   ];
@@ -77,7 +77,7 @@ const About = () => {
             className="text-center max-w-4xl mx-auto"
           >
             <h1 className="text-5xl lg:text-6xl font-bold mb-6">
-              Sobre a <span className="gradient-text">StarAI</span>
+              Sobre a <span className="gradient-text">NovaLink</span>
             </h1>
             <p className="text-xl text-muted-foreground leading-relaxed mb-8">
               Somos pioneiros na criação de agentes de inteligência artificial que transformam 

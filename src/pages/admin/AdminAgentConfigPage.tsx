@@ -332,8 +332,8 @@ const AdminAgentConfigPage = () => {
   });
   const [loadingTokenStats, setLoadingTokenStats] = useState(false);
   
-  // Estado para créditos StarAI
-  const [staraiCredits, setStaraiCredits] = useState({
+  // Estado para créditos NovaLink
+  const [novalinkCredits, setNovaLinkCredits] = useState({
     balanceBRL: 0,
     freeBalanceBRL: 0,
     depositedBRL: 0,
@@ -489,82 +489,36 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar TODOS os customer_products do usuário
-      const { data: allProducts } = await supabase
-        .from('customer_products')
-        .select('id, product_title, product_slug, n8n_workflow_id')
+      // Buscar configurações AI do usuário
+      const { data: configData } = await supabase
+        .from('ai_control_config')
+        .select('*')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (allProducts && allProducts.length > 0) {
-        const productId = allProducts[0].id;
-        setCustomerProductId(productId);
-        const customerProducts = allProducts; // Para compatibilidade com código abaixo
-
-        // Carregar configuração existente
-        const { data: configData } = await supabase
-          .from('ai_control_config')
-          .select('*')
-          .eq('customer_product_id', productId)
-          .maybeSingle();
-
-        if (configData) {
-          // Parsear action_instructions se existir
-          let actionInstructions: ActionInstruction[] = [];
-          
-          if (configData.action_instructions) {
-            try {
-              const parsed = JSON.parse(configData.action_instructions);
-              if (Array.isArray(parsed)) {
-                actionInstructions = parsed;
-              }
-            } catch (e) {
-              console.error('Error parsing action_instructions:', e);
-            }
-          }
-
-          // Determinar provider baseado no modelo
-          const provider = configData.ai_model?.includes('gpt') ? 'openai' : 'google';
-          
-          // Carregar tom de comunicação do campo personality
-          const savedTone = (configData.personality as CommunicationTone) || 'amigavel';
-          const validTone = Object.keys(COMMUNICATION_TONES).includes(savedTone) ? savedTone : 'amigavel';
-
-          setConfig(prev => ({
-            ...prev,
-            isActive: configData.is_active || false,
-            n8nWorkflowId: customerProducts[0].n8n_workflow_id || '',
-            provider,
-            model: configData.ai_model || (provider === 'openai' ? 'gpt-4o' : 'models/gemini-2.5-flash'),
-            temperature: configData.temperature || 0.7,
-            maxTokens: configData.max_tokens || 2048,
-            communicationTone: validTone,
-            systemPrompt: configData.system_prompt || '',
-            actionInstructions,
-            sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
-            enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
-          }));
-
-          // Carregar API key e credenciais das ferramentas
-          if (configData.ai_credentials) {
-            const credentials = configData.ai_credentials as Record<string, string>;
-            const apiKey = credentials.openai_api_key || credentials.google_api_key || '';
-            if (apiKey) {
-              setConfig(prev => ({ ...prev, apiKey }));
-            }
-            
-            // Carregar credenciais das ferramentas (excluindo as chaves de AI)
-            const toolCreds: Record<string, string> = {};
-            Object.entries(credentials).forEach(([key, value]) => {
-              if (key !== 'openai_api_key' && key !== 'google_api_key' && value) {
-                toolCreds[key] = value;
-              }
-            });
-            if (Object.keys(toolCreds).length > 0) {
-              setToolCredentials(toolCreds);
-            }
-          }
-        }
+      if (configData) {
+        setCustomerProductId((configData as any).customer_product_id);
+        
+        // Determinar provider baseado no modelo
+        const model = (configData as any).model || 'gpt-4o';
+        const provider = model?.includes('gpt') ? 'openai' : 'google';
+        
+        setConfig(prev => ({
+          ...prev,
+          isActive: (configData as any).is_active || false,
+          n8nWorkflowId: (configData as any).n8n_workflow_id || '',
+          provider,
+          model: model,
+          temperature: (configData as any).temperature || 0.7,
+          maxTokens: (configData as any).max_tokens || 2048,
+          communicationTone: 'amigavel',
+          systemPrompt: (configData as any).system_prompt || '',
+          actionInstructions: [],
+          sessionKeyId: '{{ $json.session_id }}',
+          enabledTools: ((configData as any).tools_enabled || []) as string[],
+        }));
       }
       setConfigLoaded(true);
     } catch (error) {
@@ -580,61 +534,28 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return false;
 
-      // Verificar se já tem um customer_product
-      const { data: customerProducts } = await supabase
-        .from('customer_products')
-        .select('id')
-        .eq('user_id', user.id)
-        .limit(1);
-
-      if (!customerProducts || customerProducts.length === 0) {
-        console.error('No customer_product found');
-        return false;
-      }
-
-      setCustomerProductId(customerProducts[0].id);
+      setCustomerProductId(user.id);
     }
 
-    const productId = customerProductId;
+    const productId = customerProductId || (await supabase.auth.getUser()).data.user?.id;
     if (!productId) return false;
 
     try {
       const configToSave = {
-        customer_product_id: productId,
+        product_id: productId,
+        user_id: (await supabase.auth.getUser()).data.user?.id || '',
         is_active: config.isActive,
-        ai_model: config.model,
         temperature: config.temperature,
         max_tokens: config.maxTokens,
         system_prompt: config.systemPrompt,
-        personality: config.communicationTone,
-        action_instructions: JSON.stringify(config.actionInstructions),
-        memory_session_id: config.sessionKeyId,
-        n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
-        tools_enabled: config.enabledTools,
-        ai_credentials: {
-          [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
-          ...toolCredentials, // Incluir credenciais das ferramentas
-        },
+        tools: config.enabledTools,
         updated_at: new Date().toISOString(),
       };
 
       // Upsert - inserir ou atualizar
       const { error } = await supabase
         .from('ai_control_config')
-        .upsert(configToSave, { onConflict: 'customer_product_id' });
-
-      if (error) {
-        console.error('Error saving config:', error);
-        return false;
-      }
-
-      // Também atualizar o n8n_workflow_id no customer_products
-      if (config.n8nWorkflowId) {
-        await supabase
-          .from('customer_products')
-          .update({ n8n_workflow_id: config.n8nWorkflowId })
-          .eq('id', productId);
-      }
+        .upsert(configToSave as any, { onConflict: 'product_id,user_id' });
 
       return true;
     } catch (error) {
@@ -996,21 +917,21 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       apiKey: provider === 'starai' ? '' : prev.apiKey,
     }));
     
-    // Carregar créditos StarAI se selecionado
+    // Carregar créditos NovaLink se selecionado
     if (provider === 'starai') {
-      loadStaraiCredits();
+      loadNovaLinkCredits();
     }
   };
 
-  // Funções StarAI Credits
-  const loadStaraiCredits = async () => {
+  // Funções NovaLink Credits
+  const loadNovaLinkCredits = async () => {
     setLoadingCredits(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         toast({
           title: "Faça login",
-          description: "Você precisa estar logado para usar StarAI.",
+          description: "Você precisa estar logado para usar NovaLink.",
           variant: "destructive",
         });
         return;
@@ -1029,20 +950,20 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
       const result = await response.json();
       
       if (result.success && result.data) {
-        setStaraiCredits({
+        setNovaLinkCredits({
           balanceBRL: Number(result.data.balance_brl) || 0,
           freeBalanceBRL: Number(result.data.free_balance_brl) || 0,
           depositedBRL: Number(result.data.deposited_brl) || 0,
         });
       }
     } catch (error: any) {
-      console.error('Error loading StarAI credits:', error);
+      console.error('Error loading NovaLink credits:', error);
     } finally {
       setLoadingCredits(false);
     }
   };
 
-  const handleStaraiDeposit = async () => {
+  const handleNovaLinkDeposit = async () => {
     if (depositAmount < 10) {
       toast({
         title: "Valor inválido",
@@ -1108,12 +1029,12 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
     if (paymentStatus === 'success') {
       toast({
         title: "Pagamento aprovado!",
-        description: "Seus créditos StarAI foram adicionados à sua conta.",
+        description: "Seus créditos NovaLink foram adicionados à sua conta.",
       });
       // Limpar parâmetro da URL
       window.history.replaceState({}, '', window.location.pathname);
       // Recarregar créditos
-      loadStaraiCredits();
+      loadNovaLinkCredits();
     } else if (paymentStatus === 'failure') {
       toast({
         title: "Pagamento não aprovado",
@@ -1133,7 +1054,7 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   // Carregar créditos ao montar se provider for StarAI
   useEffect(() => {
     if (config.provider === 'starai') {
-      loadStaraiCredits();
+      loadNovaLinkCredits();
     }
   }, []);
 
@@ -1271,9 +1192,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
 
       if (result.success) {
         toast({
-          title: config.provider === 'starai' ? "StarAI ativado!" : "Motor IA sincronizado!",
+          title: config.provider === 'starai' ? "NovaLink ativado!" : "Motor IA sincronizado!",
           description: config.provider === 'starai' 
-            ? `Usando credencial StarAI com modelo ${config.model}. R$ 75,00 de bônus disponíveis!`
+            ? `Usando credencial NovaLink com modelo ${config.model}. R$ 75,00 de bônus disponíveis!`
             : `${result.provider}/${result.model} configurado no workflow. Credencial ID: ${result.credentialId}`,
         });
       } else {
@@ -1447,7 +1368,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
         const syncResult = await syncToN8n(config.n8nWorkflowId);
         
         if (dbSaved && promptResult?.success && llmResult?.success && syncResult?.success) {
-          const providerLabel = config.provider === 'starai' ? 'StarAI' : config.provider;
+          const providerLabel = config.provider === 'starai' ? 'NovaLink' : config.provider;
           toast({
             title: "Tudo salvo e sincronizado!",
             description: `Configurações salvas permanentemente. Motor IA: ${providerLabel}/${config.model}`,
@@ -1614,7 +1535,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                            n8nConnected === false ? 'Desconectado' : 'Verificando...'}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Motor de Automação StarAI
+                          Motor de Automação NovaLink
                         </p>
                       </div>
                     </div>
@@ -1834,7 +1755,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={loadStaraiCredits}
+                              onClick={loadNovaLinkCredits}
                               disabled={loadingCredits}
                               className="h-7 w-7"
                             >
@@ -1855,27 +1776,27 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                             <div className="grid grid-cols-2 gap-4 mb-4">
                               <div className="text-center p-3 bg-background/50 rounded-lg">
                                 <p className="text-2xl font-bold text-primary">
-                                  R$ {staraiCredits.balanceBRL.toFixed(2)}
+                                  R$ {novalinkCredits.balanceBRL.toFixed(2)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Saldo Total</p>
                               </div>
                               <div className="text-center p-3 bg-background/50 rounded-lg">
                                 <p className="text-2xl font-bold text-green-600">
-                                  R$ {staraiCredits.freeBalanceBRL.toFixed(2)}
+                                  R$ {novalinkCredits.freeBalanceBRL.toFixed(2)}
                                 </p>
                                 <p className="text-xs text-muted-foreground">Bônus Grátis</p>
                               </div>
                             </div>
 
-                            {staraiCredits.depositedBRL > 0 && (
+                            {novalinkCredits.depositedBRL > 0 && (
                               <div className="text-center p-2 bg-background/30 rounded-lg mb-4">
                                 <p className="text-sm text-muted-foreground">
-                                  Total depositado: <span className="font-medium text-foreground">R$ {staraiCredits.depositedBRL.toFixed(2)}</span>
+                                  Total depositado: <span className="font-medium text-foreground">R$ {novalinkCredits.depositedBRL.toFixed(2)}</span>
                                 </p>
                               </div>
                             )}
 
-                            {staraiCredits.balanceBRL === 0 && (
+                            {novalinkCredits.balanceBRL === 0 && (
                               <div className="p-3 bg-green-500/10 rounded-lg border border-green-500/20 mb-4">
                                 <p className="text-sm text-green-700 dark:text-green-400">
                                   🎁 <strong>R$ 75,00 por conta da casa!</strong>
@@ -1904,7 +1825,7 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                             <Button 
                               variant="default"
                               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-                              onClick={handleStaraiDeposit}
+                              onClick={handleNovaLinkDeposit}
                               disabled={processingDeposit || depositAmount < 10}
                             >
                               {processingDeposit ? (

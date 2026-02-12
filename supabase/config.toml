@@ -1,1 +1,37 @@
-project_id = "lqduauyrwwlrbtnxkiev"
+project_id = "vmxrfluiezrhnrqhtydo"
+
+[functions.financial-agent-chat]
+verify_jwt = false
+
+[functions.financial-agent-actions]
+verify_jwt = false
+
+[functions.admin-send-custom-email]
+verify_jwt = false
+
+[functions.admin-list-users]
+verify_jwt = false
+
+[functions.mfa-send-email-otp]
+verify_jwt = false
+
+[functions.mfa-verify-email-otp]
+verify_jwt = false
+
+[functions.bot-scripts-admin]
+verify_jwt = false
+
+[functions.worker-router]
+verify_jwt = false
+
+[functions.whatsapp-ingest]
+verify_jwt = false
+
+[functions.admin-customer-product-webhook]
+verify_jwt = false
+
+[functions.whatsapp-internal-flow]
+verify_jwt = false
+
+[functions.whatsapp-internal-chat]
+verify_jwt = false

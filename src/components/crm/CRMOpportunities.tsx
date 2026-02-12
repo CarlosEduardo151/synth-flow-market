@@ -44,20 +44,24 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
 
-    const { error } = await supabase.from('crm_opportunities').insert({
-      customer_id: formData.get('customer_id') as string,
-      title: formData.get('title') as string,
-      value: parseFloat(formData.get('value') as string) || 0,
-      stage: formData.get('stage') as string || 'novo_lead',
-      expected_close_date: formData.get('expected_close_date') as string || null,
-      notes: formData.get('notes') as string || null
-    });
+    try {
+      const { error } = await (supabase.from('crm_opportunities' as any).insert({
+        customer_id: formData.get('customer_id') as string,
+        title: formData.get('title') as string,
+        value: parseFloat(formData.get('value') as string) || 0,
+        stage: formData.get('stage') as string || 'novo_lead',
+        expected_close_date: formData.get('expected_close_date') as string || null,
+        notes: formData.get('notes') as string || null
+      }) as any);
 
-    if (!error) {
-      toast({ title: "Oportunidade criada com sucesso!" });
-      setIsAddingOpportunity(false);
-      onRefresh();
-    } else {
+      if (!error) {
+        toast({ title: "Oportunidade criada com sucesso!" });
+        setIsAddingOpportunity(false);
+        onRefresh();
+      } else {
+        toast({ title: "Erro ao criar oportunidade", variant: "destructive" });
+      }
+    } catch (error) {
       toast({ title: "Erro ao criar oportunidade", variant: "destructive" });
     }
   };
@@ -73,14 +77,18 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
   const handleDrop = async (newStage: string) => {
     if (!draggedItem) return;
 
-    const { error } = await supabase
-      .from('crm_opportunities')
-      .update({ stage: newStage })
-      .eq('id', draggedItem);
+    try {
+      const { error } = await (supabase
+        .from('crm_opportunities' as any)
+        .update({ stage: newStage })
+        .eq('id', draggedItem) as any);
 
-    if (!error) {
-      toast({ title: "Oportunidade atualizada!" });
-      onRefresh();
+      if (!error) {
+        toast({ title: "Oportunidade atualizada!" });
+        onRefresh();
+      }
+    } catch (error) {
+      console.error('Error updating opportunity:', error);
     }
     setDraggedItem(null);
   };

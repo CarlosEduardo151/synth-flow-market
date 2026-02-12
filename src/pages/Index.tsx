@@ -6,9 +6,11 @@ import { ProductCard } from "@/components/ProductCard";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { HeroSection } from "@/components/home/HeroSection";
+import { PromoCarousel } from "@/components/home/PromoCarousel";
 import { ProblemBlocks } from "@/components/home/ProblemBlocks";
-import { LeadMagnet } from "@/components/home/LeadMagnet";
+import { FreeTrial } from "@/components/home/FreeTrial";
 import { ImpactNumbers } from "@/components/home/ImpactNumbers";
+import { PackagesSection } from "@/components/home/PackagesSection";
 import { getProducts, type Product } from "@/data/products";
 import { getCategories, type Category } from "@/data/categories";
 import { Bot, Zap, Shield, ArrowRight } from "lucide-react";
@@ -53,6 +55,8 @@ const Index = () => {
     <div className="min-h-screen bg-tech-lines">
       <Header />
 
+      <PromoCarousel />
+
       {/* Hero Section - TOFU */}
       <HeroSection />
 
@@ -65,8 +69,8 @@ const Index = () => {
       {/* Blocos de Problemas - TOFU */}
       <ProblemBlocks />
 
-      {/* Lead Magnet - TOFU */}
-      <LeadMagnet />
+      {/* Teste Grátis - TOFU */}
+      <FreeTrial />
 
       {/* Categorias */}
       <section className="py-20 bg-background">
@@ -176,7 +180,7 @@ const Index = () => {
             className="text-center mb-12"
           >
             <h2 className="text-4xl font-bold mb-4">
-              Por que escolher a <span className="gradient-text">StarAI</span>?
+              Por que escolher a <span className="gradient-text">NovaLink</span>?
             </h2>
           </motion.div>
 
@@ -217,6 +221,9 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {/* Pacotes de Assinatura */}
+      <PackagesSection />
 
       <Footer />
     </div>

@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Users, TrendingUp, Target, Award } from 'lucide-react';
 import { PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { CRMAIInsights } from './CRMAIInsights';
 
 interface CRMCustomer {
   id: string;
@@ -57,8 +59,30 @@ export const CRMDashboard = ({ customers, opportunities }: CRMDashboardProps) =>
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5);
 
+  const getStatusBadgeVariant = (status: string): any => {
+    const variants: Record<string, any> = {
+      customer: 'default',
+      prospect: 'secondary',
+      lead: 'outline',
+      inactive: 'destructive',
+    };
+    return variants[status] ?? 'outline';
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      customer: 'Cliente',
+      prospect: 'Em Negociação',
+      lead: 'Lead',
+      inactive: 'Inativo',
+    };
+    return labels[status] ?? status;
+  };
+
   return (
     <div className="space-y-6">
+      {/* Análise Preditiva com IA */}
+      <CRMAIInsights customers={customers} opportunities={opportunities} />
       {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -122,7 +146,7 @@ export const CRMDashboard = ({ customers, opportunities }: CRMDashboardProps) =>
                   labelLine={false}
                   label={({ name, value }) => `${name}: ${value}`}
                   outerRadius={80}
-                  fill="#8884d8"
+                  fill="hsl(var(--muted))"
                   dataKey="value"
                 >
                   {statusData.map((entry, index) => (
@@ -176,14 +200,9 @@ export const CRMDashboard = ({ customers, opportunities }: CRMDashboardProps) =>
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    customer.status === 'customer' ? 'bg-green-100 text-green-800' :
-                    customer.status === 'prospect' ? 'bg-blue-100 text-blue-800' :
-                    customer.status === 'lead' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {customer.status}
-                  </span>
+                  <Badge variant={getStatusBadgeVariant(customer.status)}>
+                    {getStatusLabel(customer.status)}
+                  </Badge>
                 </div>
               </div>
             ))}

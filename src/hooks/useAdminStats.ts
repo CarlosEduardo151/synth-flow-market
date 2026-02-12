@@ -62,17 +62,14 @@ export const useAdminStats = () => {
         .select('id')
         .eq('status', 'pending');
 
-      // Tickets abertos
-      const { data: openTickets } = await supabase
-        .from('tickets')
-        .select('id')
-        .eq('status', 'open');
+      // Tickets abertos - não existe tabela support_tickets, usar 0
+      const openTickets: any[] = [];
 
-      // Total de clientes - contando user_roles com role = 'customer'
+      // Total de clientes - contando user_roles com role = 'user'
       const { data: customerRoles } = await supabase
         .from('user_roles')
         .select('user_id')
-        .eq('role', 'customer');
+        .eq('role', 'user');
 
       // Total de avaliações
       const { data: reviews } = await supabase

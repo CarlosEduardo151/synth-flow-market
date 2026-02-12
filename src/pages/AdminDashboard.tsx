@@ -2,7 +2,6 @@ import { useAuth, useAdminCheck } from '@/hooks/useAuth';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminStats } from '@/hooks/useAdminStats';
-import { useRentalStats } from '@/hooks/useRentalStats';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Button } from '@/components/ui/button';
@@ -20,10 +19,14 @@ import {
   TrendingUp,
   DollarSign,
   CheckCircle,
-  Calendar,
-  MessageCircle,
   Bot,
-  CreditCard
+  CreditCard,
+  Zap,
+  Wallet,
+  Sparkles,
+  FileText,
+  Mail,
+  MessageCircle
 } from 'lucide-react';
 import { N8nAgentControl } from '@/components/admin/N8nAgentControl';
 import N8nAgentChat from '@/components/admin/N8nAgentChat';
@@ -33,7 +36,6 @@ const AdminDashboard = () => {
   const { user, loading: authLoading } = useAuth();
   const { isAdmin, loading: adminLoading } = useAdminCheck();
   const { stats } = useAdminStats();
-  const { stats: rentalStats } = useRentalStats();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -92,30 +94,6 @@ const AdminDashboard = () => {
       stats: `${stats.totalReviews} avaliações`
     },
     {
-      title: 'Aluguéis',
-      description: 'Gerenciar aluguéis de produtos',
-      icon: Calendar,
-      link: '/admin/rentals',
-      color: 'bg-purple-500',
-      stats: `${rentalStats.activeRentals} ativos`
-    },
-    {
-      title: 'WhatsApp Leads',
-      description: 'Gerenciar leads e mensagens Z-API',
-      icon: MessageCircle,
-      link: '/admin/whatsapp-leads',
-      color: 'bg-green-600',
-      stats: 'Integração Z-API'
-    },
-    {
-      title: 'Parcelas',
-      description: 'Gerenciar parcelas de pagamento',
-      icon: DollarSign,
-      link: '/admin/installments',
-      color: 'bg-orange-500',
-      stats: 'Ver todas'
-    },
-    {
       title: 'Config. Agente IA',
       description: 'Configurar motor, memória e personalidade',
       icon: Bot,
@@ -124,12 +102,68 @@ const AdminDashboard = () => {
       stats: 'Protótipo'
     },
     {
+      title: 'Bots de Automação',
+      description: 'WhatsApp webhook + scripts privados',
+      icon: MessageCircle,
+      link: '/admin/bots-automacao',
+      color: 'bg-emerald-600',
+      stats: 'Z-API'
+    },
+    {
+      title: 'Relatório de Assinaturas',
+      description: 'MRR, assinaturas ativas e vencimentos',
+      icon: FileText,
+      link: '/admin/subscriptions-report',
+      color: 'bg-slate-600',
+      stats: 'Visão geral'
+    },
+    {
+      title: 'Sniper HFT Bot',
+      description: 'Bot de trading de alta frequência',
+      icon: Zap,
+      link: '/sistemas/sniper-hft',
+      color: 'bg-amber-500',
+      stats: 'Testes'
+    },
+    {
       title: 'Compras StarAI',
       description: 'Histórico de compras de créditos',
       icon: CreditCard,
       link: '/admin/starai-purchases',
       color: 'bg-violet-500',
       stats: 'Ver todas'
+    },
+    {
+      title: 'Financeiro',
+      description: 'Controle financeiro completo',
+      icon: Wallet,
+      link: '/admin/financial',
+      color: 'bg-emerald-500',
+      stats: 'Gestão'
+    },
+    {
+      title: 'Configurar IA',
+      description: 'Motor de IA e chaves de API',
+      icon: Sparkles,
+      link: '/admin/settings?tab=ai',
+      color: 'bg-pink-500',
+      stats: 'OpenAI / Gemini'
+    },
+    {
+      title: 'Recuperação Carrinhos',
+      description: 'Quase comprou + ações sugeridas',
+      icon: FileText,
+      link: '/admin/abandoned-carts',
+      color: 'bg-purple-500',
+      stats: 'IA + WhatsApp'
+    },
+    {
+      title: 'Mensagens Personalizadas',
+      description: 'Emails com cores, botões e imagens',
+      icon: Mail,
+      link: '/admin/custom-messages',
+      color: 'bg-primary',
+      stats: 'Resend'
     }
   ];
 

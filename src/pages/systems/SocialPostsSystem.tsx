@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+
+const supabase = supabaseClient as any;
 import { ProductTutorial } from '@/components/ProductTutorial';
 import { postsSociaisTutorial } from '@/data/tutorials/posts-sociais';
 import { Button } from '@/components/ui/button';
@@ -47,18 +49,33 @@ const SocialPostsSystem = () => {
     if (!user) return;
 
     try {
+      // First check for active free trial
+      const { data: trial } = await supabase
+        .from('free_trials')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_slug', 'posts-sociais')
+        .eq('status', 'active')
+        .maybeSingle();
+
+      if (trial) {
+        setCustomerProductId(`trial-${trial.id}`);
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('customer_products')
         .select('id')
         .eq('user_id', user.id)
         .eq('product_slug', 'posts-sociais')
         .eq('is_active', true)
-        .single();
+        .maybeSingle();
 
       if (error || !data) {
         toast({
           title: "Acesso Negado",
-          description: "Você precisa comprar o sistema de Posts Sociais para acessar.",
+          description: "Você precisa comprar o sistema de Posts Sociais ou ativar um teste grátis.",
           variant: "destructive"
         });
         navigate('/meus-produtos');
@@ -68,7 +85,7 @@ const SocialPostsSystem = () => {
       setCustomerProductId(data.id);
       await loadPosts(data.id);
     } catch (error) {
-      console.error('Error checking access:', error);
+      console.error('Erro ao verificar acesso:', error);
       navigate('/meus-produtos');
     } finally {
       setIsLoading(false);

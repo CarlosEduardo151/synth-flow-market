@@ -75,7 +75,21 @@ export default function AdminCouponsPage() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setCoupons(data || []);
+      // Map database fields to interface
+      const mappedCoupons = (data || []).map((c: any) => ({
+        id: c.id,
+        code: c.code,
+        type: c.discount_type,
+        value: c.discount_value,
+        min_order_amount: c.min_order_value || 0,
+        max_uses: c.max_uses || 0,
+        used_count: c.current_uses || 0,
+        valid_from: c.starts_at || c.created_at,
+        valid_until: c.expires_at || '',
+        is_active: c.is_active,
+        created_at: c.created_at,
+      }));
+      setCoupons(mappedCoupons);
     } catch (error) {
       console.error('Error fetching coupons:', error);
       toast({
@@ -123,12 +137,12 @@ export default function AdminCouponsPage() {
     try {
       const couponData = {
         code: formData.code.toUpperCase(),
-        type: formData.type,
-        value: Math.round(parseFloat(formData.value) * 100),
-        min_order_amount: formData.min_order_amount ? Math.round(parseFloat(formData.min_order_amount) * 100) : null,
+        discount_type: formData.type,
+        discount_value: Math.round(parseFloat(formData.value) * 100),
+        min_order_value: formData.min_order_amount ? Math.round(parseFloat(formData.min_order_amount) * 100) : null,
         max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
-        valid_from: formData.valid_from ? new Date(formData.valid_from).toISOString() : new Date().toISOString(),
-        valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
+        starts_at: formData.valid_from ? new Date(formData.valid_from).toISOString() : new Date().toISOString(),
+        expires_at: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
         is_active: formData.is_active
       };
 

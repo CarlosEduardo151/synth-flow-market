@@ -181,7 +181,7 @@ serve(async (req) => {
         } catch (error) {
           result = {
             success: false,
-            message: `Falha na conexão: ${error.message}`,
+            message: `Falha na conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
             n8nUrl: N8N_BASE_URL,
           };
         }
@@ -1295,7 +1295,7 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Erro desconhecido',
+      error: error instanceof Error ? error.message : 'Erro desconhecido',
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

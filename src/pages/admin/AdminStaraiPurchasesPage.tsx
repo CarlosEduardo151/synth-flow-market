@@ -44,7 +44,7 @@ interface Purchase {
   created_at: string;
 }
 
-export default function AdminStaraiPurchasesPage() {
+export default function AdminNovaLinkPurchasesPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [purchases, setPurchases] = useState<Purchase[]>([]);
@@ -65,7 +65,7 @@ export default function AdminStaraiPurchasesPage() {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase.rpc('is_admin', { user_id: user.id });
+      const { data, error } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
       if (error) throw error;
       
       setIsAdmin(data || false);
@@ -153,7 +153,7 @@ export default function AdminStaraiPurchasesPage() {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `starai-compras-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `novalink-compras-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
   };
 
@@ -182,9 +182,9 @@ export default function AdminStaraiPurchasesPage() {
 
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Compras StarAI</h1>
+              <h1 className="text-3xl font-bold">Compras NovaLink</h1>
               <p className="text-muted-foreground">
-                Histórico de compras de créditos StarAI
+                Histórico de compras de créditos NovaLink
               </p>
             </div>
             <div className="flex gap-2">

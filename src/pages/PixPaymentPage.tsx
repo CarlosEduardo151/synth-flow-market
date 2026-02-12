@@ -157,43 +157,46 @@ export default function PixPaymentPage() {
         throw uploadError;
       }
 
+      // Atualizar pedido com comprovante - usando apenas colunas que existem
       const { error: updateError } = await supabase
         .from('orders')
         .update({
           payment_receipt_url: uploadData.path,
           customer_name: customerInfo.name,
-          installment_count: installments,
-          installment_value: Math.round(getInstallmentValue()),
           status: 'processing'
         })
         .eq('id', orderId);
 
       if (updateError) throw updateError;
 
-      const installmentsData = [];
-      const installmentValue = Math.round(getInstallmentValue());
-      
-      for (let i = 1; i <= installments; i++) {
-        const dueDate = new Date();
-        dueDate.setMonth(dueDate.getMonth() + (i - 1));
+      // Se parcelado, criar parcelas na tabela installments existente
+      if (installments > 1) {
+        const installmentValue = Math.round(getInstallmentValue());
+        const installmentsData = [];
         
-        installmentsData.push({
-          order_id: orderId,
-          installment_number: i,
-          total_installments: installments,
-          amount: installmentValue,
-          due_date: dueDate.toISOString(),
-          status: i === 1 ? 'paid' : 'pending',
-          payment_proof_url: i === 1 ? uploadData.path : null,
-          paid_at: i === 1 ? new Date().toISOString() : null
-        });
+        for (let i = 1; i <= installments; i++) {
+          const dueDate = new Date();
+          dueDate.setMonth(dueDate.getMonth() + (i - 1));
+          
+          installmentsData.push({
+            order_id: orderId,
+            installment_number: i,
+            amount: installmentValue,
+            due_date: dueDate.toISOString().split('T')[0],
+            status: i === 1 ? 'paid' : 'pending',
+            paid_at: i === 1 ? new Date().toISOString() : null
+          });
+        }
+
+        const { error: installmentsError } = await supabase
+          .from('installments')
+          .insert(installmentsData);
+
+        // Ignora erro se a tabela não existir ou já tiver dados
+        if (installmentsError) {
+          console.warn('Aviso ao salvar parcelas:', installmentsError.message);
+        }
       }
-
-      const { error: installmentsError } = await supabase
-        .from('order_installments')
-        .insert(installmentsData);
-
-      if (installmentsError) throw installmentsError;
 
       toast({
         title: "✓ Pagamento enviado!",

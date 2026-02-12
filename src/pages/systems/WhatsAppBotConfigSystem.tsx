@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { 
+import {
   ArrowLeft, Save, Bot, Brain, Plug, Activity, Plus, Trash2, Eye, EyeOff, 
   Power, RefreshCw, Wifi, WifiOff, Shield, Database, Pencil, Check,
   ExternalLink, CheckCircle2, XCircle, Loader2, Play, Square, List, ServerCog, Send,
-  ChevronDown, ChevronRight, Key, TestTube2, BarChart3, MessageCircle,
+  Key, TestTube2, BarChart3, MessageCircle,
   Sparkles, Wallet, TrendingUp, Gift, Zap, CreditCard, ArrowRight
 } from 'lucide-react';
 
@@ -20,13 +20,21 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase as supabaseClient } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import { VerticalTabRail } from '@/components/layout/VerticalTabRail';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { WhatsAppBotTestChat } from '@/components/WhatsAppBotTestChat';
+import { useBotInstances } from '@/hooks/useBotInstances';
+import { BotInstancePicker } from '@/components/bots/BotInstancePicker';
+import { BotsAutomacaoQuickStart } from '@/components/bots/BotsAutomacaoQuickStart';
+
+const supabase = supabaseClient as any;
 
 interface ActionInstruction {
   id: string;
@@ -275,11 +283,29 @@ COMO AJUDAR:
 
   const [editingBusinessName, setEditingBusinessName] = useState(false);
 
+  const [activeTab, setActiveTab] = useState<'status' | 'engine' | 'memory' | 'personality' | 'tools' | 'monitoring' | 'chat'>('status');
+
+  const isMobile = useIsMobile();
+  const [railCollapsed, setRailCollapsed] = useState(true);
+
+  const sidebarItems = [
+    { value: 'status', label: 'Status', icon: Power },
+    { value: 'engine', label: 'Motor IA', icon: Brain },
+    { value: 'memory', label: 'Memória', icon: Database },
+    { value: 'personality', label: 'Personalidade', icon: Bot },
+    { value: 'tools', label: 'Ferramentas', icon: Plug },
+    { value: 'chat', label: 'Chat de teste', icon: MessageCircle },
+    { value: 'monitoring', label: 'Monitoramento', icon: BarChart3 },
+  ];
+
   const [newInstruction, setNewInstruction] = useState('');
   const [newInstructionType, setNewInstructionType] = useState<'do' | 'dont'>('do');
   const [syncingPrompt, setSyncingPrompt] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
+
+  const botInstances = useBotInstances(customerProductId);
+  const [activeBotInstanceId, setActiveBotInstanceId] = useState<string | null>(null);
   
   // Estados para credenciais de ferramentas
   const [toolCredentials, setToolCredentials] = useState<Record<string, string>>({});
@@ -334,6 +360,23 @@ COMO AJUDAR:
 
       setCustomerProductId(productId);
 
+      // Carrega/cria instâncias do bot (multi-bot)
+      // OBS: não confiamos em botInstances.instances imediatamente após refresh() por causa do setState async.
+      // Então, buscamos diretamente do banco para decidir a instância ativa.
+      await botInstances.ensureDefault();
+      const { data: instancesDb } = await (supabase as any)
+        .from('bot_instances')
+        .select('id, name, workflow_id, is_active, created_at')
+        .eq('customer_product_id', productId)
+        .order('created_at', { ascending: true });
+
+      const activeInstance =
+        (instancesDb || []).find((i: any) => i.is_active) ??
+        (instancesDb || [])[0] ??
+        null;
+
+      setActiveBotInstanceId(activeInstance?.id ?? null);
+
       // Carregar configuração existente
       const { data: configData } = await supabase
         .from('ai_control_config')
@@ -355,8 +398,14 @@ COMO AJUDAR:
           }
         }
 
-        const provider = configData.ai_model?.includes('gpt') ? 'openai' : 
-                        configData.ai_model?.includes('gemini') ? 'google' : 'starai';
+        // Motor interno lê provider/model de ai_control_config
+        const storedProvider = (configData.provider as 'openai' | 'google' | null) || null;
+        const storedModel = (configData.model as string | null) || null;
+        const inferredProvider = storedProvider
+          ? storedProvider
+          : storedModel?.includes('gemini')
+            ? 'google'
+            : 'openai';
         
         const savedTone = (configData.personality as CommunicationTone) || 'amigavel';
         const validTone = Object.keys(COMMUNICATION_TONES).includes(savedTone) ? savedTone : 'amigavel';
@@ -364,41 +413,48 @@ COMO AJUDAR:
         setConfig(prev => ({
           ...prev,
           isActive: configData.is_active || false,
-          n8nWorkflowId: product.n8n_workflow_id || '',
-          provider,
-          model: configData.ai_model || 'gpt-4o',
+          n8nWorkflowId: '',
+          provider: inferredProvider,
+          model: storedModel || (inferredProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini'),
           temperature: configData.temperature || 0.7,
           maxTokens: configData.max_tokens || 2048,
           communicationTone: validTone,
           systemPrompt: configData.system_prompt || prev.systemPrompt,
           actionInstructions,
-          sessionKeyId: configData.memory_session_id || '{{ $json.session_id }}',
+          sessionKeyId: (configData.configuration as any)?.memory_session_id || '{{ $json.session_id }}',
           enabledTools: (configData.tools_enabled as string[]) || ['httpRequestTool', 'calculatorTool'],
           businessName: (configData as any).business_name || 'Meu Negócio',
         }));
+      }
 
-        if (configData.ai_credentials) {
-          const credentials = configData.ai_credentials as Record<string, string>;
-          const apiKey = credentials.openai_api_key || credentials.google_api_key || '';
-          if (apiKey) {
-            setConfig(prev => ({ ...prev, apiKey }));
-          }
-          
-          const toolCreds: Record<string, string> = {};
-          Object.entries(credentials).forEach(([key, value]) => {
-            if (key !== 'openai_api_key' && key !== 'google_api_key' && value) {
-              toolCreds[key] = value;
-            }
-          });
-          if (Object.keys(toolCreds).length > 0) {
-            setToolCredentials(toolCreds);
-          }
+      // Puxa workflow_id da instância ativa (fonte da verdade do workflow por bot)
+      if (activeInstance?.workflow_id) {
+        setConfig((prev) => ({ ...prev, n8nWorkflowId: activeInstance.workflow_id || '' }));
+      }
+
+      // Carrega API key do provedor via product_credentials (não fica na ai_control_config)
+      try {
+        const providerKey = (configData as any)?.provider === 'google' || String((configData as any)?.model || '').includes('gemini')
+          ? 'google_api_key'
+          : 'openai_api_key';
+        const { data: cred } = await supabase
+          .from('product_credentials')
+          .select('credential_value')
+          .eq('user_id', user.id)
+          .eq('product_slug', 'ai')
+          .eq('credential_key', providerKey)
+          .maybeSingle();
+
+        if (cred?.credential_value) {
+          setConfig(prev => ({ ...prev, apiKey: cred.credential_value || '' }));
         }
+      } catch (e) {
+        // sem impacto no carregamento da página
       }
 
       setConfigLoaded(true);
       
-      // Testar conexão n8n
+      // Testar conexão do motor interno
       testN8nConnection();
       
     } catch (error) {
@@ -412,25 +468,32 @@ COMO AJUDAR:
     if (!customerProductId) return false;
 
     try {
+      if (!user) return false;
+
+      const engineProvider: 'openai' | 'google' = config.provider === 'google' ? 'google' : 'openai';
+      const engineModel = (config.model || '').trim() || (engineProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini');
+
       const configToSave = {
         customer_product_id: customerProductId,
+        user_id: user.id,
         is_active: config.isActive,
-        ai_model: config.model,
+        provider: engineProvider,
+        model: engineModel,
         temperature: config.temperature,
         max_tokens: config.maxTokens,
         system_prompt: config.systemPrompt,
         personality: config.communicationTone,
         action_instructions: JSON.stringify(config.actionInstructions),
-        memory_session_id: config.sessionKeyId,
-        n8n_webhook_url: config.n8nWorkflowId ? `workflow-${config.n8nWorkflowId}` : null,
+        n8n_webhook_url: null,
         tools_enabled: config.enabledTools,
-        ai_credentials: {
-          [config.provider === 'openai' ? 'openai_api_key' : 'google_api_key']: config.apiKey,
-          ...toolCredentials,
-        },
         configuration: {
           platform: 'whatsapp',
           configured_at: new Date().toISOString(),
+          memory_session_id: config.sessionKeyId,
+          retention_policy: config.retentionPolicy,
+          context_window_size: config.contextWindowSize,
+          enable_web_search: config.enableWebSearch,
+          tool_configs: toolConfigs,
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
@@ -445,11 +508,33 @@ COMO AJUDAR:
         return false;
       }
 
-      if (config.n8nWorkflowId) {
-        await supabase
-          .from('customer_products')
-          .update({ n8n_workflow_id: config.n8nWorkflowId })
-          .eq('id', customerProductId);
+      // Persiste a API key do provedor em product_credentials (segredo do usuário)
+      // (mantém o painel "conectado" ao motor interno, que lê a key de lá)
+      if (config.apiKey) {
+        const credentialKey = engineProvider === 'google' ? 'google_api_key' : 'openai_api_key';
+        const { data: existing } = await supabase
+          .from('product_credentials')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('product_slug', 'ai')
+          .eq('credential_key', credentialKey)
+          .maybeSingle();
+
+        if (existing?.id) {
+          await supabase
+            .from('product_credentials')
+            .update({ credential_value: config.apiKey, updated_at: new Date().toISOString() })
+            .eq('id', existing.id);
+        } else {
+          await supabase
+            .from('product_credentials')
+            .insert({
+              user_id: user.id,
+              product_slug: 'ai',
+              credential_key: credentialKey,
+              credential_value: config.apiKey,
+            });
+        }
       }
 
       return true;
@@ -475,7 +560,7 @@ COMO AJUDAR:
     } finally {
       setAutoSaving(false);
     }
-  }, [configLoaded, customerProductId, config, toolCredentials]);
+  }, [configLoaded, customerProductId, config, toolCredentials, toolConfigs]);
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -498,25 +583,25 @@ COMO AJUDAR:
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [config, toolCredentials, configLoaded]);
+  }, [config, toolCredentials, toolConfigs, configLoaded]);
 
-  const n8nApiCall = useCallback(async (action: string, params: any = {}) => {
-    const { data, error } = await supabase.functions.invoke('n8n-api', {
-      body: { action, ...params }
+  // Substitui a dependência do n8n por um motor interno (Edge Function)
+  const internalBotCall = useCallback(async (action: string, params: any = {}) => {
+    const { data, error } = await supabase.functions.invoke('whatsapp-internal-flow', {
+      body: { action, customer_product_id: productId, ...params },
     });
     if (error) throw error;
     return data;
-  }, []);
+  }, [productId]);
 
   const testN8nConnection = async () => {
     setN8nTesting(true);
     try {
-      const result = await n8nApiCall('test_connection');
-      setN8nConnected(result.success);
-      
-      if (result.success) {
-        loadWorkflows();
-      }
+      const { data, error } = await supabase.functions.invoke('n8n-api', {
+        body: { action: 'test_connection' },
+      });
+      if (error) throw error;
+      setN8nConnected(Boolean((data as any)?.success));
     } catch (error: any) {
       setN8nConnected(false);
     } finally {
@@ -527,144 +612,118 @@ COMO AJUDAR:
   const loadWorkflows = async () => {
     setLoadingWorkflows(true);
     try {
-      const result = await n8nApiCall('list_workflows', { limit: 100 });
-      if (result.success) {
-        const isAdmin = user?.email === 'caduxim0@gmail.com';
-        
-        if (isAdmin) {
-          // Admin vê todos os workflows
-          setWorkflows(result.workflows);
-        } else {
-          // Cliente só vê o workflow que foi criado para ele
-          // Buscar o n8n_workflow_id do customer_products
-          const { data: customerProduct } = await supabase
-            .from('customer_products')
-            .select('n8n_workflow_id')
-            .eq('id', productId)
-            .single();
-          
-          const clientWorkflowId = customerProduct?.n8n_workflow_id;
-          
-          if (clientWorkflowId) {
-            // Filtrar apenas o workflow do cliente
-            const filteredWorkflows = result.workflows.filter(
-              (w: N8nWorkflow) => w.id === clientWorkflowId
-            );
-            setWorkflows(filteredWorkflows);
-            
-            // Se o cliente tem um workflow, seleciona automaticamente
-            if (filteredWorkflows.length > 0) {
-              setConfig(prev => ({ ...prev, n8nWorkflowId: clientWorkflowId }));
-            }
-          } else {
-            // Cliente não tem workflow ainda
-            setWorkflows([]);
-          }
-        }
-      }
-    } catch (error: any) {
-      console.error('Error loading workflows:', error);
+      const { data, error } = await supabase.functions.invoke('n8n-api', {
+        body: { action: 'list_workflows', limit: 200 },
+      });
+      if (error) throw error;
+
+      const workflowsRaw = (data as any)?.workflows || [];
+      setWorkflows(
+        workflowsRaw.map((wf: any) => ({
+          id: String(wf.id),
+          name: String(wf.name || `Workflow ${wf.id}`),
+          active: Boolean(wf.active),
+          createdAt: String(wf.createdAt || wf.created_at || new Date().toISOString()),
+          updatedAt: String(wf.updatedAt || wf.updated_at || new Date().toISOString()),
+        })),
+      );
+    } catch (e) {
+      toast({
+        title: 'Erro ao carregar workflows',
+        description: 'Não foi possível listar workflows do n8n.',
+        variant: 'destructive',
+      });
     } finally {
       setLoadingWorkflows(false);
     }
   };
 
+  useEffect(() => {
+    if (n8nConnected) {
+      loadWorkflows();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [n8nConnected]);
+
   const loadExecutions = async (workflowId?: string) => {
+    const wfId = workflowId || config.n8nWorkflowId;
+    if (!wfId) {
+      setExecutions([]);
+      return;
+    }
+
     setLoadingExecutions(true);
     try {
-      const result = await n8nApiCall('get_executions', { 
-        workflowId: workflowId || config.n8nWorkflowId,
-        limit: 20 
+      const { data, error } = await supabase.functions.invoke('n8n-api', {
+        body: { action: 'get_executions', workflowId: wfId, limit: 20 },
       });
-      if (result.success) {
-        setExecutions(result.executions);
-        
-        const successCount = result.executions.filter((e: N8nExecution) => e.status === 'success').length;
-        const errorCount = result.executions.filter((e: N8nExecution) => e.status === 'error').length;
-        const total = result.executions.length;
-        
-        setMetrics(prev => ({
-          ...prev,
-          totalMessages: total,
-          errorRate: total > 0 ? (errorCount / total) * 100 : 0,
-          lastActivity: result.executions[0]?.startedAt || null,
-        }));
-      }
-    } catch (error: any) {
-      console.error('Error loading executions:', error);
+      if (error) throw error;
+
+      const execRaw = (data as any)?.executions || [];
+      setExecutions(
+        execRaw.map((ex: any) => ({
+          id: String(ex.id),
+          finished: Boolean(ex.finished),
+          mode: String(ex.mode || ''),
+          startedAt: String(ex.startedAt || ex.started_at || new Date().toISOString()),
+          stoppedAt: ex.stoppedAt || ex.stopped_at ? String(ex.stoppedAt || ex.stopped_at) : undefined,
+          workflowId: String(ex.workflowId || ex.workflow_id || wfId),
+          status: String(ex.status || ''),
+        })),
+      );
+    } catch (e) {
+      toast({
+        title: 'Erro ao carregar execuções',
+        description: 'Não foi possível listar execuções do workflow.',
+        variant: 'destructive',
+      });
     } finally {
       setLoadingExecutions(false);
     }
   };
 
   const activateWorkflow = async (workflowId: string) => {
-    setTogglingAgent(true);
-    try {
-      const result = await n8nApiCall('activate_workflow', { workflowId });
-      
-      if (result.success) {
-        toast({
-          title: "Workflow Ativado",
-          description: `Workflow está agora ativo.`,
-        });
-        setAgentStatus('online');
-        setConfig(prev => ({ ...prev, isActive: true }));
-        setWorkflows(prev => prev.map(w => 
-          w.id === workflowId ? { ...w, active: true } : w
-        ));
-      }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao ativar",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setTogglingAgent(false);
-    }
+    setAgentStatus('loading');
+    await supabase.functions.invoke('n8n-api', { body: { action: 'activate_workflow', workflowId } });
+    setAgentStatus('online');
+    setConfig(prev => ({ ...prev, isActive: true }));
   };
 
   const deactivateWorkflow = async (workflowId: string) => {
+    setAgentStatus('loading');
+    await supabase.functions.invoke('n8n-api', { body: { action: 'deactivate_workflow', workflowId } });
+    setAgentStatus('offline');
+    setConfig(prev => ({ ...prev, isActive: false }));
+  };
+
+  const toggleWorkflowStatus = async () => {
+    // Ativa/desativa o workflow no n8n e mantém flag local para UI
     setTogglingAgent(true);
     try {
-      const result = await n8nApiCall('deactivate_workflow', { workflowId });
-      
-      if (result.success) {
-        toast({
-          title: "Workflow Desativado",
-          description: `Workflow foi desativado.`,
-        });
-        setAgentStatus('offline');
-        setConfig(prev => ({ ...prev, isActive: false }));
-        setWorkflows(prev => prev.map(w => 
-          w.id === workflowId ? { ...w, active: false } : w
-        ));
+      if (!config.n8nWorkflowId) return;
+      if (config.isActive) {
+        await deactivateWorkflow(config.n8nWorkflowId);
+      } else {
+        await activateWorkflow(config.n8nWorkflowId);
       }
-    } catch (error: any) {
-      toast({
-        title: "Erro ao desativar",
-        description: error.message,
-        variant: "destructive",
-      });
+      // ainda persistimos config geral (prompt/model/tools) via auto-save
+      await saveConfigToDatabase();
     } finally {
       setTogglingAgent(false);
     }
   };
 
-  const toggleWorkflowStatus = async () => {
-    if (!config.n8nWorkflowId) {
+  const handleSelectWorkflowForActiveBot = async (workflowId: string) => {
+    setConfig((prev) => ({ ...prev, n8nWorkflowId: workflowId }));
+    if (!activeBotInstanceId) return;
+    try {
+      await botInstances.setWorkflow(activeBotInstanceId, workflowId || null);
+    } catch {
       toast({
-        title: "Selecione um workflow",
-        description: "Escolha um workflow na lista antes de ativar/desativar.",
-        variant: "destructive",
+        title: 'Erro',
+        description: 'Não foi possível vincular o workflow a esta instância.',
+        variant: 'destructive',
       });
-      return;
-    }
-    
-    if (config.isActive) {
-      await deactivateWorkflow(config.n8nWorkflowId);
-    } else {
-      await activateWorkflow(config.n8nWorkflowId);
     }
   };
 
@@ -822,35 +881,10 @@ COMO AJUDAR:
   };
 
   const syncSystemPromptToN8n = async () => {
-    if (!config.n8nWorkflowId) {
-      toast({
-        title: "Workflow não selecionado",
-        description: "Selecione um workflow na aba Status antes de sincronizar.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSyncingPrompt(true);
     try {
-      const fullPrompt = `${config.systemPrompt}
-
-=== INSTRUÇÕES DE AÇÃO ===
-${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NUNCA FAÇA:'} ${i.instruction}`).join('\n')}`;
-
-      const result = await n8nApiCall('update_system_prompt', {
-        workflowId: config.n8nWorkflowId,
-        newSystemMessage: fullPrompt,
-      });
-
-      if (result.success) {
-        toast({
-          title: "System Prompt sincronizado!",
-          description: `Atualizado no workflow`,
-        });
-      } else {
-        throw new Error(result.error || 'Falha ao sincronizar');
-      }
+      // n8n removido: o prompt já é persistido via saveConfigToDatabase() e consumido pelo motor interno.
+      toast({ title: "System Prompt pronto", description: "O motor interno usará este prompt automaticamente." });
     } catch (error: any) {
       toast({
         title: "Erro ao sincronizar",
@@ -863,30 +897,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
   };
 
   const syncLlmConfigToN8n = async () => {
-    if (!config.n8nWorkflowId) {
-      toast({
-        title: "Workflow não selecionado",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setSyncingLlm(true);
     try {
-      const result = await n8nApiCall('update_llm_config', {
-        workflowId: config.n8nWorkflowId,
-        model: config.model,
-        temperature: config.temperature,
-        maxTokens: config.maxTokens,
-        provider: config.provider,
-        apiKey: config.provider === 'starai' ? undefined : config.apiKey,
-      });
-
-      if (result.success) {
-        toast({
-          title: "Configuração do LLM sincronizada!",
-        });
-      }
+      toast({ title: "Configuração de IA pronta", description: "O motor interno usará estas configs." });
     } catch (error: any) {
       toast({
         title: "Erro ao sincronizar LLM",
@@ -899,19 +912,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
   };
 
   const syncMemoryToN8n = async () => {
-    if (!config.n8nWorkflowId) return;
-    
     setSyncingMemory(true);
     try {
-      const result = await n8nApiCall('update_memory_config', {
-        workflowId: config.n8nWorkflowId,
-        sessionKeyId: config.sessionKeyId,
-        contextWindowSize: config.contextWindowSize,
-      });
-
-      if (result.success) {
-        toast({ title: "Configuração de memória sincronizada!" });
-      }
+      toast({ title: "Memória configurada", description: "Vamos plugar histórico/CRM no motor interno na próxima etapa." });
     } catch (error: any) {
       toast({
         title: "Erro ao sincronizar memória",
@@ -924,19 +927,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
   };
 
   const syncToolsToN8n = async () => {
-    if (!config.n8nWorkflowId) return;
-    
     setSyncingTools(true);
     try {
-      const result = await n8nApiCall('update_tools_config', {
-        workflowId: config.n8nWorkflowId,
-        toolConfigs,
-        toolCredentials,
-      });
-
-      if (result.success) {
-        toast({ title: "Ferramentas sincronizadas!" });
-      }
+      toast({ title: "Ferramentas prontas", description: "As ferramentas serão executadas no backend (sem n8n)." });
     } catch (error: any) {
       toast({
         title: "Erro ao sincronizar ferramentas",
@@ -952,10 +945,8 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
     setLoading(true);
     try {
       await saveConfigToDatabase();
-      
-      if (config.n8nWorkflowId) {
-        await syncSystemPromptToN8n();
-      }
+
+      // n8n removido: nada para sincronizar fora do banco.
       
       toast({
         title: "Configurações salvas!",
@@ -1075,36 +1066,51 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="status" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="status" className="gap-2">
-              <Power className="h-4 w-4" />
-              <span className="hidden sm:inline">Status</span>
-            </TabsTrigger>
-            <TabsTrigger value="engine" className="gap-2">
-              <Brain className="h-4 w-4" />
-              <span className="hidden sm:inline">Motor IA</span>
-            </TabsTrigger>
-            <TabsTrigger value="memory" className="gap-2">
-              <Database className="h-4 w-4" />
-              <span className="hidden sm:inline">Memória</span>
-            </TabsTrigger>
-            <TabsTrigger value="personality" className="gap-2">
-              <Bot className="h-4 w-4" />
-              <span className="hidden sm:inline">Personalidade</span>
-            </TabsTrigger>
-            <TabsTrigger value="tools" className="gap-2">
-              <Plug className="h-4 w-4" />
-              <span className="hidden sm:inline">Ferramentas</span>
-            </TabsTrigger>
-            <TabsTrigger value="monitoring" className="gap-2">
-              <BarChart3 className="h-4 w-4" />
-              <span className="hidden sm:inline">Monitoramento</span>
-            </TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
+          <div className="flex w-full min-h-[60vh] min-h-0 gap-4 overflow-visible rounded-xl border border-border/50 bg-card/40 backdrop-blur supports-[backdrop-filter]:bg-card/30 shadow-card">
+            <div className="p-2 md:py-2 md:pl-4">
+              <div className="md:sticky md:top-1/2 md:-translate-y-1/2">
+                <VerticalTabRail
+                  items={sidebarItems}
+                  activeValue={activeTab}
+                  onChange={(v) => setActiveTab(v as any)}
+                  collapsed={isMobile ? false : railCollapsed}
+                  onCollapsedChange={setRailCollapsed}
+                />
+              </div>
+            </div>
+
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="p-4">
 
           {/* STATUS */}
           <TabsContent value="status" className="space-y-6">
+            <BotsAutomacaoQuickStart
+              n8nConnected={n8nConnected}
+              workflowSelected={Boolean(config.n8nWorkflowId)}
+              botActive={Boolean(config.isActive)}
+              onGoToEngine={() => setActiveTab('engine')}
+              onGoToStatus={() => setActiveTab('status')}
+            />
+
+            <BotInstancePicker
+              instances={botInstances.instances}
+              activeInstanceId={activeBotInstanceId}
+              loading={botInstances.loading}
+              allowCreate={false}
+              onRefresh={botInstances.refresh}
+              onSetActive={async (id) => {
+                await botInstances.setActiveInstance(id);
+                setActiveBotInstanceId(id);
+                const { data: inst } = await (supabase as any)
+                  .from('bot_instances')
+                  .select('workflow_id')
+                  .eq('id', id)
+                  .maybeSingle();
+                setConfig((prev) => ({ ...prev, n8nWorkflowId: (inst as any)?.workflow_id || '' }));
+              }}
+              onRename={botInstances.renameInstance}
+            />
             <div className="grid gap-6 lg:grid-cols-2">
               <Card>
                 <CardHeader>
@@ -1166,60 +1172,41 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <List className="h-5 w-5 text-primary" />
-                    Selecionar Workflow
+                    Selecionar Bot
                   </CardTitle>
                   <CardDescription>
-                    Escolha o workflow do seu bot
+                    Escolha qual bot desta compra está ativo
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Select 
-                      value={config.n8nWorkflowId} 
-                      onValueChange={(v) => setConfig(prev => ({ ...prev, n8nWorkflowId: v }))}
-                    >
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Selecione um workflow..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {workflows.map(wf => (
-                          <SelectItem key={wf.id} value={wf.id}>
-                            <div className="flex items-center gap-2">
-                              <div className={`w-2 h-2 rounded-full ${wf.active ? 'bg-green-500' : 'bg-red-500'}`} />
-                              {wf.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={loadWorkflows}
-                      disabled={loadingWorkflows}
-                    >
-                      {loadingWorkflows ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <RefreshCw className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
+                  <Select
+                    value={activeBotInstanceId ?? ""}
+                    onValueChange={async (id) => {
+                      await botInstances.setActiveInstance(id);
+                      setActiveBotInstanceId(id);
+                      const { data: inst } = await (supabase as any)
+                        .from('bot_instances')
+                        .select('workflow_id')
+                        .eq('id', id)
+                        .maybeSingle();
+                      setConfig((prev) => ({ ...prev, n8nWorkflowId: (inst as any)?.workflow_id || '' }));
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um bot..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {botInstances.instances.map((i) => (
+                        <SelectItem key={i.id} value={i.id}>
+                          {i.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
 
-                  {selectedWorkflow && (
-                    <div className="p-4 rounded-lg bg-muted/50 border space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{selectedWorkflow.name}</span>
-                        <Badge variant={selectedWorkflow.active ? "default" : "secondary"}>
-                          {selectedWorkflow.active ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        <p>ID: {selectedWorkflow.id}</p>
-                        <p>Atualizado: {new Date(selectedWorkflow.updatedAt).toLocaleString('pt-BR')}</p>
-                      </div>
-                    </div>
-                  )}
+                  <div className="text-sm text-muted-foreground">
+                    O workflow/automação é carregado automaticamente conforme o bot selecionado.
+                  </div>
                 </CardContent>
               </Card>
 
@@ -1896,6 +1883,13 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
             />
           </TabsContent>
 
+          {/* CHAT DE TESTE */}
+          <TabsContent value="chat" className="space-y-6">
+            {productId ? (
+              <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} />
+            ) : null}
+          </TabsContent>
+
           {/* MONITORAMENTO */}
           <TabsContent value="monitoring" className="space-y-6">
             {config.n8nWorkflowId ? (
@@ -1914,6 +1908,9 @@ ${config.actionInstructions.map(i => `${i.type === 'do' ? '✓ FAÇA:' : '✗ NU
               </Card>
             )}
           </TabsContent>
+              </div>
+            </div>
+          </div>
         </Tabs>
       </main>
 

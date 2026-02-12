@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Star } from "lucide-react";
 import heroBannerVideo from "@/assets/hero-banner.mp4";
@@ -72,12 +73,12 @@ export const HeroSection = () => {
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </a>
-              <a href="#lead-magnet">
-                <Button variant="secondary" size="xl" className="group w-full sm:w-auto">
-                  Baixar Guia Gratuito
+              <Link to="/planos">
+                <Button size="xl" className="group w-full sm:w-auto bg-violet-700 hover:bg-violet-800 text-white border-0">
+                  Planos
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
-              </a>
+              </Link>
             </div>
 
             {/* Stats com números de impacto */}

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -13,12 +13,32 @@ import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { CreditCard, QrCode, ShieldCheck, User, Mail, Phone, Tag, ArrowRight, Loader2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { closeOpenAbandonedCarts, logFunnelEvent, upsertOpenAbandonedCart } from '@/lib/abandonedCart';
 
 export default function CheckoutPage() {
   const { items, total, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    // Marca que o usuário chegou no checkout (gatilho “checkout abandonado”)
+    (async () => {
+      try {
+        await upsertOpenAbandonedCart({
+          userId: user.id,
+          stage: 'checkout',
+          items,
+          totalAmount: total,
+        });
+        await logFunnelEvent(user.id, 'checkout_view', { itemsCount: items.length, totalAmount: total });
+      } catch (e) {
+        console.error('Error tracking checkout view:', e);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -29,6 +49,26 @@ export default function CheckoutPage() {
 
   const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'pix'>('mercadopago');
 
+  const handleResetLocal = () => {
+    // “Como se a conta fosse nova”: limpa carrinho + sessão local
+    try {
+      clearCart();
+      localStorage.removeItem('cart');
+
+      for (const key of Object.keys(localStorage)) {
+        if (key.startsWith('sb-')) {
+          localStorage.removeItem(key);
+        }
+      }
+
+      toast({
+        title: 'Cache limpo',
+        description: 'Você precisará fazer login novamente para continuar.',
+      });
+    } finally {
+      window.location.href = '/auth';
+    }
+  };
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user) {
@@ -57,20 +97,22 @@ export default function CheckoutPage() {
 
       if (orderError) throw orderError;
 
-      // Create order items
-      const orderItems = items.map(item => ({
-        order_id: order.id,
-        product_slug: item.slug,
-        product_title: item.title,
-        product_price: item.price,
-        quantity: item.quantity
-      }));
-
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
-      if (itemsError) throw itemsError;
+      // Create order items with all required fields
+      for (const item of items) {
+        const { error: itemError } = await (supabase
+          .from('order_items') as any)
+          .insert({
+            order_id: order.id,
+            product_name: item.title,
+            product_slug: item.slug,
+            product_title: item.title,
+            unit_price: item.price,
+            price: item.price * item.quantity,
+            quantity: item.quantity
+          });
+        
+        if (itemError) throw itemError;
+      }
 
       // If Mercado Pago, redirect to payment integration
       if (paymentMethod === 'mercadopago') {
@@ -79,6 +121,10 @@ export default function CheckoutPage() {
         // PIX payment flow
         navigate(`/pix-payment/${order.id}`);
       }
+
+      // Fecha abandono como “convertido”
+      await closeOpenAbandonedCarts(user.id, 'converted');
+      await logFunnelEvent(user.id, 'order_created', { orderId: order.id, totalAmount: total });
 
       clearCart();
     } catch (error: any) {
@@ -133,6 +179,11 @@ export default function CheckoutPage() {
             <p className="text-center text-muted-foreground text-lg">
               Preencha seus dados para prosseguir com o pagamento
             </p>
+            <div className="mt-6 flex justify-center">
+              <Button type="button" variant="outline" size="sm" onClick={handleResetLocal}>
+                Limpar cache e sair
+              </Button>
+            </div>
           </div>
           
           <div className="grid lg:grid-cols-5 gap-8">

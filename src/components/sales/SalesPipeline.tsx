@@ -2,13 +2,9 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
-import { 
-  DollarSign,
-  User,
-  Building2,
-  GripVertical
-} from 'lucide-react';
+import { DollarSign, Building2, GripVertical } from 'lucide-react';
 
 interface SalesPipelineProps {
   customerProductId: string;
@@ -20,9 +16,9 @@ interface Lead {
   email: string | null;
   company: string | null;
   status: string;
-  priority: string;
-  score: number;
-  estimated_value: number;
+  ai_score: number;
+  priority?: string;
+  estimated_value?: number;
 }
 
 const STAGES = [
@@ -35,26 +31,26 @@ const STAGES = [
 ];
 
 export function SalesPipeline({ customerProductId }: SalesPipelineProps) {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [draggedLead, setDraggedLead] = useState<Lead | null>(null);
 
   useEffect(() => {
-    loadLeads();
-  }, [customerProductId]);
+    if (user) loadLeads();
+  }, [user]);
 
   const loadLeads = async () => {
+    if (!user) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('sales_leads')
       .select('*')
-      .eq('customer_product_id', customerProductId)
+      .eq('user_id', user.id)
       .neq('status', 'lost')
-      .order('score', { ascending: false });
+      .order('ai_score', { ascending: false });
 
-    if (!error && data) {
-      setLeads(data);
-    }
+    if (!error && data) setLeads(data);
     setIsLoading(false);
   };
 
@@ -75,7 +71,7 @@ export function SalesPipeline({ customerProductId }: SalesPipelineProps) {
       return;
     }
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('sales_leads')
       .update({ status: newStatus })
       .eq('id', draggedLead.id);
@@ -218,7 +214,7 @@ export function SalesPipeline({ customerProductId }: SalesPipelineProps) {
                                 </span>
                               </div>
                               <div className="flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded">
-                                <span className="text-[10px] font-medium">{lead.score}%</span>
+                                <span className="text-[10px] font-medium">{lead.ai_score || 0}%</span>
                               </div>
                             </div>
                           </div>

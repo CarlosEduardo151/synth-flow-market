@@ -197,7 +197,7 @@ export function AIAgentConfig({ customerProductId, workflowId }: AIAgentConfigPr
 
   const fetchConfig = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('ai_control_config')
         .select('*')
         .eq('customer_product_id', customerProductId)

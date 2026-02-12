@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Eye, Mail, Phone, MapPin, Calendar } from 'lucide-react';
+import { ArrowLeft, Eye, Mail, Phone, MapPin, Calendar, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Customer {
@@ -44,6 +44,25 @@ export default function AdminCustomersPage() {
   const [loadingCustomers, setLoadingCustomers] = useState(true);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetails | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyUserId = async (userId: string) => {
+    try {
+      await navigator.clipboard.writeText(userId);
+      setCopiedId(userId);
+      toast({
+        title: "Copiado!",
+        description: "User ID copiado para a área de transferência.",
+      });
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível copiar o ID.",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -79,17 +98,26 @@ export default function AdminCustomersPage() {
           const { data: roleData } = await supabase
             .from('user_roles')
             .select('role')
-            .eq('user_id', profile.user_id)
+            .eq('user_id', profile.id)
             .single();
 
           return {
             ...profile,
+            user_id: profile.id,
+            email: '',
+            cpf: '',
+            address: '',
+            city: '',
+            state: '',
+            zip_code: '',
+            birth_date: '',
+            profile_photo_url: profile.avatar_url || '',
             role: roleData?.role || 'customer',
           };
         })
       );
 
-      setCustomers(customersWithRoles.filter(c => c.role === 'customer'));
+      setCustomers(customersWithRoles.filter(c => c.role !== 'admin') as any);
     } catch (error) {
       console.error('Error fetching customers:', error);
       toast({
@@ -117,14 +145,14 @@ export default function AdminCustomersPage() {
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
-        .eq('user_id', profileData.user_id)
+        .eq('user_id', profileData.id)
         .single();
 
       // Get customer orders statistics
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('total_amount, created_at')
-        .eq('user_id', profileData.user_id);
+        .eq('user_id', profileData.id);
 
       if (ordersError) throw ordersError;
 
@@ -136,11 +164,20 @@ export default function AdminCustomersPage() {
 
       setSelectedCustomer({
         ...profileData,
+        user_id: profileData.id,
+        email: '',
+        cpf: '',
+        address: '',
+        city: '',
+        state: '',
+        zip_code: '',
+        birth_date: '',
+        profile_photo_url: profileData.avatar_url || '',
         role: roleData?.role || 'customer',
         orders_count: ordersCount,
         total_spent: totalSpent,
         last_order_date: lastOrderDate
-      });
+      } as any);
     } catch (error) {
       console.error('Error fetching customer details:', error);
       toast({
@@ -201,9 +238,8 @@ export default function AdminCustomersPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Cliente</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>User ID</TableHead>
                     <TableHead>Telefone</TableHead>
-                    <TableHead>Cidade</TableHead>
                     <TableHead>Data de Cadastro</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -232,11 +268,26 @@ export default function AdminCustomersPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>{customer.email}</TableCell>
-                      <TableCell>{customer.phone || 'Não informado'}</TableCell>
                       <TableCell>
-                        {customer.city && customer.state ? `${customer.city}, ${customer.state}` : 'Não informado'}
+                        <div className="flex items-center gap-2">
+                          <code className="text-xs bg-muted px-2 py-1 rounded font-mono max-w-[120px] truncate">
+                            {customer.user_id}
+                          </code>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-7 w-7"
+                            onClick={() => copyUserId(customer.user_id)}
+                          >
+                            {copiedId === customer.user_id ? (
+                              <Check className="h-3 w-3 text-green-500" />
+                            ) : (
+                              <Copy className="h-3 w-3" />
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
+                      <TableCell>{customer.phone || 'Não informado'}</TableCell>
                       <TableCell>
                         {new Date(customer.created_at).toLocaleDateString('pt-BR')}
                       </TableCell>

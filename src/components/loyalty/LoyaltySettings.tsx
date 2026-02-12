@@ -28,11 +28,11 @@ export function LoyaltySettings({ customerProductId }: LoyaltySettingsProps) {
   }, [customerProductId]);
 
   const fetchSettings = async () => {
-    const { data, error } = await supabase
-      .from('loyalty_settings')
+    const { data, error } = await (supabase
+      .from('loyalty_settings' as any)
       .select('*')
       .eq('customer_product_id', customerProductId)
-      .single();
+      .single() as any);
 
     if (error && error.code !== 'PGRST116') {
       toast({ title: "Erro", description: "Erro ao buscar configurações", variant: "destructive" });
@@ -62,23 +62,23 @@ export function LoyaltySettings({ customerProductId }: LoyaltySettingsProps) {
     };
 
     // Verificar se já existe configuração
-    const { data: existing } = await supabase
-      .from('loyalty_settings')
+    const { data: existing } = await (supabase
+      .from('loyalty_settings' as any)
       .select('id')
       .eq('customer_product_id', customerProductId)
-      .single();
+      .single() as any);
 
     let error;
     if (existing) {
-      const result = await supabase
-        .from('loyalty_settings')
+      const result = await (supabase
+        .from('loyalty_settings' as any)
         .update(dataToSave)
-        .eq('customer_product_id', customerProductId);
+        .eq('customer_product_id', customerProductId) as any);
       error = result.error;
     } else {
-      const result = await supabase
-        .from('loyalty_settings')
-        .insert(dataToSave);
+      const result = await (supabase
+        .from('loyalty_settings' as any)
+        .insert(dataToSave) as any);
       error = result.error;
     }
 

@@ -22,14 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-        
-        // Handle token refresh error - force re-login
-        if (event === 'TOKEN_REFRESHED') {
-          console.log('Token refreshed successfully');
-        }
-        
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -44,60 +37,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session and refresh if needed
-    const initSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('Error getting session:', error);
-          // Clear any stale session data
-          await supabase.auth.signOut();
-          setSession(null);
-          setUser(null);
-          setLoading(false);
-          return;
-        }
-        
-        if (session) {
-          // Check if token is about to expire (within 5 minutes)
-          const expiresAt = session.expires_at;
-          const now = Math.floor(Date.now() / 1000);
-          const fiveMinutes = 5 * 60;
-          
-          if (expiresAt && (expiresAt - now) < fiveMinutes) {
-            console.log('Token expiring soon, refreshing...');
-            const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-            
-            if (refreshError) {
-              console.error('Error refreshing session:', refreshError);
-              toast.error('Sessão expirada. Por favor, faça login novamente.');
-              await supabase.auth.signOut();
-              setSession(null);
-              setUser(null);
-            } else if (refreshData.session) {
-              setSession(refreshData.session);
-              setUser(refreshData.session.user);
-            }
-          } else {
-            setSession(session);
-            setUser(session.user);
-          }
-        }
-        
-        setLoading(false);
-      } catch (err) {
-        console.error('Session initialization error:', err);
-        setLoading(false);
-      }
-    };
-
-    initSession();
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, phone?: string, birthDate?: string, cpf?: string) => {
+    if (!phone || !phone.trim()) {
+      return { error: { message: 'Telefone/WhatsApp é obrigatório.' } };
+    }
+
     const redirectUrl = `${window.location.origin}/`;
     
     const { data, error } = await supabase.auth.signUp({
@@ -107,23 +61,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          phone: phone,
         },
       },
     });
 
-    // Update profile with additional data
+    // Update profile with additional data and send welcome email
     if (!error && data.user) {
       try {
-        await supabase
-          .from('profiles')
+        await (supabase
+          .from('profiles') as any)
           .update({
             phone: phone || null,
             birth_date: birthDate || null,
             cpf: cpf || null,
           })
           .eq('user_id', data.user.id);
+
+        // Send welcome email
+        await supabase.functions.invoke('send-welcome-email', {
+          body: {
+            to: email,
+            type: 'welcome',
+            userName: fullName
+          }
+        });
       } catch (profileError) {
-        console.error('Error updating profile:', profileError);
+        console.error('Error updating profile or sending email:', profileError);
       }
     }
 

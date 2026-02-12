@@ -23,12 +23,11 @@ export const useRentalStats = () => {
       const now = new Date();
       const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
-      // Buscar todos os produtos alugados
+      // Buscar todos os aluguéis de produtos
       const { data: rentals, error } = await supabase
-        .from('customer_products')
+        .from('product_rentals')
         .select('*')
-        .eq('acquisition_type', 'rental')
-        .eq('is_active', true);
+        .eq('status', 'active');
 
       if (error) throw error;
 
@@ -38,8 +37,8 @@ export const useRentalStats = () => {
       let monthlyRevenue = 0;
 
       rentals?.forEach((rental) => {
-        if (rental.rental_end_date) {
-          const endDate = new Date(rental.rental_end_date);
+        if (rental.expires_at) {
+          const endDate = new Date(rental.expires_at);
           
           if (endDate < now) {
             expiredCount++;
@@ -48,10 +47,6 @@ export const useRentalStats = () => {
             activeCount++;
           } else {
             activeCount++;
-          }
-
-          if (rental.monthly_rental_price && rental.rental_payment_status === 'active') {
-            monthlyRevenue += rental.monthly_rental_price;
           }
         }
       });

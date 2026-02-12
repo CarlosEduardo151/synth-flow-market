@@ -18,6 +18,16 @@ export const relatoriosFinanceiros: Product = {
     "Gráficos visuais",
     "Exportação em PDF/Excel"
   ],
+  operationManual: [
+    { step: "01", action: "Conectar fontes de dados", detail: "Integre planilhas, sistema de vendas ou banco de dados existente." },
+    { step: "02", action: "Categorizar transações", detail: "Defina categorias de receitas e despesas do seu negócio." },
+    { step: "03", action: "Configurar fluxo de caixa", detail: "Defina saldo inicial e contas bancárias a monitorar." },
+    { step: "04", action: "Definir metas financeiras", detail: "Configure objetivos mensais de faturamento e controle de custos." },
+    { step: "05", action: "Configurar alertas", detail: "Defina notificações para contas a pagar e limites de gastos." },
+    { step: "06", action: "Personalizar relatórios", detail: "Escolha quais métricas e gráficos aparecem no seu dashboard." },
+    { step: "07", action: "Agendar envios", detail: "Configure relatórios automáticos diários/semanais por email." },
+    { step: "08", action: "Exportar dados", detail: "Baixe relatórios em PDF ou Excel para compartilhar com contador." }
+  ],
   inStock: true,
   delivery: "Ativação em 24 horas",
   specs: "Pagamento Mensal - R$ 250/mês",

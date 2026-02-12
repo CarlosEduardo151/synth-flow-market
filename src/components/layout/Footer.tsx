@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Mail, Phone, MapPin } from "lucide-react";
+import { Mail, Phone } from "lucide-react";
 import { FaDiscord } from "react-icons/fa";
 import { CustomerReviews } from "../CustomerReviews";
 
@@ -14,17 +14,13 @@ export function Footer() {
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
                 <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-primary">
-                  <img
-                    src="/favicon.ico"
-                    alt="Logo"
-                    className="w-6 h-6 object-contain rounded-lg"
-                  />
+                  <img src="/favicon.ico" alt="Logo" className="w-6 h-6 object-contain rounded-lg" />
                 </div>
-                <span className="font-bold gradient-text">StarAI Store</span>
+                <span className="font-bold gradient-text">NovaLink</span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Soluções avançadas em inteligência artificial para empresas
-                modernas. Transformamos processos com tecnologia de ponta.
+                Soluções avançadas em inteligência artificial para empresas modernas. Transformamos processos
+                com tecnologia de ponta.
               </p>
             </div>
 
@@ -57,11 +53,11 @@ export function Footer() {
             <div className="space-y-4">
               <h3 className="font-semibold text-foreground">Empresa</h3>
               <nav className="space-y-2">
-                <Link
-                  to="/sobre"
-                  className="block text-sm text-muted-foreground hover:text-primary transition-colors"
-                >
+                <Link to="/sobre" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
                   Sobre nós
+                </Link>
+                <Link to="/jornada" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                  Jornada
                 </Link>
                 <Link
                   to="/termos-de-uso"
@@ -84,21 +80,11 @@ export function Footer() {
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    caduxim0@gmail.com
-                  </span>
+                  <span className="text-sm text-muted-foreground">caduxim0@gmail.com</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    (99) 99189-8399
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">
-                    Imperatriz, MA
-                  </span>
+                  <span className="text-sm text-muted-foreground">(99) 99189-8399</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <FaDiscord className="w-4 h-4 text-muted-foreground" />
@@ -113,13 +99,11 @@ export function Footer() {
                 </div>
               </div>
             </div>
-          </div> {/* ✅ fechamento da grid */}
+          </div>
 
           {/* Copyright */}
           <div className="border-t border-border/50 mt-8 pt-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              © 2025 StarAI Store. Todos os direitos reservados.
-            </p>
+            <p className="text-sm text-muted-foreground">© 2025 NovaLink. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>

@@ -6,29 +6,32 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Slider } from '@/components/ui/slider';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 import { 
   Plus, 
   Search, 
-  Filter,
   MoreHorizontal,
   Phone,
   Mail,
   Building2,
   Trash2,
   Edit,
-  Eye,
-  TrendingUp,
-  UserPlus
+  UserPlus,
+  Brain,
+  Sparkles,
+  Loader2,
+  Wand2,
+  MessageSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -44,10 +47,10 @@ interface Lead {
   company: string | null;
   position: string | null;
   source: string;
-  score: number;
+  ai_score: number;
+  ai_sentiment: string | null;
+  ai_analysis: string | null;
   status: string;
-  priority: string;
-  estimated_value: number;
   notes: string | null;
   tags: string[] | null;
   created_at: string;
@@ -63,13 +66,6 @@ const STATUS_OPTIONS = [
   { value: 'lost', label: 'Perdido', color: 'bg-red-500' },
 ];
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baixa', variant: 'secondary' as const },
-  { value: 'medium', label: 'Média', variant: 'default' as const },
-  { value: 'high', label: 'Alta', variant: 'default' as const },
-  { value: 'urgent', label: 'Urgente', variant: 'destructive' as const },
-];
-
 const SOURCE_OPTIONS = [
   { value: 'manual', label: 'Manual' },
   { value: 'website', label: 'Website' },
@@ -77,19 +73,23 @@ const SOURCE_OPTIONS = [
   { value: 'linkedin', label: 'LinkedIn' },
   { value: 'cold_call', label: 'Cold Call' },
   { value: 'event', label: 'Evento' },
+  { value: 'crm_sync', label: 'Sincronizado do CRM' },
   { value: 'other', label: 'Outro' },
 ];
 
 export function SalesLeads({ customerProductId }: SalesLeadsProps) {
+  const { user } = useAuth();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingLead, setEditingLead] = useState<Lead | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [scoringLeadId, setScoringLeadId] = useState<string | null>(null);
+  const [generatingEmail, setGeneratingEmail] = useState<string | null>(null);
+  const [generatedEmail, setGeneratedEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
 
-  // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -97,28 +97,24 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
     company: '',
     position: '',
     source: 'manual',
-    score: 50,
     status: 'new',
-    priority: 'medium',
-    estimated_value: 0,
     notes: ''
   });
 
   useEffect(() => {
-    loadLeads();
-  }, [customerProductId]);
+    if (user) loadLeads();
+  }, [user]);
 
   const loadLeads = async () => {
+    if (!user) return;
     setIsLoading(true);
     const { data, error } = await supabase
       .from('sales_leads')
       .select('*')
-      .eq('customer_product_id', customerProductId)
+      .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (!error && data) {
-      setLeads(data);
-    }
+    if (!error && data) setLeads(data);
     setIsLoading(false);
   };
 
@@ -130,10 +126,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
       company: '',
       position: '',
       source: 'manual',
-      score: 50,
       status: 'new',
-      priority: 'medium',
-      estimated_value: 0,
       notes: ''
     });
     setEditingLead(null);
@@ -149,10 +142,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
         company: lead.company || '',
         position: lead.position || '',
         source: lead.source,
-        score: lead.score,
         status: lead.status,
-        priority: lead.priority,
-        estimated_value: lead.estimated_value,
         notes: lead.notes || ''
       });
     } else {
@@ -162,36 +152,28 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
   };
 
   const handleSave = async () => {
-    if (!formData.name.trim()) {
+    if (!user || !formData.name.trim()) {
       toast({ title: 'Nome é obrigatório', variant: 'destructive' });
       return;
     }
 
     const leadData = {
-      customer_product_id: customerProductId,
+      user_id: user.id,
       name: formData.name,
       email: formData.email || null,
       phone: formData.phone || null,
       company: formData.company || null,
       position: formData.position || null,
       source: formData.source,
-      score: formData.score,
       status: formData.status,
-      priority: formData.priority,
-      estimated_value: formData.estimated_value,
       notes: formData.notes || null
     };
 
     let error;
     if (editingLead) {
-      ({ error } = await supabase
-        .from('sales_leads')
-        .update(leadData)
-        .eq('id', editingLead.id));
+      ({ error } = await supabase.from('sales_leads').update(leadData).eq('id', editingLead.id));
     } else {
-      ({ error } = await supabase
-        .from('sales_leads')
-        .insert(leadData));
+      ({ error } = await supabase.from('sales_leads').insert(leadData));
     }
 
     if (error) {
@@ -207,10 +189,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este lead?')) return;
 
-    const { error } = await supabase
-      .from('sales_leads')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from('sales_leads').delete().eq('id', id);
 
     if (error) {
       toast({ title: 'Erro ao excluir lead', variant: 'destructive' });
@@ -220,31 +199,74 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
     }
   };
 
+  const handleAIScore = async (lead: Lead) => {
+    if (!user) return;
+    setScoringLeadId(lead.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('sales-ai', {
+        body: { 
+          action: 'score_lead', 
+          userId: user.id,
+          data: { lead }
+        }
+      });
+
+      if (error) throw error;
+      if (data?.success && data?.data) {
+        const result = data.data;
+        await supabase.from('sales_leads').update({
+          ai_score: result.score || 0,
+          ai_analysis: result.recommendation || null
+        }).eq('id', lead.id);
+
+        toast({ 
+          title: `Score: ${result.score}/100`,
+          description: result.recommendation?.substring(0, 100)
+        });
+        loadLeads();
+      }
+    } catch (error: any) {
+      toast({ title: 'Erro ao pontuar lead', description: error.message, variant: 'destructive' });
+    } finally {
+      setScoringLeadId(null);
+    }
+  };
+
+  const handleGenerateEmail = async (lead: Lead, type: string = 'follow-up') => {
+    if (!user) return;
+    setGeneratingEmail(lead.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('sales-ai', {
+        body: { 
+          action: 'generate_email', 
+          userId: user.id,
+          data: { lead, type }
+        }
+      });
+
+      if (error) throw error;
+      if (data?.success && data?.data) {
+        setGeneratedEmail({ subject: data.data.subject, body: data.data.body });
+        setShowEmailDialog(true);
+      }
+    } catch (error: any) {
+      toast({ title: 'Erro ao gerar email', description: error.message, variant: 'destructive' });
+    } finally {
+      setGeneratingEmail(null);
+    }
+  };
+
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       lead.company?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || lead.status === statusFilter;
-    const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter;
-    return matchesSearch && matchesStatus && matchesPriority;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status: string) => {
     const statusOption = STATUS_OPTIONS.find(s => s.value === status);
-    return (
-      <Badge className={`${statusOption?.color} text-white`}>
-        {statusOption?.label}
-      </Badge>
-    );
-  };
-
-  const getPriorityBadge = (priority: string) => {
-    const priorityOption = PRIORITY_OPTIONS.find(p => p.value === priority);
-    return (
-      <Badge variant={priorityOption?.variant}>
-        {priorityOption?.label}
-      </Badge>
-    );
+    return <Badge className={`${statusOption?.color} text-white`}>{statusOption?.label}</Badge>;
   };
 
   if (isLoading) {
@@ -261,9 +283,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold">Gestão de Leads</h2>
-          <p className="text-muted-foreground">
-            {leads.length} leads cadastrados
-          </p>
+          <p className="text-muted-foreground">{leads.length} leads cadastrados</p>
         </div>
         <Button onClick={() => handleOpenDialog()} className="gap-2">
           <UserPlus className="h-4 w-4" />
@@ -291,22 +311,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
               <SelectContent>
                 <SelectItem value="all">Todos os Status</SelectItem>
                 {STATUS_OPTIONS.map(status => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-              <SelectTrigger className="w-full sm:w-[180px]">
-                <SelectValue placeholder="Prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas Prioridades</SelectItem>
-                {PRIORITY_OPTIONS.map(priority => (
-                  <SelectItem key={priority.value} value={priority.value}>
-                    {priority.label}
-                  </SelectItem>
+                  <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -323,16 +328,15 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
                 <TableHead>Lead</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Prioridade</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead>Valor Est.</TableHead>
+                <TableHead>Score IA</TableHead>
+                <TableHead>Origem</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredLeads.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     Nenhum lead encontrado
                   </TableCell>
                 </TableRow>
@@ -367,20 +371,19 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
                       </div>
                     </TableCell>
                     <TableCell>{getStatusBadge(lead.status)}</TableCell>
-                    <TableCell>{getPriorityBadge(lead.priority)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
                           <div 
                             className="h-full bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full"
-                            style={{ width: `${lead.score}%` }}
+                            style={{ width: `${lead.ai_score || 0}%` }}
                           />
                         </div>
-                        <span className="text-sm font-medium">{lead.score}</span>
+                        <span className="text-sm font-medium">{lead.ai_score || 0}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(lead.estimated_value)}
+                      <Badge variant="outline">{SOURCE_OPTIONS.find(s => s.value === lead.source)?.label || lead.source}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
@@ -390,14 +393,20 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleAIScore(lead)} disabled={scoringLeadId === lead.id}>
+                            {scoringLeadId === lead.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Brain className="h-4 w-4 mr-2" />}
+                            Pontuar com IA
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleGenerateEmail(lead)} disabled={generatingEmail === lead.id}>
+                            {generatingEmail === lead.id ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Wand2 className="h-4 w-4 mr-2" />}
+                            Gerar Email
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleOpenDialog(lead)}>
                             <Edit className="h-4 w-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            onClick={() => handleDelete(lead.id)}
-                            className="text-destructive"
-                          >
+                          <DropdownMenuItem onClick={() => handleDelete(lead.id)} className="text-destructive">
                             <Trash2 className="h-4 w-4 mr-2" />
                             Excluir
                           </DropdownMenuItem>
@@ -414,7 +423,7 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
 
       {/* Add/Edit Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editingLead ? 'Editar Lead' : 'Novo Lead'}</DialogTitle>
             <DialogDescription>
@@ -425,145 +434,86 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nome *</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Nome do lead"
-              />
+              <Input id="name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Nome do lead" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="email@exemplo.com"
-              />
+              <Input id="email" type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} placeholder="email@exemplo.com" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="(11) 99999-9999"
-              />
+              <Input id="phone" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} placeholder="(11) 99999-9999" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="company">Empresa</Label>
-              <Input
-                id="company"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                placeholder="Nome da empresa"
-              />
+              <Input id="company" value={formData.company} onChange={(e) => setFormData({ ...formData, company: e.target.value })} placeholder="Nome da empresa" />
             </div>
-
             <div className="space-y-2">
               <Label htmlFor="position">Cargo</Label>
-              <Input
-                id="position"
-                value={formData.position}
-                onChange={(e) => setFormData({ ...formData, position: e.target.value })}
-                placeholder="Cargo do lead"
-              />
+              <Input id="position" value={formData.position} onChange={(e) => setFormData({ ...formData, position: e.target.value })} placeholder="Cargo do lead" />
             </div>
-
             <div className="space-y-2">
               <Label>Origem</Label>
               <Select value={formData.source} onValueChange={(v) => setFormData({ ...formData, source: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SOURCE_OPTIONS.map(source => (
-                    <SelectItem key={source.value} value={source.value}>
-                      {source.label}
-                    </SelectItem>
+                    <SelectItem key={source.value} value={source.value}>{source.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
               <Label>Status</Label>
               <Select value={formData.status} onValueChange={(v) => setFormData({ ...formData, status: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {STATUS_OPTIONS.map(status => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
+                    <SelectItem key={status.value} value={status.value}>{status.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label>Prioridade</Label>
-              <Select value={formData.priority} onValueChange={(v) => setFormData({ ...formData, priority: v })}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRIORITY_OPTIONS.map(priority => (
-                    <SelectItem key={priority.value} value={priority.value}>
-                      {priority.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="estimated_value">Valor Estimado (R$)</Label>
-              <Input
-                id="estimated_value"
-                type="number"
-                value={formData.estimated_value}
-                onChange={(e) => setFormData({ ...formData, estimated_value: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Score de Qualificação: {formData.score}</Label>
-              <Slider
-                value={[formData.score]}
-                onValueChange={([v]) => setFormData({ ...formData, score: v })}
-                max={100}
-                step={1}
-                className="mt-2"
-              />
-            </div>
-
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="notes">Observações</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Anotações sobre o lead..."
-                rows={3}
-              />
+              <Label htmlFor="notes">Notas</Label>
+              <Textarea id="notes" value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} placeholder="Observações sobre o lead..." rows={3} />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSave}>
-              {editingLead ? 'Atualizar' : 'Criar Lead'}
-            </Button>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave}>{editingLead ? 'Salvar' : 'Criar Lead'}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Generated Email Dialog */}
+      <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-purple-500" />
+              Email Gerado pela IA
+            </DialogTitle>
+          </DialogHeader>
+          {generatedEmail && (
+            <div className="space-y-4">
+              <div>
+                <Label>Assunto</Label>
+                <Input value={generatedEmail.subject} readOnly className="mt-1" />
+              </div>
+              <div>
+                <Label>Corpo do Email</Label>
+                <Textarea value={generatedEmail.body} readOnly className="mt-1 min-h-[200px]" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => navigator.clipboard.writeText(`Assunto: ${generatedEmail.subject}\n\n${generatedEmail.body}`)}>
+                  Copiar
+                </Button>
+                <Button onClick={() => setShowEmailDialog(false)}>Fechar</Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

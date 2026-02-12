@@ -6,27 +6,17 @@ export { relatoriosFinanceiros } from './micro-empresas/relatorios-financeiros';
 export { fidelidadeDigital } from './micro-empresas/fidelidade-digital';
 
 // IA Automatizada
-export { webScraping } from './ia-automatizada/web-scraping';
-export { gestaoAnuncios } from './ia-automatizada/gestao-anuncios';
-export { analisePreditiva } from './ia-automatizada/analise-preditiva';
-export { iaAtendimento } from './ia-automatizada/ia-atendimento';
-export { automacaoEmails } from './ia-automatizada/automacao-emails';
-export { precificacaoDinamica } from './ia-automatizada/precificacao-dinamica';
-export { insightsMercado } from './ia-automatizada/insights-mercado';
-export { criacaoConteudo } from './ia-automatizada/criacao-conteudo';
+// (removidos do catálogo)
 
 // Agentes de IA
 export { botsAutomacao } from './agentes-de-ia/bots-automacao';
 export { assistenteVendas } from './agentes-de-ia/assistente-vendas';
 export { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
-export { agenteMarketing } from './agentes-de-ia/agente-marketing';
-export { agenteSuporte } from './agentes-de-ia/agente-suporte';
-export { agenteRH } from './agentes-de-ia/agente-rh';
-export { agenteIntegracao } from './agentes-de-ia/agente-integracao';
-export { agenteConcorrencia } from './agentes-de-ia/agente-concorrencia';
+// export { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
+// export { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
 // NFC
-export { starapp } from './nfc/starapp';
+// (removidos do catálogo)
 
 import { Product } from '@/types/product';
 import { dashboardsPersonalizados } from './micro-empresas/dashboards-personalizados';
@@ -35,25 +25,15 @@ import { crmSimples } from './micro-empresas/crm-simples';
 import { relatoriosFinanceiros } from './micro-empresas/relatorios-financeiros';
 import { fidelidadeDigital } from './micro-empresas/fidelidade-digital';
 
-import { webScraping } from './ia-automatizada/web-scraping';
-import { gestaoAnuncios } from './ia-automatizada/gestao-anuncios';
-import { analisePreditiva } from './ia-automatizada/analise-preditiva';
-import { iaAtendimento } from './ia-automatizada/ia-atendimento';
-import { automacaoEmails } from './ia-automatizada/automacao-emails';
-import { precificacaoDinamica } from './ia-automatizada/precificacao-dinamica';
-import { insightsMercado } from './ia-automatizada/insights-mercado';
-import { criacaoConteudo } from './ia-automatizada/criacao-conteudo';
+// IA Automatizada (removidos do catálogo)
 
 import { botsAutomacao } from './agentes-de-ia/bots-automacao';
 import { assistenteVendas } from './agentes-de-ia/assistente-vendas';
 import { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
-import { agenteMarketing } from './agentes-de-ia/agente-marketing';
-import { agenteSuporte } from './agentes-de-ia/agente-suporte';
-import { agenteRH } from './agentes-de-ia/agente-rh';
-import { agenteIntegracao } from './agentes-de-ia/agente-integracao';
-import { agenteConcorrencia } from './agentes-de-ia/agente-concorrencia';
+// import { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
+// import { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
-import { starapp } from './nfc/starapp';
+// NFC (removidos do catálogo)
 
 export const allProducts: Product[] = [
   // Micro-Empresas (5 produtos)
@@ -63,28 +43,16 @@ export const allProducts: Product[] = [
   relatoriosFinanceiros,
   fidelidadeDigital,
   
-  // IA Automatizada (8 produtos)
-  webScraping,
-  gestaoAnuncios,
-  analisePreditiva,
-  iaAtendimento,
-  automacaoEmails,
-  precificacaoDinamica,
-  insightsMercado,
-  criacaoConteudo,
+  // IA Automatizada (removidos do catálogo)
   
-  // Agentes de IA (8 produtos)
+  // Agentes de IA (3 produtos - agenteSuporte e agenteRH desativados)
   botsAutomacao,
   assistenteVendas,
   agenteFinanceiro,
-  agenteMarketing,
-  agenteSuporte,
-  agenteRH,
-  agenteIntegracao,
-  agenteConcorrencia,
+  // agenteSuporte, // DESATIVADO TEMPORARIAMENTE
+  // agenteRH, // DESATIVADO TEMPORARIAMENTE
   
-  // NFC (1 produto)
-  starapp
+  // NFC (removidos do catálogo)
 ];
 
 export function getProducts(categorySlug?: string): Product[] {

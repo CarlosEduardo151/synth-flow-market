@@ -7,6 +7,9 @@ const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
   'https://agndhravgmcwpdjkozka.supabase.co',
+  // Lovable preview domains (este projeto)
+  'https://id-preview--4b638d23-1bbd-400f-85e1-8df70617efd4.lovable.app',
+  'https://4b638d23-1bbd-400f-85e1-8df70617efd4.lovableproject.com',
   // Adicione suas URLs de produção aqui:
   // 'https://seu-dominio.com',
   // 'https://www.seu-dominio.com'

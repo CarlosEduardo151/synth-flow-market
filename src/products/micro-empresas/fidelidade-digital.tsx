@@ -21,6 +21,16 @@ export const fidelidadeDigital: Product = {
     "Cashback automático",
     "Cupons personalizados"
   ],
+  operationManual: [
+    { step: "01", action: "Configurar programa", detail: "Defina nome do programa e regras de conversão (ex: R$1 = 1 ponto)." },
+    { step: "02", action: "Cadastrar recompensas", detail: "Crie as recompensas disponíveis e quantidade de pontos necessária." },
+    { step: "03", action: "Integrar WhatsApp", detail: "Conecte o WhatsApp Business para notificações automáticas." },
+    { step: "04", action: "Configurar gamificação", detail: "Defina badges, níveis e desafios para engajar clientes." },
+    { step: "05", action: "Cadastrar clientes", detail: "Importe sua base existente ou cadastre clientes conforme compram." },
+    { step: "06", action: "Definir cashback", detail: "Configure percentual de cashback automático por compra." },
+    { step: "07", action: "Criar cupons", detail: "Gere cupons personalizados para datas especiais e promoções." },
+    { step: "08", action: "Ativar notificações", detail: "Configure mensagens automáticas de pontos, aniversário e promoções." }
+  ],
   inStock: true,
   delivery: "Ativação em 48 horas",
   specs: "Pagamento Mensal - R$ 250/mês",

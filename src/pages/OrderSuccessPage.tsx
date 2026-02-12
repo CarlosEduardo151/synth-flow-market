@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CheckCircle } from 'lucide-react';
@@ -18,8 +18,10 @@ interface Order {
 
 export default function OrderSuccessPage() {
   const { orderId } = useParams<{ orderId: string }>();
+  const navigate = useNavigate();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -39,6 +41,24 @@ export default function OrderSuccessPage() {
 
     fetchOrder();
   }, [orderId]);
+
+  // Auto-redirect countdown
+  useEffect(() => {
+    if (!loading && order) {
+      const timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            navigate('/meus-produtos');
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }
+  }, [loading, order, navigate]);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -71,7 +91,7 @@ export default function OrderSuccessPage() {
           <h1 className="text-3xl font-bold mb-4">Pedido Confirmado!</h1>
           
           <p className="text-muted-foreground mb-8">
-            Obrigado pela sua compra. Você receberá as instruções de pagamento e entrega por email.
+            Obrigado pela sua compra! Redirecionando para seus produtos em {countdown}s...
           </p>
 
           {order && (
@@ -108,10 +128,10 @@ export default function OrderSuccessPage() {
 
           <div className="space-x-4">
             <Button asChild>
-              <Link to="/">Continuar comprando</Link>
+              <Link to="/meus-produtos">Ver Meus Produtos</Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/meus-pedidos">Ver meus pedidos</Link>
+              <Link to="/">Continuar comprando</Link>
             </Button>
           </div>
         </div>

@@ -34,14 +34,18 @@ export const CRMMessages = ({ customerProductId }: CRMMessagesProps) => {
   }, [customerProductId]);
 
   const loadTemplates = async () => {
-    const { data, error } = await supabase
-      .from('crm_message_templates')
-      .select('*')
-      .eq('customer_product_id', customerProductId)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await (supabase
+        .from('crm_message_templates' as any)
+        .select('*')
+        .eq('customer_product_id', customerProductId)
+        .order('created_at', { ascending: false }) as any);
 
-    if (!error && data) {
-      setTemplates(data);
+      if (!error && data) {
+        setTemplates(data as MessageTemplate[]);
+      }
+    } catch (error) {
+      console.error('Error loading templates:', error);
     }
   };
 
@@ -59,14 +63,14 @@ export const CRMMessages = ({ customerProductId }: CRMMessagesProps) => {
 
     let error;
     if (editingTemplate) {
-      ({ error } = await supabase
-        .from('crm_message_templates')
+      ({ error } = await (supabase
+        .from('crm_message_templates' as any)
         .update(templateData)
-        .eq('id', editingTemplate.id));
+        .eq('id', editingTemplate.id) as any));
     } else {
-      ({ error } = await supabase
-        .from('crm_message_templates')
-        .insert(templateData));
+      ({ error } = await (supabase
+        .from('crm_message_templates' as any)
+        .insert(templateData) as any));
     }
 
     if (!error) {
@@ -80,10 +84,10 @@ export const CRMMessages = ({ customerProductId }: CRMMessagesProps) => {
   };
 
   const handleToggleActive = async (template: MessageTemplate) => {
-    const { error } = await supabase
-      .from('crm_message_templates')
+    const { error } = await (supabase
+      .from('crm_message_templates' as any)
       .update({ is_active: !template.is_active })
-      .eq('id', template.id);
+      .eq('id', template.id) as any);
 
     if (!error) {
       toast({ title: template.is_active ? "Template desativado" : "Template ativado" });
@@ -94,10 +98,10 @@ export const CRMMessages = ({ customerProductId }: CRMMessagesProps) => {
   const handleDeleteTemplate = async (templateId: string) => {
     if (!confirm('Tem certeza que deseja excluir este template?')) return;
 
-    const { error } = await supabase
-      .from('crm_message_templates')
+    const { error } = await (supabase
+      .from('crm_message_templates' as any)
       .delete()
-      .eq('id', templateId);
+      .eq('id', templateId) as any);
 
     if (!error) {
       toast({ title: "Template excluído com sucesso!" });

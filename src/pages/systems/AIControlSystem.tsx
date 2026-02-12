@@ -1,5 +1,5 @@
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect, useState } from 'react';
+import { type ComponentType, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -9,12 +9,25 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { AIAgentConfig } from '@/components/AIAgentConfig';
 import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { 
   Settings, 
   Webhook, 
@@ -58,6 +71,24 @@ const AIControlSystem = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [workflowId, setWorkflowId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'agent' | 'monitoring' | 'config' | 'control' | 'tutorial'>('agent');
+
+  const isMobile = useIsMobile();
+  const [hovered, setHovered] = useState(false);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const open = isMobile ? true : pinnedOpen || hovered;
+
+  type SidebarItem = { value: typeof activeTab; label: string; icon: ComponentType<{ className?: string }> };
+  const sidebarItems: SidebarItem[] = useMemo(
+    () => [
+      { value: 'agent', label: 'Agente IA', icon: Bot },
+      { value: 'monitoring', label: 'Monitoramento', icon: BarChart3 },
+      { value: 'config', label: 'Webhook', icon: Webhook },
+      { value: 'control', label: 'Controle', icon: Activity },
+      { value: 'tutorial', label: 'Tutorial', icon: BookOpen },
+    ],
+    []
+  );
 
   useEffect(() => {
     if (!loading && !user) {
@@ -71,35 +102,32 @@ const AIControlSystem = () => {
     if (!user || !productId) return;
 
     try {
-      // Fetch workflow ID from customer_products
-      const { data: productData } = await supabase
-        .from('customer_products')
-        .select('n8n_workflow_id')
-        .eq('id', productId)
-        .single();
-      
-      if (productData?.n8n_workflow_id) {
-        setWorkflowId(productData.n8n_workflow_id);
-      }
-
-      const { data, error } = await supabase
-        .from('ai_control_config')
+      // Fetch workflow ID from ai_control_config
+      const { data: configData } = await (supabase
+        .from('ai_control_config') as any)
         .select('*')
         .eq('customer_product_id', productId)
         .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching config:', error);
-        return;
-      }
-
-      if (data) {
-        const configData = data as unknown as AIConfig;
-        setConfig(configData);
-        setWebhookUrl(configData.n8n_webhook_url || '');
-        setIsActive(configData.is_active);
-        setAutoRestart(configData.auto_restart);
-        setMaxRequests(configData.max_requests_per_day?.toString() || '');
+      
+      if (configData) {
+        setWorkflowId((configData as any).n8n_workflow_id || '');
+        const aiConfig: AIConfig = {
+          id: (configData as any).id,
+          customer_product_id: (configData as any).customer_product_id,
+          is_active: (configData as any).is_active || false,
+          n8n_webhook_url: (configData as any).n8n_webhook_url || null,
+          auto_restart: false,
+          max_requests_per_day: (configData as any).max_tokens || null,
+          current_requests_count: 0,
+          last_activity: null,
+          configuration: (configData as any).configuration || {},
+          n8n_workflow_id: (configData as any).n8n_workflow_id || null
+        };
+        setConfig(aiConfig);
+        setWebhookUrl(aiConfig.n8n_webhook_url || '');
+        setIsActive(aiConfig.is_active);
+        setAutoRestart(aiConfig.auto_restart);
+        setMaxRequests(aiConfig.max_requests_per_day?.toString() || '');
       }
     } catch (error) {
       console.error('Error:', error);
@@ -260,20 +288,53 @@ const AIControlSystem = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="agent" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="agent" className="flex items-center gap-1">
-              <Bot className="h-4 w-4" />
-              Agente IA
-            </TabsTrigger>
-            <TabsTrigger value="monitoring" className="flex items-center gap-1">
-              <BarChart3 className="h-4 w-4" />
-              Monitoramento
-            </TabsTrigger>
-            <TabsTrigger value="config">Webhook</TabsTrigger>
-            <TabsTrigger value="control">Controle</TabsTrigger>
-            <TabsTrigger value="tutorial">Tutorial</TabsTrigger>
-          </TabsList>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="space-y-6">
+          <SidebarProvider open={open} onOpenChange={setPinnedOpen} className="min-h-0">
+            <div className="flex w-full min-h-[60vh] min-h-0 gap-4 overflow-hidden rounded-xl border border-border/50 bg-card/40 backdrop-blur supports-[backdrop-filter]:bg-card/30 shadow-card">
+              <div
+                className="p-2 md:py-6 md:pl-4"
+                onMouseEnter={() => !isMobile && setHovered(true)}
+                onMouseLeave={() => !isMobile && setHovered(false)}
+              >
+                <div className="md:sticky md:top-24">
+                  <div className="rounded-2xl border border-sidebar-border/60 bg-sidebar/70 backdrop-blur supports-[backdrop-filter]:bg-sidebar/50 shadow-card">
+                    <Sidebar collapsible={isMobile ? 'offcanvas' : 'icon'} className="border-none bg-transparent text-sidebar-foreground">
+                      <SidebarContent>
+                        <SidebarGroup>
+                          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+                          <SidebarMenu>
+                            {sidebarItems.map((item) => {
+                              const Icon = item.icon;
+                              return (
+                                <SidebarMenuItem key={item.value}>
+                                  <SidebarMenuButton
+                                    type="button"
+                                    isActive={activeTab === item.value}
+                                    tooltip={item.label}
+                                    onClick={() => setActiveTab(item.value)}
+                                  >
+                                    <Icon className="shrink-0" />
+                                    <span>{item.label}</span>
+                                  </SidebarMenuButton>
+                                </SidebarMenuItem>
+                              );
+                            })}
+                          </SidebarMenu>
+                        </SidebarGroup>
+                      </SidebarContent>
+                    </Sidebar>
+                  </div>
+                </div>
+              </div>
+
+              <SidebarInset className="min-w-0">
+                {isMobile ? (
+                  <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/50 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/40 px-3 py-2">
+                    <SidebarTrigger />
+                    <span className="text-sm font-medium">Navegação</span>
+                  </div>
+                ) : null}
+                <div className="p-4">
 
           <TabsContent value="agent">
             {productId && (
@@ -702,6 +763,10 @@ const AIControlSystem = () => {
               </CardContent>
             </Card>
           </TabsContent>
+                </div>
+              </SidebarInset>
+            </div>
+          </SidebarProvider>
         </Tabs>
       </main>
 

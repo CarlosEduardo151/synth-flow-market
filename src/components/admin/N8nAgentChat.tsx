@@ -53,22 +53,24 @@ const N8nAgentChat = () => {
 
   // Load messages
   const loadMessages = async () => {
-    const { data, error } = await supabase
-      .from('n8n_agent_messages')
-      .select('*')
-      .order('created_at', { ascending: true });
+    try {
+      const { data, error } = await supabase
+        .from('n8n_agent_messages')
+        .select('*')
+        .order('created_at', { ascending: true });
 
-    if (error) {
+      if (error) {
+        console.error('Error loading messages:', error);
+        // Silently fail - table may not have data yet
+        setMessages([]);
+        return;
+      }
+
+      setMessages((data as Message[]) || []);
+    } catch (error) {
       console.error('Error loading messages:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao carregar mensagens',
-        variant: 'destructive'
-      });
-      return;
+      setMessages([]);
     }
-
-    setMessages((data as Message[]) || []);
   };
 
   // Send message from admin (user role)
@@ -77,42 +79,46 @@ const N8nAgentChat = () => {
 
     setLoading(true);
     
-    // Insert directly to database as user message
-    const { error } = await supabase
-      .from('n8n_agent_messages')
-      .insert({
-        agent_id: 'default',
-        role: 'user',
-        content: newMessage,
-        metadata: { source: 'admin_panel', estado: agentEstado }
-      });
-
-    if (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: 'Erro',
-        description: 'Erro ao enviar mensagem',
-        variant: 'destructive'
-      });
-    } else {
-      setNewMessage('');
-      // Also send to n8n webhook so the AI agent can respond
-      try {
-        await fetch('https://n8n.starai.com.br/webhook-test/control-agente', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type: 'chat_message',
-            message: newMessage,
-            estado: agentEstado, // Estado atual do agente: ativado, desativado, reiniciando, desconhecido
-            source: 'admin_panel',
-            timestamp: new Date().toISOString(),
-            webhookUrl
-          })
+    try {
+      // Insert directly to database as user message
+      const { error } = await supabase
+        .from('n8n_agent_messages')
+        .insert({
+          agent_id: 'default',
+          role: 'user',
+          content: newMessage,
+          metadata: { source: 'admin_panel', estado: agentEstado }
         });
-      } catch (e) {
-        console.log('Webhook call failed (may be expected):', e);
+
+      if (error) {
+        console.error('Error sending message:', error);
+        toast({
+          title: 'Erro',
+          description: 'Erro ao enviar mensagem',
+          variant: 'destructive'
+        });
+      } else {
+        setNewMessage('');
+        // Also send to n8n webhook so the AI agent can respond
+        try {
+          await fetch('https://n8n.starai.com.br/webhook-test/control-agente', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'chat_message',
+              message: newMessage,
+              estado: agentEstado,
+              source: 'admin_panel',
+              timestamp: new Date().toISOString(),
+              webhookUrl
+            })
+          });
+        } catch (e) {
+          console.log('Webhook call failed (may be expected):', e);
+        }
       }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
 
     setLoading(false);

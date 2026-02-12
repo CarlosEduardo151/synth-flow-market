@@ -89,11 +89,11 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
     setIsLoading(true);
 
     const [leadsRes, meetingsRes] = await Promise.all([
-      supabase
+      (supabase as any)
         .from('sales_leads')
         .select('id, name, company')
         .eq('customer_product_id', customerProductId),
-      supabase
+      (supabase as any)
         .from('sales_meetings')
         .select(`
           *,
@@ -103,13 +103,13 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
         .order('scheduled_at', { ascending: true })
     ]);
 
-    if (leadsRes.data) setLeads(leadsRes.data);
+    if (leadsRes.data) setLeads(leadsRes.data as Lead[]);
     if (meetingsRes.data) {
-      const mappedMeetings = meetingsRes.data.map(m => ({
+      const mappedMeetings = (meetingsRes.data as any[]).map(m => ({
         ...m,
         lead: m.sales_leads
       }));
-      setMeetings(mappedMeetings);
+      setMeetings(mappedMeetings as Meeting[]);
     }
     setIsLoading(false);
   };
@@ -120,7 +120,7 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
       return;
     }
 
-    const { error } = await supabase.from('sales_meetings').insert({
+    const { error } = await (supabase as any).from('sales_meetings').insert({
       lead_id: formData.lead_id,
       title: formData.title,
       description: formData.description || null,
@@ -151,7 +151,7 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
   };
 
   const updateMeetingStatus = async (id: string, status: string) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('sales_meetings')
       .update({ status })
       .eq('id', id);
@@ -476,9 +476,8 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
                     <SelectItem value="15">15 min</SelectItem>
                     <SelectItem value="30">30 min</SelectItem>
                     <SelectItem value="45">45 min</SelectItem>
-                    <SelectItem value="60">1 hora</SelectItem>
-                    <SelectItem value="90">1h30</SelectItem>
-                    <SelectItem value="120">2 horas</SelectItem>
+                    <SelectItem value="60">60 min</SelectItem>
+                    <SelectItem value="90">90 min</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -510,7 +509,7 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
                 <Input
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                  placeholder="Endereço da reunião"
+                  placeholder="Endereço ou sala"
                 />
               </div>
             )}
@@ -520,7 +519,7 @@ export function SalesMeetings({ customerProductId }: SalesMeetingsProps) {
               <Textarea
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Detalhes da reunião..."
+                placeholder="Pauta da reunião..."
                 rows={3}
               />
             </div>

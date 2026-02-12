@@ -8,6 +8,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { DeviceProvider } from "@/contexts/DeviceContext";
 import { ChatWidget } from "@/components/ChatWidget";
 import { DeviceSelector } from "@/components/DeviceSelector";
+import { ScrollToTop } from "@/components/ScrollToTop";
 
 import Index from "./pages/Index";
 import CategoryPage from "./pages/CategoryPage";
@@ -27,10 +28,15 @@ import CalendarioRomantico from "./pages/EncontroRomantico";
 import Termos from "./pages/TermosDeUso";
 import PoliticaPrivacidade from "./pages/PoliticaDePrivacidade";
 import SearchPage from "./pages/SearchPage";
+import PlanosPage from "./pages/PlanosPage";
+import FreeTrialPage from "./pages/FreeTrialPage";
+import ProductReviewPage from "./pages/ProductReviewPage";
+import DemonstracaoPage from "./pages/DemonstracaoPage";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
 import CustomerTicketsPage from "./pages/CustomerTicketsPage";
+import CustomerSettingsPage from "./pages/CustomerSettingsPage";
 
 import AdminOrdersPage from "./pages/admin/AdminOrdersPage";
 import AdminProductsPage from "./pages/admin/AdminProductsPage";
@@ -39,9 +45,7 @@ import AdminCouponsPage from "./pages/admin/AdminCouponsPage";
 import AdminCustomersPage from "./pages/admin/AdminCustomersPage";
 import AdminReviewsPage from "./pages/admin/AdminReviewsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
-import AdminRentalsPage from "./pages/admin/AdminRentalsPage";
-import AdminInstallmentsPage from "./pages/admin/AdminInstallmentsPage";
-import AdminWhatsAppLeadsPage from "./pages/admin/AdminWhatsAppLeadsPage";
+import AdminSubscriptionsReportPage from "./pages/admin/AdminSubscriptionsReportPage";
 
 import CRMSystem from "./pages/systems/CRMSystem";
 import DashboardSystem from "./pages/systems/DashboardSystem";
@@ -53,12 +57,21 @@ import AIControlSystem from "./pages/systems/AIControlSystem";
 import SalesAssistantSystem from "./pages/systems/SalesAssistantSystem";
 import BotsAutomacaoSystem from "./pages/systems/BotsAutomacaoSystem";
 import WhatsAppBotConfigSystem from "./pages/systems/WhatsAppBotConfigSystem";
+import FinancialAgentSystem from "./pages/systems/FinancialAgentSystem";
+import AgenteRHSystem from "./pages/systems/AgenteRHSystem";
+import AgenteRHConfigSystem from "./pages/systems/AgenteRHConfigSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 import AdminAgentConfigPage from "./pages/admin/AdminAgentConfigPage";
+import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
 import AdminStaraiPurchasesPage from "./pages/admin/AdminStaraiPurchasesPage";
+import HowBotWorksPage from "./pages/HowBotWorksPage";
+ import AdminDiagnosticPage from "./pages/admin/AdminDiagnosticPage";
+import AdminAbandonedCartsPage from "./pages/admin/AdminAbandonedCartsPage";
+import AdminCustomMessagesPage from "./pages/admin/AdminCustomMessagesPage";
+import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
+import AdminBotsAutomacaoPage from "./pages/admin/AdminBotsAutomacaoPage";
 
 import NotFound from "./pages/NotFound";
-import { useState } from "react";
 
 const queryClient = new QueryClient();
 
@@ -74,7 +87,7 @@ const App = () => (
             <ChatWidget />
             <DeviceSelector />
             <BrowserRouter>
-
+              <ScrollToTop />
             <Routes>
               {/* rotas públicas */}
               <Route path="/" element={<Index />} />
@@ -92,6 +105,9 @@ const App = () => (
               <Route path="/termos-de-uso" element={<Termos />} />
               <Route path="politica-de-privacidade" element={<PoliticaPrivacidade />} />
               <Route path="/busca" element={<SearchPage />} />
+              <Route path="/planos" element={<PlanosPage />} />
+              <Route path="/teste-gratis" element={<FreeTrialPage />} />
+              <Route path="/demonstracao" element={<DemonstracaoPage />} />
 
               {/* rotas do cliente */}
               <Route path="/meus-pedidos" element={<MyOrdersPage />} />
@@ -100,6 +116,9 @@ const App = () => (
               <Route path="/produto/:slug" element={<ProductViewPage />} />
               <Route path="/customer" element={<CustomerDashboard />} />
               <Route path="/customer/tickets" element={<CustomerTicketsPage />} />
+              <Route path="/customer/settings" element={<CustomerSettingsPage />} />
+              <Route path="/como-funciona" element={<HowBotWorksPage />} />
+              <Route path="/avaliar/:productSlug" element={<ProductReviewPage />} />
 
               {/* rotas dos sistemas comprados */}
               <Route path="/sistema/crm-simples" element={<CRMSystem />} />
@@ -113,6 +132,11 @@ const App = () => (
               <Route path="/sistema/assistente-vendas" element={<SalesAssistantSystem />} />
               <Route path="/sistema/bots-automacao" element={<BotsAutomacaoSystem />} />
               <Route path="/sistema/bots-automacao/whatsapp/:productId" element={<WhatsAppBotConfigSystem />} />
+              <Route path="/sistema/agente-financeiro" element={<FinancialAgentSystem />} />
+              <Route path="/sistema/agente-rh" element={<AgenteRHSystem />} />
+              <Route path="/sistema/agente-rh/config" element={<AgenteRHConfigSystem />} />
+              <Route path="/sistemas/sniper-hft" element={<SniperHFTSystem />} />
+              <Route path="/systems/SniperHFTSystem" element={<SniperHFTSystem />} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />
@@ -123,12 +147,18 @@ const App = () => (
               <Route path="/admin/customers" element={<AdminCustomersPage />} />
               <Route path="/admin/reviews" element={<AdminReviewsPage />} />
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
-              <Route path="/admin/rentals" element={<AdminRentalsPage />} />
-              <Route path="/admin/installments" element={<AdminInstallmentsPage />} />
-              <Route path="/admin/whatsapp-leads" element={<AdminWhatsAppLeadsPage />} />
+              <Route
+                path="/admin/subscriptions-report"
+                element={<AdminSubscriptionsReportPage />}
+              />
               <Route path="/admin/agent-config" element={<AdminAgentConfigPage />} />
               <Route path="/admin/starai-purchases" element={<AdminStaraiPurchasesPage />} />
               <Route path="/admin/tickets" element={<AdminTicketsPage />} />
+              <Route path="/admin/financial" element={<AdminFinancialPage />} />
+             <Route path="/admin/diagnostico" element={<AdminDiagnosticPage />} />
+              <Route path="/admin/abandoned-carts" element={<AdminAbandonedCartsPage />} />
+              <Route path="/admin/custom-messages" element={<AdminCustomMessagesPage />} />
+              <Route path="/admin/bots-automacao" element={<AdminBotsAutomacaoPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />

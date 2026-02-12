@@ -21,11 +21,11 @@ export const CustomerReviews = () => {
   useEffect(() => {
     const fetchReviews = async () => {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase
           .from('customer_reviews')
           .select('*')
-          .eq('is_featured', true)
-          .order('display_order', { ascending: true });
+          .eq('is_approved', true)
+          .order('created_at', { ascending: false }) as any);
 
         if (error) throw error;
         setReviews(data || []);

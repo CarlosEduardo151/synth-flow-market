@@ -73,7 +73,7 @@ const AdminInstallmentsPage = () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
-        .from('order_installments')
+        .from('installments')
         .select(`
           *,
           orders!inner(customer_name, customer_email)
@@ -82,8 +82,9 @@ const AdminInstallmentsPage = () => {
 
       if (error) throw error;
       
-      const formattedData = (data || []).map(item => ({
+      const formattedData = (data || []).map((item: any) => ({
         ...item,
+        total_installments: 1,
         order: item.orders as any
       }));
       
@@ -130,11 +131,11 @@ const AdminInstallmentsPage = () => {
   const updateInstallmentStatus = async (installmentId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('order_installments')
+        .from('installments')
         .update({ 
           status: newStatus,
           ...(newStatus === 'paid' && { paid_at: new Date().toISOString() })
-        })
+        } as any)
         .eq('id', installmentId);
 
       if (error) throw error;

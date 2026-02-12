@@ -50,11 +50,11 @@ export function LoyaltyClients({ customerProductId }: LoyaltyClientsProps) {
   }, [searchTerm, clients]);
 
   const fetchClients = async () => {
-    const { data, error } = await supabase
-      .from('loyalty_clients')
+    const { data, error } = await (supabase
+      .from('loyalty_clients' as any)
       .select('*')
       .eq('customer_product_id', customerProductId)
-      .order('points_balance', { ascending: false });
+      .order('points_balance', { ascending: false }) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao buscar clientes", variant: "destructive" });
@@ -68,12 +68,12 @@ export function LoyaltyClients({ customerProductId }: LoyaltyClientsProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const { error } = await supabase
-      .from('loyalty_clients')
+    const { error } = await (supabase
+      .from('loyalty_clients' as any)
       .insert({
         customer_product_id: customerProductId,
         ...formData
-      });
+      }) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao criar cliente", variant: "destructive" });
@@ -96,23 +96,23 @@ export function LoyaltyClients({ customerProductId }: LoyaltyClientsProps) {
 
     const newBalance = Math.max(0, selectedClient.points_balance + change);
 
-    const { error: updateError } = await supabase
-      .from('loyalty_clients')
+    const { error: updateError } = await (supabase
+      .from('loyalty_clients' as any)
       .update({
         points_balance: newBalance,
         total_points_earned: operation === 'add' ? selectedClient.total_points_earned + points : selectedClient.total_points_earned,
         total_points_redeemed: operation === 'remove' ? selectedClient.total_points_redeemed + points : selectedClient.total_points_redeemed,
         last_transaction_date: new Date().toISOString()
       })
-      .eq('id', selectedClient.id);
+      .eq('id', selectedClient.id) as any);
 
     if (updateError) {
       toast({ title: "Erro", description: "Erro ao atualizar pontos", variant: "destructive" });
       return;
     }
 
-    const { error: transactionError } = await supabase
-      .from('loyalty_transactions')
+    const { error: transactionError } = await (supabase
+      .from('loyalty_transactions' as any)
       .insert({
         customer_product_id: customerProductId,
         client_id: selectedClient.id,
@@ -120,7 +120,7 @@ export function LoyaltyClients({ customerProductId }: LoyaltyClientsProps) {
         points_amount: points,
         description: pointsData.description || (operation === 'add' ? 'Pontos adicionados manualmente' : 'Pontos removidos manualmente'),
         origin: 'manual'
-      });
+      }) as any);
 
     if (transactionError) {
       console.error('Error creating transaction:', transactionError);

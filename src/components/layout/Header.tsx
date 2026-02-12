@@ -84,11 +84,17 @@ export function Header() {
               className="w-8 h-8 object-contain rounded-xl"
             />
           </div>
-          <span className="font-bold text-lg gradient-text">StarAI</span>
+          <span className="font-bold text-lg gradient-text">NovaLink</span>
         </Link>
 
         {/* Navegação */}
         <nav className="hidden md:flex items-center space-x-6">
+           <Link
+             to="/demonstracao"
+             className="text-foreground/80 hover:text-primary transition-colors"
+           >
+             Demonstração
+           </Link>
           <Link
             to="/c/agentes-de-ia"
             className="text-foreground/80 hover:text-primary transition-colors"
@@ -96,28 +102,10 @@ export function Header() {
             Agentes de IA
           </Link>
           <Link
-            to="/c/ia-automatizada"
-            className="text-foreground/80 hover:text-primary transition-colors"
-          >
-            IA Automatizada
-          </Link>
-          <Link
             to="/c/micro-empresas"
             className="text-foreground/80 hover:text-primary transition-colors"
           >
             Para Micro-Empresas
-          </Link>
-          <Link
-            to="/sobre"
-            className="text-foreground/80 hover:text-primary transition-colors"
-          >
-            Sobre
-          </Link>
-          <Link
-            to="/jornada"
-            className="text-foreground/80 hover:text-primary transition-colors"
-          >
-            Jornada
           </Link>
         </nav>
 

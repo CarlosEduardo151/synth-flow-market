@@ -57,10 +57,9 @@ const AdminRentalsPage = () => {
     try {
       setLoading(true);
       const { data: rentalData, error } = await supabase
-        .from('customer_products')
+        .from('product_rentals')
         .select('*')
-        .eq('acquisition_type', 'rental')
-        .order('rental_end_date', { ascending: true });
+        .order('expires_at', { ascending: true });
 
       if (error) throw error;
 
@@ -68,20 +67,29 @@ const AdminRentalsPage = () => {
       const userIds = rentalData?.map(r => r.user_id) || [];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('user_id, full_name, email')
-        .in('user_id', userIds);
+        .select('id, full_name')
+        .in('id', userIds);
 
       // Combinar os dados
-      const rentalsWithProfiles = rentalData?.map(rental => {
-        const profile = profiles?.find(p => p.user_id === rental.user_id);
+      const rentalsWithProfiles = (rentalData || []).map((rental: any) => {
+        const profile = profiles?.find(p => p.id === rental.user_id);
         return {
-          ...rental,
+          id: rental.id,
+          user_id: rental.user_id,
+          product_slug: rental.product_slug,
+          product_title: rental.product_slug,
+          rental_start_date: rental.starts_at,
+          rental_end_date: rental.expires_at,
+          monthly_rental_price: 0,
+          rental_payment_status: rental.status,
+          auto_renew: false,
+          is_active: rental.status === 'active',
           customer_name: profile?.full_name || 'N/A',
-          customer_email: profile?.email || 'N/A',
+          customer_email: 'N/A',
         };
       });
 
-      setRentals(rentalsWithProfiles || []);
+      setRentals(rentalsWithProfiles);
     } catch (error: any) {
       toast({
         title: 'Erro ao carregar aluguéis',
@@ -102,11 +110,11 @@ const AdminRentalsPage = () => {
       newEndDate.setMonth(newEndDate.getMonth() + 1);
 
       const { error } = await supabase
-        .from('customer_products')
+        .from('product_rentals')
         .update({
-          rental_end_date: newEndDate.toISOString(),
-          rental_payment_status: 'active',
-        })
+          expires_at: newEndDate.toISOString(),
+          status: 'active',
+        } as any)
         .eq('id', rentalId);
 
       if (error) throw error;
@@ -130,12 +138,13 @@ const AdminRentalsPage = () => {
   const handleCancel = async (rentalId: string) => {
     try {
       const { error } = await supabase
-        .from('customer_products')
+        .from('product_rentals')
         .update({
-          is_active: false,
-          rental_payment_status: 'cancelled',
-        })
+          status: 'cancelled',
+        } as any)
         .eq('id', rentalId);
+
+      if (error) throw error;
 
       if (error) throw error;
 

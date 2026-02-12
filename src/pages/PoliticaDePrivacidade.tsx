@@ -12,7 +12,7 @@ export default function PoliticaPrivacidade() {
       <main className="container mx-auto px-4 py-12">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-4xl font-bold text-center mb-12 gradient-text">
-            Política de Privacidade - StarAI
+            Política de Privacidade - NovaLink
           </h1>
 
           <div className="bg-card/50 backdrop-blur-sm border border-border rounded-lg p-10 space-y-10">
@@ -21,10 +21,10 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 1. INTRODUÇÃO E OBJETO</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 1º.</strong> A presente Política de Privacidade da StarAI tem como objetivo estabelecer as diretrizes e regras para a coleta, o tratamento, o armazenamento e a proteção dos dados pessoais dos Usuários, em conformidade com a Lei Geral de Proteção de Dados (LGPD) e demais legislações pertinentes.
+                <strong>§ 1º.</strong> A presente Política de Privacidade da NovaLink tem como objetivo estabelecer as diretrizes e regras para a coleta, o tratamento, o armazenamento e a proteção dos dados pessoais dos Usuários, em conformidade com a Lei Geral de Proteção de Dados (LGPD) e demais legislações pertinentes.
               </p>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 2º.</strong> Ao utilizar os serviços da StarAI, o Usuário concorda com as disposições desta Política de Privacidade, que é parte integrante dos Termos de Uso.
+                <strong>§ 2º.</strong> Ao utilizar os serviços da NovaLink, o Usuário concorda com as disposições desta Política de Privacidade, que é parte integrante dos Termos de Uso.
               </p>
             </section>
 
@@ -32,7 +32,7 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 2. DADOS COLETADOS</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 3º.</strong> Para a prestação de nossos serviços, a StarAI poderá coletar os seguintes dados pessoais dos Usuários, com a finalidade de aprimorar a experiência e a segurança:
+                <strong>§ 3º.</strong> Para a prestação de nossos serviços, a NovaLink poderá coletar os seguintes dados pessoais dos Usuários, com a finalidade de aprimorar a experiência e a segurança:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 text-muted-foreground leading-7">
                 <li>Dados de identificação e contato, como nome e endereço de e-mail;</li>
@@ -63,7 +63,7 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 4. COMPARTILHAMENTO DE DADOS</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 6º.</strong> A StarAI não compartilha, vende ou aluga os dados pessoais dos Usuários para terceiros, exceto nas seguintes hipóteses:
+                <strong>§ 6º.</strong> A NovaLink não compartilha, vende ou aluga os dados pessoais dos Usuários para terceiros, exceto nas seguintes hipóteses:
               </p>
               <ul className="list-disc list-inside space-y-2 ml-4 text-muted-foreground leading-7">
                 <li>Mediante consentimento explícito do Usuário;</li>
@@ -71,7 +71,7 @@ export default function PoliticaPrivacidade() {
                 <li>Para cumprimento de exigências legais, como ordens judiciais ou regulamentações governamentais.</li>
               </ul>
               <p className="text-muted-foreground leading-7 mt-4">
-                <strong>§ 7º.</strong> Em casos de compartilhamento com terceiros prestadores de serviços, a StarAI garante que estes estarão sujeitos a rigorosos contratos que exigem a proteção e confidencialidade dos dados.
+                <strong>§ 7º.</strong> Em casos de compartilhamento com terceiros prestadores de serviços, a NovaLink garante que estes estarão sujeitos a rigorosos contratos que exigem a proteção e confidencialidade dos dados.
               </p>
             </section>
 
@@ -79,10 +79,10 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 5. SEGURANÇA E PROTEÇÃO DOS DADOS</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 8º.</strong> A StarAI implementa e mantém medidas de segurança técnicas e administrativas, a fim de proteger os dados pessoais de acessos não autorizados e de situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou qualquer forma de tratamento inadequado ou ilícito.
+                <strong>§ 8º.</strong> A NovaLink implementa e mantém medidas de segurança técnicas e administrativas, a fim de proteger os dados pessoais de acessos não autorizados e de situações acidentais ou ilícitas de destruição, perda, alteração, comunicação ou qualquer forma de tratamento inadequado ou ilícito.
               </p>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 9º.</strong> A segurança da informação é prioridade na StarAI. Para isso, utilizamos <strong>Certificados SSL/TLS (Secure Sockets Layer / Transport Layer Security)</strong>, que garantem a criptografia dos dados em trânsito.
+                <strong>§ 9º.</strong> A segurança da informação é prioridade na NovaLink. Para isso, utilizamos <strong>Certificados SSL/TLS (Secure Sockets Layer / Transport Layer Security)</strong>, que garantem a criptografia dos dados em trânsito.
               </p>
               <p className="text-muted-foreground leading-7">
                 <strong>§ 10.</strong> Os **Certificados SSL** asseguram que a comunicação entre o navegador do Usuário e nossos servidores seja privada e segura, protegendo informações sensíveis contra interceptações, fraudes e ataques.
@@ -122,7 +122,7 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 8. ALTERAÇÕES NA POLÍTICA</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 15.</strong> A StarAI se reserva o direito de alterar esta Política de Privacidade a qualquer momento, sem necessidade de aviso prévio. As alterações serão publicadas nesta página e o uso continuado dos Serviços após a publicação constitui aceitação tácita e integral da nova versão.
+                <strong>§ 15.</strong> A NovaLink se reserva o direito de alterar esta Política de Privacidade a qualquer momento, sem necessidade de aviso prévio. As alterações serão publicadas nesta página e o uso continuado dos Serviços após a publicação constitui aceitação tácita e integral da nova versão.
               </p>
             </section>
             
@@ -141,7 +141,7 @@ export default function PoliticaPrivacidade() {
             <section>
               <h2 className="text-2xl font-semibold mb-4 text-primary">ARTIGO 10. CONTATO</h2>
               <p className="text-muted-foreground leading-7">
-                <strong>§ 18.</strong> Para quaisquer dúvidas, solicitações ou informações adicionais sobre esta Política, o Usuário deve entrar em contato exclusivamente pelos canais de comunicação oficiais da StarAI.
+                <strong>§ 18.</strong> Para quaisquer dúvidas, solicitações ou informações adicionais sobre esta Política, o Usuário deve entrar em contato exclusivamente pelos canais de comunicação oficiais da NovaLink.
               </p>
             </section>
 
@@ -151,7 +151,7 @@ export default function PoliticaPrivacidade() {
                 <strong>Última atualização:</strong> {lastUpdated}
               </p>
               <p className="text-muted-foreground">
-                © 2025 StarAI - Todos os direitos reservados.
+                © 2025 NovaLink - Todos os direitos reservados.
               </p>
             </div>
 

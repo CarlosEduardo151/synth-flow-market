@@ -41,11 +41,11 @@ export function LoyaltyMessages({ customerProductId }: LoyaltyMessagesProps) {
   }, [customerProductId]);
 
   const fetchTemplates = async () => {
-    const { data, error } = await supabase
-      .from('loyalty_message_templates')
+    const { data, error } = await (supabase
+      .from('loyalty_message_templates' as any)
       .select('*')
       .eq('customer_product_id', customerProductId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao buscar templates", variant: "destructive" });
@@ -85,10 +85,10 @@ export function LoyaltyMessages({ customerProductId }: LoyaltyMessagesProps) {
     };
 
     if (editingTemplate) {
-      const { error } = await supabase
-        .from('loyalty_message_templates')
+      const { error } = await (supabase
+        .from('loyalty_message_templates' as any)
         .update(dataToSave)
-        .eq('id', editingTemplate.id);
+        .eq('id', editingTemplate.id) as any);
 
       if (error) {
         toast({ title: "Erro", description: "Erro ao atualizar template", variant: "destructive" });
@@ -97,9 +97,9 @@ export function LoyaltyMessages({ customerProductId }: LoyaltyMessagesProps) {
 
       toast({ title: "Sucesso", description: "Template atualizado com sucesso!" });
     } else {
-      const { error } = await supabase
-        .from('loyalty_message_templates')
-        .insert(dataToSave);
+      const { error } = await (supabase
+        .from('loyalty_message_templates' as any)
+        .insert(dataToSave) as any);
 
       if (error) {
         toast({ title: "Erro", description: "Erro ao criar template", variant: "destructive" });
@@ -116,10 +116,10 @@ export function LoyaltyMessages({ customerProductId }: LoyaltyMessagesProps) {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir este template?')) return;
 
-    const { error } = await supabase
-      .from('loyalty_message_templates')
+    const { error } = await (supabase
+      .from('loyalty_message_templates' as any)
       .delete()
-      .eq('id', id);
+      .eq('id', id) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao excluir template", variant: "destructive" });

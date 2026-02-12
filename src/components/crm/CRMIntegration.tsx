@@ -27,43 +27,51 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
   }, [customerProductId]);
 
   const loadConfig = async () => {
-    // Carregar token do customer_product
-    const { data: cpData } = await supabase
-      .from('customer_products')
-      .select('webhook_token')
-      .eq('id', customerProductId)
-      .single();
+    try {
+      // Carregar token do customer_product (ignorar se não existir)
+      const { data: cpData } = await (supabase
+        .from('customer_products' as any)
+        .select('webhook_token')
+        .eq('id', customerProductId)
+        .single() as any);
 
-    if (cpData?.webhook_token) {
-      setWebhookToken(cpData.webhook_token);
-    }
+      if (cpData?.webhook_token) {
+        setWebhookToken(cpData.webhook_token);
+      }
 
-    // Carregar config do webhook
-    const { data } = await supabase
-      .from('crm_webhook_config')
-      .select('*')
-      .eq('customer_product_id', customerProductId)
-      .maybeSingle();
+      // Carregar config do webhook (ignorar se não existir)
+      const { data } = await (supabase
+        .from('crm_webhook_config' as any)
+        .select('*')
+        .eq('customer_product_id', customerProductId)
+        .maybeSingle() as any);
 
-    if (data) {
-      setWebhookUrl(data.webhook_url || '');
-      setIsActive(data.is_active || false);
+      if (data) {
+        setWebhookUrl(data.webhook_url || '');
+        setIsActive(data.is_active || false);
+      }
+    } catch (error) {
+      console.error('Error loading CRM config:', error);
     }
   };
 
   const handleSaveConfig = async () => {
-    const { error } = await supabase
-      .from('crm_webhook_config')
-      .upsert({
-        customer_product_id: customerProductId,
-        webhook_url: webhookUrl,
-        is_active: true
-      }, { onConflict: 'customer_product_id' });
+    try {
+      const { error } = await (supabase
+        .from('crm_webhook_config' as any)
+        .upsert({
+          customer_product_id: customerProductId,
+          webhook_url: webhookUrl,
+          is_active: true
+        }, { onConflict: 'customer_product_id' }) as any);
 
-    if (!error) {
-      toast({ title: "Configuração salva com sucesso!" });
-      setIsActive(true);
-    } else {
+      if (!error) {
+        toast({ title: "Configuração salva com sucesso!" });
+        setIsActive(true);
+      } else {
+        toast({ title: "Erro ao salvar configuração", variant: "destructive" });
+      }
+    } catch (error) {
       toast({ title: "Erro ao salvar configuração", variant: "destructive" });
     }
   };

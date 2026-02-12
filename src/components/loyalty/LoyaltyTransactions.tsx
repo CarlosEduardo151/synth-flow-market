@@ -42,15 +42,15 @@ export function LoyaltyTransactions({ customerProductId }: LoyaltyTransactionsPr
   }, [searchTerm, filterType, transactions]);
 
   const fetchTransactions = async () => {
-    const { data, error } = await supabase
-      .from('loyalty_transactions')
+    const { data, error } = await (supabase
+      .from('loyalty_transactions' as any)
       .select(`
         *,
         client:loyalty_clients(name, phone),
         reward:loyalty_rewards(name)
       `)
       .eq('customer_product_id', customerProductId)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao buscar transações", variant: "destructive" });

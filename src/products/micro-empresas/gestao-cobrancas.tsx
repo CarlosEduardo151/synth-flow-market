@@ -21,6 +21,16 @@ export const gestaoCobrancas: Product = {
     "Geração de boletos/PIX",
     "Notificações de pagamento"
   ],
+  operationManual: [
+    { step: "01", action: "Configurar empresa", detail: "Preencha dados fiscais, CNPJ e conta bancária para recebimentos." },
+    { step: "02", action: "Integrar gateway de pagamento", detail: "Conecte Mercado Pago, PagSeguro ou banco para emissão de boletos/PIX." },
+    { step: "03", action: "Cadastrar clientes", detail: "Importe clientes com CPF/CNPJ, email e telefone para cobrança." },
+    { step: "04", action: "Configurar lembretes", detail: "Defina dias antes e após vencimento para envio de lembretes automáticos." },
+    { step: "05", action: "Integrar WhatsApp", detail: "Conecte WhatsApp Business para envio de cobranças e lembretes." },
+    { step: "06", action: "Definir régua de cobrança", detail: "Configure sequência de mensagens: lembrete, vencido, acordo." },
+    { step: "07", action: "Criar cobranças recorrentes", detail: "Configure assinaturas e cobranças mensais automáticas." },
+    { step: "08", action: "Monitorar dashboard", detail: "Acompanhe taxas de inadimplência e recebimentos em tempo real." }
+  ],
   inStock: true,
   delivery: "Ativação imediata após contratação",
   specs: "Pagamento Mensal - R$ 350/mês",

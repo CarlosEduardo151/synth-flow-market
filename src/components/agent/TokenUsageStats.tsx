@@ -64,12 +64,12 @@ export function TokenUsageStats({ workflowId }: TokenUsageStatsProps) {
       const today = new Date();
       const thirtyDaysAgo = subDays(today, 30);
 
-      const { data, error } = await supabase
-        .from('ai_token_usage')
+      const { data, error } = await (supabase
+        .from('ai_token_usage' as any)
         .select('*')
         .eq('n8n_workflow_id', workflowId)
         .gte('date', format(thirtyDaysAgo, 'yyyy-MM-dd'))
-        .order('date', { ascending: true });
+        .order('date', { ascending: true }) as any);
 
       if (error) throw error;
 

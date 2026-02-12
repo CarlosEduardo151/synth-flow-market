@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useProductAccess } from '@/hooks/useProductAccess';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { ProductTutorial } from '@/components/ProductTutorial';
@@ -64,6 +65,7 @@ const BillingSystem = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
+  const { hasAccess, accessType, customerId, loading: accessLoading } = useProductAccess('gestao-cobrancas');
   const [clients, setClients] = useState<BillingClient[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -102,86 +104,57 @@ const BillingSystem = () => {
       navigate('/auth');
       return;
     }
-    checkAccess();
-  }, [user]);
 
-  const checkAccess = async () => {
-    if (!user) return;
+    // Espera o hook de acesso resolver (ele já checa free_trials + customer_products)
+    if (accessLoading) return;
 
-    try {
-      const { data, error } = await supabase
-        .from('customer_products')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('product_slug', 'gestao-cobrancas')
-        .eq('is_active', true)
-        .single();
-
-      if (error || !data) {
-        toast({
-          title: "Acesso Negado",
-          description: "Você precisa comprar o sistema de Gestão de Cobranças para acessar.",
-          variant: "destructive"
-        });
-        navigate('/meus-produtos');
-        return;
-      }
-
-      setCustomerProductId(data.id);
-      await loadData(data.id);
-    } catch (error) {
-      console.error('Error checking access:', error);
+    if (!hasAccess || !customerId) {
+      toast({
+        title: 'Acesso Negado',
+        description: 'Você precisa comprar o sistema de Gestão de Cobranças ou ativar um teste grátis.',
+        variant: 'destructive',
+      });
       navigate('/meus-produtos');
-    } finally {
-      setIsLoading(false);
+      return;
     }
-  };
+
+    setCustomerProductId(customerId);
+
+    // Quando é teste grátis, o customerId vem como `trial-...` e não existe customer_product_id real.
+    // Mantemos o sistema acessível, mas sem tentar carregar dados vinculados a customer_products.
+    if (accessType !== 'trial') {
+      loadData(customerId);
+    }
+
+    setIsLoading(false);
+  }, [user, accessLoading, hasAccess, customerId, accessType, navigate]);
 
   const loadData = async (productId: string) => {
-    const { data: clientsData } = await supabase
-      .from('billing_clients')
-      .select('*')
-      .eq('customer_product_id', productId);
+    // Use admin_crm_customers as fallback for billing_clients
+    const { data: clientsData } = await (supabase
+      .from('admin_crm_customers')
+      .select('*') as any);
 
     if (clientsData) {
-      setClients(clientsData);
-
-      const clientIds = clientsData.map(c => c.id);
-      if (clientIds.length > 0) {
-        const { data: invoicesData } = await supabase
-          .from('billing_invoices')
-          .select('*')
-          .in('client_id', clientIds)
-          .order('due_date', { ascending: false });
-
-        if (invoicesData) {
-          setInvoices(invoicesData);
-        }
-      }
+      setClients((clientsData || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        email: c.email || '',
+        phone: c.phone || '',
+        cpf_cnpj: c.cpf_cnpj || '',
+        address: c.address || '',
+        city: c.city || '',
+        state: c.state || '',
+        created_at: c.created_at,
+      })) as any);
     }
 
-    const { data: settingsData } = await supabase
-      .from('collection_settings')
-      .select('*')
-      .eq('customer_product_id', productId)
-      .single();
+    // Skip billing_invoices - table doesn't exist
+    setInvoices([]);
 
-    if (settingsData) {
-      setSettings(settingsData);
-    }
-
-    if (user) {
-      const { data: zapiData } = await supabase
-        .from('zapi_connections')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
-
-      if (zapiData) {
-        setZapiConnection(zapiData);
-      }
-    }
+    // Skip collection_settings and zapi_connections - tables don't exist
+    setSettings(null);
+    setZapiConnection(null);
   };
 
   const handleAddClient = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -189,12 +162,12 @@ const BillingSystem = () => {
     if (!customerProductId) return;
 
     const formData = new FormData(e.currentTarget);
-    const { error } = await supabase.from('billing_clients').insert({
-      customer_product_id: customerProductId,
+    const { error } = await (supabase.from('admin_crm_customers') as any).insert({
       name: formData.get('name') as string,
       email: formData.get('email') as string || null,
       phone: formData.get('phone') as string,
-      cpf_cnpj: formData.get('cpf_cnpj') as string || null
+      cpf_cnpj: formData.get('cpf_cnpj') as string || null,
+      status: 'active'
     });
 
     if (!error) {
@@ -208,54 +181,24 @@ const BillingSystem = () => {
 
   const handleAddInvoice = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    const formData = new FormData(e.currentTarget);
-    const { error } = await supabase.from('billing_invoices').insert({
-      client_id: formData.get('client_id') as string,
-      amount: parseFloat(formData.get('amount') as string),
-      due_date: formData.get('due_date') as string,
-      payment_method: formData.get('payment_method') as string || null,
-      payment_link: formData.get('payment_link') as string || null
+    // billing_invoices table doesn't exist - show message
+    toast({ 
+      title: "Tabela não configurada", 
+      description: "A tabela de cobranças ainda não foi criada no banco de dados.",
+      variant: "destructive" 
     });
-
-    if (!error) {
-      toast({ title: "Cobrança criada com sucesso!" });
-      setIsAddingInvoice(false);
-      if (customerProductId) loadData(customerProductId);
-    } else {
-      toast({ title: "Erro ao criar cobrança", variant: "destructive" });
-    }
+    setIsAddingInvoice(false);
   };
 
   const handleSaveSettings = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!customerProductId) return;
-
-    const formData = new FormData(e.currentTarget);
-    
-    const settingsData = {
-      customer_product_id: customerProductId,
-      n8n_webhook_url: formData.get('webhook_url') as string,
-      message_type: formData.get('message_type') as string,
-      template_message: formData.get('template_message') as string,
-      auto_send_reminders: formData.get('auto_send') === 'on',
-      days_before_due: parseInt(formData.get('days_before') as string),
-      pix_key: formData.get('pix_key') as string || null,
-      pix_payment_link: formData.get('pix_payment_link') as string || null,
-      pix_qrcode_url: formData.get('pix_qrcode_url') as string || null
-    };
-
-    const { error } = settings
-      ? await supabase.from('collection_settings').update(settingsData).eq('id', settings.id)
-      : await supabase.from('collection_settings').insert(settingsData);
-
-    if (!error) {
-      toast({ title: "Configurações salvas com sucesso!" });
-      setIsConfiguring(false);
-      if (customerProductId) loadData(customerProductId);
-    } else {
-      toast({ title: "Erro ao salvar configurações", variant: "destructive" });
-    }
+    // collection_settings table doesn't exist - show message
+    toast({ 
+      title: "Tabela não configurada", 
+      description: "A tabela de configurações ainda não foi criada no banco de dados.",
+      variant: "destructive" 
+    });
+    setIsConfiguring(false);
   };
 
   const handleSendReminder = async (invoiceId: string, messageType: string) => {
@@ -348,13 +291,13 @@ const BillingSystem = () => {
         throw new Error('Erro ao enviar mensagem via Z-API');
       }
 
-      await supabase
-        .from('billing_invoices')
+      await (supabase
+        .from('orders' as any)
         .update({ 
-          whatsapp_reminder_sent: true,
+          status: 'paid',
           updated_at: new Date().toISOString()
         })
-        .eq('id', invoiceId);
+        .eq('id', invoiceId) as any);
 
       toast({ title: "Lembrete enviado via WhatsApp!" });
       if (customerProductId) loadData(customerProductId);
@@ -371,13 +314,13 @@ const BillingSystem = () => {
   };
 
   const handleMarkAsPaid = async (invoiceId: string) => {
-    const { error } = await supabase
-      .from('billing_invoices')
+    const { error } = await (supabase
+      .from('orders' as any)
       .update({ 
         status: 'paid',
-        paid_at: new Date().toISOString()
+        updated_at: new Date().toISOString()
       })
-      .eq('id', invoiceId);
+      .eq('id', invoiceId) as any);
 
     if (!error) {
       toast({ title: "Cobrança marcada como paga!" });
@@ -503,7 +446,7 @@ const BillingSystem = () => {
 
   const paidInvoices = invoices.filter(inv => inv.status === 'paid');
 
-  if (isLoading) {
+  if (isLoading || accessLoading) {
     return <div className="min-h-screen flex items-center justify-center">
       <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
     </div>;

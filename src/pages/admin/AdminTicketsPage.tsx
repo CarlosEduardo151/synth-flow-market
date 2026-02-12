@@ -83,7 +83,7 @@ export default function AdminTicketsPage() {
   const fetchTickets = async () => {
     try {
       const { data: ticketsData, error } = await supabase
-        .from('tickets')
+        .from('support_tickets')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -91,22 +91,22 @@ export default function AdminTicketsPage() {
 
       // Fetch profile data for each ticket
       const ticketsWithProfiles = await Promise.all(
-        (ticketsData || []).map(async (ticket) => {
+        (ticketsData || []).map(async (ticket: any) => {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('full_name, email')
-            .eq('user_id', ticket.user_id)
+            .select('full_name')
+            .eq('id', ticket.user_id)
             .single();
 
           return {
             ...ticket,
             customer_name: profile?.full_name || 'Cliente não identificado',
-            customer_email: profile?.email || ''
+            customer_email: ''
           };
         })
       );
 
-      setTickets(ticketsWithProfiles);
+      setTickets(ticketsWithProfiles as any);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast({
@@ -128,7 +128,11 @@ export default function AdminTicketsPage() {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTicketMessages(data || []);
+      setTicketMessages((data || []).map((m: any) => ({
+        ...m,
+        is_admin_reply: m.is_internal || false,
+        attachment_url: '',
+      })) as any);
     } catch (error) {
       console.error('Error fetching ticket messages:', error);
     }
@@ -207,8 +211,8 @@ export default function AdminTicketsPage() {
 
       if (selectedTicket.status === 'open') {
         await supabase
-          .from('tickets')
-          .update({ status: 'in_progress' })
+          .from('support_tickets')
+          .update({ status: 'in_progress' } as any)
           .eq('id', selectedTicket.id);
       }
 
@@ -236,8 +240,8 @@ export default function AdminTicketsPage() {
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
       const { error } = await supabase
-        .from('tickets')
-        .update({ status: newStatus })
+        .from('support_tickets')
+        .update({ status: newStatus } as any)
         .eq('id', ticketId);
 
       if (error) throw error;

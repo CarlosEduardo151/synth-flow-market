@@ -1,9 +1,10 @@
-import { useCart } from '@/contexts/CartContext';
+import { useCart, CartItem } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Minus, Plus, Trash2, ShoppingCart, ArrowRight, Package } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Minus, Plus, Trash2, ShoppingCart, ArrowRight, Package, Calendar, Sparkles, Check } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Separator } from '@/components/ui/separator';
@@ -78,60 +79,111 @@ export default function CartPage() {
                 <CardContent className="p-6">
                   <div className="space-y-6">
                     {items.map((item, index) => (
-                      <div key={item.slug}>
+                      <div key={item.isPackage ? item.packageId : item.slug}>
                         <div className="flex gap-6 items-start">
-                          {/* Imagem do Produto */}
-                          {item.image && (
-                            <div className="relative shrink-0">
+                          {/* Imagem do Produto ou Ícone de Pacote */}
+                          <div className="relative shrink-0">
+                            {item.isPackage ? (
+                              <div className="w-28 h-28 rounded-xl shadow-md border-2 border-primary/20 bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+                                <Sparkles className="w-12 h-12 text-primary" />
+                              </div>
+                            ) : item.image ? (
                               <img 
                                 src={item.image} 
                                 alt={item.title}
                                 className="w-28 h-28 object-cover rounded-xl shadow-md border-2 border-primary/20"
                               />
-                            </div>
-                          )}
+                            ) : (
+                              <div className="w-28 h-28 rounded-xl shadow-md border-2 border-primary/20 bg-muted flex items-center justify-center">
+                                <Package className="w-12 h-12 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
                           
                           {/* Detalhes do Produto */}
                           <div className="flex-1 min-w-0">
-                            <h3 className="font-bold text-lg mb-2 line-clamp-2">{item.title}</h3>
+                            <div className="flex items-start gap-2 mb-2">
+                              <h3 className="font-bold text-lg line-clamp-2">{item.title}</h3>
+                              {item.isPackage && (
+                                <Badge variant="secondary" className="shrink-0">
+                                  Pacote
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            {/* Info de plano para pacotes */}
+                            {item.isPackage && item.subscriptionPlan && (
+                              <div className="mb-3 space-y-2">
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Calendar className="w-4 h-4" />
+                                  {item.subscriptionPlan === 'monthly' ? 'Plano Mensal' : 'Plano Semestral (6 meses)'}
+                                </div>
+                                {item.includedProducts && item.includedProducts.length > 0 && (
+                                  <div className="bg-muted/50 rounded-lg p-3">
+                                    <p className="text-xs font-medium text-muted-foreground mb-2">
+                                      {item.includedProducts.length} produtos inclusos:
+                                    </p>
+                                    <div className="flex flex-wrap gap-1">
+                                      {item.includedProducts.slice(0, 4).map((prod) => (
+                                        <Badge key={prod.slug} variant="outline" className="text-xs">
+                                          <Check className="w-2.5 h-2.5 mr-1" />
+                                          {prod.name}
+                                        </Badge>
+                                      ))}
+                                      {item.includedProducts.length > 4 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{item.includedProducts.length - 4} mais
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            
                             <div className="flex items-center gap-4 mb-4">
                               <span className="text-2xl font-bold text-primary">
                                 {formatPrice(item.price)}
                               </span>
                               <span className="text-sm text-muted-foreground">
-                                por unidade
+                                {item.isPackage 
+                                  ? (item.subscriptionPlan === 'monthly' ? '/mês' : '/6 meses')
+                                  : 'por unidade'
+                                }
                               </span>
                             </div>
                             
-                            {/* Controles de Quantidade */}
+                            {/* Controles de Quantidade (oculto para pacotes) */}
                             <div className="flex items-center gap-3">
-                              <div className="flex items-center gap-2 bg-accent rounded-lg p-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9"
-                                  onClick={() => updateQuantity(item.slug, item.quantity - 1)}
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                                <span className="w-12 text-center font-bold text-lg">
-                                  {item.quantity}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9"
-                                  onClick={() => updateQuantity(item.slug, item.quantity + 1)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              {!item.isPackage && (
+                                <div className="flex items-center gap-2 bg-accent rounded-lg p-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9"
+                                    onClick={() => updateQuantity(item.slug, item.quantity - 1)}
+                                  >
+                                    <Minus className="h-4 w-4" />
+                                  </Button>
+                                  <span className="w-12 text-center font-bold text-lg">
+                                    {item.quantity}
+                                  </span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-9 w-9"
+                                    onClick={() => updateQuantity(item.slug, item.quantity + 1)}
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              )}
                               
                               <Button
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => removeItem(item.slug)}
+                                onClick={() => removeItem(item.slug, item.packageId)}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>

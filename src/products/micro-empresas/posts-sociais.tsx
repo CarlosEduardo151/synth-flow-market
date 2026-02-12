@@ -18,6 +18,16 @@ export const postsSociais: Product = {
     "Múltiplas redes sociais",
     "Relatórios mensais"
   ],
+  operationManual: [
+    { step: "01", action: "Conectar redes sociais", detail: "Vincule suas contas do Instagram, Facebook, LinkedIn e Twitter." },
+    { step: "02", action: "Definir identidade visual", detail: "Configure cores, fontes e estilo visual da sua marca." },
+    { step: "03", action: "Escolher tom de voz", detail: "Defina se a comunicação será formal, descontraída ou técnica." },
+    { step: "04", action: "Selecionar temas", detail: "Liste os principais assuntos do seu nicho para geração de conteúdo." },
+    { step: "05", action: "Configurar calendário", detail: "Defina dias e horários ideais para publicação em cada rede." },
+    { step: "06", action: "Definir hashtags", detail: "Configure hashtags estratégicas fixas e variáveis por tema." },
+    { step: "07", action: "Revisar posts", detail: "Aprove ou edite os posts gerados antes da publicação automática." },
+    { step: "08", action: "Analisar métricas", detail: "Acompanhe engajamento e ajuste estratégia com base nos relatórios." }
+  ],
   inStock: true,
   delivery: "Ativação em 48 horas",
   specs: "Pagamento Mensal - R$ 1.000/mês",

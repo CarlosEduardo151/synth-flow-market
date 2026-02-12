@@ -35,11 +35,11 @@ export function LoyaltyRewards({ customerProductId }: LoyaltyRewardsProps) {
   }, [customerProductId]);
 
   const fetchRewards = async () => {
-    const { data, error } = await supabase
-      .from('loyalty_rewards')
+    const { data, error } = await (supabase
+      .from('loyalty_rewards' as any)
       .select('*')
       .eq('customer_product_id', customerProductId)
-      .order('points_cost', { ascending: true });
+      .order('points_cost', { ascending: true }) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao buscar recompensas", variant: "destructive" });
@@ -88,10 +88,10 @@ export function LoyaltyRewards({ customerProductId }: LoyaltyRewardsProps) {
     };
 
     if (editingReward) {
-      const { error } = await supabase
-        .from('loyalty_rewards')
+      const { error } = await (supabase
+        .from('loyalty_rewards' as any)
         .update(dataToSave)
-        .eq('id', editingReward.id);
+        .eq('id', editingReward.id) as any);
 
       if (error) {
         toast({ title: "Erro", description: "Erro ao atualizar recompensa", variant: "destructive" });
@@ -100,9 +100,9 @@ export function LoyaltyRewards({ customerProductId }: LoyaltyRewardsProps) {
 
       toast({ title: "Sucesso", description: "Recompensa atualizada com sucesso!" });
     } else {
-      const { error } = await supabase
-        .from('loyalty_rewards')
-        .insert(dataToSave);
+      const { error } = await (supabase
+        .from('loyalty_rewards' as any)
+        .insert(dataToSave) as any);
 
       if (error) {
         toast({ title: "Erro", description: "Erro ao criar recompensa", variant: "destructive" });
@@ -119,10 +119,10 @@ export function LoyaltyRewards({ customerProductId }: LoyaltyRewardsProps) {
   const handleDelete = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta recompensa?')) return;
 
-    const { error } = await supabase
-      .from('loyalty_rewards')
+    const { error } = await (supabase
+      .from('loyalty_rewards' as any)
       .delete()
-      .eq('id', id);
+      .eq('id', id) as any);
 
     if (error) {
       toast({ title: "Erro", description: "Erro ao excluir recompensa", variant: "destructive" });

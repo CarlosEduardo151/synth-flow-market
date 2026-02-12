@@ -17,6 +17,10 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), !isProduction && componentTagger()].filter(Boolean),
     resolve: {
       alias: {
+        "@/integrations/supabase/client": path.resolve(
+          __dirname,
+          "./src/integrations/backend/client"
+        ),
         "@": path.resolve(__dirname, "./src"),
       },
     },

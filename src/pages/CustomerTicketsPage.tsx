@@ -80,13 +80,24 @@ export default function CustomerTicketsPage() {
     
     try {
       const { data, error } = await supabase
-        .from('tickets')
+        .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setTickets(data || []);
+      
+      // Map support_tickets to Ticket interface
+      const mappedTickets: Ticket[] = (data || []).map((t: any) => ({
+        id: t.id,
+        title: t.subject,
+        description: t.description,
+        status: t.status,
+        priority: t.priority,
+        created_at: t.created_at
+      }));
+      
+      setTickets(mappedTickets);
     } catch (error) {
       console.error('Error fetching tickets:', error);
       toast({
@@ -101,14 +112,24 @@ export default function CustomerTicketsPage() {
 
   const fetchTicketMessages = async (ticketId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('ticket_messages')
+      const { data, error } = await (supabase
+        .from('ticket_messages' as any) as any)
         .select('*')
         .eq('ticket_id', ticketId)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setTicketMessages(data || []);
+      
+      // Map to TicketMessage interface
+      const mappedMessages: TicketMessage[] = (data || []).map((m: any) => ({
+        id: m.id,
+        message: m.message,
+        is_admin_reply: m.is_internal || false,
+        created_at: m.created_at,
+        attachment_url: null
+      }));
+      
+      setTicketMessages(mappedMessages);
     } catch (error) {
       console.error('Error fetching ticket messages:', error);
     }
@@ -125,12 +146,12 @@ export default function CustomerTicketsPage() {
     }
 
     try {
-      const { error } = await supabase
-        .from('tickets')
+      const { error } = await (supabase
+        .from('support_tickets') as any)
         .insert({
           user_id: user.id,
-          title: newTicket.title,
-          description: newTicket.description,
+          subject: newTicket.title,
+          message: newTicket.description,
           priority: newTicket.priority,
           status: 'open'
         });
@@ -215,8 +236,8 @@ export default function CustomerTicketsPage() {
         }
       }
 
-      const { error } = await supabase
-        .from('ticket_messages')
+      const { error } = await (supabase
+        .from('ticket_messages' as any) as any)
         .insert({
           ticket_id: selectedTicket.id,
           message: newMessage || '(arquivo anexado)',

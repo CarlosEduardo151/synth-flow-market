@@ -13,6 +13,7 @@ import { useCart } from "@/contexts/CartContext";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { ProductContent } from "@/components/ProductContent";
+import { OperationManual } from "@/components/OperationManual";
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -24,6 +25,7 @@ export default function ProductPage() {
   const [loading, setLoading] = useState(true);
   const [selectedAcquisitionType, setSelectedAcquisitionType] = useState<'purchase' | 'rental'>('purchase');
   const [rentalMonths, setRentalMonths] = useState(1);
+  
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -449,6 +451,25 @@ export default function ProductPage() {
         </div>
       </section>
 
+      {/* Manual de Operação */}
+      {product.operationManual && product.operationManual.length > 0 && (
+        <section className="py-20 bg-gradient-to-b from-background to-card/20">
+          <div className="container mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="max-w-5xl mx-auto"
+            >
+              <OperationManual 
+                steps={product.operationManual} 
+                productTitle={product.title} 
+              />
+            </motion.div>
+          </div>
+        </section>
+      )}
+
       {/* Descrição detalhada */}
       <section className="py-20 bg-card/20">
         <div className="container mx-auto px-4">
@@ -467,6 +488,7 @@ export default function ProductPage() {
           </motion.div>
         </div>
       </section>
+
 
       <Footer />
     </div>
