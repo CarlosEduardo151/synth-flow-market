@@ -12,11 +12,23 @@ interface DeviceContextType {
 const DeviceContext = createContext<DeviceContextType | undefined>(undefined);
 
 export const DeviceProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [deviceType, setDeviceTypeState] = useState<DeviceType>(null);
-  const [showDeviceSelector, setShowDeviceSelector] = useState(true);
+  const [deviceType, setDeviceTypeState] = useState<DeviceType>(() => {
+    const saved = localStorage.getItem('device-type');
+    return (saved as DeviceType) || null;
+  });
+  const [showDeviceSelector, setShowDeviceSelector] = useState(() => {
+    return !localStorage.getItem('device-type');
+  });
+
+  useEffect(() => {
+    if (deviceType) {
+      document.documentElement.setAttribute('data-device', deviceType);
+    }
+  }, [deviceType]);
 
   const setDeviceType = (type: DeviceType) => {
     if (type) {
+      localStorage.setItem('device-type', type);
       document.documentElement.setAttribute('data-device', type);
       setDeviceTypeState(type);
       setShowDeviceSelector(false);
