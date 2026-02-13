@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAdminCheck } from '@/hooks/useAuth';
 
 interface ProductAccess {
   hasAccess: boolean;
@@ -12,6 +13,7 @@ interface ProductAccess {
 
 export function useProductAccess(productSlug: string): ProductAccess {
   const { user } = useAuth();
+  const { isAdmin, loading: adminLoading } = useAdminCheck();
   const [state, setState] = useState<ProductAccess>({
     hasAccess: false,
     accessType: null,
@@ -23,6 +25,20 @@ export function useProductAccess(productSlug: string): ProductAccess {
   useEffect(() => {
     if (!user) {
       setState(prev => ({ ...prev, loading: false }));
+      return;
+    }
+
+    if (adminLoading) return;
+
+    // Admin has access to all products
+    if (isAdmin) {
+      setState({
+        hasAccess: true,
+        accessType: 'purchase',
+        customerId: `admin-${user.id}`,
+        expiresAt: null,
+        loading: false
+      });
       return;
     }
 
@@ -100,7 +116,7 @@ export function useProductAccess(productSlug: string): ProductAccess {
     };
 
     checkAccess();
-  }, [user, productSlug]);
+  }, [user, productSlug, isAdmin, adminLoading]);
 
   return state;
 }
