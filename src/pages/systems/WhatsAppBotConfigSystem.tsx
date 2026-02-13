@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft, Save, Bot, Brain, Plug, Power, Pencil, Check,
-  CheckCircle2, XCircle, Loader2, MessageCircle,
+  CheckCircle2, XCircle, Loader2, MessageCircle, Smartphone,
   BarChart3, Database
 } from 'lucide-react';
 
@@ -28,6 +28,7 @@ import { BotStatusTab } from '@/components/bots/tabs/BotStatusTab';
 import { BotEngineTab } from '@/components/bots/tabs/BotEngineTab';
 import { BotMemoryTab } from '@/components/bots/tabs/BotMemoryTab';
 import { BotPersonalityTab, type CommunicationTone, type ActionInstruction } from '@/components/bots/tabs/BotPersonalityTab';
+import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 
 const supabase = supabaseClient as any;
 
@@ -85,6 +86,12 @@ const WhatsAppBotConfigSystem = () => {
 
   const botInstances = useBotInstances(customerProductId);
 
+  // WhatsApp API state
+  const [wapiConnected, setWapiConnected] = useState(false);
+  const [wapiInstanceId, setWapiInstanceId] = useState('');
+  const [wapiToken, setWapiToken] = useState('');
+  const [wapiPhone, setWapiPhone] = useState('');
+
   const [toolConfigs, setToolConfigs] = useState<Record<string, any>>({
     httpRequest: { enabled: true, httpMethod: 'GET', httpFollowRedirects: true },
     webhook: { enabled: false, webhookHttpMethod: 'POST', webhookResponseMode: 'onReceived', webhookResponseCode: 200 },
@@ -120,6 +127,7 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'tools', label: 'Ferramentas', icon: Plug },
+    { value: 'whatsapp-api', label: 'WhatsApp API', icon: Smartphone },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
     { value: 'monitoring', label: 'Monitoramento', icon: BarChart3 },
   ];
@@ -264,6 +272,27 @@ const WhatsAppBotConfigSystem = () => {
           .maybeSingle();
 
         if (cred?.credential_value) setConfig(prev => ({ ...prev, apiKey: cred.credential_value }));
+      } catch {}
+
+      // Load WhatsApp API credentials
+      try {
+        const { data: wapiCreds } = await supabase
+          .from('product_credentials')
+          .select('credential_key, credential_value')
+          .eq('user_id', user.id)
+          .eq('product_slug', 'bots-automacao')
+          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_phone']);
+
+        if (wapiCreds && wapiCreds.length > 0) {
+          for (const c of wapiCreds) {
+            if (c.credential_key === 'zapi_instance_id') setWapiInstanceId(c.credential_value || '');
+            if (c.credential_key === 'zapi_token') setWapiToken(c.credential_value || '');
+            if (c.credential_key === 'zapi_phone') setWapiPhone(c.credential_value || '');
+          }
+          if (wapiCreds.length === 3 && wapiCreds.every((c: any) => c.credential_value)) {
+            setWapiConnected(true);
+          }
+        }
       } catch {}
 
       setConfigLoaded(true);
@@ -611,6 +640,22 @@ const WhatsAppBotConfigSystem = () => {
                     syncing={syncingTools}
                     workflowId={config.n8nWorkflowId}
                   />
+                </TabsContent>
+
+                <TabsContent value="whatsapp-api">
+                  {productId && (
+                    <BotWhatsAppApiTab
+                      customerProductId={productId}
+                      isConnected={wapiConnected}
+                      instanceId={wapiInstanceId}
+                      token={wapiToken}
+                      phoneNumber={wapiPhone}
+                      onInstanceIdChange={setWapiInstanceId}
+                      onTokenChange={setWapiToken}
+                      onPhoneNumberChange={setWapiPhone}
+                      onConnectionChange={setWapiConnected}
+                    />
+                  )}
                 </TabsContent>
 
                 <TabsContent value="chat">
