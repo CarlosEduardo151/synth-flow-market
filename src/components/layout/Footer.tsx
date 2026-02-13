@@ -103,7 +103,7 @@ export function Footer() {
 
           {/* Copyright */}
           <div className="border-t border-border/50 mt-8 pt-8 text-center">
-            <p className="text-sm text-muted-foreground">© 2025 NovaLink. Todos os direitos reservados.</p>
+            <p className="text-sm text-muted-foreground">© {new Date().getFullYear()} NovaLink. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
