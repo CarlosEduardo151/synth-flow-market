@@ -30,15 +30,63 @@ export function useProductAccess(productSlug: string): ProductAccess {
 
     if (adminLoading) return;
 
-    // Admin has access to all products
+    // Admin has access to all products — find or create a customer_product row
     if (isAdmin) {
-      setState({
-        hasAccess: true,
-        accessType: 'purchase',
-        customerId: `admin-${user.id}`,
-        expiresAt: null,
-        loading: false
-      });
+      const grantAdminAccess = async () => {
+        try {
+          // Check if admin already has a customer_product for this slug
+          const { data: existing } = await supabase
+            .from('customer_products')
+            .select('id, access_expires_at')
+            .eq('user_id', user.id)
+            .eq('product_slug', productSlug)
+            .eq('is_active', true)
+            .maybeSingle();
+
+          if (existing) {
+            setState({
+              hasAccess: true,
+              accessType: 'purchase',
+              customerId: existing.id,
+              expiresAt: existing.access_expires_at,
+              loading: false
+            });
+          } else {
+            // Auto-provision for admin
+            const { data: created, error } = await (supabase
+              .from('customer_products') as any)
+              .insert({
+                user_id: user.id,
+                product_slug: productSlug,
+                product_title: productSlug,
+                acquisition_type: 'purchase',
+                is_active: true,
+              })
+              .select('id')
+              .single();
+
+            if (error) throw error;
+
+            setState({
+              hasAccess: true,
+              accessType: 'purchase',
+              customerId: created.id,
+              expiresAt: null,
+              loading: false
+            });
+          }
+        } catch (err) {
+          console.error('Error granting admin access:', err);
+          setState({
+            hasAccess: true,
+            accessType: 'purchase',
+            customerId: null,
+            expiresAt: null,
+            loading: false
+          });
+        }
+      };
+      grantAdminAccess();
       return;
     }
 
