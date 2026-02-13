@@ -450,6 +450,8 @@ export type Database = {
         Row: {
           created_at: string
           customer_name: string
+          customer_photo_url: string | null
+          display_order: number
           id: string
           is_approved: boolean
           is_featured: boolean
@@ -459,6 +461,8 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_name: string
+          customer_photo_url?: string | null
+          display_order?: number
           id?: string
           is_approved?: boolean
           is_featured?: boolean
@@ -468,6 +472,8 @@ export type Database = {
         Update: {
           created_at?: string
           customer_name?: string
+          customer_photo_url?: string | null
+          display_order?: number
           id?: string
           is_approved?: boolean
           is_featured?: boolean
