@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.whatsapp-internal-chat]
 verify_jwt = false
+
+[functions.whatsapp-bot-engine]
+verify_jwt = false

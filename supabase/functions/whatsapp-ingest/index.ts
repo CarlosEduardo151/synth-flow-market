@@ -73,17 +73,24 @@ serve(async (req) => {
       return corsResponse({ error: "invalid_json" }, 400, origin);
     }
 
-    // Persiste o evento para processamento posterior
-    const { error: insertErr } = await service
-      .from("whatsapp_inbox_events")
-      .insert({
-        customer_product_id: cp.id,
-        source: "z-api",
-        payload,
-      });
-    if (insertErr) throw insertErr;
+    // Chama o bot engine diretamente (substitui o n8n)
+    // O bot engine faz: persistir evento, rotear tipo, processar IA, responder Z-API
+    const engineUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-bot-engine?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
 
-    // Resposta rápida para o provedor
+    // Fire-and-forget: responde rápido ao Z-API e processa em background
+    const enginePromise = fetch(engineUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+      },
+      body: bodyText,
+    }).catch((e) => console.error("bot-engine call failed:", e));
+
+    // Não bloqueia — responde imediatamente ao provedor
+    // deno-lint-ignore no-unused-vars
+    const _ = enginePromise;
+
     return corsResponse({ ok: true }, 200, origin);
   } catch (error) {
     console.error("whatsapp-ingest error:", error);
