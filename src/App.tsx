@@ -70,6 +70,7 @@ import AdminAbandonedCartsPage from "./pages/admin/AdminAbandonedCartsPage";
 import AdminCustomMessagesPage from "./pages/admin/AdminCustomMessagesPage";
 import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
 import AdminBotsAutomacaoPage from "./pages/admin/AdminBotsAutomacaoPage";
+import AdminEnginesPage from "./pages/admin/AdminEnginesPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -159,6 +160,7 @@ const App = () => (
               <Route path="/admin/abandoned-carts" element={<AdminAbandonedCartsPage />} />
               <Route path="/admin/custom-messages" element={<AdminCustomMessagesPage />} />
               <Route path="/admin/bots-automacao" element={<AdminBotsAutomacaoPage />} />
+              <Route path="/admin/engines" element={<AdminEnginesPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />

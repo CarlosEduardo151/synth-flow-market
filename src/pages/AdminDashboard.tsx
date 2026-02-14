@@ -26,7 +26,8 @@ import {
   Sparkles,
   FileText,
   Mail,
-  MessageCircle
+  MessageCircle,
+  Cpu
 } from 'lucide-react';
 import { N8nAgentControl } from '@/components/admin/N8nAgentControl';
 import N8nAgentChat from '@/components/admin/N8nAgentChat';
@@ -164,6 +165,14 @@ const AdminDashboard = () => {
       link: '/admin/custom-messages',
       color: 'bg-primary',
       stats: 'Resend'
+    },
+    {
+      title: 'Motores da NovaLink',
+      description: 'Status, config e controle dos motores',
+      icon: Cpu,
+      link: '/admin/engines',
+      color: 'bg-cyan-600',
+      stats: 'Engines'
     }
   ];
 
