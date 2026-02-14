@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.75.0";
 
 import { corsResponse, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
-type Provider = "openai" | "google";
+type Provider = "openai" | "google" | "novalink";
 
 function requireEnv(name: string): string {
   const v = Deno.env.get(name);
@@ -147,28 +147,73 @@ serve(async (req) => {
     if (cfgErr) throw cfgErr;
 
     const provider = (cfg?.provider as Provider) || "openai";
-    const model = (cfg?.model as string) || (provider === "google" ? "models/gemini-2.0-flash" : "gpt-4o-mini");
     const systemPrompt = (cfg?.system_prompt as string) || `Você é um assistente de WhatsApp do negócio ${(cfg as any)?.business_name || ""}. Responda de forma objetiva e útil.`;
     const temperature = Number(cfg?.temperature ?? 0.7);
     const maxTokens = Number(cfg?.max_tokens ?? 512);
 
-    // API key do provedor
-    const credentialKey = provider === "google" ? "google_api_key" : "openai_api_key";
-    const { data: cred, error: credErr } = await supabase
-      .from("product_credentials")
-      .select("credential_value")
-      .eq("user_id", userId)
-      .eq("product_slug", "ai")
-      .eq("credential_key", credentialKey)
-      .maybeSingle();
-    if (credErr) throw credErr;
+    // Resolve provider and API key
+    let resolvedProvider: "openai" | "google" = provider === "google" ? "google" : provider === "novalink" ? "google" : "openai";
+    let apiKey = "";
 
-    const apiKey = (cred?.credential_value || "").trim();
-    if (!apiKey) {
-      return corsResponse({ error: "missing_ai_key", details: `Configure ${credentialKey} no Admin > Configurar IA.` }, 409, origin);
+    if (provider === "novalink") {
+      // Use admin-configured keys
+      const serviceKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
+      const serviceClient = createClient(supabaseUrl, serviceKey);
+
+      const { data: adminRole } = await serviceClient
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .limit(1)
+        .maybeSingle();
+
+      if (adminRole?.user_id) {
+        // Try google first, then openai
+        const { data: gCred } = await serviceClient
+          .from("product_credentials")
+          .select("credential_value")
+          .eq("user_id", adminRole.user_id)
+          .eq("product_slug", "ai")
+          .eq("credential_key", "google_api_key")
+          .maybeSingle();
+
+        if (gCred?.credential_value?.trim()) {
+          apiKey = gCred.credential_value.trim();
+          resolvedProvider = "google";
+        } else {
+          const { data: oCred } = await serviceClient
+            .from("product_credentials")
+            .select("credential_value")
+            .eq("user_id", adminRole.user_id)
+            .eq("product_slug", "ai")
+            .eq("credential_key", "openai_api_key")
+            .maybeSingle();
+          if (oCred?.credential_value?.trim()) {
+            apiKey = oCred.credential_value.trim();
+            resolvedProvider = "openai";
+          }
+        }
+      }
+    } else {
+      const credentialKey = resolvedProvider === "google" ? "google_api_key" : "openai_api_key";
+      const { data: cred, error: credErr } = await supabase
+        .from("product_credentials")
+        .select("credential_value")
+        .eq("user_id", userId)
+        .eq("product_slug", "ai")
+        .eq("credential_key", credentialKey)
+        .maybeSingle();
+      if (credErr) throw credErr;
+      apiKey = (cred?.credential_value || "").trim();
     }
 
-    const reply = provider === "google"
+    if (!apiKey) {
+      return corsResponse({ error: "missing_ai_key", details: "Nenhuma chave de IA configurada. Verifique as configurações." }, 409, origin);
+    }
+
+    const model = (cfg?.model as string) || (resolvedProvider === "google" ? "models/gemini-2.5-flash" : "gpt-4o-mini");
+
+    const reply = resolvedProvider === "google"
       ? await geminiChat({ apiKey, model, systemPrompt, userText: message, temperature, maxTokens })
       : await openaiChat({ apiKey, model, systemPrompt, userText: message, temperature, maxTokens });
 
