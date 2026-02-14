@@ -30,7 +30,7 @@ import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 const supabase = supabaseClient as any;
 
 interface AgentConfig {
-  provider: 'openai' | 'google';
+  provider: 'openai' | 'google' | 'novalink';
   apiKey: string;
   model: string;
   temperature: number;
@@ -189,8 +189,8 @@ const WhatsAppBotConfigSystem = () => {
           try { actionInstructions = JSON.parse(configData.action_instructions); } catch {}
         }
 
-        const storedProvider = configData.provider || 'google';
-        const inferredProvider = storedProvider === 'google' ? 'google' : 'openai';
+      const storedProvider = configData.provider || 'google';
+        const inferredProvider = storedProvider === 'novalink' ? 'novalink' : storedProvider === 'google' ? 'google' : 'openai';
 
         setConfig(prev => ({
           ...prev,
@@ -264,8 +264,8 @@ const WhatsAppBotConfigSystem = () => {
   const saveConfigToDatabase = async () => {
     if (!customerProductId || !user) return false;
     try {
-      const engineProvider = config.provider === 'google' ? 'google' : 'openai';
-      const engineModel = (config.model || '').trim() || (engineProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini');
+      const engineProvider = config.provider === 'novalink' ? 'novalink' : config.provider === 'google' ? 'google' : 'openai';
+      const engineModel = (config.model || '').trim() || (engineProvider === 'google' || engineProvider === 'novalink' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini');
 
       await supabase.from('ai_control_config').upsert({
         customer_product_id: customerProductId,
@@ -288,8 +288,8 @@ const WhatsAppBotConfigSystem = () => {
         updated_at: new Date().toISOString(),
       }, { onConflict: 'customer_product_id' });
 
-      // Save API key
-      if (config.apiKey) {
+      // Save API key (skip for novalink — uses admin keys)
+      if (config.apiKey && engineProvider !== 'novalink') {
         const credentialKey = engineProvider === 'google' ? 'google_api_key' : 'openai_api_key';
         const { data: existing } = await supabase
           .from('product_credentials')
@@ -309,9 +309,9 @@ const WhatsAppBotConfigSystem = () => {
     } catch { return false; }
   };
 
-  const handleProviderChange = (provider: 'openai' | 'google') => {
-    const defaultModel = provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
-    setConfig(prev => ({ ...prev, provider, model: defaultModel }));
+  const handleProviderChange = (provider: 'openai' | 'google' | 'novalink') => {
+    const defaultModel = provider === 'novalink' ? 'models/gemini-2.5-flash' : provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
+    setConfig(prev => ({ ...prev, provider, model: defaultModel, ...(provider === 'novalink' ? { apiKey: '' } : {}) }));
   };
 
   const handleSave = async () => {
