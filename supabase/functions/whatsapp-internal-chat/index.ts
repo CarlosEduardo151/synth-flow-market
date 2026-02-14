@@ -156,41 +156,48 @@ serve(async (req) => {
     let apiKey = "";
 
     if (provider === "novalink") {
-      // Use admin-configured keys
+      // Use admin-configured keys via service role (bypasses RLS)
       const serviceKey = requireEnv("SUPABASE_SERVICE_ROLE_KEY");
       const serviceClient = createClient(supabaseUrl, serviceKey);
 
-      const { data: adminRole } = await serviceClient
+      const { data: adminRole, error: adminErr } = await serviceClient
         .from("user_roles")
         .select("user_id")
         .eq("role", "admin")
         .limit(1)
         .maybeSingle();
 
+      console.log("novalink: adminRole=", adminRole, "adminErr=", adminErr);
+
       if (adminRole?.user_id) {
-        // Try google first, then openai
-        const { data: gCred } = await serviceClient
+        // Try openai first (admin has openai key), then google
+        const { data: oCred, error: oErr } = await serviceClient
           .from("product_credentials")
           .select("credential_value")
           .eq("user_id", adminRole.user_id)
           .eq("product_slug", "ai")
-          .eq("credential_key", "google_api_key")
+          .eq("credential_key", "openai_api_key")
           .maybeSingle();
 
-        if (gCred?.credential_value?.trim()) {
-          apiKey = gCred.credential_value.trim();
-          resolvedProvider = "google";
+        console.log("novalink: openai cred found=", !!oCred?.credential_value, "oErr=", oErr);
+
+        if (oCred?.credential_value?.trim()) {
+          apiKey = oCred.credential_value.trim();
+          resolvedProvider = "openai";
         } else {
-          const { data: oCred } = await serviceClient
+          const { data: gCred, error: gErr } = await serviceClient
             .from("product_credentials")
             .select("credential_value")
             .eq("user_id", adminRole.user_id)
             .eq("product_slug", "ai")
-            .eq("credential_key", "openai_api_key")
+            .eq("credential_key", "google_api_key")
             .maybeSingle();
-          if (oCred?.credential_value?.trim()) {
-            apiKey = oCred.credential_value.trim();
-            resolvedProvider = "openai";
+
+          console.log("novalink: google cred found=", !!gCred?.credential_value, "gErr=", gErr);
+
+          if (gCred?.credential_value?.trim()) {
+            apiKey = gCred.credential_value.trim();
+            resolvedProvider = "google";
           }
         }
       }
