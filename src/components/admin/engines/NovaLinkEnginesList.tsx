@@ -77,14 +77,37 @@ export function NovaLinkEnginesList() {
 
       if (error) throw error;
 
+      // Fetch user names from admin-list-users edge function
+      const userMap: Record<string, { name: string; email: string }> = {};
+      try {
+        const { data: usersData } = await supabase.functions.invoke("admin-list-users");
+        if (usersData?.users) {
+          for (const u of usersData.users) {
+            userMap[u.id] = {
+              name: u.user_metadata?.full_name || u.email || u.id,
+              email: u.email || "",
+            };
+          }
+        }
+      } catch { /* fallback to profiles */ }
+
       const rows: EngineRow[] = [];
 
       for (const cp of products || []) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name, email")
-          .eq("user_id", cp.user_id)
-          .maybeSingle();
+        const userInfo = userMap[cp.user_id];
+        let profileName = userInfo?.name || null;
+        let profileEmail = userInfo?.email || null;
+
+        // Fallback to profiles table
+        if (!profileName) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("full_name, email")
+            .eq("user_id", cp.user_id)
+            .maybeSingle();
+          profileName = profile?.full_name || null;
+          profileEmail = profile?.email || null;
+        }
 
         const { data: aiConfig } = await supabase
           .from("ai_control_config")
@@ -99,8 +122,8 @@ export function NovaLinkEnginesList() {
           is_active: cp.is_active,
           webhook_token: cp.webhook_token,
           created_at: cp.created_at,
-          profile_name: profile?.full_name || null,
-          profile_email: profile?.email || null,
+          profile_name: profileName,
+          profile_email: profileEmail,
           ai_provider: aiConfig?.provider || null,
           ai_model: aiConfig?.model || null,
           ai_active: aiConfig?.is_active ?? false,
