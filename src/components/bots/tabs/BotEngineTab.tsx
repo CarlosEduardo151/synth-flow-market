@@ -1,4 +1,4 @@
-import { Brain, Eye, EyeOff, Zap, TrendingUp } from 'lucide-react';
+import { Brain, Eye, EyeOff, Zap, TrendingUp, Sparkles } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,12 +58,12 @@ const GOOGLE_CATEGORY_LABELS: Record<GoogleModelCategory, string> = {
 };
 
 interface BotEngineTabProps {
-  provider: 'openai' | 'google';
+  provider: 'openai' | 'google' | 'novalink';
   apiKey: string;
   model: string;
   temperature: number;
   maxTokens: number;
-  onProviderChange: (provider: 'openai' | 'google') => void;
+  onProviderChange: (provider: 'openai' | 'google' | 'novalink') => void;
   onApiKeyChange: (key: string) => void;
   onModelChange: (model: string) => void;
   onTemperatureChange: (temp: number) => void;
@@ -103,6 +103,12 @@ export function BotEngineTab({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="novalink">
+                  <span className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    NovaLink (Créditos inclusos)
+                  </span>
+                </SelectItem>
                 <SelectItem value="openai">
                   <span className="flex items-center gap-2">
                     <Zap className="h-4 w-4 text-green-500" />
@@ -119,33 +125,42 @@ export function BotEngineTab({
             </Select>
           </div>
 
-          {/* API Key */}
-          <div className="space-y-2">
-            <Label>API Key</Label>
-            <div className="relative">
-              <Input
-                type={showApiKey ? 'text' : 'password'}
-                placeholder={provider === 'openai' ? 'sk-...' : 'AIza...'}
-                value={apiKey}
-                onChange={(e) => onApiKeyChange(e.target.value)}
-                className="pr-10"
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-full"
-                onClick={() => setShowApiKey(!showApiKey)}
-              >
-                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </Button>
+          {/* API Key — hidden for NovaLink */}
+          {provider === 'novalink' ? (
+            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+              <p className="text-sm text-primary font-medium">✨ Créditos NovaLink</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Você está usando os créditos fornecidos pela plataforma. Nenhuma chave de API é necessária.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground">
-              {provider === 'openai'
-                ? 'Obtenha em platform.openai.com/api-keys'
-                : 'Obtenha em aistudio.google.com/apikey'}
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <div className="relative">
+                <Input
+                  type={showApiKey ? 'text' : 'password'}
+                  placeholder={provider === 'openai' ? 'sk-...' : 'AIza...'}
+                  value={apiKey}
+                  onChange={(e) => onApiKeyChange(e.target.value)}
+                  className="pr-10"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-0 top-0 h-full"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {provider === 'openai'
+                  ? 'Obtenha em platform.openai.com/api-keys'
+                  : 'Obtenha em aistudio.google.com/apikey'}
+              </p>
+            </div>
+          )}
 
           {/* Model Selection */}
           <div className="space-y-2">
@@ -155,7 +170,18 @@ export function BotEngineTab({
                 <SelectValue placeholder="Selecione um modelo" />
               </SelectTrigger>
               <SelectContent className="max-h-[400px]">
-                {provider === 'openai' ? (
+                {provider === 'novalink' ? (
+                  <>
+                    <SelectGroup>
+                      <SelectLabel className="bg-muted/50">💬 Chat</SelectLabel>
+                      <SelectItem value="models/gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</SelectItem>
+                      <SelectItem value="models/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                      <SelectItem value="models/gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</SelectItem>
+                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
+                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                    </SelectGroup>
+                  </>
+                ) : provider === 'openai' ? (
                   (['flagship', 'mini', 'reasoning'] as OpenAIModelCategory[]).map((category) => {
                     const models = OPENAI_MODELS.filter(m => m.category === category);
                     if (!models.length) return null;

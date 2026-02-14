@@ -283,38 +283,81 @@ serve(async (req) => {
       .eq("customer_product_id", customerProductId)
       .maybeSingle();
 
-    const provider = (aiConfig?.provider as string) || "google";
-    const model = (aiConfig?.model as string) || (provider === "google" ? "models/gemini-2.5-flash" : "gpt-4o-mini");
+    let provider = (aiConfig?.provider as string) || "google";
     const temperature = Number(aiConfig?.temperature ?? 0.7);
     const maxTokens = Number(aiConfig?.max_tokens ?? 512);
     const systemPrompt = (aiConfig?.system_prompt as string) ||
       `Você é o agente StarAI do negócio ${aiConfig?.business_name || ""}. Responda de forma objetiva e útil em português.`;
 
-    // 3. API Key do provedor escolhido pelo cliente
-    const aiCredKey = provider === "google" ? "google_api_key" : "openai_api_key";
-    const { data: aiCred } = await service
-      .from("product_credentials")
-      .select("credential_value")
-      .eq("user_id", cp.user_id)
-      .eq("product_slug", "bots-automacao")
-      .eq("credential_key", aiCredKey)
-      .maybeSingle();
+    // 3. Resolve API Key based on provider
+    let apiKey = "";
+    let resolvedProvider = provider; // the actual AI provider to call (openai or google)
 
-    // Fallback: tenta buscar na slug "ai" (configuração global do user)
-    let apiKey = aiCred?.credential_value?.trim() || "";
-    if (!apiKey) {
-      const { data: globalCred } = await service
+    if (provider === "novalink") {
+      // NovaLink: use admin-configured keys from user_roles admin
+      const { data: adminRole } = await service
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .limit(1)
+        .maybeSingle();
+
+      if (adminRole?.user_id) {
+        // Try google key first, then openai
+        const { data: adminGoogleCred } = await service
+          .from("product_credentials")
+          .select("credential_value")
+          .eq("user_id", adminRole.user_id)
+          .eq("product_slug", "ai")
+          .eq("credential_key", "google_api_key")
+          .maybeSingle();
+
+        if (adminGoogleCred?.credential_value?.trim()) {
+          apiKey = adminGoogleCred.credential_value.trim();
+          resolvedProvider = "google";
+        } else {
+          const { data: adminOpenaiCred } = await service
+            .from("product_credentials")
+            .select("credential_value")
+            .eq("user_id", adminRole.user_id)
+            .eq("product_slug", "ai")
+            .eq("credential_key", "openai_api_key")
+            .maybeSingle();
+          if (adminOpenaiCred?.credential_value?.trim()) {
+            apiKey = adminOpenaiCred.credential_value.trim();
+            resolvedProvider = "openai";
+          }
+        }
+      }
+    } else {
+      // Direct provider: use client's own key
+      resolvedProvider = provider === "google" ? "google" : "openai";
+      const aiCredKey = resolvedProvider === "google" ? "google_api_key" : "openai_api_key";
+      const { data: aiCred } = await service
         .from("product_credentials")
         .select("credential_value")
         .eq("user_id", cp.user_id)
-        .eq("product_slug", "ai")
+        .eq("product_slug", "bots-automacao")
         .eq("credential_key", aiCredKey)
         .maybeSingle();
-      apiKey = globalCred?.credential_value?.trim() || "";
+
+      apiKey = aiCred?.credential_value?.trim() || "";
+      if (!apiKey) {
+        const { data: globalCred } = await service
+          .from("product_credentials")
+          .select("credential_value")
+          .eq("user_id", cp.user_id)
+          .eq("product_slug", "ai")
+          .eq("credential_key", aiCredKey)
+          .maybeSingle();
+        apiKey = globalCred?.credential_value?.trim() || "";
+      }
     }
 
+    const model = (aiConfig?.model as string) || (resolvedProvider === "google" ? "models/gemini-2.5-flash" : "gpt-4o-mini");
+
     if (!apiKey) {
-      console.error(`AI key (${aiCredKey}) missing for user`, cp.user_id);
+      console.error(`AI key missing for provider=${provider}, resolvedProvider=${resolvedProvider}, user=${cp.user_id}`);
       // Envia mensagem ao cliente informando
       await zapiSendText(
         credMap["zapi_instance_id"], credMap["zapi_token"], credMap["zapi_client_token"] || "",
@@ -336,20 +379,20 @@ serve(async (req) => {
       const imageUrl = body.image?.imageUrl || body.image?.url || "";
       const caption = body.image?.caption || "Analise esta imagem. Responda em português.";
       if (imageUrl) {
-        reply = await processImage(provider, apiKey, model, systemPrompt, imageUrl, caption, temperature, maxTokens);
+        reply = await processImage(resolvedProvider, apiKey, model, systemPrompt, imageUrl, caption, temperature, maxTokens);
       } else {
         reply = "Não consegui acessar a imagem. Pode enviar novamente?";
       }
     } else if (hasAudio) {
       const audioUrl = body.audio?.audioUrl || body.audio?.url || "";
       if (audioUrl) {
-        reply = await processAudio(provider, apiKey, model, systemPrompt, audioUrl, temperature, maxTokens);
+        reply = await processAudio(resolvedProvider, apiKey, model, systemPrompt, audioUrl, temperature, maxTokens);
       } else {
         reply = "Não consegui acessar o áudio. Pode enviar novamente?";
       }
     } else if (hasText) {
       const userMessage = typeof body.text === "string" ? body.text : body.text?.message || "";
-      reply = await processText(provider, apiKey, model, systemPrompt, userMessage, temperature, maxTokens);
+      reply = await processText(resolvedProvider, apiKey, model, systemPrompt, userMessage, temperature, maxTokens);
     } else {
       reply = "Desculpe, não consigo processar esse tipo de mensagem ainda.";
     }
@@ -367,7 +410,7 @@ serve(async (req) => {
       .order("received_at", { ascending: false })
       .limit(1);
 
-    return jsonResponse({ ok: true, type: hasImage ? "image" : hasAudio ? "audio" : "text", provider });
+    return jsonResponse({ ok: true, type: hasImage ? "image" : hasAudio ? "audio" : "text", provider, resolvedProvider });
   } catch (error) {
     console.error("whatsapp-bot-engine error:", error);
     return jsonResponse({ error: error instanceof Error ? error.message : "unknown" }, 500);
