@@ -112,9 +112,9 @@ serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: claimsData, error: claimsErr } = await supabase.auth.getClaims(token);
-    const userId = claimsData?.claims?.sub;
-    if (claimsErr || !userId) {
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    const userId = userData?.user?.id;
+    if (userErr || !userId) {
       return corsResponse({ error: "unauthorized" }, 401, origin);
     }
 
