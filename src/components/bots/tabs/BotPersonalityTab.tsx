@@ -1,8 +1,7 @@
-import { Bot, Brain, Shield, Send, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Bot, Brain, Shield, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -29,26 +28,20 @@ interface BotPersonalityTabProps {
   communicationTone: CommunicationTone;
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
-  workflowId: string;
-  syncingPrompt: boolean;
   onToneChange: (tone: CommunicationTone) => void;
   onSystemPromptChange: (prompt: string) => void;
   onAddInstruction: (instruction: string, type: 'do' | 'dont') => void;
   onRemoveInstruction: (id: string) => void;
-  onSyncPrompt: () => void;
 }
 
 export function BotPersonalityTab({
   communicationTone,
   systemPrompt,
   actionInstructions,
-  workflowId,
-  syncingPrompt,
   onToneChange,
   onSystemPromptChange,
   onAddInstruction,
   onRemoveInstruction,
-  onSyncPrompt,
 }: BotPersonalityTabProps) {
   const [newInstruction, setNewInstruction] = useState('');
   const [newType, setNewType] = useState<'do' | 'dont'>('do');
@@ -106,7 +99,7 @@ export function BotPersonalityTab({
             <Brain className="h-5 w-5 text-primary" />
             Instruções do Bot
           </CardTitle>
-          <CardDescription>O que seu bot sabe e como deve agir</CardDescription>
+          <CardDescription>O que seu bot sabe e como deve agir (salva automaticamente)</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Textarea
@@ -115,15 +108,6 @@ export function BotPersonalityTab({
             className="min-h-[160px] text-sm font-mono"
             placeholder="Ex: Você é o assistente da loja XYZ..."
           />
-          <Button
-            onClick={onSyncPrompt}
-            disabled={syncingPrompt || !workflowId}
-            className="w-full"
-            variant="outline"
-          >
-            {syncingPrompt ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Sincronizar Prompt
-          </Button>
         </CardContent>
       </Card>
 

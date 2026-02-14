@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  ArrowLeft, Save, Bot, Brain, Plug, Power, Pencil, Check,
-  CheckCircle2, XCircle, Loader2, MessageCircle, Smartphone,
-  BarChart3, Database
+  ArrowLeft, Save, Bot, Brain, Plug, Pencil, Check,
+  Loader2, MessageCircle, Smartphone, Database
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -20,8 +19,6 @@ import { VerticalTabRail } from '@/components/layout/VerticalTabRail';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { WhatsAppBotTestChat } from '@/components/WhatsAppBotTestChat';
 import { useBotInstances } from '@/hooks/useBotInstances';
-import { ToolsConfigSection } from '@/components/agent/ToolsConfigSection';
-import { TokenUsageStats } from '@/components/agent/TokenUsageStats';
 
 // Tab components
 import { BotStatusTab } from '@/components/bots/tabs/BotStatusTab';
@@ -33,23 +30,20 @@ import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 const supabase = supabaseClient as any;
 
 interface AgentConfig {
-  isActive: boolean;
-  n8nWorkflowId: string;
-  provider: 'openai' | 'google' | 'starai';
+  provider: 'openai' | 'google';
   apiKey: string;
   model: string;
   temperature: number;
   maxTokens: number;
   contextWindowSize: number;
   retentionPolicy: string;
-  sessionKeyId: string;
   communicationTone: CommunicationTone;
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
-  enableWebSearch: boolean;
-  enabledTools: string[];
   businessName: string;
 }
+
+const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente para WhatsApp.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
 
 const WhatsAppBotConfigSystem = () => {
   const { user, loading: authLoading } = useAuth();
@@ -59,30 +53,12 @@ const WhatsAppBotConfigSystem = () => {
   const isMobile = useIsMobile();
 
   const [loading, setLoading] = useState(false);
-  const [agentStatus, setAgentStatus] = useState<'online' | 'offline' | 'loading' | 'unknown'>('unknown');
-  const [togglingAgent, setTogglingAgent] = useState(false);
-  const [syncingLlm, setSyncingLlm] = useState(false);
-  const [syncingPrompt, setSyncingPrompt] = useState(false);
-  const [syncingMemory, setSyncingMemory] = useState(false);
-  const [syncingTools, setSyncingTools] = useState(false);
-
-  const [n8nConnected, setN8nConnected] = useState<boolean | null>(null);
-  const [n8nTesting, setN8nTesting] = useState(false);
-  const [workflows, setWorkflows] = useState<any[]>([]);
-  const [loadingExecutions, setLoadingExecutions] = useState(false);
-
-  const [staraiCredits, setStaraiCredits] = useState({ balanceBRL: 0, freeBalanceBRL: 0, depositedBRL: 0 });
-  const [loadingCredits, setLoadingCredits] = useState(false);
-  const [depositAmount, setDepositAmount] = useState(50);
-  const [processingDeposit, setProcessingDeposit] = useState(false);
-
   const [activeTab, setActiveTab] = useState<string>('status');
   const [railCollapsed, setRailCollapsed] = useState(true);
-  const [editingBusinessName, setEditingBusinessName] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
-  const [activeBotInstanceId, setActiveBotInstanceId] = useState<string | null>(null);
+  const [editingBusinessName, setEditingBusinessName] = useState(false);
 
   const botInstances = useBotInstances(customerProductId);
 
@@ -92,44 +68,30 @@ const WhatsAppBotConfigSystem = () => {
   const [wapiToken, setWapiToken] = useState('');
   const [wapiPhone, setWapiPhone] = useState('');
 
-  const [toolConfigs, setToolConfigs] = useState<Record<string, any>>({
-    httpRequest: { enabled: true, httpMethod: 'GET', httpFollowRedirects: true },
-    webhook: { enabled: false, webhookHttpMethod: 'POST', webhookResponseMode: 'onReceived', webhookResponseCode: 200 },
-    code: { enabled: false, codeLanguage: 'javascript' },
-    calculator: { enabled: true },
-  });
-
   const [config, setConfig] = useState<AgentConfig>({
-    isActive: false,
-    n8nWorkflowId: '',
-    provider: 'starai',
+    provider: 'google',
     apiKey: '',
-    model: 'gpt-4o',
+    model: 'models/gemini-2.5-flash',
     temperature: 0.7,
     maxTokens: 2048,
     contextWindowSize: 10,
     retentionPolicy: '30days',
-    sessionKeyId: '{{ $json.session_id }}',
     communicationTone: 'amigavel',
-    systemPrompt: `Você é um assistente virtual inteligente para WhatsApp.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`,
+    systemPrompt: DEFAULT_SYSTEM_PROMPT,
     actionInstructions: [
       { id: '1', instruction: 'Sempre cumprimente o cliente pelo nome', type: 'do' },
       { id: '2', instruction: 'Nunca invente informações sobre preços', type: 'dont' },
     ],
-    enableWebSearch: false,
-    enabledTools: ['httpRequestTool', 'calculatorTool'],
     businessName: 'Meu Negócio',
   });
 
   const sidebarItems = [
-    { value: 'status', label: 'Status', icon: Power },
+    { value: 'status', label: 'Status', icon: Bot },
     { value: 'engine', label: 'Motor IA', icon: Brain },
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
-    { value: 'tools', label: 'Ferramentas', icon: Plug },
     { value: 'whatsapp-api', label: 'WhatsApp API', icon: Smartphone },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
-    { value: 'monitoring', label: 'Monitoramento', icon: BarChart3 },
   ];
 
   // === EFFECTS ===
@@ -150,46 +112,15 @@ const WhatsAppBotConfigSystem = () => {
     if (!configLoaded || !customerProductId) return;
     setAutoSaving(true);
     try { await saveConfigToDatabase(); } catch {} finally { setAutoSaving(false); }
-  }, [configLoaded, customerProductId, config, toolConfigs]);
+  }, [configLoaded, customerProductId, config]);
 
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return; }
     if (!configLoaded) return;
     if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
-    autoSaveTimeoutRef.current = setTimeout(() => autoSave(), 1000);
+    autoSaveTimeoutRef.current = setTimeout(() => autoSave(), 1500);
     return () => { if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current); };
-  }, [config, toolConfigs, configLoaded]);
-
-  useEffect(() => {
-    if (n8nConnected) loadWorkflows();
-  }, [n8nConnected]);
-
-  useEffect(() => {
-    if (config.n8nWorkflowId) {
-      const wf = workflows.find((w: any) => w.id === config.n8nWorkflowId);
-      if (wf) {
-        setAgentStatus(wf.active ? 'online' : 'offline');
-        setConfig(prev => ({ ...prev, isActive: wf.active }));
-      }
-    }
-  }, [config.n8nWorkflowId, workflows]);
-
-  useEffect(() => {
-    if (config.provider === 'starai') loadStaraiCredits();
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const status = params.get('payment');
-    if (status === 'success') {
-      toast({ title: "Pagamento aprovado!", description: "Créditos adicionados." });
-      window.history.replaceState({}, '', window.location.pathname);
-      loadStaraiCredits();
-    } else if (status === 'failure') {
-      toast({ title: "Pagamento não aprovado", description: "Tente novamente.", variant: "destructive" });
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, []);
+  }, [config, configLoaded]);
 
   // === DATA FUNCTIONS ===
 
@@ -211,24 +142,15 @@ const WhatsAppBotConfigSystem = () => {
       }
 
       setCustomerProductId(productId);
-
       await botInstances.ensureDefault();
-      const { data: instancesDb } = await supabase
-        .from('bot_instances')
-        .select('id, name, workflow_id, is_active, created_at')
-        .eq('customer_product_id', productId)
-        .order('created_at', { ascending: true });
 
-      const activeInstance = (instancesDb || []).find((i: any) => i.is_active) ?? (instancesDb || [])[0] ?? null;
-      setActiveBotInstanceId(activeInstance?.id ?? null);
-
+      // Load or auto-create AI config
       let { data: configData } = await supabase
         .from('ai_control_config')
         .select('*')
         .eq('customer_product_id', productId)
         .maybeSingle();
 
-      // Auto-create engine config on first access — always active
       if (!configData) {
         const defaultConfig = {
           customer_product_id: productId,
@@ -238,10 +160,9 @@ const WhatsAppBotConfigSystem = () => {
           model: 'models/gemini-2.5-flash',
           temperature: 0.7,
           max_tokens: 2048,
-          system_prompt: config.systemPrompt,
+          system_prompt: DEFAULT_SYSTEM_PROMPT,
           personality: 'amigavel',
           business_name: 'Meu Negócio',
-          tools_enabled: ['httpRequestTool', 'calculatorTool'],
           configuration: { platform: 'whatsapp', configured_at: new Date().toISOString() },
         };
         const { data: created } = await supabase
@@ -253,7 +174,7 @@ const WhatsAppBotConfigSystem = () => {
         toast({ title: "Motor criado!", description: "Seu motor IA foi ativado automaticamente." });
       }
 
-      // Ensure engine is always active
+      // Ensure always active
       if (configData && !configData.is_active) {
         await supabase
           .from('ai_control_config')
@@ -268,35 +189,27 @@ const WhatsAppBotConfigSystem = () => {
           try { actionInstructions = JSON.parse(configData.action_instructions); } catch {}
         }
 
-        const storedProvider = configData.provider || null;
-        const storedModel = configData.model || null;
-        const inferredProvider = storedProvider || (storedModel?.includes('gemini') ? 'google' : 'openai');
-        const savedTone = configData.personality || 'amigavel';
+        const storedProvider = configData.provider || 'google';
+        const inferredProvider = storedProvider === 'google' ? 'google' : 'openai';
 
         setConfig(prev => ({
           ...prev,
-          isActive: true,
           provider: inferredProvider,
-          model: storedModel || (inferredProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini'),
+          model: configData.model || (inferredProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini'),
           temperature: configData.temperature || 0.7,
           maxTokens: configData.max_tokens || 2048,
-          communicationTone: savedTone,
+          communicationTone: configData.personality || 'amigavel',
           systemPrompt: configData.system_prompt || prev.systemPrompt,
           actionInstructions: actionInstructions.length ? actionInstructions : prev.actionInstructions,
-          sessionKeyId: configData.configuration?.memory_session_id || '{{ $json.session_id }}',
-          enabledTools: configData.tools_enabled || ['httpRequestTool', 'calculatorTool'],
+          contextWindowSize: configData.configuration?.context_window_size || 10,
+          retentionPolicy: configData.configuration?.retention_policy || '30days',
           businessName: configData.business_name || 'Meu Negócio',
         }));
       }
 
-      if (activeInstance?.workflow_id) {
-        setConfig(prev => ({ ...prev, n8nWorkflowId: activeInstance.workflow_id || '' }));
-      }
-
       // Load API key
       try {
-        const providerKey = configData?.provider === 'google' || String(configData?.model || '').includes('gemini')
-          ? 'google_api_key' : 'openai_api_key';
+        const providerKey = configData?.provider === 'google' ? 'google_api_key' : 'openai_api_key';
         const { data: cred } = await supabase
           .from('product_credentials')
           .select('credential_value')
@@ -305,7 +218,19 @@ const WhatsAppBotConfigSystem = () => {
           .eq('credential_key', providerKey)
           .maybeSingle();
 
-        if (cred?.credential_value) setConfig(prev => ({ ...prev, apiKey: cred.credential_value }));
+        if (!cred?.credential_value) {
+          // Fallback: try bots-automacao slug
+          const { data: cred2 } = await supabase
+            .from('product_credentials')
+            .select('credential_value')
+            .eq('user_id', user.id)
+            .eq('product_slug', 'bots-automacao')
+            .eq('credential_key', providerKey)
+            .maybeSingle();
+          if (cred2?.credential_value) setConfig(prev => ({ ...prev, apiKey: cred2.credential_value }));
+        } else {
+          setConfig(prev => ({ ...prev, apiKey: cred.credential_value }));
+        }
       } catch {}
 
       // Load WhatsApp API credentials
@@ -323,14 +248,13 @@ const WhatsAppBotConfigSystem = () => {
             if (c.credential_key === 'zapi_token') setWapiToken(c.credential_value || '');
             if (c.credential_key === 'zapi_phone') setWapiPhone(c.credential_value || '');
           }
-          if (wapiCreds.length === 3 && wapiCreds.every((c: any) => c.credential_value)) {
+          if (wapiCreds.length >= 2 && wapiCreds.filter((c: any) => c.credential_value).length >= 2) {
             setWapiConnected(true);
           }
         }
       } catch {}
 
       setConfigLoaded(true);
-      testN8nConnection();
     } catch (error) {
       console.error('Error loading config:', error);
       setConfigLoaded(true);
@@ -354,20 +278,17 @@ const WhatsAppBotConfigSystem = () => {
         system_prompt: config.systemPrompt,
         personality: config.communicationTone,
         action_instructions: JSON.stringify(config.actionInstructions),
-        tools_enabled: config.enabledTools,
         configuration: {
           platform: 'whatsapp',
           configured_at: new Date().toISOString(),
-          memory_session_id: config.sessionKeyId,
           retention_policy: config.retentionPolicy,
           context_window_size: config.contextWindowSize,
-          enable_web_search: config.enableWebSearch,
-          tool_configs: toolConfigs,
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'customer_product_id' });
 
+      // Save API key
       if (config.apiKey) {
         const credentialKey = engineProvider === 'google' ? 'google_api_key' : 'openai_api_key';
         const { data: existing } = await supabase
@@ -388,84 +309,9 @@ const WhatsAppBotConfigSystem = () => {
     } catch { return false; }
   };
 
-  const testN8nConnection = async () => {
-    setN8nTesting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('n8n-api', { body: { action: 'test_connection' } });
-      if (error) throw error;
-      setN8nConnected(Boolean(data?.success));
-    } catch { setN8nConnected(false); } finally { setN8nTesting(false); }
-  };
-
-  const loadWorkflows = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('n8n-api', { body: { action: 'list_workflows', limit: 200 } });
-      if (error) throw error;
-      setWorkflows((data?.workflows || []).map((wf: any) => ({
-        id: String(wf.id), name: String(wf.name || `Workflow ${wf.id}`), active: Boolean(wf.active),
-        createdAt: String(wf.createdAt || new Date().toISOString()), updatedAt: String(wf.updatedAt || new Date().toISOString()),
-      })));
-    } catch {}
-  };
-
-  const toggleWorkflowStatus = async () => {
-    setTogglingAgent(true);
-    try {
-      if (!config.n8nWorkflowId) return;
-      const action = config.isActive ? 'deactivate_workflow' : 'activate_workflow';
-      await supabase.functions.invoke('n8n-api', { body: { action, workflowId: config.n8nWorkflowId } });
-      setAgentStatus(config.isActive ? 'offline' : 'online');
-      setConfig(prev => ({ ...prev, isActive: !prev.isActive }));
-      await saveConfigToDatabase();
-    } finally { setTogglingAgent(false); }
-  };
-
-  const loadExecutions = async () => {
-    if (!config.n8nWorkflowId) return;
-    setLoadingExecutions(true);
-    try {
-      await supabase.functions.invoke('n8n-api', { body: { action: 'get_executions', workflowId: config.n8nWorkflowId, limit: 20 } });
-    } catch {} finally { setLoadingExecutions(false); }
-  };
-
-  const handleProviderChange = (provider: 'openai' | 'google' | 'starai') => {
+  const handleProviderChange = (provider: 'openai' | 'google') => {
     const defaultModel = provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
-    setConfig(prev => ({ ...prev, provider, model: defaultModel, apiKey: provider === 'starai' ? '' : prev.apiKey }));
-    if (provider === 'starai') loadStaraiCredits();
-  };
-
-  const loadStaraiCredits = async () => {
-    setLoadingCredits(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch(`https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/balance`, {
-        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      });
-      const result = await res.json();
-      if (result.success && result.data) {
-        setStaraiCredits({ balanceBRL: Number(result.data.balance_brl) || 0, freeBalanceBRL: Number(result.data.free_balance_brl) || 0, depositedBRL: Number(result.data.deposited_brl) || 0 });
-      }
-    } catch {} finally { setLoadingCredits(false); }
-  };
-
-  const handleStaraiDeposit = async () => {
-    if (depositAmount < 10) { toast({ title: "Valor inválido", description: "Mínimo R$ 10,00", variant: "destructive" }); return; }
-    setProcessingDeposit(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const res = await fetch(`https://agndhravgmcwpdjkozka.supabase.co/functions/v1/starai-credits/deposit`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount_brl: depositAmount, success_url: `${window.location.origin}/sistema/bots-automacao/whatsapp/${productId}?payment=success`, failure_url: `${window.location.origin}/sistema/bots-automacao/whatsapp/${productId}?payment=failure` }),
-      });
-      const result = await res.json();
-      if (result.success && result.data?.payment_link) window.location.href = result.data.payment_link;
-      else throw new Error(result.message || 'Erro');
-    } catch (e: any) {
-      toast({ title: "Erro", description: e.message, variant: "destructive" });
-    } finally { setProcessingDeposit(false); }
+    setConfig(prev => ({ ...prev, provider, model: defaultModel }));
   };
 
   const handleSave = async () => {
@@ -531,35 +377,17 @@ const WhatsAppBotConfigSystem = () => {
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>Bot WhatsApp</span>
-                  {n8nConnected === true && (
-                    <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px] px-1.5 py-0">
-                      <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" />
-                      Conectado
-                    </Badge>
-                  )}
-                  {n8nConnected === false && (
-                    <Badge variant="outline" className="text-destructive border-destructive/30 text-[10px] px-1.5 py-0">
-                      <XCircle className="h-2.5 w-2.5 mr-0.5" />
-                      Offline
-                    </Badge>
-                  )}
+                  <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px] px-1.5 py-0">
+                    Motor Ativo
+                  </Badge>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Status indicator */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50">
-                <div className={`w-2 h-2 rounded-full ${
-                  agentStatus === 'online' ? 'bg-green-500 animate-pulse' :
-                  agentStatus === 'offline' ? 'bg-destructive' :
-                  agentStatus === 'loading' ? 'bg-amber-500 animate-pulse' : 'bg-muted-foreground'
-                }`} />
-                <span className="text-xs font-medium">
-                  {agentStatus === 'online' ? 'Online' :
-                   agentStatus === 'offline' ? 'Offline' :
-                   agentStatus === 'loading' ? 'Carregando...' : '—'}
-                </span>
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-xs font-medium">Online</span>
               </div>
 
               {autoSaving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
@@ -593,18 +421,7 @@ const WhatsAppBotConfigSystem = () => {
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="p-4 md:p-6">
                 <TabsContent value="status">
-                  <BotStatusTab
-                    n8nConnected={n8nConnected}
-                    n8nTesting={n8nTesting}
-                    workflowsCount={workflows.length}
-                    isActive={config.isActive}
-                    hasWorkflow={Boolean(config.n8nWorkflowId)}
-                    togglingAgent={togglingAgent}
-                    onTestConnection={testN8nConnection}
-                    onToggleAgent={toggleWorkflowStatus}
-                    onRefreshExecutions={loadExecutions}
-                    loadingExecutions={loadingExecutions}
-                  />
+                  <BotStatusTab />
                 </TabsContent>
 
                 <TabsContent value="engine">
@@ -614,20 +431,11 @@ const WhatsAppBotConfigSystem = () => {
                     model={config.model}
                     temperature={config.temperature}
                     maxTokens={config.maxTokens}
-                    workflowId={config.n8nWorkflowId}
-                    staraiCredits={staraiCredits}
-                    loadingCredits={loadingCredits}
-                    depositAmount={depositAmount}
-                    processingDeposit={processingDeposit}
-                    syncingLlm={syncingLlm}
                     onProviderChange={handleProviderChange}
                     onApiKeyChange={(key) => setConfig(prev => ({ ...prev, apiKey: key }))}
                     onModelChange={(model) => setConfig(prev => ({ ...prev, model }))}
                     onTemperatureChange={(temp) => setConfig(prev => ({ ...prev, temperature: temp }))}
                     onMaxTokensChange={(tokens) => setConfig(prev => ({ ...prev, maxTokens: tokens }))}
-                    onDepositAmountChange={setDepositAmount}
-                    onDeposit={handleStaraiDeposit}
-                    onSyncLlm={async () => { setSyncingLlm(true); toast({ title: "IA configurada" }); setSyncingLlm(false); }}
                   />
                 </TabsContent>
 
@@ -635,13 +443,8 @@ const WhatsAppBotConfigSystem = () => {
                   <BotMemoryTab
                     contextWindowSize={config.contextWindowSize}
                     retentionPolicy={config.retentionPolicy}
-                    sessionKeyId={config.sessionKeyId}
-                    workflowId={config.n8nWorkflowId}
-                    syncingMemory={syncingMemory}
                     onContextWindowChange={(size) => setConfig(prev => ({ ...prev, contextWindowSize: size }))}
                     onRetentionChange={(p) => setConfig(prev => ({ ...prev, retentionPolicy: p }))}
-                    onSessionKeyChange={(k) => setConfig(prev => ({ ...prev, sessionKeyId: k }))}
-                    onSyncMemory={async () => { setSyncingMemory(true); toast({ title: "Memória configurada" }); setSyncingMemory(false); }}
                   />
                 </TabsContent>
 
@@ -650,8 +453,6 @@ const WhatsAppBotConfigSystem = () => {
                     communicationTone={config.communicationTone}
                     systemPrompt={config.systemPrompt}
                     actionInstructions={config.actionInstructions}
-                    workflowId={config.n8nWorkflowId}
-                    syncingPrompt={syncingPrompt}
                     onToneChange={(tone) => setConfig(prev => ({ ...prev, communicationTone: tone }))}
                     onSystemPromptChange={(prompt) => setConfig(prev => ({ ...prev, systemPrompt: prompt }))}
                     onAddInstruction={(instruction, type) => setConfig(prev => ({
@@ -662,17 +463,6 @@ const WhatsAppBotConfigSystem = () => {
                       ...prev,
                       actionInstructions: prev.actionInstructions.filter(i => i.id !== id),
                     }))}
-                    onSyncPrompt={async () => { setSyncingPrompt(true); toast({ title: "Prompt sincronizado" }); setSyncingPrompt(false); }}
-                  />
-                </TabsContent>
-
-                <TabsContent value="tools">
-                  <ToolsConfigSection
-                    toolConfigs={toolConfigs}
-                    onUpdateToolConfig={(toolId, updates) => setToolConfigs(prev => ({ ...prev, [toolId]: { ...prev[toolId], ...updates } }))}
-                    onSyncToN8n={async () => { setSyncingTools(true); toast({ title: "Ferramentas prontas" }); setSyncingTools(false); }}
-                    syncing={syncingTools}
-                    workflowId={config.n8nWorkflowId}
                   />
                 </TabsContent>
 
@@ -696,24 +486,6 @@ const WhatsAppBotConfigSystem = () => {
                   {productId ? (
                     <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} />
                   ) : null}
-                </TabsContent>
-
-                <TabsContent value="monitoring">
-                  {config.n8nWorkflowId ? (
-                    <TokenUsageStats workflowId={config.n8nWorkflowId} />
-                  ) : (
-                    <Card className="border-border/50">
-                      <CardContent className="pt-6">
-                        <div className="text-center py-12">
-                          <BarChart3 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                          <h3 className="text-lg font-medium mb-2">Monitoramento indisponível</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Selecione um workflow na aba Status para ver estatísticas.
-                          </p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
                 </TabsContent>
               </div>
             </div>

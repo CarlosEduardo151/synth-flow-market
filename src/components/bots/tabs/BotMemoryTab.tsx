@@ -1,6 +1,5 @@
-import { Database, CheckCircle2, Send, Loader2 } from 'lucide-react';
+import { Database, CheckCircle2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -15,25 +14,15 @@ const RETENTION_OPTIONS = [
 interface BotMemoryTabProps {
   contextWindowSize: number;
   retentionPolicy: string;
-  sessionKeyId: string;
-  workflowId: string;
-  syncingMemory: boolean;
   onContextWindowChange: (size: number) => void;
   onRetentionChange: (policy: string) => void;
-  onSessionKeyChange: (key: string) => void;
-  onSyncMemory: () => void;
 }
 
 export function BotMemoryTab({
   contextWindowSize,
   retentionPolicy,
-  sessionKeyId,
-  workflowId,
-  syncingMemory,
   onContextWindowChange,
   onRetentionChange,
-  onSessionKeyChange,
-  onSyncMemory,
 }: BotMemoryTabProps) {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -81,41 +70,26 @@ export function BotMemoryTab({
               </SelectContent>
             </Select>
           </div>
-
-          <Button
-            onClick={onSyncMemory}
-            disabled={syncingMemory || !workflowId}
-            className="w-full"
-            variant="outline"
-          >
-            {syncingMemory ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}
-            Sincronizar Memória
-          </Button>
         </CardContent>
       </Card>
 
       <Card className="border-border/50">
         <CardHeader className="pb-4">
-          <CardTitle className="text-lg">Sessão & Isolamento</CardTitle>
-          <CardDescription>Como identificar sessões únicas</CardDescription>
+          <CardTitle className="text-lg">Armazenamento</CardTitle>
+          <CardDescription>Onde os dados são persistidos</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>Session Key ID</Label>
-            <Input
-              value={sessionKeyId}
-              onChange={(e) => onSessionKeyChange(e.target.value)}
-              className="font-mono text-sm"
-            />
-            <p className="text-xs text-muted-foreground">
-              Variável para identificar sessões únicas
-            </p>
+          <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
+            <p className="text-sm font-medium mb-1.5">Eventos WhatsApp</p>
+            <code className="text-xs bg-background px-2 py-1 rounded block font-mono">
+              whatsapp_inbox_events
+            </code>
           </div>
 
           <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
-            <p className="text-sm font-medium mb-1.5">Tabela de Histórico</p>
+            <p className="text-sm font-medium mb-1.5">Motor</p>
             <code className="text-xs bg-background px-2 py-1 rounded block font-mono">
-              n8n_chat_histories
+              whatsapp-bot-engine (Edge Function nativa)
             </code>
           </div>
         </CardContent>

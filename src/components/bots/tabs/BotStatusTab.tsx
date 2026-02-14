@@ -1,21 +1,8 @@
-import { CheckCircle2, Wifi, ServerCog, Zap } from 'lucide-react';
+import { CheckCircle2, Wifi, ServerCog, Zap, Shield } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
-interface BotStatusTabProps {
-  n8nConnected: boolean | null;
-  n8nTesting: boolean;
-  workflowsCount: number;
-  isActive: boolean;
-  hasWorkflow: boolean;
-  togglingAgent: boolean;
-  onTestConnection: () => void;
-  onToggleAgent: () => void;
-  onRefreshExecutions: () => void;
-  loadingExecutions: boolean;
-}
-
-export function BotStatusTab({}: BotStatusTabProps) {
+export function BotStatusTab() {
   return (
     <div className="space-y-6">
       {/* Engine Always Connected */}
@@ -71,6 +58,25 @@ export function BotStatusTab({}: BotStatusTabProps) {
             <Badge variant="secondary" className="bg-green-500/10 text-green-600 dark:text-green-400">
               Nativo
             </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* How it works */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Shield className="h-5 w-5 text-primary" />
+            Como Funciona
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>✅ Mensagens de texto são processadas pela IA configurada no Motor IA</p>
+            <p>✅ Imagens são analisadas via visão computacional (GPT-4o ou Gemini)</p>
+            <p>✅ Áudios são transcritos e processados automaticamente</p>
+            <p>✅ Cada cliente tem sua própria configuração independente</p>
+            <p>✅ Troque entre OpenAI e Google Gemini a qualquer momento</p>
           </div>
         </CardContent>
       </Card>
