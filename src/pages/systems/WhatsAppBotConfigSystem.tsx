@@ -222,11 +222,45 @@ const WhatsAppBotConfigSystem = () => {
       const activeInstance = (instancesDb || []).find((i: any) => i.is_active) ?? (instancesDb || [])[0] ?? null;
       setActiveBotInstanceId(activeInstance?.id ?? null);
 
-      const { data: configData } = await supabase
+      let { data: configData } = await supabase
         .from('ai_control_config')
         .select('*')
         .eq('customer_product_id', productId)
         .maybeSingle();
+
+      // Auto-create engine config on first access — always active
+      if (!configData) {
+        const defaultConfig = {
+          customer_product_id: productId,
+          user_id: user.id,
+          is_active: true,
+          provider: 'google',
+          model: 'models/gemini-2.5-flash',
+          temperature: 0.7,
+          max_tokens: 2048,
+          system_prompt: config.systemPrompt,
+          personality: 'amigavel',
+          business_name: 'Meu Negócio',
+          tools_enabled: ['httpRequestTool', 'calculatorTool'],
+          configuration: { platform: 'whatsapp', configured_at: new Date().toISOString() },
+        };
+        const { data: created } = await supabase
+          .from('ai_control_config')
+          .upsert(defaultConfig, { onConflict: 'customer_product_id' })
+          .select('*')
+          .maybeSingle();
+        configData = created;
+        toast({ title: "Motor criado!", description: "Seu motor IA foi ativado automaticamente." });
+      }
+
+      // Ensure engine is always active
+      if (configData && !configData.is_active) {
+        await supabase
+          .from('ai_control_config')
+          .update({ is_active: true, updated_at: new Date().toISOString() })
+          .eq('customer_product_id', productId);
+        configData.is_active = true;
+      }
 
       if (configData) {
         let actionInstructions: ActionInstruction[] = [];
@@ -241,7 +275,7 @@ const WhatsAppBotConfigSystem = () => {
 
         setConfig(prev => ({
           ...prev,
-          isActive: configData.is_active || false,
+          isActive: true,
           provider: inferredProvider,
           model: storedModel || (inferredProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini'),
           temperature: configData.temperature || 0.7,
@@ -312,7 +346,7 @@ const WhatsAppBotConfigSystem = () => {
       await supabase.from('ai_control_config').upsert({
         customer_product_id: customerProductId,
         user_id: user.id,
-        is_active: config.isActive,
+        is_active: true,
         provider: engineProvider,
         model: engineModel,
         temperature: config.temperature,
