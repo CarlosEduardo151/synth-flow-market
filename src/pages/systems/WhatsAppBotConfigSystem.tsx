@@ -421,7 +421,18 @@ const WhatsAppBotConfigSystem = () => {
             <div className="min-w-0 flex-1 overflow-hidden">
               <div className="p-4 md:p-6">
                 <TabsContent value="status">
-                  <BotStatusTab />
+                  <BotStatusTab
+                    isActive={botInstances.active?.is_active ?? false}
+                    onToggle={async (active) => {
+                      if (!botInstances.active) return;
+                      const { error } = await (supabase)
+                        .from('bot_instances')
+                        .update({ is_active: active })
+                        .eq('id', botInstances.active.id);
+                      if (error) throw error;
+                      await botInstances.refresh();
+                    }}
+                  />
                 </TabsContent>
 
                 <TabsContent value="engine">
