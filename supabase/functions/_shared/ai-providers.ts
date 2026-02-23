@@ -249,7 +249,17 @@ export async function resolveAICredentials(
   if (!apiKey) return null;
 
   const defaultModel = resolvedProvider === "google" ? "gemini-2.5-flash" : "gpt-4o-mini";
-  const model = configModel || defaultModel;
+
+  // If the configured model doesn't match the resolved provider, use the default
+  let model = configModel || defaultModel;
+  const isGeminiModel = model.startsWith("models/") || model.startsWith("gemini");
+  const isOpenAIModel = model.startsWith("gpt") || model.startsWith("o1") || model.startsWith("o3");
+
+  if (resolvedProvider === "openai" && isGeminiModel) {
+    model = "gpt-4o-mini";
+  } else if (resolvedProvider === "google" && isOpenAIModel) {
+    model = "gemini-2.5-flash";
+  }
 
   return { apiKey, resolvedProvider, model };
 }
