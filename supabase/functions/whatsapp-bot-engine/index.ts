@@ -104,6 +104,17 @@ serve(async (req) => {
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
+    // Check if bot instance is active
+    const { data: botInstance } = await service
+      .from("bot_instances")
+      .select("is_active")
+      .eq("customer_product_id", cp.id)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!botInstance) {
+      return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
+    }
+
     // Parse body (max 500KB)
     const bodyText = await req.text();
     if (bodyText.length > 500_000) return corsResponse({ error: "payload_too_large" }, 413, origin);
@@ -154,10 +165,7 @@ serve(async (req) => {
       .eq("customer_product_id", customerProductId)
       .maybeSingle();
 
-    // Check if bot is active
-    if (aiConfig && aiConfig.is_active === false) {
-      return corsResponse({ ok: true, skipped: "bot_inactive" }, 200, origin);
-    }
+    // ai_control_config.is_active is secondary — bot_instances.is_active is the primary toggle
 
     const provider = (aiConfig?.provider as string) || "google";
     const temperature = Number(aiConfig?.temperature ?? 0.7);
