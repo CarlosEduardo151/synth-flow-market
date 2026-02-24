@@ -77,13 +77,11 @@ export function Header() {
           to="/"
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
         >
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-primary">
-            <img
-              src="/favicon.ico"
-              alt="Logo"
-              className="w-8 h-8 object-contain rounded-xl"
-            />
-          </div>
+          <img
+            src="/images/novalink-logo.png"
+            alt="NovaLink Logo"
+            className="w-10 h-10 object-contain"
+          />
           <span className="font-bold text-lg gradient-text">NovaLink</span>
         </Link>
 
