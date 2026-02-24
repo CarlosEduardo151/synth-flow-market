@@ -13,9 +13,7 @@ export function Footer() {
             {/* Logo e descrição */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-primary">
-                  <img src="/favicon.ico" alt="Logo" className="w-6 h-6 object-contain rounded-lg" />
-                </div>
+                <img src="/images/novalink-logo.png" alt="NovaLink Logo" className="w-8 h-8 object-contain" />
                 <span className="font-bold gradient-text">NovaLink</span>
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
