@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ServerCog, Shield, Power, RotateCcw } from 'lucide-react';
+import { ServerCog, Shield, Power, RotateCcw, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -8,12 +8,15 @@ import { useToast } from '@/hooks/use-toast';
 interface BotStatusTabProps {
   isActive: boolean;
   onToggle: (active: boolean) => Promise<void>;
+  onFullShutdown?: () => Promise<void>;
+  onRestart?: () => Promise<void>;
 }
 
-export function BotStatusTab({ isActive, onToggle }: BotStatusTabProps) {
+export function BotStatusTab({ isActive, onToggle, onFullShutdown, onRestart }: BotStatusTabProps) {
   const { toast } = useToast();
   const [toggling, setToggling] = useState(false);
   const [restarting, setRestarting] = useState(false);
+  const [shuttingDown, setShuttingDown] = useState(false);
 
   const handleToggle = async (checked: boolean) => {
     setToggling(true);
@@ -32,19 +35,47 @@ export function BotStatusTab({ isActive, onToggle }: BotStatusTabProps) {
     }
   };
 
+  const handleFullShutdown = async () => {
+    setShuttingDown(true);
+    try {
+      if (onFullShutdown) {
+        await onFullShutdown();
+      } else {
+        await onToggle(false);
+      }
+      toast({
+        title: '🔴 Motor completamente desligado',
+        description: 'Bot, IA e cache foram desativados. Nenhuma mensagem será processada.',
+      });
+    } catch {
+      toast({ title: 'Erro', description: 'Não foi possível desligar o motor completamente.', variant: 'destructive' });
+    } finally {
+      setShuttingDown(false);
+    }
+  };
+
   const handleRestart = async () => {
     setRestarting(true);
     try {
-      await onToggle(false);
-      await new Promise((r) => setTimeout(r, 1000));
-      await onToggle(true);
-      toast({ title: 'Motor reiniciado', description: 'O bot foi reiniciado com sucesso.' });
+      if (onRestart) {
+        await onRestart();
+      } else {
+        await onToggle(false);
+        await new Promise((r) => setTimeout(r, 1500));
+        await onToggle(true);
+      }
+      toast({
+        title: '🔄 Motor reiniciado',
+        description: 'Cache limpo, IA reiniciada. O bot está funcionando com configuração atualizada.',
+      });
     } catch {
       toast({ title: 'Erro', description: 'Não foi possível reiniciar o motor.', variant: 'destructive' });
     } finally {
       setRestarting(false);
     }
   };
+
+  const busy = toggling || restarting || shuttingDown;
 
   return (
     <div className="space-y-6">
@@ -66,7 +97,6 @@ export function BotStatusTab({ isActive, onToggle }: BotStatusTabProps) {
                 : 'border-destructive/30 bg-destructive/5'
             }`}
           >
-            {/* Pulse animation when active */}
             {isActive && (
               <span className="absolute top-4 right-4 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
@@ -101,31 +131,58 @@ export function BotStatusTab({ isActive, onToggle }: BotStatusTabProps) {
             <Switch
               checked={isActive}
               onCheckedChange={handleToggle}
-              disabled={toggling || restarting}
+              disabled={busy}
               className="scale-125"
             />
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Button
-              variant={isActive ? 'destructive' : 'default'}
+              variant={isActive ? 'default' : 'default'}
               onClick={() => handleToggle(!isActive)}
-              disabled={toggling || restarting}
-              className="gap-2 flex-1"
+              disabled={busy}
+              className="gap-2"
             >
               <Power className="h-4 w-4" />
               {toggling ? 'Aguarde...' : isActive ? 'Desligar' : 'Ligar'}
             </Button>
+
+            <Button
+              variant="destructive"
+              onClick={handleFullShutdown}
+              disabled={busy || !isActive}
+              className="gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              {shuttingDown ? 'Desligando tudo...' : 'Desligar Completamente'}
+            </Button>
+
             <Button
               variant="outline"
               onClick={handleRestart}
-              disabled={restarting || toggling || !isActive}
-              className="gap-2 flex-1"
+              disabled={busy}
+              className="gap-2"
             >
               <RotateCcw className={`h-4 w-4 ${restarting ? 'animate-spin' : ''}`} />
-              {restarting ? 'Reiniciando...' : 'Reiniciar'}
+              {restarting ? 'Reiniciando...' : 'Reiniciar Motor'}
             </Button>
+          </div>
+
+          {/* Info boxes */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <p className="font-medium text-foreground mb-1">⚡ Ligar/Desligar</p>
+              <p className="text-muted-foreground">Liga ou desliga o bot rapidamente.</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-destructive/5 border-destructive/20">
+              <p className="font-medium text-destructive mb-1">🔴 Desligar Completamente</p>
+              <p className="text-muted-foreground">Desativa bot, IA e limpa cache. Parada total.</p>
+            </div>
+            <div className="p-3 rounded-lg border bg-muted/30">
+              <p className="font-medium text-foreground mb-1">🔄 Reiniciar</p>
+              <p className="text-muted-foreground">Limpa cache, reinicia IA e reativa o motor.</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -145,6 +202,8 @@ export function BotStatusTab({ isActive, onToggle }: BotStatusTabProps) {
             <p>✅ Áudios são transcritos e processados automaticamente</p>
             <p>✅ Cada cliente tem sua própria configuração independente</p>
             <p>✅ Troque entre OpenAI e Google Gemini a qualquer momento</p>
+            <p>🔴 <strong>Desligar Completamente</strong> desativa o bot + IA + limpa cache de bloqueio</p>
+            <p>🔄 <strong>Reiniciar</strong> faz ciclo completo: desliga → limpa cache → religa</p>
           </div>
         </CardContent>
       </Card>

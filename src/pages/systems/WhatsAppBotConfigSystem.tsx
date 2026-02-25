@@ -432,6 +432,44 @@ const WhatsAppBotConfigSystem = () => {
                       if (error) throw error;
                       await botInstances.refresh();
                     }}
+                    onFullShutdown={async () => {
+                      if (!botInstances.active || !customerProductId) return;
+                      // 1. Desativar bot_instances
+                      await supabase
+                        .from('bot_instances')
+                        .update({ is_active: false })
+                        .eq('id', botInstances.active.id);
+                      // 2. Desativar ai_control_config
+                      await supabase
+                        .from('ai_control_config')
+                        .update({ is_active: false })
+                        .eq('customer_product_id', customerProductId);
+                      await botInstances.refresh();
+                    }}
+                    onRestart={async () => {
+                      if (!botInstances.active || !customerProductId) return;
+                      // 1. Desligar tudo
+                      await supabase
+                        .from('bot_instances')
+                        .update({ is_active: false })
+                        .eq('id', botInstances.active.id);
+                      await supabase
+                        .from('ai_control_config')
+                        .update({ is_active: false })
+                        .eq('customer_product_id', customerProductId);
+                      // 2. Esperar para limpar cache no edge function
+                      await new Promise((r) => setTimeout(r, 2000));
+                      // 3. Religar tudo
+                      await supabase
+                        .from('ai_control_config')
+                        .update({ is_active: true })
+                        .eq('customer_product_id', customerProductId);
+                      await supabase
+                        .from('bot_instances')
+                        .update({ is_active: true })
+                        .eq('id', botInstances.active.id);
+                      await botInstances.refresh();
+                    }}
                   />
                 </TabsContent>
 
