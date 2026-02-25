@@ -4,8 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, Trash2 } from "lucide-react";
+import { Loader2, Send, Trash2, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type ChatRole = "user" | "assistant";
 
@@ -21,10 +29,10 @@ function newId() {
 }
 
 export function WhatsAppBotTestChat(props: { customerProductId: string; businessName?: string; motorActive?: boolean }) {
-  const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showMotorOffDialog, setShowMotorOffDialog] = useState(false);
 
   const title = useMemo(() => props.businessName ? `Chat de teste — ${props.businessName}` : "Chat de teste", [props.businessName]);
   const motorOff = props.motorActive === false;
@@ -43,38 +51,24 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
         body: { customer_product_id: props.customerProductId, message: trimmed },
       });
 
-      // Check if response indicates motor is off
-      if (data?.error === "motor_desligado" || error) {
-        const isMotorOff = data?.error === "motor_desligado";
-        const botMsg: ChatMessage = {
-          id: newId(),
-          role: "assistant",
-          content: isMotorOff
-            ? "⚠️ O motor está desativado. Para que o bot funcione, ative-o na aba **Status**."
-            : `❌ Erro: ${error?.message || "Não foi possível processar sua mensagem."}`,
-          createdAt: Date.now(),
-        };
-        setMessages((prev) => [...prev, botMsg]);
+      // Any error (including non-2xx) — check if motor is off
+      if (error || data?.error) {
+        setShowMotorOffDialog(true);
         return;
       }
 
       const replyText = String(data?.reply ?? "").trim() || "Ok!";
       const botMsg: ChatMessage = { id: newId(), role: "assistant", content: replyText, createdAt: Date.now() };
       setMessages((prev) => [...prev, botMsg]);
-    } catch (e: any) {
-      const botMsg: ChatMessage = {
-        id: newId(),
-        role: "assistant",
-        content: "❌ Erro inesperado. Tente novamente mais tarde.",
-        createdAt: Date.now(),
-      };
-      setMessages((prev) => [...prev, botMsg]);
+    } catch {
+      setShowMotorOffDialog(true);
     } finally {
       setSending(false);
     }
   };
 
   return (
+    <>
     <Card>
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle>{title}</CardTitle>
@@ -134,5 +128,25 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
         </div>
       </CardContent>
     </Card>
+
+      <AlertDialog open={showMotorOffDialog} onOpenChange={setShowMotorOffDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 rounded-full bg-destructive/10">
+                <AlertTriangle className="h-6 w-6 text-destructive" />
+              </div>
+              <AlertDialogTitle>Motor Desativado</AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm leading-relaxed">
+              O motor do seu bot está desativado no momento. Para que ele possa processar e responder mensagens, é necessário ativá-lo na aba <strong className="text-foreground">Status</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction>Entendi</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
