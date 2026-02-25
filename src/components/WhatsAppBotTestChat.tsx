@@ -20,13 +20,14 @@ function newId() {
   return globalThis.crypto?.randomUUID?.() ?? String(Date.now());
 }
 
-export function WhatsAppBotTestChat(props: { customerProductId: string; businessName?: string }) {
+export function WhatsAppBotTestChat(props: { customerProductId: string; businessName?: string; motorActive?: boolean }) {
   const { toast } = useToast();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
 
   const title = useMemo(() => props.businessName ? `Chat de teste — ${props.businessName}` : "Chat de teste", [props.businessName]);
+  const motorOff = props.motorActive === false;
 
   const send = async () => {
     const trimmed = text.trim();
@@ -74,7 +75,12 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
       <CardContent className="space-y-4">
         <ScrollArea className="h-[420px] rounded-lg border bg-background">
           <div className="p-4 space-y-3">
-            {messages.length === 0 ? (
+            {motorOff && (
+              <div className="p-3 rounded-lg border border-destructive/30 bg-destructive/5 text-sm text-destructive">
+                🔴 O motor está desligado. Ligue-o na aba <strong>Status</strong> para testar o chat.
+              </div>
+            )}
+            {messages.length === 0 && !motorOff ? (
               <div className="text-sm text-muted-foreground">
                 Envie uma mensagem para simular a conversa e ver como o motor interno responde.
               </div>
@@ -106,7 +112,7 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
             }}
             disabled={sending}
           />
-          <Button type="button" onClick={send} disabled={sending || !text.trim()}>
+          <Button type="button" onClick={send} disabled={sending || !text.trim() || motorOff}>
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
