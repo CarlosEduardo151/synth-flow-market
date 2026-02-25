@@ -42,20 +42,30 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
       const { data, error } = await (supabase as any).functions.invoke("whatsapp-internal-chat", {
         body: { customer_product_id: props.customerProductId, message: trimmed },
       });
-      if (error) throw error;
+
+      // Check if response indicates motor is off
+      if (data?.error === "motor_desligado" || error) {
+        const isMotorOff = data?.error === "motor_desligado";
+        const botMsg: ChatMessage = {
+          id: newId(),
+          role: "assistant",
+          content: isMotorOff
+            ? "⚠️ O motor está desativado. Para que o bot funcione, ative-o na aba **Status**."
+            : `❌ Erro: ${error?.message || "Não foi possível processar sua mensagem."}`,
+          createdAt: Date.now(),
+        };
+        setMessages((prev) => [...prev, botMsg]);
+        return;
+      }
 
       const replyText = String(data?.reply ?? "").trim() || "Ok!";
       const botMsg: ChatMessage = { id: newId(), role: "assistant", content: replyText, createdAt: Date.now() };
       setMessages((prev) => [...prev, botMsg]);
     } catch (e: any) {
-      // Check if it's a motor_desligado error from the edge function
-      const isMotorOff = e?.message?.includes("motor_desligado") || e?.context?.body?.error === "motor_desligado";
       const botMsg: ChatMessage = {
         id: newId(),
         role: "assistant",
-        content: isMotorOff
-          ? "⚠️ O motor está desligado no momento. Ligue-o na aba **Status** antes de testar o chat."
-          : `❌ Erro: ${e?.message || "Não foi possível enviar a mensagem."}`,
+        content: "❌ Erro inesperado. Tente novamente mais tarde.",
         createdAt: Date.now(),
       };
       setMessages((prev) => [...prev, botMsg]);
