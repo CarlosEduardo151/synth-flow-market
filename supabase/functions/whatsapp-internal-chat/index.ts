@@ -70,12 +70,27 @@ serve(async (req) => {
       return corsResponse({ error: "forbidden" }, 403, origin);
     }
 
+    // Check if bot instance is active
+    const { data: botInstance } = await supabase
+      .from("bot_instances")
+      .select("is_active")
+      .eq("customer_product_id", customerProductId)
+      .maybeSingle();
+
+    if (botInstance && !botInstance.is_active) {
+      return corsResponse({ error: "motor_desligado", details: "O motor está desligado. Ligue-o na aba Status antes de testar." }, 409, origin);
+    }
+
     // Load AI config
     const { data: cfg } = await supabase
       .from("ai_control_config")
-      .select("provider, model, system_prompt, temperature, max_tokens, business_name")
+      .select("provider, model, system_prompt, temperature, max_tokens, business_name, is_active")
       .eq("customer_product_id", customerProductId)
       .maybeSingle();
+
+    if (cfg && !cfg.is_active) {
+      return corsResponse({ error: "motor_desligado", details: "O motor IA está desligado. Ligue-o na aba Status antes de testar." }, 409, origin);
+    }
 
     const provider = (cfg?.provider as string) || "openai";
     const systemPrompt = (cfg?.system_prompt as string) ||

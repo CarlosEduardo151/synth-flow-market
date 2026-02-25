@@ -530,7 +530,7 @@ const WhatsAppBotConfigSystem = () => {
 
                 <TabsContent value="chat">
                   {productId ? (
-                    <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} />
+                    <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} motorActive={botInstances.active?.is_active ?? false} />
                   ) : null}
                 </TabsContent>
               </div>
