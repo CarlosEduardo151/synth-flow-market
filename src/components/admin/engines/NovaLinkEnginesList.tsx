@@ -370,6 +370,9 @@ export function NovaLinkEnginesList() {
         <div className="space-y-3">
           {engines.map((engine) => {
             const isExpanded = expandedId === engine.id;
+            // Motor está realmente ativo apenas se TODOS os componentes estiverem ligados
+            const engineFullyActive = engine.is_active && engine.bot_instance_active && engine.ai_active;
+            const enginePartiallyActive = engine.is_active || engine.bot_instance_active || engine.ai_active;
             return (
               <Card key={engine.id} className="overflow-hidden">
                 {/* Collapsed header row */}
@@ -378,7 +381,13 @@ export function NovaLinkEnginesList() {
                   onClick={() => setExpandedId(isExpanded ? null : engine.id)}
                 >
                   {/* Status indicator */}
-                  <div className={`h-3 w-3 rounded-full shrink-0 ${engine.is_active ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]" : "bg-red-500"}`} />
+                  <div className={`h-3 w-3 rounded-full shrink-0 ${
+                    engineFullyActive
+                      ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.5)]"
+                      : enginePartiallyActive
+                        ? "bg-amber-500 shadow-[0_0_6px_rgba(245,158,11,0.4)]"
+                        : "bg-red-500"
+                  }`} />
 
                   {/* User info */}
                   <div className="flex-1 min-w-0">
@@ -393,9 +402,12 @@ export function NovaLinkEnginesList() {
 
                   {/* Badges */}
                   <div className="hidden md:flex items-center gap-2">
-                    <Badge variant={engine.is_active ? "default" : "secondary"} className="text-xs">
-                      {engine.is_active ? <Power className="h-3 w-3 mr-1" /> : <PowerOff className="h-3 w-3 mr-1" />}
-                      {engine.is_active ? "Ativo" : "Inativo"}
+                    <Badge
+                      variant={engineFullyActive ? "default" : "secondary"}
+                      className={`text-xs ${enginePartiallyActive && !engineFullyActive ? "bg-amber-500/10 text-amber-600 border-amber-500/30" : ""}`}
+                    >
+                      {engineFullyActive ? <Power className="h-3 w-3 mr-1" /> : <PowerOff className="h-3 w-3 mr-1" />}
+                      {engineFullyActive ? "Ativo" : enginePartiallyActive ? "Parcial" : "Desligado"}
                     </Badge>
                     {engine.ai_provider && (
                       <Badge variant="outline" className="text-xs">
