@@ -80,7 +80,7 @@ export function Header() {
           <img
             src="/images/novalink-logo.png"
             alt="NovaLink Logo"
-            className="w-10 h-10 object-contain"
+            className="w-14 h-14 object-contain"
           />
           <span className="font-bold text-lg gradient-text">NovaLink</span>
         </Link>
