@@ -48,11 +48,17 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
       const botMsg: ChatMessage = { id: newId(), role: "assistant", content: replyText, createdAt: Date.now() };
       setMessages((prev) => [...prev, botMsg]);
     } catch (e: any) {
-      toast({
-        title: "Erro ao testar o bot",
-        description: e?.message || "Não foi possível enviar a mensagem.",
-        variant: "destructive",
-      });
+      // Check if it's a motor_desligado error from the edge function
+      const isMotorOff = e?.message?.includes("motor_desligado") || e?.context?.body?.error === "motor_desligado";
+      const botMsg: ChatMessage = {
+        id: newId(),
+        role: "assistant",
+        content: isMotorOff
+          ? "⚠️ O motor está desligado no momento. Ligue-o na aba **Status** antes de testar o chat."
+          : `❌ Erro: ${e?.message || "Não foi possível enviar a mensagem."}`,
+        createdAt: Date.now(),
+      };
+      setMessages((prev) => [...prev, botMsg]);
     } finally {
       setSending(false);
     }
