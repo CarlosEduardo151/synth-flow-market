@@ -13,8 +13,7 @@ export function Footer() {
             {/* Logo e descrição */}
             <div className="space-y-4">
               <div className="flex items-center space-x-2">
-                <img src="/images/novalink-logo.png" alt="NovaLink Logo" className="w-12 h-12 object-contain" />
-                <span className="font-bold gradient-text">NovaLink</span>
+                <img src="/images/novalink-logo.png" alt="NovaLink Logo" className="w-16 h-16 object-contain" />
               </div>
               <p className="text-muted-foreground text-sm leading-relaxed">
                 Soluções avançadas em inteligência artificial para empresas modernas. Transformamos processos
