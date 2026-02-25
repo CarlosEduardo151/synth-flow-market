@@ -20,7 +20,6 @@ import {
   Zap,
   Settings2,
   User,
-  Globe,
   Key,
   ChevronDown,
   ChevronUp,
@@ -28,6 +27,8 @@ import {
   XCircle,
   Clock,
   Activity,
+  RotateCcw,
+  Trash2,
 } from "lucide-react";
 
 type EngineRow = {
@@ -46,6 +47,8 @@ type EngineRow = {
   temperature: number | null;
   max_tokens: number | null;
   ai_config_id: string | null;
+  bot_instance_id: string | null;
+  bot_instance_active: boolean;
 };
 
 const PROVIDER_LABELS: Record<string, string> = {
@@ -115,6 +118,12 @@ export function NovaLinkEnginesList() {
           .eq("customer_product_id", cp.id)
           .maybeSingle();
 
+        const { data: botInstance } = await supabase
+          .from("bot_instances")
+          .select("id, is_active")
+          .eq("customer_product_id", cp.id)
+          .maybeSingle();
+
         rows.push({
           id: cp.id,
           user_id: cp.user_id,
@@ -131,6 +140,8 @@ export function NovaLinkEnginesList() {
           temperature: aiConfig?.temperature ?? 0.7,
           max_tokens: aiConfig?.max_tokens ?? 512,
           ai_config_id: aiConfig?.id || null,
+          bot_instance_id: botInstance?.id || null,
+          bot_instance_active: botInstance?.is_active ?? false,
         });
       }
 
@@ -174,6 +185,56 @@ export function NovaLinkEnginesList() {
     } else {
       setEngines(prev => prev.map(e => e.id === engine.id ? { ...e, ai_active: !e.ai_active } : e));
       toast({ title: "Sucesso", description: `IA ${!engine.ai_active ? "ativada" : "desativada"}.` });
+    }
+    setSaving(null);
+  };
+
+  const fullShutdown = async (engine: EngineRow) => {
+    setSaving(engine.id);
+    try {
+      if (engine.bot_instance_id) {
+        await supabase.from("bot_instances").update({ is_active: false }).eq("id", engine.bot_instance_id);
+      }
+      if (engine.ai_config_id) {
+        await supabase.from("ai_control_config").update({ is_active: false }).eq("id", engine.ai_config_id);
+      }
+      await supabase.from("customer_products").update({ is_active: false }).eq("id", engine.id);
+      setEngines(prev => prev.map(e => e.id === engine.id
+        ? { ...e, is_active: false, ai_active: false, bot_instance_active: false }
+        : e
+      ));
+      toast({ title: "🔴 Motor desligado completamente", description: "Bot, IA e cache desativados." });
+    } catch {
+      toast({ title: "Erro", description: "Falha ao desligar.", variant: "destructive" });
+    }
+    setSaving(null);
+  };
+
+  const restartEngine = async (engine: EngineRow) => {
+    setSaving(engine.id);
+    try {
+      if (engine.bot_instance_id) {
+        await supabase.from("bot_instances").update({ is_active: false }).eq("id", engine.bot_instance_id);
+      }
+      if (engine.ai_config_id) {
+        await supabase.from("ai_control_config").update({ is_active: false }).eq("id", engine.ai_config_id);
+      }
+      await supabase.from("customer_products").update({ is_active: false }).eq("id", engine.id);
+      await new Promise((r) => setTimeout(r, 2000));
+      await supabase.from("customer_products").update({ is_active: true }).eq("id", engine.id);
+      if (engine.ai_config_id) {
+        await supabase.from("ai_control_config").update({ is_active: true }).eq("id", engine.ai_config_id);
+      }
+      if (engine.bot_instance_id) {
+        await supabase.from("bot_instances").update({ is_active: true }).eq("id", engine.bot_instance_id);
+      }
+      setEngines(prev => prev.map(e => e.id === engine.id
+        ? { ...e, is_active: true, ai_active: true, bot_instance_active: true }
+        : e
+      ));
+      toast({ title: "🔄 Motor reiniciado", description: "Cache limpo, motor religado." });
+    } catch {
+      toast({ title: "Erro", description: "Falha ao reiniciar.", variant: "destructive" });
     }
     setSaving(null);
   };
@@ -348,6 +409,12 @@ export function NovaLinkEnginesList() {
                         IA On
                       </Badge>
                     )}
+                    {engine.bot_instance_active && (
+                      <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-600 border-blue-500/30">
+                        <Bot className="h-3 w-3 mr-1" />
+                        Bot On
+                      </Badge>
+                    )}
                   </div>
 
                   {/* Expand toggle */}
@@ -388,6 +455,44 @@ export function NovaLinkEnginesList() {
                           disabled={saving === engine.id || !engine.ai_config_id}
                         />
                       </div>
+
+                      {/* Bot Instance toggle */}
+                      <div className="flex items-center justify-between p-3 rounded-lg border">
+                        <div className="flex items-center gap-3">
+                          <Bot className="h-5 w-5 text-primary" />
+                          <div>
+                            <p className="font-medium text-sm">Bot Instance</p>
+                            <p className="text-xs text-muted-foreground">Instância do bot (whatsapp-bot-engine)</p>
+                          </div>
+                        </div>
+                        <Badge variant={engine.bot_instance_active ? "default" : "secondary"} className="text-xs">
+                          {engine.bot_instance_active ? "Ativo" : engine.bot_instance_id ? "Inativo" : "Não provisionado"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap gap-3">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => fullShutdown(engine)}
+                        disabled={saving === engine.id || (!engine.is_active && !engine.ai_active && !engine.bot_instance_active)}
+                        className="gap-2"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Desligar Completamente
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => restartEngine(engine)}
+                        disabled={saving === engine.id}
+                        className="gap-2"
+                      >
+                        <RotateCcw className={`h-4 w-4 ${saving === engine.id ? "animate-spin" : ""}`} />
+                        Reiniciar Motor
+                      </Button>
                     </div>
 
                     <Separator />
