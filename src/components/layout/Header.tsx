@@ -77,11 +77,6 @@ export function Header() {
           to="/"
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
         >
-          <img
-            src="/images/novalink-logo.png"
-            alt="NovaLink Logo"
-            className="w-20 h-20 object-contain"
-          />
           <span className="font-bold text-lg gradient-text">NovaLink</span>
         </Link>
 
