@@ -174,14 +174,7 @@ const WhatsAppBotConfigSystem = () => {
         toast({ title: "Motor criado!", description: "Seu motor IA foi ativado automaticamente." });
       }
 
-      // Ensure always active
-      if (configData && !configData.is_active) {
-        await supabase
-          .from('ai_control_config')
-          .update({ is_active: true, updated_at: new Date().toISOString() })
-          .eq('customer_product_id', productId);
-        configData.is_active = true;
-      }
+      // Respeitar o estado do motor — não forçar is_active = true
 
       if (configData) {
         let actionInstructions: ActionInstruction[] = [];
@@ -270,7 +263,6 @@ const WhatsAppBotConfigSystem = () => {
       await supabase.from('ai_control_config').upsert({
         customer_product_id: customerProductId,
         user_id: user.id,
-        is_active: true,
         provider: engineProvider,
         model: engineModel,
         temperature: config.temperature,
@@ -377,8 +369,15 @@ const WhatsAppBotConfigSystem = () => {
                 )}
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <span>Bot WhatsApp</span>
-                  <Badge variant="outline" className="text-green-500 border-green-500/30 text-[10px] px-1.5 py-0">
-                    Motor Ativo
+                  <Badge
+                    variant="outline"
+                    className={`text-[10px] px-1.5 py-0 ${
+                      botInstances.active?.is_active
+                        ? 'text-green-500 border-green-500/30'
+                        : 'text-destructive border-destructive/30'
+                    }`}
+                  >
+                    {botInstances.active?.is_active ? 'Motor Ativo' : 'Motor Desligado'}
                   </Badge>
                 </div>
               </div>
@@ -386,8 +385,8 @@ const WhatsAppBotConfigSystem = () => {
 
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-xs font-medium">Online</span>
+                <div className={`w-2 h-2 rounded-full ${botInstances.active?.is_active ? 'bg-green-500 animate-pulse' : 'bg-destructive'}`} />
+                <span className="text-xs font-medium">{botInstances.active?.is_active ? 'Online' : 'Offline'}</span>
               </div>
 
               {autoSaving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
@@ -423,23 +422,24 @@ const WhatsAppBotConfigSystem = () => {
                 <TabsContent value="status">
                   <BotStatusTab
                     isActive={botInstances.active?.is_active ?? false}
-                    onToggle={async (active) => {
-                      if (!botInstances.active) return;
-                      const { error } = await (supabase)
+                    onStart={async () => {
+                      if (!botInstances.active || !customerProductId) return;
+                      await supabase
+                        .from('ai_control_config')
+                        .update({ is_active: true })
+                        .eq('customer_product_id', customerProductId);
+                      await supabase
                         .from('bot_instances')
-                        .update({ is_active: active })
+                        .update({ is_active: true })
                         .eq('id', botInstances.active.id);
-                      if (error) throw error;
                       await botInstances.refresh();
                     }}
-                    onFullShutdown={async () => {
+                    onShutdown={async () => {
                       if (!botInstances.active || !customerProductId) return;
-                      // 1. Desativar bot_instances
                       await supabase
                         .from('bot_instances')
                         .update({ is_active: false })
                         .eq('id', botInstances.active.id);
-                      // 2. Desativar ai_control_config
                       await supabase
                         .from('ai_control_config')
                         .update({ is_active: false })
@@ -448,7 +448,6 @@ const WhatsAppBotConfigSystem = () => {
                     }}
                     onRestart={async () => {
                       if (!botInstances.active || !customerProductId) return;
-                      // 1. Desligar tudo
                       await supabase
                         .from('bot_instances')
                         .update({ is_active: false })
@@ -457,9 +456,7 @@ const WhatsAppBotConfigSystem = () => {
                         .from('ai_control_config')
                         .update({ is_active: false })
                         .eq('customer_product_id', customerProductId);
-                      // 2. Esperar para limpar cache no edge function
                       await new Promise((r) => setTimeout(r, 2000));
-                      // 3. Religar tudo
                       await supabase
                         .from('ai_control_config')
                         .update({ is_active: true })
