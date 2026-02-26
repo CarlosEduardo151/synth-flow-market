@@ -8,23 +8,12 @@ import {
   resolveAICredentials,
 } from "../_shared/ai-providers.ts";
 
-/**
- * WhatsApp Internal Chat — chat de teste interno (sem Z-API).
- *
- * Segurança:
- * - Requer autenticação JWT (Bearer token)
- * - Usuário deve ser dono do customer_product
- * - Rate limit por IP
- * - Inputs validados e sanitizados
- */
-
 serve(async (req) => {
   const origin = req.headers.get("Origin");
 
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
   if (req.method !== "POST") return corsResponse({ error: "method_not_allowed" }, 405, origin);
 
-  // Rate limit
   const identifier = getClientIdentifier(req);
   const { limited } = checkRateLimit(identifier, RATE_LIMITS.WEBHOOK);
   if (limited) return corsResponse({ error: "rate_limited" }, 429, origin);
@@ -33,7 +22,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Auth check
     const authHeader = req.headers.get("Authorization") || "";
     if (!authHeader.startsWith("Bearer ")) {
       return corsResponse({ error: "unauthorized" }, 401, origin);
@@ -49,7 +37,6 @@ serve(async (req) => {
       return corsResponse({ error: "unauthorized" }, 401, origin);
     }
 
-    // Parse body
     const body = await req.json().catch(() => ({}));
     const customerProductId = typeof body?.customer_product_id === "string" ? body.customer_product_id.trim() : "";
     const message = typeof body?.message === "string" ? body.message.trim() : "";
@@ -58,7 +45,6 @@ serve(async (req) => {
       return corsResponse({ error: "validation_error", details: "customer_product_id and message required" }, 400, origin);
     }
 
-    // Verify ownership (RLS)
     const { data: cp, error: cpErr } = await supabase
       .from("customer_products")
       .select("id")
@@ -70,7 +56,6 @@ serve(async (req) => {
       return corsResponse({ error: "forbidden" }, 403, origin);
     }
 
-    // Check if bot instance is active
     const { data: botInstance } = await supabase
       .from("bot_instances")
       .select("is_active")
@@ -81,7 +66,6 @@ serve(async (req) => {
       return corsResponse({ error: "motor_desligado", details: "O motor está desligado. Ligue-o na aba Status antes de testar." }, 409, origin);
     }
 
-    // Load AI config
     const { data: cfg } = await supabase
       .from("ai_control_config")
       .select("provider, model, system_prompt, temperature, max_tokens, business_name, is_active")
@@ -98,16 +82,10 @@ serve(async (req) => {
     const temperature = Number(cfg?.temperature ?? 0.7);
     const maxTokens = Number(cfg?.max_tokens ?? 512);
 
-    // Resolve credentials using service role for novalink
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const serviceClient = createClient(supabaseUrl, serviceKey);
 
-    const resolved = await resolveAICredentials(
-      serviceClient,
-      provider,
-      userId,
-      cfg?.model,
-    );
+    const resolved = await resolveAICredentials(serviceClient, provider, userId, cfg?.model);
 
     if (!resolved) {
       return corsResponse({
@@ -124,9 +102,29 @@ serve(async (req) => {
       maxTokens,
     };
 
-    const reply = await processText(resolved.resolvedProvider, aiOpts, message);
+    const dataBytesIn = new TextEncoder().encode(message).length;
+    const startMs = Date.now();
 
-    return corsResponse({ ok: true, reply: reply || "Ok!" }, 200, origin);
+    const result = await processText(resolved.resolvedProvider, aiOpts, message);
+
+    const processingMs = Date.now() - startMs;
+    const dataBytesOut = new TextEncoder().encode(result.text).length;
+
+    // Log metrics (fire and forget)
+    serviceClient.from("bot_usage_metrics").insert({
+      customer_product_id: customerProductId,
+      event_type: "ai_call",
+      tokens_input: result.tokensInput,
+      tokens_output: result.tokensOutput,
+      tokens_total: result.tokensTotal,
+      data_bytes_in: dataBytesIn,
+      data_bytes_out: dataBytesOut,
+      provider: resolved.resolvedProvider,
+      model: resolved.model,
+      processing_ms: processingMs,
+    }).then(({ error }: any) => { if (error) console.error("metrics_log_error:", error.message); });
+
+    return corsResponse({ ok: true, reply: result.text || "Ok!" }, 200, origin);
   } catch (error) {
     console.error("whatsapp-internal-chat error:", error);
     return corsResponse({ error: "internal_error" }, 500, origin);
