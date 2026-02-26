@@ -4,6 +4,7 @@ export { gestaoCobrancas } from './micro-empresas/gestao-cobrancas';
 export { crmSimples } from './micro-empresas/crm-simples';
 export { relatoriosFinanceiros } from './micro-empresas/relatorios-financeiros';
 export { fidelidadeDigital } from './micro-empresas/fidelidade-digital';
+export { automacaoNotasFiscais } from './micro-empresas/automacao-notas-fiscais';
 
 // IA Automatizada
 // (removidos do catálogo)
@@ -24,6 +25,7 @@ import { gestaoCobrancas } from './micro-empresas/gestao-cobrancas';
 import { crmSimples } from './micro-empresas/crm-simples';
 import { relatoriosFinanceiros } from './micro-empresas/relatorios-financeiros';
 import { fidelidadeDigital } from './micro-empresas/fidelidade-digital';
+import { automacaoNotasFiscais } from './micro-empresas/automacao-notas-fiscais';
 
 // IA Automatizada (removidos do catálogo)
 
@@ -42,6 +44,7 @@ export const allProducts: Product[] = [
   crmSimples,
   relatoriosFinanceiros,
   fidelidadeDigital,
+  automacaoNotasFiscais,
   
   // IA Automatizada (removidos do catálogo)
   
