@@ -1,12 +1,13 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, User, Search, LogOut, Settings } from "lucide-react";
+import { ShoppingCart, User, Search, LogOut, Settings, Sun, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAdminCheck } from "@/hooks/useAuth";
 import { useState, useEffect, useRef } from "react";
+import { useTheme } from "next-themes";
 import { getProducts, formatPrice, type Product } from "@/data/products";
 import {
   DropdownMenu,
@@ -24,6 +25,7 @@ export function Header() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     if (searchQuery.trim().length > 1) {
@@ -155,6 +157,16 @@ export function Header() {
               </div>
             )}
           </div>
+
+          {/* Toggle Claro/Escuro */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </Button>
 
           {/* Botão de busca mobile */}
           <Button 

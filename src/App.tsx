@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { DeviceProvider } from "@/contexts/DeviceContext";
+import { ThemeProvider } from "next-themes";
 import { ChatWidget } from "@/components/ChatWidget";
 import { DeviceSelector } from "@/components/DeviceSelector";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -80,6 +81,7 @@ const queryClient = new QueryClient();
 
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <CartProvider>
@@ -175,6 +177,7 @@ const App = () => (
     </CartProvider>
   </AuthProvider>
 </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;
