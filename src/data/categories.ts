@@ -1,4 +1,4 @@
-import { Bot, Cpu, Building2, Nfc } from "lucide-react";
+import { Bot, Cpu, Building2, Nfc, Truck } from "lucide-react";
 
 export interface Category {
   title: string;
@@ -37,6 +37,13 @@ export const categories: Category[] = [
     icon: Nfc,
     summary: "Sistemas inteligentes com tecnologia NFC para identificação e automação.",
     order: 4
+  },
+  {
+    title: "Soluções Automotivas",
+    slug: "solucoes-automotivas",
+    icon: Truck,
+    summary: "Gestão inteligente de frotas e oficinas com IA de auditoria, split de pagamento e pagamento D+1.",
+    order: 5
   }
 ];
 

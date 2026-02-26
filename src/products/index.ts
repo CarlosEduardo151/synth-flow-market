@@ -16,6 +16,9 @@ export { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
 // export { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // export { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
+// Soluções Automotivas
+export { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas';
+
 // NFC
 // (removidos do catálogo)
 
@@ -35,10 +38,12 @@ import { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
 // import { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // import { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
+import { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas';
+
 // NFC (removidos do catálogo)
 
 export const allProducts: Product[] = [
-  // Micro-Empresas (5 produtos)
+  // Micro-Empresas (6 produtos)
   dashboardsPersonalizados,
   gestaoCobrancas,
   crmSimples,
@@ -54,6 +59,9 @@ export const allProducts: Product[] = [
   agenteFinanceiro,
   // agenteSuporte, // DESATIVADO TEMPORARIAMENTE
   // agenteRH, // DESATIVADO TEMPORARIAMENTE
+
+  // Soluções Automotivas
+  gestaoFrotasOficinas,
   
   // NFC (removidos do catálogo)
 ];
