@@ -161,6 +161,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_faq: {
+        Row: {
+          answer: string
+          category: string | null
+          created_at: string
+          customer_product_id: string
+          hit_count: number
+          id: string
+          is_active: boolean
+          keywords: string[] | null
+          question: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          answer: string
+          category?: string | null
+          created_at?: string
+          customer_product_id: string
+          hit_count?: number
+          id?: string
+          is_active?: boolean
+          keywords?: string[] | null
+          question: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          answer?: string
+          category?: string | null
+          created_at?: string
+          customer_product_id?: string
+          hit_count?: number
+          id?: string
+          is_active?: boolean
+          keywords?: string[] | null
+          question?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bot_instances: {
         Row: {
           created_at: string
