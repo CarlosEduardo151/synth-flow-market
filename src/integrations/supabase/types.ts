@@ -119,6 +119,48 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_conversation_logs: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          direction: string
+          id: string
+          message_text: string
+          model: string | null
+          phone: string | null
+          processing_ms: number | null
+          provider: string | null
+          source: string
+          tokens_used: number | null
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          direction: string
+          id?: string
+          message_text: string
+          model?: string | null
+          phone?: string | null
+          processing_ms?: number | null
+          provider?: string | null
+          source?: string
+          tokens_used?: number | null
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          direction?: string
+          id?: string
+          message_text?: string
+          model?: string | null
+          phone?: string | null
+          processing_ms?: number | null
+          provider?: string | null
+          source?: string
+          tokens_used?: number | null
+        }
+        Relationships: []
+      }
       bot_instances: {
         Row: {
           created_at: string
