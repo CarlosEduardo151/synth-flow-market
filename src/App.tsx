@@ -6,7 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { CartProvider } from "@/contexts/CartContext";
 import { DeviceProvider } from "@/contexts/DeviceContext";
-import { ThemeProvider } from "next-themes";
+import { SystemThemeProvider } from "@/contexts/SystemThemeContext";
+import { SystemThemeWrapper } from "@/components/layout/SystemThemeWrapper";
 import { ChatWidget } from "@/components/ChatWidget";
 import { DeviceSelector } from "@/components/DeviceSelector";
 import { ScrollToTop } from "@/components/ScrollToTop";
@@ -81,7 +82,7 @@ const queryClient = new QueryClient();
 
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem={false}>
+  <SystemThemeProvider>
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <CartProvider>
@@ -125,25 +126,25 @@ const App = () => (
               <Route path="/como-funciona" element={<HowBotWorksPage />} />
               <Route path="/avaliar/:productSlug" element={<ProductReviewPage />} />
 
-              {/* rotas dos sistemas comprados */}
-              <Route path="/sistema/crm-simples" element={<CRMSystem />} />
-              <Route path="/sistema/dashboards-personalizados" element={<DashboardSystem />} />
-              <Route path="/sistema/gestao-cobrancas" element={<BillingSystem />} />
-              <Route path="/sistema/posts-sociais" element={<SocialPostsSystem />} />
-              <Route path="/sistema/relatorios-financeiros" element={<FinancialReportsSystem />} />
-              <Route path="/sistema/fidelidade-digital" element={<LoyaltySystem />} />
-              <Route path="/sistema/fidelidade-digital/:productId" element={<LoyaltySystem />} />
-              <Route path="/sistema/ai-control/:productId" element={<AIControlSystem />} />
-              <Route path="/sistema/assistente-vendas" element={<SalesAssistantSystem />} />
-              <Route path="/sistema/bots-automacao" element={<BotsAutomacaoSystem />} />
-              <Route path="/sistema/bots-automacao/whatsapp/:productId" element={<WhatsAppBotConfigSystem />} />
-              <Route path="/sistema/agente-financeiro" element={<FinancialAgentSystem />} />
-              <Route path="/sistema/automacao-notas-fiscais" element={<InvoiceAutomationSystem />} />
-              <Route path="/sistema/agente-rh" element={<AgenteRHSystem />} />
-              <Route path="/sistema/agente-rh/config" element={<AgenteRHConfigSystem />} />
-              <Route path="/sistemas/sniper-hft" element={<SniperHFTSystem />} />
-              <Route path="/systems/SniperHFTSystem" element={<SniperHFTSystem />} />
-              <Route path="/sistema/gestao-frotas-oficinas" element={<GestaoFrotasOficinasSystem />} />
+              {/* rotas dos sistemas comprados — com tema claro/escuro */}
+              <Route path="/sistema/crm-simples" element={<SystemThemeWrapper><CRMSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/dashboards-personalizados" element={<SystemThemeWrapper><DashboardSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/gestao-cobrancas" element={<SystemThemeWrapper><BillingSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/posts-sociais" element={<SystemThemeWrapper><SocialPostsSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/relatorios-financeiros" element={<SystemThemeWrapper><FinancialReportsSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/fidelidade-digital" element={<SystemThemeWrapper><LoyaltySystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/fidelidade-digital/:productId" element={<SystemThemeWrapper><LoyaltySystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/ai-control/:productId" element={<SystemThemeWrapper><AIControlSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/assistente-vendas" element={<SystemThemeWrapper><SalesAssistantSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/bots-automacao" element={<SystemThemeWrapper><BotsAutomacaoSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/bots-automacao/whatsapp/:productId" element={<SystemThemeWrapper><WhatsAppBotConfigSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/agente-financeiro" element={<SystemThemeWrapper><FinancialAgentSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/automacao-notas-fiscais" element={<SystemThemeWrapper><InvoiceAutomationSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/agente-rh" element={<SystemThemeWrapper><AgenteRHSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/agente-rh/config" element={<SystemThemeWrapper><AgenteRHConfigSystem /></SystemThemeWrapper>} />
+              <Route path="/sistemas/sniper-hft" element={<SystemThemeWrapper><SniperHFTSystem /></SystemThemeWrapper>} />
+              <Route path="/systems/SniperHFTSystem" element={<SystemThemeWrapper><SniperHFTSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/gestao-frotas-oficinas" element={<SystemThemeWrapper><GestaoFrotasOficinasSystem /></SystemThemeWrapper>} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />
@@ -177,7 +178,7 @@ const App = () => (
     </CartProvider>
   </AuthProvider>
 </QueryClientProvider>
-  </ThemeProvider>
+  </SystemThemeProvider>
 );
 
 export default App;

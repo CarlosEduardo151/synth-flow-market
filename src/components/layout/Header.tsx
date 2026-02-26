@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useAdminCheck } from "@/hooks/useAuth";
 import { useState, useEffect, useRef } from "react";
-import { useTheme } from "next-themes";
+import { useSystemTheme } from "@/contexts/SystemThemeContext";
 import { getProducts, formatPrice, type Product } from "@/data/products";
 import {
   DropdownMenu,
@@ -25,7 +25,7 @@ export function Header() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  const { theme, setTheme } = useTheme();
+  const { systemTheme, toggleSystemTheme } = useSystemTheme();
 
   useEffect(() => {
     if (searchQuery.trim().length > 1) {
@@ -158,14 +158,14 @@ export function Header() {
             )}
           </div>
 
-          {/* Toggle Claro/Escuro */}
+          {/* Toggle Claro/Escuro (afeta apenas os sistemas) */}
           <Button
             variant="outline"
             size="icon"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-            title={theme === 'dark' ? 'Modo Claro' : 'Modo Escuro'}
+            onClick={toggleSystemTheme}
+            title={systemTheme === 'dark' ? 'Modo Claro (Sistemas)' : 'Modo Escuro (Sistemas)'}
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {systemTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </Button>
 
           {/* Botão de busca mobile */}
