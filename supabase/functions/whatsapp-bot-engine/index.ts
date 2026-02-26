@@ -276,8 +276,33 @@ serve(async (req) => {
       await zapiSendText(zapiCreds, phone, result.text, messageId);
     }
 
-    // Log metrics (fire and forget)
+    // Log metrics + conversation (fire and forget)
     logUsageMetrics(service, cp.id, result, resolved.resolvedProvider, resolved.model, processingMs, dataBytesIn, dataBytesOut);
+
+    // Log inbound message
+    const inboundText = userMessageText || (hasImage ? "[Imagem]" : hasAudio ? "[Áudio]" : "[Mensagem]");
+    service.from("bot_conversation_logs").insert({
+      customer_product_id: cp.id,
+      source: "whatsapp",
+      phone,
+      direction: "inbound",
+      message_text: inboundText,
+    }).then(({ error: e }: any) => { if (e) console.error("conv_log_in:", e.message); });
+
+    // Log outbound reply
+    if (result.text) {
+      service.from("bot_conversation_logs").insert({
+        customer_product_id: cp.id,
+        source: "whatsapp",
+        phone,
+        direction: "outbound",
+        message_text: result.text,
+        tokens_used: result.tokensTotal,
+        processing_ms: processingMs,
+        provider: resolved.resolvedProvider,
+        model: resolved.model,
+      }).then(({ error: e }: any) => { if (e) console.error("conv_log_out:", e.message); });
+    }
 
     // Mark as processed
     await service

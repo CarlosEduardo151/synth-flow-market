@@ -124,6 +124,25 @@ serve(async (req) => {
       processing_ms: processingMs,
     }).then(({ error }: any) => { if (error) console.error("metrics_log_error:", error.message); });
 
+    // Log conversation (fire and forget)
+    serviceClient.from("bot_conversation_logs").insert({
+      customer_product_id: customerProductId,
+      source: "test_chat",
+      direction: "inbound",
+      message_text: message,
+    }).then(({ error: e }: any) => { if (e) console.error("conv_log_in:", e.message); });
+
+    serviceClient.from("bot_conversation_logs").insert({
+      customer_product_id: customerProductId,
+      source: "test_chat",
+      direction: "outbound",
+      message_text: result.text || "Ok!",
+      tokens_used: result.tokensTotal,
+      processing_ms: processingMs,
+      provider: resolved.resolvedProvider,
+      model: resolved.model,
+    }).then(({ error: e }: any) => { if (e) console.error("conv_log_out:", e.message); });
+
     return corsResponse({ ok: true, reply: result.text || "Ok!" }, 200, origin);
   } catch (error) {
     console.error("whatsapp-internal-chat error:", error);
