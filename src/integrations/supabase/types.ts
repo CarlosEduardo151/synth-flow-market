@@ -191,6 +191,57 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_knowledge_base: {
+        Row: {
+          content: string | null
+          created_at: string
+          customer_product_id: string
+          entry_type: string
+          error_message: string | null
+          file_mime_type: string | null
+          file_name: string | null
+          file_size_bytes: number | null
+          id: string
+          metadata: Json | null
+          source_url: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string
+          customer_product_id: string
+          entry_type?: string
+          error_message?: string | null
+          file_mime_type?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          metadata?: Json | null
+          source_url?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string
+          customer_product_id?: string
+          entry_type?: string
+          error_message?: string | null
+          file_mime_type?: string | null
+          file_name?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          metadata?: Json | null
+          source_url?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bot_scripts: {
         Row: {
           created_at: string

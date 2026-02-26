@@ -77,13 +77,34 @@ serve(async (req) => {
     }
 
     const provider = (cfg?.provider as string) || "openai";
-    const systemPrompt = (cfg?.system_prompt as string) ||
+    let systemPrompt = (cfg?.system_prompt as string) ||
       `Você é um assistente de WhatsApp do negócio ${cfg?.business_name || ""}. Responda de forma objetiva e útil.`;
     const temperature = Number(cfg?.temperature ?? 0.7);
     const maxTokens = Number(cfg?.max_tokens ?? 512);
 
+    // Load knowledge base
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const serviceClient = createClient(supabaseUrl, serviceKey);
+
+    try {
+      const { data: knowledgeEntries } = await serviceClient
+        .from("bot_knowledge_base")
+        .select("title, content")
+        .eq("customer_product_id", customerProductId)
+        .eq("status", "ready")
+        .order("created_at", { ascending: true });
+
+      if (knowledgeEntries && knowledgeEntries.length > 0) {
+        const knowledgeText = knowledgeEntries
+          .map((e: any) => `### ${e.title}\n${(e.content || "").slice(0, 5000)}`)
+          .join("\n\n");
+
+        const truncatedKnowledge = knowledgeText.slice(0, 15000);
+        systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO NEGÓCIO ===\nUse as informações abaixo para responder perguntas sobre o negócio:\n\n${truncatedKnowledge}\n\n=== FIM DA BASE DE CONHECIMENTO ===`;
+      }
+    } catch (e) {
+      console.error("knowledge_load_error:", e);
+    }
 
     const resolved = await resolveAICredentials(serviceClient, provider, userId, cfg?.model);
 
