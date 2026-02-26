@@ -115,11 +115,11 @@ export function WhatsAppBotTestChat(props: { customerProductId: string; business
           <Input
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={sending ? "Aguardando resposta..." : "Digite uma mensagem para testar..."}
+            placeholder="Digite uma mensagem para testar..."
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !sending) send();
+              if (e.key === "Enter") send();
             }}
-            autoFocus
+            disabled={sending}
           />
           <Button type="button" onClick={send} disabled={sending || !text.trim() || motorOff}>
             {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
