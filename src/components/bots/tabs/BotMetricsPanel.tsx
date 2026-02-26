@@ -118,15 +118,11 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
     if (!customerProductId) return;
     try {
       const sb = supabase as any;
-      // Get last 24h metrics
-      const now = new Date();
-      const ago24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
       const { data, error } = await sb
         .from('bot_usage_metrics')
         .select('tokens_total, data_bytes_in, data_bytes_out, processing_ms')
-        .eq('customer_product_id', customerProductId)
-        .gte('created_at', ago24h.toISOString());
+        .eq('customer_product_id', customerProductId);
 
       if (error) {
         console.error('metrics fetch error:', error);
@@ -155,7 +151,7 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
     }
 
     fetchMetrics();
-    intervalRef.current = setInterval(fetchMetrics, 10_000); // refresh every 10s
+    intervalRef.current = setInterval(fetchMetrics, 5_000);
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [isActive, customerProductId]);
@@ -202,7 +198,7 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
               icon={<HardDrive className="h-3.5 w-3.5" style={{ color: '#3b82f6' }} />}
               color="#3b82f6"
               trend={calcTrend(metrics.totalRequests, prevMetrics?.totalRequests)}
-              detail="Total nas últimas 24h"
+              detail="Total acumulado"
             />
             <MetricCard
               label="Dados Trafegados"
@@ -212,7 +208,7 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
               icon={<Activity className="h-3.5 w-3.5" style={{ color: '#8b5cf6' }} />}
               color="#8b5cf6"
               trend={calcTrend(metrics.totalDataBytes, prevMetrics?.totalDataBytes)}
-              detail="Entrada + saída (24h)"
+              detail="Entrada + saída total"
             />
             <MetricCard
               label="Processamento Médio"
@@ -232,7 +228,7 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
               icon={<Coins className="h-3.5 w-3.5" style={{ color: '#10b981' }} />}
               color="#10b981"
               trend={calcTrend(metrics.totalTokens, prevMetrics?.totalTokens)}
-              detail="Total consumido (24h)"
+              detail="Total acumulado"
             />
           </div>
         )}
