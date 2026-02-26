@@ -183,7 +183,7 @@ const GestaoFrotasOficinasSystem = () => {
     const veiculosManutencao = 2;
 
     return (
-      <div className="min-h-screen bg-[hsl(220,20%,97%)] dark:bg-background">
+      <div className="min-h-screen bg-background">
         <Header />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
 
