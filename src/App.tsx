@@ -58,6 +58,7 @@ import SalesAssistantSystem from "./pages/systems/SalesAssistantSystem";
 import BotsAutomacaoSystem from "./pages/systems/BotsAutomacaoSystem";
 import WhatsAppBotConfigSystem from "./pages/systems/WhatsAppBotConfigSystem";
 import FinancialAgentSystem from "./pages/systems/FinancialAgentSystem";
+import InvoiceAutomationSystem from "./pages/systems/InvoiceAutomationSystem";
 import AgenteRHSystem from "./pages/systems/AgenteRHSystem";
 import AgenteRHConfigSystem from "./pages/systems/AgenteRHConfigSystem";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
@@ -134,6 +135,7 @@ const App = () => (
               <Route path="/sistema/bots-automacao" element={<BotsAutomacaoSystem />} />
               <Route path="/sistema/bots-automacao/whatsapp/:productId" element={<WhatsAppBotConfigSystem />} />
               <Route path="/sistema/agente-financeiro" element={<FinancialAgentSystem />} />
+              <Route path="/sistema/automacao-notas-fiscais" element={<InvoiceAutomationSystem />} />
               <Route path="/sistema/agente-rh" element={<AgenteRHSystem />} />
               <Route path="/sistema/agente-rh/config" element={<AgenteRHConfigSystem />} />
               <Route path="/sistemas/sniper-hft" element={<SniperHFTSystem />} />

@@ -292,7 +292,7 @@ const MyProductsPage = () => {
                     <Separator />
 
                     <div className="flex gap-3">
-                      {['crm-simples', 'dashboards-personalizados', 'gestao-cobrancas', 'posts-sociais', 'relatorios-financeiros', 'fidelidade-digital', 'assistente-vendas', 'bots-automacao', 'agente-financeiro', 'agente-rh'].includes(product.product_slug) ? (
+                      {['crm-simples', 'dashboards-personalizados', 'gestao-cobrancas', 'posts-sociais', 'relatorios-financeiros', 'fidelidade-digital', 'assistente-vendas', 'bots-automacao', 'agente-financeiro', 'agente-rh', 'automacao-notas-fiscais'].includes(product.product_slug) ? (
                         <Button
                           asChild
                           className="flex-1 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
