@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft, Save, Bot, Brain, Plug, Pencil, Check,
-  Loader2, MessageCircle, Smartphone, Database, ScrollText
+  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,7 @@ import { BotMemoryTab } from '@/components/bots/tabs/BotMemoryTab';
 import { BotPersonalityTab, type CommunicationTone, type ActionInstruction } from '@/components/bots/tabs/BotPersonalityTab';
 import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 import { BotConversationLogsTab } from '@/components/bots/tabs/BotConversationLogsTab';
+import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 
 const supabase = supabaseClient as any;
 
@@ -89,6 +90,7 @@ const WhatsAppBotConfigSystem = () => {
   const sidebarItems = [
     { value: 'status', label: 'Status', icon: Bot },
     { value: 'engine', label: 'Motor IA', icon: Brain },
+    { value: 'knowledge', label: 'Conhecimento', icon: BookOpen },
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'logs', label: 'Logs', icon: ScrollText },
@@ -486,6 +488,10 @@ const WhatsAppBotConfigSystem = () => {
                     onTemperatureChange={(temp) => setConfig(prev => ({ ...prev, temperature: temp }))}
                     onMaxTokensChange={(tokens) => setConfig(prev => ({ ...prev, maxTokens: tokens }))}
                   />
+                </TabsContent>
+
+                <TabsContent value="knowledge">
+                  {productId && <BotKnowledgeTab customerProductId={productId} />}
                 </TabsContent>
 
                 <TabsContent value="memory">

@@ -204,10 +204,33 @@ serve(async (req) => {
     const provider = (aiConfig?.provider as string) || "google";
     const temperature = Number(aiConfig?.temperature ?? 0.7);
     const maxTokens = Number(aiConfig?.max_tokens ?? 512);
-    const systemPrompt = (aiConfig?.system_prompt as string) ||
+    let systemPrompt = (aiConfig?.system_prompt as string) ||
       `Você é o agente StarAI do negócio ${aiConfig?.business_name || ""}. Responda de forma objetiva e útil em português.`;
 
-    // 3. Resolve AI credentials
+    // 3. Load knowledge base and inject into system prompt
+    try {
+      const { data: knowledgeEntries } = await service
+        .from("bot_knowledge_base")
+        .select("title, content")
+        .eq("customer_product_id", customerProductId)
+        .eq("status", "ready")
+        .order("created_at", { ascending: true });
+
+      if (knowledgeEntries && knowledgeEntries.length > 0) {
+        const knowledgeText = knowledgeEntries
+          .map((e: any) => `### ${e.title}\n${(e.content || "").slice(0, 5000)}`)
+          .join("\n\n");
+
+        // Limit total knowledge context to ~15000 chars to stay within token limits
+        const truncatedKnowledge = knowledgeText.slice(0, 15000);
+
+        systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO NEGÓCIO ===\nUse as informações abaixo para responder perguntas sobre o negócio. Estas são informações reais e verificadas:\n\n${truncatedKnowledge}\n\n=== FIM DA BASE DE CONHECIMENTO ===`;
+      }
+    } catch (e) {
+      console.error("knowledge_load_error:", e);
+    }
+
+    // 4. Resolve AI credentials
     const resolved = await resolveAICredentials(
       service,
       provider,
