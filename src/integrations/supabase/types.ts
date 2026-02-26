@@ -284,6 +284,101 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_report_config: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          frequency: string
+          id: string
+          is_active: boolean
+          last_sent_at: string | null
+          recipient_email: string
+          recipient_name: string | null
+          report_sections: string[] | null
+          send_day: number | null
+          send_hour: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          report_sections?: string[] | null
+          send_day?: number | null
+          send_hour?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          frequency?: string
+          id?: string
+          is_active?: boolean
+          last_sent_at?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          report_sections?: string[] | null
+          send_day?: number | null
+          send_hour?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bot_report_logs: {
+        Row: {
+          customer_product_id: string
+          error_message: string | null
+          frequency: string
+          id: string
+          period_end: string
+          period_start: string
+          recipient_email: string
+          report_config_id: string | null
+          report_data: Json | null
+          sent_at: string
+          status: string
+        }
+        Insert: {
+          customer_product_id: string
+          error_message?: string | null
+          frequency: string
+          id?: string
+          period_end: string
+          period_start: string
+          recipient_email: string
+          report_config_id?: string | null
+          report_data?: Json | null
+          sent_at?: string
+          status?: string
+        }
+        Update: {
+          customer_product_id?: string
+          error_message?: string | null
+          frequency?: string
+          id?: string
+          period_end?: string
+          period_start?: string
+          recipient_email?: string
+          report_config_id?: string | null
+          report_data?: Json | null
+          sent_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bot_report_logs_report_config_id_fkey"
+            columns: ["report_config_id"]
+            isOneToOne: false
+            referencedRelation: "bot_report_config"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bot_scripts: {
         Row: {
           created_at: string
