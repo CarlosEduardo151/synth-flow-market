@@ -49,6 +49,7 @@ export const automacaoNotasFiscais: Product = {
   inStock: true,
   delivery: "Ativação em até 48 horas",
   specs: "Pagamento Mensal - R$ 499/mês",
+  systemPath: "/sistema/automacao-notas-fiscais",
   content: `
 # Automação de Notas Fiscais — Motor Inteligente NovaLink
 
