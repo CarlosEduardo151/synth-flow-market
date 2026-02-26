@@ -179,6 +179,51 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_usage_metrics: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          data_bytes_in: number
+          data_bytes_out: number
+          event_type: string
+          id: string
+          model: string | null
+          processing_ms: number
+          provider: string | null
+          tokens_input: number
+          tokens_output: number
+          tokens_total: number
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          data_bytes_in?: number
+          data_bytes_out?: number
+          event_type?: string
+          id?: string
+          model?: string | null
+          processing_ms?: number
+          provider?: string | null
+          tokens_input?: number
+          tokens_output?: number
+          tokens_total?: number
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          data_bytes_in?: number
+          data_bytes_out?: number
+          event_type?: string
+          id?: string
+          model?: string | null
+          processing_ms?: number
+          provider?: string | null
+          tokens_input?: number
+          tokens_output?: number
+          tokens_total?: number
+        }
+        Relationships: []
+      }
       coupons: {
         Row: {
           code: string
@@ -1770,7 +1815,19 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      bot_usage_summary: {
+        Row: {
+          avg_processing_ms: number | null
+          customer_product_id: string | null
+          last_activity: string | null
+          total_data_bytes: number | null
+          total_requests: number | null
+          total_tokens: number | null
+          total_tokens_input: number | null
+          total_tokens_output: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       deliver_order_products: {
