@@ -411,6 +411,16 @@ async function sendEmail(resendKey: string | undefined, to: string, subject: str
 
   if (!res.ok) {
     const err = await res.text();
+
+    if (
+      res.status === 403 &&
+      err.includes("You can only send testing emails to your own email address")
+    ) {
+      throw new Error(
+        "Resend em modo de teste: só envia para o e-mail da própria conta. Verifique um domínio no Resend e use um remetente desse domínio."
+      );
+    }
+
     throw new Error(`Resend error: ${res.status} ${err}`);
   }
 

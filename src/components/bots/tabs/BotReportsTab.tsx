@@ -99,6 +99,31 @@ export function BotReportsTab({ customerProductId }: BotReportsTabProps) {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const getInvokeErrorMessage = async (error: any) => {
+    try {
+      if (typeof error?.context?.json === 'function') {
+        const payload = await error.context.json();
+        if (payload?.error) return payload.error;
+        if (payload?.message) return payload.message;
+      }
+
+      if (typeof error?.context?.text === 'function') {
+        const raw = await error.context.text();
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed?.error) return parsed.error;
+          if (parsed?.message) return parsed.message;
+        } catch {
+          if (raw) return raw;
+        }
+      }
+    } catch {
+      // ignore parse errors
+    }
+
+    return error?.message || 'Falha ao executar a ação';
+  };
+
   const resetForm = () => {
     setFormEmail(''); setFormName(''); setFormFrequency('weekly');
     setFormDay(1); setFormHour(9); setEditingId(null);
@@ -185,7 +210,8 @@ export function BotReportsTab({ customerProductId }: BotReportsTabProps) {
       if (error) throw error;
       toast({ title: '📧 E-mail de teste enviado!', description: `Verifique ${email}` });
     } catch (e: any) {
-      toast({ title: 'Erro ao enviar teste', description: e.message, variant: 'destructive' });
+      const details = await getInvokeErrorMessage(e);
+      toast({ title: 'Erro ao enviar teste', description: details, variant: 'destructive' });
     } finally {
       setSendingTest(false);
     }
@@ -205,7 +231,8 @@ export function BotReportsTab({ customerProductId }: BotReportsTabProps) {
       toast({ title: '📧 Relatório enviado!', description: `Enviado para ${c.recipient_email}` });
       fetchData();
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      const details = await getInvokeErrorMessage(e);
+      toast({ title: 'Erro', description: details, variant: 'destructive' });
     } finally {
       setSendingTest(false);
     }
