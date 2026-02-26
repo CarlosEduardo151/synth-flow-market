@@ -202,6 +202,85 @@ export async function processAudio(
   return openaiChat(opts, `[Transcrição do áudio]: ${transcription}`);
 }
 
+export async function processDocument(
+  provider: ResolvedProvider,
+  opts: AICallOptions,
+  documentUrl: string,
+  fileName: string,
+  mimeType?: string,
+): Promise<AIUsageResult> {
+  const prompt = `Analise este documento "${fileName}" detalhadamente. Resuma o conteúdo, extraia informações importantes e responda em português.`;
+
+  if (provider === "google") {
+    const downloaded = await downloadAsBase64(documentUrl);
+    return geminiMultimodal(
+      opts,
+      { mimeType: mimeType || downloaded.mimeType, data: downloaded.base64 },
+      prompt,
+    );
+  }
+
+  // OpenAI: download text content if possible, otherwise describe
+  try {
+    const resp = await fetch(documentUrl);
+    if (!resp.ok) throw new Error(`doc_download_failed:${resp.status}`);
+    const contentType = resp.headers.get("content-type") || "";
+
+    // For text-based documents, extract and send as text
+    if (contentType.includes("text") || contentType.includes("json") || contentType.includes("xml") || contentType.includes("csv")) {
+      const text = await resp.text();
+      const truncated = text.slice(0, 8000);
+      return openaiChat(opts, `[Documento: ${fileName}]\n\n${truncated}\n\n---\nAnalise este documento detalhadamente. Responda em português.`);
+    }
+
+    // For PDFs and other binary docs with OpenAI, describe what we know
+    return openaiChat(opts, `O usuário enviou um documento chamado "${fileName}" (tipo: ${contentType}). Infelizmente não consigo ler documentos binários diretamente. Peça ao usuário para copiar e colar o conteúdo do documento como texto, ou descrever o que ele precisa.`);
+  } catch (e) {
+    return openaiChat(opts, `O usuário enviou um documento "${fileName}" mas não foi possível acessá-lo. Informe que houve um erro ao processar o documento.`);
+  }
+}
+
+export async function processVideo(
+  provider: ResolvedProvider,
+  opts: AICallOptions,
+  videoUrl: string,
+  caption?: string,
+): Promise<AIUsageResult> {
+  const prompt = caption
+    ? `O usuário enviou um vídeo com a legenda: "${caption}". Analise e responda em português.`
+    : "O usuário enviou um vídeo. Analise o conteúdo e responda em português.";
+
+  if (provider === "google") {
+    try {
+      const { base64, mimeType } = await downloadAsBase64(videoUrl);
+      return geminiMultimodal(opts, { mimeType, data: base64 }, prompt);
+    } catch {
+      return geminiChat(opts, `${prompt}\n\n(Nota: não foi possível baixar o vídeo para análise visual. Responda com base na legenda se houver.)`);
+    }
+  }
+
+  // OpenAI doesn't support video directly
+  return openaiChat(opts, prompt + "\n\n(Nota: análise visual de vídeo não disponível neste modelo. Responda com base na legenda se houver.)");
+}
+
+export async function processSticker(
+  provider: ResolvedProvider,
+  opts: AICallOptions,
+  stickerUrl: string,
+): Promise<AIUsageResult> {
+  const prompt = "O usuário enviou um sticker/figurinha. Descreva o que vê na imagem e reaja de forma divertida e amigável em português.";
+
+  if (provider === "google") {
+    const { base64, mimeType } = await downloadAsBase64(stickerUrl);
+    return geminiMultimodal(opts, { mimeType, data: base64 }, prompt);
+  }
+
+  return openaiChat(opts, [
+    { type: "image_url", image_url: { url: stickerUrl } },
+    { type: "text", text: prompt },
+  ]);
+}
+
 // ========== Credential resolution ==========
 
 export interface ResolvedCredentials {

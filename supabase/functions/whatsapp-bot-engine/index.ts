@@ -8,6 +8,9 @@ import {
   processText,
   processImage,
   processAudio,
+  processDocument,
+  processVideo,
+  processSticker,
   resolveAICredentials,
   type AIUsageResult,
 } from "../_shared/ai-providers.ts";
@@ -234,6 +237,11 @@ serve(async (req) => {
     // ===== Process message by type =====
     const hasImage = !!body?.image;
     const hasAudio = !!body?.audio;
+    const hasVideo = !!body?.video;
+    const hasDocument = !!body?.document;
+    const hasSticker = !!body?.sticker;
+    const hasLocation = !!body?.location;
+    const hasContact = !!body?.contact || !!body?.contactMessage;
     const hasText = !!body?.text;
 
     const userMessageText = hasText ? (typeof body.text === "string" ? body.text : body.text?.message || "") : "";
@@ -241,8 +249,10 @@ serve(async (req) => {
 
     const startMs = Date.now();
     let result: AIUsageResult;
+    let messageType = "text";
 
     if (hasImage) {
+      messageType = "image";
       const imageUrl = body.image?.imageUrl || body.image?.url || "";
       const caption = sanitizeString(body.image?.caption || "");
       if (imageUrl) {
@@ -250,14 +260,57 @@ serve(async (req) => {
       } else {
         result = { text: "Não consegui acessar a imagem. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
+    } else if (hasVideo) {
+      messageType = "video";
+      const videoUrl = body.video?.videoUrl || body.video?.url || "";
+      const caption = sanitizeString(body.video?.caption || "");
+      if (videoUrl) {
+        result = await processVideo(resolved.resolvedProvider, aiOpts, videoUrl, caption);
+      } else {
+        result = { text: "Não consegui acessar o vídeo. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+      }
     } else if (hasAudio) {
+      messageType = "audio";
       const audioUrl = body.audio?.audioUrl || body.audio?.url || "";
       if (audioUrl) {
         result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl);
       } else {
         result = { text: "Não consegui acessar o áudio. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
+    } else if (hasDocument) {
+      messageType = "document";
+      const docUrl = body.document?.documentUrl || body.document?.url || "";
+      const fileName = sanitizeString(body.document?.fileName || body.document?.title || "documento");
+      const mimeType = body.document?.mimeType || undefined;
+      if (docUrl) {
+        result = await processDocument(resolved.resolvedProvider, aiOpts, docUrl, fileName, mimeType);
+      } else {
+        result = { text: "Não consegui acessar o documento. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+      }
+    } else if (hasSticker) {
+      messageType = "sticker";
+      const stickerUrl = body.sticker?.stickerUrl || body.sticker?.url || "";
+      if (stickerUrl) {
+        result = await processSticker(resolved.resolvedProvider, aiOpts, stickerUrl);
+      } else {
+        result = { text: "Recebi seu sticker! 😄", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+      }
+    } else if (hasLocation) {
+      messageType = "location";
+      const lat = body.location?.latitude || body.location?.lat || "";
+      const lng = body.location?.longitude || body.location?.lng || "";
+      const locName = sanitizeString(body.location?.name || body.location?.address || "");
+      const locText = `O usuário compartilhou uma localização: ${locName ? locName + " — " : ""}Latitude: ${lat}, Longitude: ${lng}. Responda de forma útil sobre essa localização em português.`;
+      result = await processText(resolved.resolvedProvider, aiOpts, locText);
+    } else if (hasContact) {
+      messageType = "contact";
+      const contact = body.contact || body.contactMessage;
+      const displayName = sanitizeString(contact?.displayName || contact?.name || "");
+      const vcard = sanitizeString(contact?.vcard || contact?.vCard || "");
+      const contactText = `O usuário compartilhou um contato: Nome: ${displayName}. ${vcard ? `vCard: ${vcard.slice(0, 500)}` : ""}. Responda confirmando que recebeu o contato em português.`;
+      result = await processText(resolved.resolvedProvider, aiOpts, contactText);
     } else if (hasText) {
+      messageType = "text";
       const userMessage = sanitizeString(userMessageText);
       if (userMessage) {
         result = await processText(resolved.resolvedProvider, aiOpts, userMessage);
@@ -265,7 +318,14 @@ serve(async (req) => {
         result = { text: "", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
     } else {
-      result = { text: "Desculpe, não consigo processar esse tipo de mensagem ainda.", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+      messageType = "unknown";
+      // Try to extract any text content from unknown message types
+      const fallbackText = sanitizeString(body?.caption || body?.message || body?.body || "");
+      if (fallbackText) {
+        result = await processText(resolved.resolvedProvider, aiOpts, fallbackText);
+      } else {
+        result = { text: "Recebi sua mensagem! Infelizmente ainda não consigo processar esse tipo de conteúdo. Tente enviar como texto, imagem, áudio ou documento. 📎", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+      }
     }
 
     const processingMs = Date.now() - startMs;
@@ -280,7 +340,12 @@ serve(async (req) => {
     logUsageMetrics(service, cp.id, result, resolved.resolvedProvider, resolved.model, processingMs, dataBytesIn, dataBytesOut);
 
     // Log inbound message
-    const inboundText = userMessageText || (hasImage ? "[Imagem]" : hasAudio ? "[Áudio]" : "[Mensagem]");
+    const typeLabels: Record<string, string> = {
+      image: "🖼️ Imagem", video: "🎥 Vídeo", audio: "🎤 Áudio",
+      document: "📄 Documento", sticker: "😀 Sticker", location: "📍 Localização",
+      contact: "👤 Contato", unknown: "❓ Outro",
+    };
+    const inboundText = userMessageText || typeLabels[messageType] || "[Mensagem]";
     service.from("bot_conversation_logs").insert({
       customer_product_id: cp.id,
       source: "whatsapp",
@@ -315,7 +380,7 @@ serve(async (req) => {
 
     return corsResponse({
       ok: true,
-      type: hasImage ? "image" : hasAudio ? "audio" : "text",
+      type: messageType,
       provider,
       resolvedProvider: resolved.resolvedProvider,
     }, 200, origin);
