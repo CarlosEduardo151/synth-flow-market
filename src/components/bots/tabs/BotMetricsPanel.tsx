@@ -15,7 +15,8 @@ interface MetricCardProps {
 }
 
 function MetricGauge({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = Math.min((value / max) * 100, 100);
+  const isUnlimited = max <= 0;
+  const pct = isUnlimited ? 0 : Math.min((value / max) * 100, 100);
   const radius = 40;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (pct / 100) * circumference;
@@ -32,7 +33,7 @@ function MetricGauge({ value, max, color }: { value: number; max: number; color:
         />
       </svg>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-lg font-bold font-mono">{pct.toFixed(0)}%</span>
+        <span className="text-lg font-bold font-mono">{isUnlimited ? '∞' : `${pct.toFixed(0)}%`}</span>
       </div>
     </div>
   );
@@ -74,12 +75,12 @@ function MetricCard({ label, value, max, unit, icon, color, trend, detail }: Met
       <div className="mt-3 h-1.5 rounded-full bg-muted/30 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-1000 ease-out"
-          style={{ width: `${Math.min((value / max) * 100, 100)}%`, background: color }}
+          style={{ width: max <= 0 ? '0%' : `${Math.min((value / max) * 100, 100)}%`, background: color }}
         />
       </div>
       <div className="flex justify-between mt-1">
         <span className="text-[9px] text-muted-foreground font-mono">0</span>
-        <span className="text-[9px] text-muted-foreground font-mono">{max.toLocaleString('pt-BR')} {unit}</span>
+        <span className="text-[9px] text-muted-foreground font-mono">{max <= 0 ? '∞' : `${max.toLocaleString('pt-BR')} ${unit}`}</span>
       </div>
     </div>
   );
@@ -162,7 +163,12 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
   };
 
   const dataFormatted = formatBytes(metrics.totalDataBytes);
-  const dataMax = dataFormatted.unit === 'GB' ? 10 : dataFormatted.unit === 'MB' ? 1024 : dataFormatted.unit === 'KB' ? 1024 : 1024;
+
+  // $15 USD default credits → tokens at GPT-4o-mini blended rate (~$0.375/1M tokens)
+  // $15 / $0.000000375 = 40,000,000 tokens
+  const TOKEN_BUDGET = 40_000_000;
+  const tokensPct = (metrics.totalTokens / TOKEN_BUDGET) * 100;
+  const creditsUsed = (metrics.totalTokens / TOKEN_BUDGET) * 15;
 
   return (
     <Card className="border-border/50 overflow-hidden">
@@ -193,22 +199,22 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
             <MetricCard
               label="Requisições"
               value={metrics.totalRequests}
-              max={Math.max(metrics.totalRequests * 2, 100)}
+              max={0}
               unit="reqs"
               icon={<HardDrive className="h-3.5 w-3.5" style={{ color: '#3b82f6' }} />}
               color="#3b82f6"
               trend={calcTrend(metrics.totalRequests, prevMetrics?.totalRequests)}
-              detail="Total acumulado"
+              detail="Ilimitado — sem teto"
             />
             <MetricCard
               label="Dados Trafegados"
               value={Number(dataFormatted.value.toFixed(1))}
-              max={dataMax}
+              max={0}
               unit={dataFormatted.unit}
               icon={<Activity className="h-3.5 w-3.5" style={{ color: '#8b5cf6' }} />}
               color="#8b5cf6"
               trend={calcTrend(metrics.totalDataBytes, prevMetrics?.totalDataBytes)}
-              detail="Entrada + saída total"
+              detail="Ilimitado — sem teto"
             />
             <MetricCard
               label="Processamento Médio"
@@ -223,12 +229,12 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
             <MetricCard
               label="Tokens Consumidos"
               value={metrics.totalTokens}
-              max={Math.max(metrics.totalTokens * 2, 10000)}
+              max={TOKEN_BUDGET}
               unit="tkns"
               icon={<Coins className="h-3.5 w-3.5" style={{ color: '#10b981' }} />}
               color="#10b981"
               trend={calcTrend(metrics.totalTokens, prevMetrics?.totalTokens)}
-              detail="Total acumulado"
+              detail={`US$ ${creditsUsed.toFixed(2)} de US$ 15,00 (${tokensPct.toFixed(2)}%)`}
             />
           </div>
         )}
