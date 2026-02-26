@@ -7,12 +7,13 @@ import { BotMetricsPanel } from './BotMetricsPanel';
 
 interface BotStatusTabProps {
   isActive: boolean;
+  customerProductId?: string | null;
   onStart: () => Promise<void>;
   onShutdown: () => Promise<void>;
   onRestart: () => Promise<void>;
 }
 
-export function BotStatusTab({ isActive, onStart, onShutdown, onRestart }: BotStatusTabProps) {
+export function BotStatusTab({ isActive, customerProductId, onStart, onShutdown, onRestart }: BotStatusTabProps) {
   const { toast } = useToast();
   const [starting, setStarting] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -156,7 +157,7 @@ export function BotStatusTab({ isActive, onStart, onShutdown, onRestart }: BotSt
       </Card>
 
       {/* Metrics */}
-      <BotMetricsPanel isActive={isActive} />
+      <BotMetricsPanel isActive={isActive} customerProductId={customerProductId} />
 
       {/* How it works */}
       <Card className="border-border/50">

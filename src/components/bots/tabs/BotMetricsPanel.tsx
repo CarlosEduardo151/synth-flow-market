@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Activity, HardDrive, Cpu, Coins, TrendingUp, TrendingDown } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MetricCardProps {
   label: string;
@@ -40,7 +41,6 @@ function MetricGauge({ value, max, color }: { value: number; max: number; color:
 function MetricCard({ label, value, max, unit, icon, color, trend, detail }: MetricCardProps) {
   return (
     <div className="relative p-4 rounded-xl border border-border/50 bg-card/50 backdrop-blur overflow-hidden group hover:border-border transition-colors">
-      {/* Subtle glow */}
       <div className="absolute -top-12 -right-12 w-24 h-24 rounded-full opacity-10 blur-2xl" style={{ background: color }} />
 
       <div className="flex items-start justify-between mb-3">
@@ -50,7 +50,7 @@ function MetricCard({ label, value, max, unit, icon, color, trend, detail }: Met
           </div>
           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{label}</span>
         </div>
-        {trend !== undefined && (
+        {trend !== undefined && trend !== 0 && (
           <div className={`flex items-center gap-0.5 text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
             trend >= 0 ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10'
           }`}>
@@ -71,7 +71,6 @@ function MetricCard({ label, value, max, unit, icon, color, trend, detail }: Met
         <MetricGauge value={value} max={max} color={color} />
       </div>
 
-      {/* Bottom bar */}
       <div className="mt-3 h-1.5 rounded-full bg-muted/30 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-1000 ease-out"
@@ -88,43 +87,86 @@ function MetricCard({ label, value, max, unit, icon, color, trend, detail }: Met
 
 interface BotMetricsPanelProps {
   isActive: boolean;
+  customerProductId?: string | null;
 }
 
-export function BotMetricsPanel({ isActive }: BotMetricsPanelProps) {
-  const [metrics, setMetrics] = useState({
-    ram: 0,
-    data: 0,
-    cpu: 0,
-    tokens: 0,
+interface MetricsData {
+  totalRequests: number;
+  totalTokens: number;
+  totalDataBytes: number;
+  avgProcessingMs: number;
+}
+
+function formatBytes(bytes: number): { value: number; unit: string } {
+  if (bytes >= 1024 * 1024 * 1024) return { value: bytes / (1024 * 1024 * 1024), unit: 'GB' };
+  if (bytes >= 1024 * 1024) return { value: bytes / (1024 * 1024), unit: 'MB' };
+  if (bytes >= 1024) return { value: bytes / 1024, unit: 'KB' };
+  return { value: bytes, unit: 'B' };
+}
+
+export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanelProps) {
+  const [metrics, setMetrics] = useState<MetricsData>({
+    totalRequests: 0,
+    totalTokens: 0,
+    totalDataBytes: 0,
+    avgProcessingMs: 0,
   });
+  const [prevMetrics, setPrevMetrics] = useState<MetricsData | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Simulate real-time metrics fluctuation
+  const fetchMetrics = async () => {
+    if (!customerProductId) return;
+    try {
+      const sb = supabase as any;
+      // Get last 24h metrics
+      const now = new Date();
+      const ago24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+      const { data, error } = await sb
+        .from('bot_usage_metrics')
+        .select('tokens_total, data_bytes_in, data_bytes_out, processing_ms')
+        .eq('customer_product_id', customerProductId)
+        .gte('created_at', ago24h.toISOString());
+
+      if (error) {
+        console.error('metrics fetch error:', error);
+        return;
+      }
+
+      const rows = data || [];
+      const totalRequests = rows.length;
+      const totalTokens = rows.reduce((s: number, r: any) => s + (r.tokens_total || 0), 0);
+      const totalDataBytes = rows.reduce((s: number, r: any) => s + (r.data_bytes_in || 0) + (r.data_bytes_out || 0), 0);
+      const avgProcessingMs = totalRequests > 0
+        ? rows.reduce((s: number, r: any) => s + (r.processing_ms || 0), 0) / totalRequests
+        : 0;
+
+      setPrevMetrics(metrics);
+      setMetrics({ totalRequests, totalTokens, totalDataBytes, avgProcessingMs });
+    } catch (e) {
+      console.error('metrics error:', e);
+    }
+  };
+
   useEffect(() => {
-    if (!isActive) {
-      setMetrics({ ram: 0, data: 0, cpu: 0, tokens: 0 });
+    if (!isActive || !customerProductId) {
+      setMetrics({ totalRequests: 0, totalTokens: 0, totalDataBytes: 0, avgProcessingMs: 0 });
       return;
     }
 
-    // Initial values
-    setMetrics({
-      ram: 128 + Math.random() * 80,
-      data: 2.4 + Math.random() * 1.5,
-      cpu: 12 + Math.random() * 25,
-      tokens: 1240 + Math.floor(Math.random() * 800),
-    });
-
-    intervalRef.current = setInterval(() => {
-      setMetrics(prev => ({
-        ram: Math.max(64, Math.min(512, prev.ram + (Math.random() - 0.45) * 15)),
-        data: Math.max(0.1, Math.min(10, prev.data + (Math.random() - 0.4) * 0.3)),
-        cpu: Math.max(2, Math.min(100, prev.cpu + (Math.random() - 0.48) * 8)),
-        tokens: Math.max(0, prev.tokens + Math.floor(Math.random() * 50)),
-      }));
-    }, 3000);
+    fetchMetrics();
+    intervalRef.current = setInterval(fetchMetrics, 10_000); // refresh every 10s
 
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [isActive]);
+  }, [isActive, customerProductId]);
+
+  const calcTrend = (current: number, prev: number | undefined) => {
+    if (!prev || prev === 0) return 0;
+    return ((current - prev) / prev) * 100;
+  };
+
+  const dataFormatted = formatBytes(metrics.totalDataBytes);
+  const dataMax = dataFormatted.unit === 'GB' ? 10 : dataFormatted.unit === 'MB' ? 1024 : dataFormatted.unit === 'KB' ? 1024 : 1024;
 
   return (
     <Card className="border-border/50 overflow-hidden">
@@ -153,44 +195,44 @@ export function BotMetricsPanel({ isActive }: BotMetricsPanelProps) {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <MetricCard
-              label="RAM"
-              value={metrics.ram}
-              max={512}
-              unit="MB"
+              label="Requisições"
+              value={metrics.totalRequests}
+              max={Math.max(metrics.totalRequests * 2, 100)}
+              unit="reqs"
               icon={<HardDrive className="h-3.5 w-3.5" style={{ color: '#3b82f6' }} />}
               color="#3b82f6"
-              trend={2.3}
-              detail="Memória alocada pelo motor"
+              trend={calcTrend(metrics.totalRequests, prevMetrics?.totalRequests)}
+              detail="Total nas últimas 24h"
             />
             <MetricCard
               label="Dados Trafegados"
-              value={metrics.data}
-              max={10}
-              unit="GB"
+              value={Number(dataFormatted.value.toFixed(1))}
+              max={dataMax}
+              unit={dataFormatted.unit}
               icon={<Activity className="h-3.5 w-3.5" style={{ color: '#8b5cf6' }} />}
               color="#8b5cf6"
-              trend={5.1}
-              detail="Entrada + saída de dados"
+              trend={calcTrend(metrics.totalDataBytes, prevMetrics?.totalDataBytes)}
+              detail="Entrada + saída (24h)"
             />
             <MetricCard
-              label="Processamento"
-              value={metrics.cpu}
-              max={100}
-              unit="%"
+              label="Processamento Médio"
+              value={Math.round(metrics.avgProcessingMs)}
+              max={Math.max(Math.round(metrics.avgProcessingMs * 2), 5000)}
+              unit="ms"
               icon={<Cpu className="h-3.5 w-3.5" style={{ color: '#f59e0b' }} />}
               color="#f59e0b"
-              trend={-1.2}
-              detail="Uso de CPU do motor IA"
+              trend={calcTrend(metrics.avgProcessingMs, prevMetrics?.avgProcessingMs)}
+              detail="Tempo médio de resposta IA"
             />
             <MetricCard
               label="Tokens Consumidos"
-              value={metrics.tokens}
-              max={10000}
+              value={metrics.totalTokens}
+              max={Math.max(metrics.totalTokens * 2, 10000)}
               unit="tkns"
               icon={<Coins className="h-3.5 w-3.5" style={{ color: '#10b981' }} />}
               color="#10b981"
-              trend={8.7}
-              detail="Total da sessão atual"
+              trend={calcTrend(metrics.totalTokens, prevMetrics?.totalTokens)}
+              detail="Total consumido (24h)"
             />
           </div>
         )}

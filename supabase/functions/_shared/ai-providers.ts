@@ -15,12 +15,19 @@ export interface AICallOptions {
   maxTokens: number;
 }
 
+export interface AIUsageResult {
+  text: string;
+  tokensInput: number;
+  tokensOutput: number;
+  tokensTotal: number;
+}
+
 // ========== OpenAI ==========
 
 export async function openaiChat(
   opts: AICallOptions,
   userContent: string | any[],
-): Promise<string> {
+): Promise<AIUsageResult> {
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -40,7 +47,14 @@ export async function openaiChat(
 
   const json = await resp.json().catch(() => null);
   if (!resp.ok) throw new Error(`openai_error:${resp.status}:${safeStringify(json)}`);
-  return json?.choices?.[0]?.message?.content?.trim() || "";
+  const text = json?.choices?.[0]?.message?.content?.trim() || "";
+  const usage = json?.usage;
+  return {
+    text,
+    tokensInput: usage?.prompt_tokens || 0,
+    tokensOutput: usage?.completion_tokens || 0,
+    tokensTotal: usage?.total_tokens || 0,
+  };
 }
 
 export async function openaiTranscribe(apiKey: string, audioBlob: Blob): Promise<string> {
@@ -70,7 +84,7 @@ function geminiModelPath(model?: string): string {
 export async function geminiChat(
   opts: AICallOptions,
   userText: string,
-): Promise<string> {
+): Promise<AIUsageResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/${geminiModelPath(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
 
   const resp = await fetch(url, {
@@ -88,14 +102,21 @@ export async function geminiChat(
 
   const json = await resp.json().catch(() => null);
   if (!resp.ok) throw new Error(`gemini_error:${resp.status}:${safeStringify(json)}`);
-  return extractGeminiText(json);
+  const text = extractGeminiText(json);
+  const usage = json?.usageMetadata;
+  return {
+    text,
+    tokensInput: usage?.promptTokenCount || 0,
+    tokensOutput: usage?.candidatesTokenCount || 0,
+    tokensTotal: usage?.totalTokenCount || 0,
+  };
 }
 
 export async function geminiMultimodal(
   opts: AICallOptions,
   inlineData: { mimeType: string; data: string },
   textPrompt: string,
-): Promise<string> {
+): Promise<AIUsageResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/${geminiModelPath(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
 
   const resp = await fetch(url, {
@@ -119,7 +140,14 @@ export async function geminiMultimodal(
 
   const json = await resp.json().catch(() => null);
   if (!resp.ok) throw new Error(`gemini_multimodal_error:${resp.status}:${safeStringify(json)}`);
-  return extractGeminiText(json);
+  const text = extractGeminiText(json);
+  const usage = json?.usageMetadata;
+  return {
+    text,
+    tokensInput: usage?.promptTokenCount || 0,
+    tokensOutput: usage?.candidatesTokenCount || 0,
+    tokensTotal: usage?.totalTokenCount || 0,
+  };
 }
 
 // ========== Unified dispatchers ==========
@@ -128,7 +156,7 @@ export async function processText(
   provider: ResolvedProvider,
   opts: AICallOptions,
   text: string,
-): Promise<string> {
+): Promise<AIUsageResult> {
   if (provider === "google") return geminiChat(opts, text);
   return openaiChat(opts, text);
 }
@@ -138,7 +166,7 @@ export async function processImage(
   opts: AICallOptions,
   imageUrl: string,
   caption: string,
-): Promise<string> {
+): Promise<AIUsageResult> {
   const prompt = caption || "Analise esta imagem detalhadamente. Responda em português.";
 
   if (provider === "google") {
@@ -156,7 +184,7 @@ export async function processAudio(
   provider: ResolvedProvider,
   opts: AICallOptions,
   audioUrl: string,
-): Promise<string> {
+): Promise<AIUsageResult> {
   if (provider === "google") {
     const { base64, mimeType } = await downloadAsBase64(audioUrl);
     return geminiMultimodal(

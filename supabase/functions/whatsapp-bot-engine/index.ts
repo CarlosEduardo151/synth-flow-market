@@ -9,6 +9,7 @@ import {
   processImage,
   processAudio,
   resolveAICredentials,
+  type AIUsageResult,
 } from "../_shared/ai-providers.ts";
 import { zapiSendText, loadZAPICredentials } from "../_shared/zapi.ts";
 
@@ -61,6 +62,36 @@ function isPhoneRateLimited(phone: string): boolean {
   timestamps.push(now);
   phoneRateMap.set(phone, timestamps);
   return false;
+}
+
+// ========== Metrics logger ==========
+
+async function logUsageMetrics(
+  service: any,
+  customerProductId: string,
+  result: AIUsageResult,
+  provider: string,
+  model: string,
+  processingMs: number,
+  dataBytesIn: number,
+  dataBytesOut: number,
+) {
+  try {
+    await service.from("bot_usage_metrics").insert({
+      customer_product_id: customerProductId,
+      event_type: "ai_call",
+      tokens_input: result.tokensInput,
+      tokens_output: result.tokensOutput,
+      tokens_total: result.tokensTotal,
+      data_bytes_in: dataBytesIn,
+      data_bytes_out: dataBytesOut,
+      provider,
+      model,
+      processing_ms: processingMs,
+    });
+  } catch (e) {
+    console.error("metrics_log_error:", e);
+  }
 }
 
 // ========== Main ==========
@@ -127,7 +158,7 @@ serve(async (req) => {
       customer_product_id: cp.id,
       source: "z-api",
       payload,
-    }).then(({ error }) => { if (error) console.error("event_insert_error:", error.message); });
+    }).then(({ error }: any) => { if (error) console.error("event_insert_error:", error.message); });
 
     // Extract message fields
     const body = payload?.body || payload;
@@ -205,38 +236,48 @@ serve(async (req) => {
     const hasAudio = !!body?.audio;
     const hasText = !!body?.text;
 
-    let reply = "";
+    const userMessageText = hasText ? (typeof body.text === "string" ? body.text : body.text?.message || "") : "";
+    const dataBytesIn = new TextEncoder().encode(bodyText).length;
+
+    const startMs = Date.now();
+    let result: AIUsageResult;
 
     if (hasImage) {
       const imageUrl = body.image?.imageUrl || body.image?.url || "";
       const caption = sanitizeString(body.image?.caption || "");
       if (imageUrl) {
-        reply = await processImage(resolved.resolvedProvider, aiOpts, imageUrl, caption);
+        result = await processImage(resolved.resolvedProvider, aiOpts, imageUrl, caption);
       } else {
-        reply = "Não consegui acessar a imagem. Pode enviar novamente?";
+        result = { text: "Não consegui acessar a imagem. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
     } else if (hasAudio) {
       const audioUrl = body.audio?.audioUrl || body.audio?.url || "";
       if (audioUrl) {
-        reply = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl);
+        result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl);
       } else {
-        reply = "Não consegui acessar o áudio. Pode enviar novamente?";
+        result = { text: "Não consegui acessar o áudio. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
     } else if (hasText) {
-      const userMessage = sanitizeString(
-        typeof body.text === "string" ? body.text : body.text?.message || "",
-      );
+      const userMessage = sanitizeString(userMessageText);
       if (userMessage) {
-        reply = await processText(resolved.resolvedProvider, aiOpts, userMessage);
+        result = await processText(resolved.resolvedProvider, aiOpts, userMessage);
+      } else {
+        result = { text: "", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
     } else {
-      reply = "Desculpe, não consigo processar esse tipo de mensagem ainda.";
+      result = { text: "Desculpe, não consigo processar esse tipo de mensagem ainda.", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
     }
 
+    const processingMs = Date.now() - startMs;
+    const dataBytesOut = new TextEncoder().encode(result.text).length;
+
     // Send reply
-    if (reply) {
-      await zapiSendText(zapiCreds, phone, reply, messageId);
+    if (result.text) {
+      await zapiSendText(zapiCreds, phone, result.text, messageId);
     }
+
+    // Log metrics (fire and forget)
+    logUsageMetrics(service, cp.id, result, resolved.resolvedProvider, resolved.model, processingMs, dataBytesIn, dataBytesOut);
 
     // Mark as processed
     await service

@@ -421,6 +421,7 @@ const WhatsAppBotConfigSystem = () => {
               <div className="p-4 md:p-6">
                 <TabsContent value="status">
                   <BotStatusTab
+                    customerProductId={customerProductId}
                     isActive={botInstances.active?.is_active ?? false}
                     onStart={async () => {
                       if (!botInstances.active || !customerProductId) return;
