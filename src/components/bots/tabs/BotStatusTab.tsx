@@ -3,6 +3,7 @@ import { ServerCog, Shield, Power, RotateCcw, PowerOff } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { BotMetricsPanel } from './BotMetricsPanel';
 
 interface BotStatusTabProps {
   isActive: boolean;
@@ -153,6 +154,9 @@ export function BotStatusTab({ isActive, onStart, onShutdown, onRestart }: BotSt
           </div>
         </CardContent>
       </Card>
+
+      {/* Metrics */}
+      <BotMetricsPanel isActive={isActive} />
 
       {/* How it works */}
       <Card className="border-border/50">
