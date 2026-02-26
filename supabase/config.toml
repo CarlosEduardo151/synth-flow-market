@@ -39,5 +39,8 @@ verify_jwt = false
 [functions.whatsapp-bot-engine]
 verify_jwt = false
 
+[functions.bot-send-report]
+verify_jwt = false
+
 [functions.bot-knowledge-process]
 verify_jwt = false

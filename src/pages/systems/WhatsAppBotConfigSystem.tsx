@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   ArrowLeft, Save, Bot, Brain, Plug, Pencil, Check,
-  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle
+  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 import { BotConversationLogsTab } from '@/components/bots/tabs/BotConversationLogsTab';
 import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
+import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
 
 const supabase = supabaseClient as any;
 
@@ -96,6 +97,7 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'logs', label: 'Logs', icon: ScrollText },
+    { value: 'reports', label: 'Relatórios', icon: Mail },
     { value: 'whatsapp-api', label: 'WhatsApp API', icon: Smartphone },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
   ];
@@ -529,6 +531,10 @@ const WhatsAppBotConfigSystem = () => {
 
                 <TabsContent value="logs">
                   {productId && <BotConversationLogsTab customerProductId={productId} />}
+                </TabsContent>
+
+                <TabsContent value="reports">
+                  {productId && <BotReportsTab customerProductId={productId} />}
                 </TabsContent>
 
                 <TabsContent value="whatsapp-api">
