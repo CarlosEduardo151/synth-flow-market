@@ -257,7 +257,7 @@ serve(async (req) => {
       maxTokens,
     };
 
-    // ===== Process message by type =====
+    // ===== Check FAQ before AI (saves tokens) =====
     const hasImage = !!body?.image;
     const hasAudio = !!body?.audio;
     const hasVideo = !!body?.video;
@@ -269,6 +269,92 @@ serve(async (req) => {
 
     const userMessageText = hasText ? (typeof body.text === "string" ? body.text : body.text?.message || "") : "";
     const dataBytesIn = new TextEncoder().encode(bodyText).length;
+
+    // FAQ matching — only for text messages
+    if (hasText && userMessageText.trim()) {
+      try {
+        const { data: faqs } = await service
+          .from("bot_faq")
+          .select("id, question, answer, keywords")
+          .eq("customer_product_id", customerProductId)
+          .eq("is_active", true);
+
+        if (faqs && faqs.length > 0) {
+          const msgLower = userMessageText.toLowerCase().trim();
+          const msgWords = msgLower.split(/\s+/);
+
+          let bestMatch: typeof faqs[0] | null = null;
+          let bestScore = 0;
+
+          for (const faq of faqs) {
+            let score = 0;
+            const qLower = faq.question.toLowerCase();
+
+            // Exact match
+            if (msgLower === qLower) { score = 100; }
+            // Strong substring match
+            else if (qLower.includes(msgLower) || msgLower.includes(qLower)) { score = 60; }
+
+            // Keyword matching
+            const keywords = (faq.keywords || []) as string[];
+            if (keywords.length > 0) {
+              const matched = keywords.filter((kw: string) =>
+                msgWords.some(w => w.includes(kw) || kw.includes(w))
+              );
+              const kwScore = (matched.length / keywords.length) * 50;
+              score = Math.max(score, kwScore);
+            }
+
+            // Word overlap with question
+            const qWords = qLower.split(/\s+/).filter((w: string) => w.length > 2);
+            if (qWords.length > 0) {
+              const overlap = qWords.filter((w: string) => msgWords.some(mw => mw.includes(w) || w.includes(mw)));
+              const overlapScore = (overlap.length / qWords.length) * 45;
+              score = Math.max(score, overlapScore);
+            }
+
+            if (score > bestScore) { bestScore = score; bestMatch = faq; }
+          }
+
+          // Threshold: 40+ = confident match
+          if (bestMatch && bestScore >= 40) {
+            const faqAnswer = bestMatch.answer;
+
+            // Increment hit_count (fire & forget)
+            service.from("bot_faq")
+              .select("hit_count")
+              .eq("id", bestMatch.id)
+              .single()
+              .then(({ data: faqRow }: any) => {
+                if (faqRow) {
+                  service.from("bot_faq").update({ hit_count: (faqRow.hit_count || 0) + 1 }).eq("id", bestMatch!.id).then(() => {});
+                }
+              });
+
+            // Send FAQ reply via Z-API
+            const zapiCreds = await loadZAPICredentials(service, cp.user_id);
+            if (zapiCreds) {
+              await zapiSendText(zapiCreds, phone, faqAnswer, messageId);
+            }
+
+            // Log conversation
+            service.from("bot_conversation_logs").insert({
+              customer_product_id: cp.id, source: "whatsapp", phone,
+              direction: "inbound", message_text: userMessageText,
+            }).then(() => {});
+            service.from("bot_conversation_logs").insert({
+              customer_product_id: cp.id, source: "whatsapp", phone,
+              direction: "outbound", message_text: `[FAQ] ${faqAnswer}`,
+              tokens_used: 0, processing_ms: 0, provider: "faq", model: "faq",
+            }).then(() => {});
+
+            return corsResponse({ ok: true, type: "faq", matched: true, score: bestScore }, 200, origin);
+          }
+        }
+      } catch (e) {
+        console.error("faq_match_error:", e);
+      }
+    }
 
     const startMs = Date.now();
     let result: AIUsageResult;
