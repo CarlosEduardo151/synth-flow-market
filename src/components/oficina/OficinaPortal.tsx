@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { FleetChat } from '@/components/fleet/FleetChat';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -369,17 +370,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
   const activeNavItem = navItems.find(n => n.value === view);
 
-  // Chat state for oficina
-  const [oficinaChatMessages, setOficinaChatMessages] = useState([
-    { id: 1, from: 'gestor' as const, text: 'Bom dia! O compressor do Scania R450 (ABC-1D23) já chegou? Precisamos do veículo até amanhã.', time: '09:15', gestor: 'TransLog S.A.' },
-    { id: 2, from: 'oficina' as const, text: 'Bom dia! Sim, já está em estoque. Podemos iniciar hoje às 14h. Previsão de conclusão amanhã 10h.', time: '09:22', gestor: 'TransLog S.A.' },
-    { id: 3, from: 'gestor' as const, text: 'Perfeito, o motorista Carlos já está a caminho.', time: '09:28', gestor: 'TransLog S.A.' },
-    { id: 4, from: 'gestor' as const, text: 'Sobre o orçamento do Volvo FH 540, tem como reduzir o valor do filtro de óleo? Achamos um pouco acima da média.', time: '10:15', gestor: 'ExpressCargo' },
-    { id: 5, from: 'oficina' as const, text: 'Posso verificar com nosso fornecedor. Retorno em 30 minutos com uma proposta melhor.', time: '10:20', gestor: 'ExpressCargo' },
-  ]);
-  const [oficinaChatInput, setOficinaChatInput] = useState('');
-  const [oficinaChatFilter, setOficinaChatFilter] = useState<string>('all');
-  const [oficinaChatSearch, setOficinaChatSearch] = useState('');
+  // Chat now handled by FleetChat component
 
   // ─── Sidebar ───
   const SidebarNav = () => (
@@ -1245,179 +1236,15 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
       );
     }
 
-    // ══════════════ MENSAGENS ══════════════
+    // ══════════════ MENSAGENS (REAL) ══════════════
     if (view === 'mensagens') {
-      const gestores = [...new Set(oficinaChatMessages.map(m => m.gestor))];
-      const filteredMsgs = oficinaChatFilter === 'all'
-        ? oficinaChatMessages
-        : oficinaChatMessages.filter(m => m.gestor === oficinaChatFilter);
-
-      const handleOficinaSend = () => {
-        if (!oficinaChatInput.trim()) return;
-        const target = oficinaChatFilter === 'all' ? (gestores[0] || 'TransLog S.A.') : oficinaChatFilter;
-        setOficinaChatMessages(prev => [...prev, {
-          id: Date.now(),
-          from: 'oficina' as const,
-          text: oficinaChatInput.trim(),
-          time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-          gestor: target,
-        }]);
-        setOficinaChatInput('');
-        setTimeout(() => {
-          setOficinaChatMessages(prev => [...prev, {
-            id: Date.now() + 1,
-            from: 'gestor' as const,
-            text: 'Entendido, vou analisar e retorno em breve.',
-            time: new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            gestor: target,
-          }]);
-        }, 2000);
-      };
-
+      const cpId = 'placeholder-cp-id';
       return (
-        <div className="space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Canal de Comunicação</h2>
-            <p className="text-sm text-muted-foreground">Converse diretamente com os gestores de frota sobre orçamentos e serviços</p>
-          </div>
-
-          <div className="grid lg:grid-cols-[280px_1fr] gap-4 h-[600px]">
-            {/* Sidebar — Gestores */}
-            <div className="bg-card border border-border/60 rounded-lg overflow-hidden flex flex-col">
-              <div className="p-3 border-b border-border/40">
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Gestores de Frota</h3>
-                <Input
-                  value={oficinaChatSearch}
-                  onChange={e => setOficinaChatSearch(e.target.value)}
-                  placeholder="Buscar gestor..."
-                  className="h-8 text-xs"
-                />
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                <button
-                  onClick={() => setOficinaChatFilter('all')}
-                  className={`w-full text-left px-3 py-3 border-b border-border/20 hover:bg-muted/30 transition-colors flex items-center gap-3 ${oficinaChatFilter === 'all' ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
-                >
-                  <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">Todos os Gestores</p>
-                    <p className="text-[10px] text-muted-foreground">{oficinaChatMessages.length} mensagens</p>
-                  </div>
-                </button>
-                {gestores
-                  .filter(g => !oficinaChatSearch || g.toLowerCase().includes(oficinaChatSearch.toLowerCase()))
-                  .map(gestor => {
-                    const msgs = oficinaChatMessages.filter(m => m.gestor === gestor);
-                    const lastMsg = msgs[msgs.length - 1];
-                    const unread = msgs.filter(m => m.from === 'gestor').length;
-                    return (
-                      <button
-                        key={gestor}
-                        onClick={() => setOficinaChatFilter(gestor)}
-                        className={`w-full text-left px-3 py-3 border-b border-border/20 hover:bg-muted/30 transition-colors flex items-center gap-3 ${oficinaChatFilter === gestor ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}
-                      >
-                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <Truck className="w-4 h-4 text-primary" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium text-foreground truncate">{gestor}</p>
-                            <span className="text-[10px] text-muted-foreground">{lastMsg?.time}</span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground truncate">{lastMsg?.text}</p>
-                        </div>
-                        {unread > 0 && (
-                          <span className="w-5 h-5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center shrink-0">{unread}</span>
-                        )}
-                      </button>
-                    );
-                  })}
-              </div>
-            </div>
-
-            {/* Chat Area */}
-            <div className="bg-card border border-border/60 rounded-lg overflow-hidden flex flex-col">
-              {/* Header */}
-              <div className="p-4 border-b border-border/40 flex items-center justify-between bg-muted/20">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Truck className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold text-foreground">
-                      {oficinaChatFilter === 'all' ? 'Todos os Gestores' : oficinaChatFilter}
-                    </h3>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span className="text-[10px] text-muted-foreground">Online</span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8"><Phone className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8"><Search className="w-4 h-4" /></Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="w-4 h-4" /></Button>
-                </div>
-              </div>
-
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {filteredMsgs.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center">
-                    <MessageCircle className="w-12 h-12 text-muted-foreground/20 mb-3" />
-                    <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda</p>
-                    <p className="text-xs text-muted-foreground/60 mt-1">Aguarde o gestor enviar uma mensagem ou inicie uma conversa</p>
-                  </div>
-                ) : (
-                  filteredMsgs.map(msg => (
-                    <div key={msg.id} className={`flex ${msg.from === 'oficina' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[75%] rounded-2xl px-4 py-2.5 ${
-                        msg.from === 'oficina'
-                          ? 'bg-primary text-primary-foreground rounded-br-md'
-                          : 'bg-muted/50 border border-border/50 text-foreground rounded-bl-md'
-                      }`}>
-                        {oficinaChatFilter === 'all' && (
-                          <p className={`text-[10px] font-semibold mb-0.5 ${msg.from === 'oficina' ? 'text-primary-foreground/70' : 'text-primary'}`}>
-                            {msg.from === 'oficina' ? 'Você' : msg.gestor}
-                          </p>
-                        )}
-                        <p className="text-sm leading-relaxed">{msg.text}</p>
-                        <p className={`text-[10px] mt-1 text-right ${msg.from === 'oficina' ? 'text-primary-foreground/50' : 'text-muted-foreground'}`}>
-                          {msg.time} {msg.from === 'oficina' && '✓✓'}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              {/* Input */}
-              <div className="p-3 border-t border-border/40 bg-muted/10">
-                <div className="flex items-center gap-2">
-                  <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0"><Plus className="w-4 h-4" /></Button>
-                  <Input
-                    value={oficinaChatInput}
-                    onChange={e => setOficinaChatInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleOficinaSend()}
-                    placeholder={`Mensagem para ${oficinaChatFilter === 'all' ? 'gestor' : oficinaChatFilter}...`}
-                    className="h-9 text-sm flex-1"
-                  />
-                  <Button
-                    onClick={handleOficinaSend}
-                    disabled={!oficinaChatInput.trim()}
-                    size="sm"
-                    className="h-9 px-4 gap-1.5"
-                  >
-                    <Send className="w-4 h-4" />
-                    Enviar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <FleetChat
+          customerProductId={cpId}
+          currentRole="oficina"
+          currentName="Oficina"
+        />
       );
     }
 
