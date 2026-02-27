@@ -22,7 +22,8 @@ import {
   ArrowUpRight, ArrowDownRight, Fuel, CalendarDays, Activity,
   PieChart as PieChartIcon, Gauge, Bell, Settings, RefreshCw,
   ChevronDown, MoreHorizontal, Layers, Package, TrendingDown,
-  CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck
+  CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck,
+  Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -195,11 +196,12 @@ const auditoriaConfig = {
 // FLEET SIDEBAR TABS
 // ═══════════════════════════════════════════════════════════
 
-type FrotaTab = 'overview' | 'aprovacoes' | 'frota' | 'orcamentos' | 'financeiro' | 'relatorios' | 'questionar';
+type FrotaTab = 'overview' | 'aprovacoes' | 'cadastro' | 'frota' | 'orcamentos' | 'financeiro' | 'relatorios' | 'questionar';
 
 const frotaTabs: { value: FrotaTab; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { value: 'overview', label: 'Visão Geral', desc: 'Resumo de gastos, economia e status da frota', icon: BarChart3 },
   { value: 'aprovacoes', label: 'Aprovações', desc: 'Orçamentos aguardando sua decisão', icon: Shield },
+  { value: 'cadastro', label: 'Cadastrar', desc: 'Adicione veículos com escaneamento VERO 1.0', icon: ScanLine },
   { value: 'frota', label: 'Veículos', desc: 'Todos os veículos e histórico de manutenção', icon: Truck },
   { value: 'orcamentos', label: 'Orçamentos', desc: 'Histórico completo de orçamentos recebidos', icon: FileText },
   { value: 'financeiro', label: 'Financeiro', desc: 'Notas fiscais, extratos e pagamentos', icon: CircleDollarSign },
@@ -232,6 +234,15 @@ const GestaoFrotasOficinasSystem = () => {
   ]);
   const [chatInput, setChatInput] = useState('');
   const [chatFilterOficina, setChatFilterOficina] = useState<string>('all');
+
+  // VERO 1.0 states
+  const [veroStep, setVeroStep] = useState<'idle' | 'uploading' | 'analyzing' | 'result' | 'confirmed'>('idle');
+  const [veroImagePreview, setVeroImagePreview] = useState<string | null>(null);
+  const [veroResult, setVeroResult] = useState<{
+    placa: string; marca: string; modelo: string; cor: string; ano: string; tipo: string; confianca: number;
+  } | null>(null);
+  const [manualMode, setManualMode] = useState(false);
+  const [cadastroForm, setCadastroForm] = useState({ placa: '', modelo: '', ano: '', km: '', tipo: '', motorista: '', chassi: '' });
 
   if (!user) {
     navigate('/auth');
@@ -642,6 +653,264 @@ const GestaoFrotasOficinasSystem = () => {
           );
 
         // ════════════════════════════════════
+        // CADASTRAR VEÍCULO — VERO 1.0
+        // ════════════════════════════════════
+        case 'cadastro': {
+          const handleVeroScan = () => {
+            setVeroStep('uploading');
+            setTimeout(() => {
+              setVeroStep('analyzing');
+              setTimeout(() => {
+                setVeroResult({
+                  placa: 'HXB-4K92',
+                  marca: 'Mitsubishi',
+                  modelo: 'L200 Triton Sport HPE-S',
+                  cor: 'Prata',
+                  ano: '2024',
+                  tipo: 'Picape',
+                  confianca: 96,
+                });
+                setVeroStep('result');
+              }, 3000);
+            }, 1500);
+          };
+
+          const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (ev) => {
+                setVeroImagePreview(ev.target?.result as string);
+                handleVeroScan();
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const handleVeroConfirm = () => {
+            setVeroStep('confirmed');
+            setTimeout(() => {
+              setVeroStep('idle');
+              setVeroImagePreview(null);
+              setVeroResult(null);
+            }, 3000);
+          };
+
+          const handleVeroReject = () => {
+            setVeroStep('idle');
+            setVeroImagePreview(null);
+            setVeroResult(null);
+            setManualMode(true);
+          };
+
+          const resetVero = () => {
+            setVeroStep('idle');
+            setVeroImagePreview(null);
+            setVeroResult(null);
+            setManualMode(false);
+            setCadastroForm({ placa: '', modelo: '', ano: '', km: '', tipo: '', motorista: '', chassi: '' });
+          };
+
+          return (
+            <div className="space-y-6 max-w-3xl">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">Cadastrar Novo Veículo</h2>
+                <p className="text-sm text-muted-foreground">Use o escaneamento inteligente ou preencha manualmente</p>
+              </div>
+
+              {/* Tabs: VERO vs Manual */}
+              <div className="flex gap-2">
+                <Button
+                  variant={!manualMode ? 'default' : 'outline'}
+                  onClick={() => { setManualMode(false); resetVero(); }}
+                  className="gap-2"
+                >
+                  <Sparkles className="w-4 h-4" /> Escaneamento VERO 1.0
+                </Button>
+                <Button
+                  variant={manualMode ? 'default' : 'outline'}
+                  onClick={() => { setManualMode(true); setVeroStep('idle'); setVeroImagePreview(null); setVeroResult(null); }}
+                  className="gap-2"
+                >
+                  <FileText className="w-4 h-4" /> Manual
+                </Button>
+              </div>
+
+              {/* ── VERO 1.0 FLOW ── */}
+              {!manualMode && (
+                <div className="space-y-5">
+                  {/* Upload Area */}
+                  {veroStep === 'idle' && (
+                    <Card className="border-2 border-dashed border-primary/30 bg-primary/5 hover:border-primary/50 transition-colors">
+                      <CardContent className="p-8 flex flex-col items-center justify-center text-center">
+                        <label className="cursor-pointer flex flex-col items-center gap-4">
+                          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
+                            <Camera className="w-10 h-10 text-primary" />
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-base font-semibold text-foreground">Fotografe a traseira do veículo</p>
+                            <p className="text-sm text-muted-foreground max-w-sm">
+                              A VERO 1.0 vai identificar automaticamente a <strong>placa</strong>, <strong>marca</strong>, <strong>modelo</strong> e <strong>ano</strong> do veículo a partir da imagem
+                            </p>
+                          </div>
+                          <div className="flex gap-3 mt-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                              <Camera className="w-3.5 h-3.5" /> Tirar Foto
+                            </span>
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted text-muted-foreground text-xs font-medium">
+                              <Upload className="w-3.5 h-3.5" /> Enviar Imagem
+                            </span>
+                          </div>
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                        </label>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Analyzing */}
+                  {(veroStep === 'uploading' || veroStep === 'analyzing') && (
+                    <Card className="border border-primary/30 bg-card">
+                      <CardContent className="p-8 flex flex-col items-center gap-5">
+                        {veroImagePreview && (
+                          <div className="w-full max-w-md rounded-xl overflow-hidden border border-border/50">
+                            <img src={veroImagePreview} alt="Veículo escaneado" className="w-full h-48 object-cover" />
+                          </div>
+                        )}
+                        <div className="flex flex-col items-center gap-3 text-center">
+                          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center animate-pulse">
+                            <ScanLine className="w-7 h-7 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-base font-semibold text-foreground">
+                              {veroStep === 'uploading' ? 'Enviando imagem...' : 'VERO 1.0 analisando...'}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {veroStep === 'uploading'
+                                ? 'Preparando a imagem para análise'
+                                : 'Identificando placa, marca, modelo e características do veículo'}
+                            </p>
+                          </div>
+                          <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Result — Confirmation */}
+                  {veroStep === 'result' && veroResult && (
+                    <Card className="border border-primary/30 bg-card shadow-md">
+                      <CardContent className="p-6 space-y-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-foreground">VERO 1.0 — Resultado da Análise</p>
+                            <p className="text-xs text-muted-foreground">Confiança: <strong className="text-primary">{veroResult.confianca}%</strong></p>
+                          </div>
+                        </div>
+
+                        {veroImagePreview && (
+                          <div className="w-full rounded-xl overflow-hidden border border-border/50">
+                            <img src={veroImagePreview} alt="Veículo" className="w-full h-48 object-cover" />
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                          {[
+                            { label: 'Placa', value: veroResult.placa, icon: '🔤' },
+                            { label: 'Marca', value: veroResult.marca, icon: '🏭' },
+                            { label: 'Modelo', value: veroResult.modelo, icon: '🚗' },
+                            { label: 'Ano', value: veroResult.ano, icon: '📅' },
+                            { label: 'Cor', value: veroResult.cor, icon: '🎨' },
+                            { label: 'Tipo', value: veroResult.tipo, icon: '📦' },
+                          ].map(item => (
+                            <div key={item.label} className="p-3 bg-muted/30 rounded-lg border border-border/30">
+                              <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">{item.icon} {item.label}</p>
+                              <p className="text-sm font-bold text-foreground mt-0.5">{item.value}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <Separator />
+
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4">
+                          <p className="text-sm font-semibold text-amber-600 flex items-center gap-2">
+                            <AlertCircle className="w-4 h-4" /> Confirmação necessária
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Verifique se os dados acima correspondem ao veículo real. Ao confirmar, o veículo será registrado na sua frota.
+                          </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                          <Button onClick={handleVeroConfirm} className="flex-1 gap-2">
+                            <CheckCircle className="w-4 h-4" /> Confirmar Dados
+                          </Button>
+                          <Button onClick={handleVeroReject} variant="outline" className="gap-2">
+                            <X className="w-4 h-4" /> Corrigir Manualmente
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Confirmed Success */}
+                  {veroStep === 'confirmed' && (
+                    <Card className="border border-emerald-500/30 bg-emerald-500/5">
+                      <CardContent className="p-8 flex flex-col items-center gap-4 text-center">
+                        <div className="w-16 h-16 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                          <CheckCircle className="w-8 h-8 text-emerald-500" />
+                        </div>
+                        <div>
+                          <p className="text-lg font-bold text-foreground">Veículo cadastrado com sucesso!</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            <strong>{veroResult?.modelo}</strong> — {veroResult?.placa} adicionado à sua frota
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+
+              {/* ── MANUAL MODE ── */}
+              {manualMode && (
+                <Card className="border border-border/50 shadow-sm">
+                  <CardContent className="p-6 space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold text-foreground">Cadastro Manual</p>
+                      <p className="text-xs text-muted-foreground">Preencha todos os campos do veículo</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Placa (ex: ABC-1D23)" value={cadastroForm.placa} onChange={(e) => setCadastroForm({ ...cadastroForm, placa: e.target.value })} />
+                      <Input placeholder="Modelo (ex: Scania R450)" value={cadastroForm.modelo} onChange={(e) => setCadastroForm({ ...cadastroForm, modelo: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <Input placeholder="Ano" type="number" value={cadastroForm.ano} onChange={(e) => setCadastroForm({ ...cadastroForm, ano: e.target.value })} />
+                      <Input placeholder="KM Atual" type="number" value={cadastroForm.km} onChange={(e) => setCadastroForm({ ...cadastroForm, km: e.target.value })} />
+                      <Select value={cadastroForm.tipo} onValueChange={(v) => setCadastroForm({ ...cadastroForm, tipo: v })}>
+                        <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cavalo">Cavalo Mecânico</SelectItem>
+                          <SelectItem value="truck">Truck</SelectItem>
+                          <SelectItem value="carreta">Carreta</SelectItem>
+                          <SelectItem value="van">Van</SelectItem>
+                          <SelectItem value="picape">Picape</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Input placeholder="Motorista responsável" value={cadastroForm.motorista} onChange={(e) => setCadastroForm({ ...cadastroForm, motorista: e.target.value })} />
+                    <Input placeholder="Chassi (opcional)" value={cadastroForm.chassi} onChange={(e) => setCadastroForm({ ...cadastroForm, chassi: e.target.value })} />
+                    <Button className="w-full gap-2"><Plus className="w-4 h-4" /> Cadastrar Veículo</Button>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          );
+        }
+
+        // ════════════════════════════════════
         // VEÍCULOS (FROTA)
         // ════════════════════════════════════
         case 'frota':
@@ -657,34 +926,9 @@ const GestaoFrotasOficinasSystem = () => {
                     <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <Input placeholder="Buscar placa, modelo, motorista..." className="pl-9 w-64" value={searchVeiculos} onChange={(e) => setSearchVeiculos(e.target.value)} />
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="gap-1.5"><Plus className="w-4 h-4" /> Novo Veículo</Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader><DialogTitle>Cadastrar Veículo</DialogTitle></DialogHeader>
-                      <div className="space-y-4 mt-4">
-                        <Input placeholder="Placa (ex: ABC-1D23)" />
-                        <Input placeholder="Modelo (ex: Scania R450)" />
-                        <div className="grid grid-cols-2 gap-3">
-                          <Input placeholder="Ano" type="number" />
-                          <Input placeholder="KM Atual" type="number" />
-                        </div>
-                        <Select>
-                          <SelectTrigger><SelectValue placeholder="Tipo de veículo" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="cavalo">Cavalo Mecânico</SelectItem>
-                            <SelectItem value="truck">Truck</SelectItem>
-                            <SelectItem value="carreta">Carreta</SelectItem>
-                            <SelectItem value="van">Van</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Input placeholder="Motorista responsável" />
-                        <Input placeholder="Chassi (opcional)" />
-                        <Button className="w-full">Cadastrar Veículo</Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button size="sm" className="gap-1.5" onClick={() => setActiveTab('cadastro')}>
+                    <Plus className="w-4 h-4" /> Novo Veículo
+                  </Button>
                 </div>
               </div>
 
