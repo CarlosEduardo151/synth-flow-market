@@ -943,6 +943,84 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_calls: {
+        Row: {
+          caller_name: string
+          caller_role: string
+          created_at: string
+          customer_product_id: string
+          duration_seconds: number | null
+          ended_at: string | null
+          id: string
+          recipient_name: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          caller_name: string
+          caller_role: string
+          created_at?: string
+          customer_product_id: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          recipient_name: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          caller_name?: string
+          caller_role?: string
+          created_at?: string
+          customer_product_id?: string
+          duration_seconds?: number | null
+          ended_at?: string | null
+          id?: string
+          recipient_name?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      fleet_messages: {
+        Row: {
+          attachment_url: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_read: boolean
+          message_text: string
+          message_type: string
+          recipient_name: string
+          sender_name: string
+          sender_role: string
+        }
+        Insert: {
+          attachment_url?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_read?: boolean
+          message_text: string
+          message_type?: string
+          recipient_name: string
+          sender_name: string
+          sender_role: string
+        }
+        Update: {
+          attachment_url?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_read?: boolean
+          message_text?: string
+          message_type?: string
+          recipient_name?: string
+          sender_name?: string
+          sender_role?: string
+        }
+        Relationships: []
+      }
       free_trials: {
         Row: {
           created_at: string
