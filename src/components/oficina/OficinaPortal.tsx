@@ -8,12 +8,15 @@ import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Wrench, Plus, Camera, Trash2, DollarSign, Clock, CheckCircle2,
   FileText, Car, MessageCircle, ArrowLeft, AlertTriangle, Timer,
   Receipt, Wallet, Send, X, ChevronRight, Bell, Search,
   TrendingUp, BarChart3, PieChart, CalendarDays, Star, Users,
-  Activity, Gauge, Target, ArrowUpRight, ArrowDownRight
+  Activity, Gauge, Target, ArrowUpRight, ArrowDownRight, Menu,
+  LayoutDashboard, ClipboardList, UserCheck
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -139,8 +142,10 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const [finalizarDialog, setFinalizarDialog] = useState(false);
   const [selectedVeiculo, setSelectedVeiculo] = useState<VeiculoPatio | null>(null);
   const [financeiroTab, setFinanceiroTab] = useState('resumo');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fotoServicoRef = useRef<HTMLInputElement>(null);
+  const isMobile = useIsMobile();
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
@@ -183,29 +188,85 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const servicosTotais = faturamentoMensal.reduce((s, m) => s + m.servicos, 0);
   const ticketMedio = faturamentoTotal / servicosTotais;
 
-  // ─── Header ───
-  const PortalHeader = ({ title, showBack = true }: { title: string; showBack?: boolean }) => (
-    <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b px-4 sm:px-6 py-3 flex items-center gap-3">
-      {showBack && (
-        <button onClick={() => setView('home')} className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted active:scale-95 transition-all">
-          <ArrowLeft className="w-5 h-5" />
+  // ─── Sidebar Nav Items ───
+  const navItems: { value: OficinaView; label: string; icon: React.ReactNode; badge?: string }[] = [
+    { value: 'home', label: 'Dashboard', icon: <LayoutDashboard className="w-5 h-5" /> },
+    { value: 'checkin', label: 'Novo Atendimento', icon: <Plus className="w-5 h-5" /> },
+    { value: 'orcamento', label: 'Orçamentos', icon: <ClipboardList className="w-5 h-5" />, badge: '3' },
+    { value: 'patio', label: 'Pátio Digital', icon: <Car className="w-5 h-5" />, badge: String(mockPatio.length) },
+    { value: 'financeiro', label: 'Financeiro', icon: <Wallet className="w-5 h-5" /> },
+    { value: 'finalizar', label: 'Clientes', icon: <Users className="w-5 h-5" />, badge: '48' },
+  ];
+
+  const navigateTo = (v: OficinaView) => {
+    setView(v);
+    setSidebarOpen(false);
+  };
+
+  const viewTitle: Record<OficinaView, string> = {
+    home: 'Painel da Oficina',
+    checkin: 'Novo Atendimento',
+    orcamento: 'Elaborar Orçamento',
+    patio: 'Pátio Digital',
+    finalizar: 'Clientes',
+    financeiro: 'Financeiro',
+  };
+
+  // ─── Sidebar Content (shared between desktop & mobile) ───
+  const SidebarNav = () => (
+    <div className="flex flex-col h-full">
+      {/* Logo / Title */}
+      <div className="p-4 border-b border-border">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <Wrench className="w-5 h-5 text-emerald-500" />
+          </div>
+          <div>
+            <p className="font-bold text-foreground text-sm">Portal Oficina</p>
+            <p className="text-xs text-muted-foreground">NovaLink</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Nav Items */}
+      <nav className="flex-1 p-3 space-y-1">
+        {navItems.map((item) => (
+          <button
+            key={item.value}
+            onClick={() => navigateTo(item.value)}
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all active:scale-[0.98] ${
+              view === item.value
+                ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            {item.icon}
+            <span className="flex-1 text-left">{item.label}</span>
+            {item.badge && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">{item.badge}</Badge>
+            )}
+          </button>
+        ))}
+      </nav>
+
+      {/* Bottom: Switch Role */}
+      <div className="p-3 border-t border-border">
+        <button
+          onClick={onSwitchRole}
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-all"
+        >
+          <UserCheck className="w-5 h-5" />
+          <span>Trocar Perfil</span>
         </button>
-      )}
-      <h1 className="text-lg font-bold text-foreground flex-1">{title}</h1>
-      <button onClick={onSwitchRole} className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted transition-colors">
-        Trocar Perfil
-      </button>
+      </div>
     </div>
   );
 
-  // ══════════════════════════════════════════════
-  // VIEW: HOME
-  // ══════════════════════════════════════════════
-  if (view === 'home') {
-    return (
-      <div className="min-h-screen bg-background">
-        <PortalHeader title="Painel da Oficina" showBack={false} />
-
+  // ─── Content renderer ───
+  const renderContent = () => {
+    // ══ HOME ══
+    if (view === 'home') {
+      return (
         <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24">
           {/* Top KPIs - 4 cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -284,7 +345,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
           {/* Charts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Faturamento nos últimos 7 dias */}
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -316,7 +376,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
               </CardContent>
             </Card>
 
-            {/* Serviços por Tipo */}
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -354,42 +413,29 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
           {/* Quick Actions + Faturamento 6 Meses */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-            {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-3 lg:col-span-1">
-              <button
-                onClick={() => setView('patio')}
-                className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
-              >
+              <button onClick={() => setView('patio')} className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left">
                 <Car className="w-7 h-7 text-primary mb-2" />
                 <p className="font-semibold text-foreground text-sm">Pátio Digital</p>
                 <p className="text-xs text-muted-foreground mt-1">{mockPatio.length} veículos</p>
               </button>
-              <button
-                onClick={() => setView('financeiro')}
-                className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
-              >
+              <button onClick={() => setView('financeiro')} className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left">
                 <Wallet className="w-7 h-7 text-emerald-500 mb-2" />
                 <p className="font-semibold text-foreground text-sm">Recebíveis</p>
                 <p className="text-xs text-muted-foreground mt-1">{fmt(totalRecebido)} recebidos</p>
               </button>
-              <button
-                onClick={() => setView('orcamento')}
-                className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
-              >
+              <button onClick={() => setView('orcamento')} className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left">
                 <FileText className="w-7 h-7 text-amber-500 mb-2" />
                 <p className="font-semibold text-foreground text-sm">Orçamentos</p>
                 <p className="text-xs text-muted-foreground mt-1">3 pendentes</p>
               </button>
-              <button
-                className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left"
-              >
+              <button className="bg-card rounded-2xl p-5 border shadow-sm hover:shadow-md active:scale-[0.98] transition-all text-left">
                 <Users className="w-7 h-7 text-purple-500 mb-2" />
                 <p className="font-semibold text-foreground text-sm">Clientes</p>
                 <p className="text-xs text-muted-foreground mt-1">48 frotas</p>
               </button>
             </div>
 
-            {/* Faturamento Mensal */}
             <Card className="border-0 shadow-md lg:col-span-2">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -421,7 +467,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
           {/* Avaliação + Aprovações recentes */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            {/* Avaliação Semanal */}
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -444,7 +489,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
               </CardContent>
             </Card>
 
-            {/* Serviços Aprovados */}
             <Card className="border-0 shadow-md">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-semibold flex items-center gap-2">
@@ -475,24 +519,12 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </Card>
           </div>
         </div>
+      );
+    }
 
-        {/* FAB WhatsApp */}
-        <a href="https://wa.me/5599999999999?text=Olá%20NovaLink,%20preciso%20de%20ajuda%20no%20portal%20da%20oficina!" target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg flex items-center justify-center active:scale-95 transition-all"
-          title="Pé na Graxa — Suporte">
-          <MessageCircle className="w-6 h-6 text-white" />
-        </a>
-      </div>
-    );
-  }
-
-  // ══════════════════════════════════════════════
-  // VIEW: CHECK-IN
-  // ══════════════════════════════════════════════
-  if (view === 'checkin') {
-    return (
-      <div className="min-h-screen bg-background">
-        <PortalHeader title="Novo Atendimento" />
+    // ══ CHECK-IN ══
+    if (view === 'checkin') {
+      return (
         <div className="p-4 sm:p-6 space-y-5 max-w-2xl mx-auto">
           <p className="text-sm text-muted-foreground">Identifique o veículo para iniciar</p>
 
@@ -548,144 +580,131 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </div>
           )}
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // ══════════════════════════════════════════════
-  // VIEW: ORÇAMENTO
-  // ══════════════════════════════════════════════
-  if (view === 'orcamento') {
-    return (
-      <div className="min-h-screen bg-background">
-        <PortalHeader title="Elaborar Orçamento" />
-        <div className="p-4 sm:p-6 space-y-5 max-w-3xl mx-auto pb-32">
-          {/* Vehicle Header */}
-          <div className="flex items-center gap-3 bg-card rounded-xl p-3 border">
-            <Car className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="font-mono font-bold text-foreground">{placaInput || 'ABC-1D23'}</p>
-              <p className="text-xs text-muted-foreground">Scania R450 · 185.000 km</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Left: Add Items */}
-            <div className="space-y-4">
-              <div className="flex gap-2">
-                <button onClick={() => setNovoItemTipo('peca')} className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${novoItemTipo === 'peca' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground'}`}>🔩 Peça</button>
-                <button onClick={() => setNovoItemTipo('mao_de_obra')} className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${novoItemTipo === 'mao_de_obra' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground'}`}>🛠️ Mão de Obra</button>
+    // ══ ORÇAMENTO ══
+    if (view === 'orcamento') {
+      return (
+        <>
+          <div className="p-4 sm:p-6 space-y-5 max-w-3xl mx-auto pb-32">
+            <div className="flex items-center gap-3 bg-card rounded-xl p-3 border">
+              <Car className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="font-mono font-bold text-foreground">{placaInput || 'ABC-1D23'}</p>
+                <p className="text-xs text-muted-foreground">Scania R450 · 185.000 km</p>
               </div>
-              <Input placeholder={novoItemTipo === 'peca' ? 'Ex: Filtro de óleo Mann W940' : 'Ex: Troca de embreagem'} value={novoItemDesc} onChange={(e) => setNovoItemDesc(e.target.value)} className="h-12" />
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
-                  <Input placeholder="0,00" value={novoItemValor} onChange={(e) => setNovoItemValor(e.target.value)} className="h-12 pl-10 text-lg font-mono" />
-                </div>
-                <Button onClick={addItem} className="h-12 px-6 bg-emerald-500 hover:bg-emerald-600 text-white"><Plus className="w-5 h-5" /></Button>
-              </div>
-
-              {/* Fotos */}
-              <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Camera className="w-4 h-4 text-muted-foreground" />Fotos</h3>
-                <div className="flex flex-wrap gap-2">
-                  {fotos.map((f, i) => (
-                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border bg-muted">
-                      <img src={f} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
-                      <button onClick={() => setFotos(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"><X className="w-3 h-3 text-white" /></button>
-                    </div>
-                  ))}
-                  <button onClick={() => fileInputRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all">
-                    <Camera className="w-5 h-5 text-muted-foreground" /><span className="text-[10px] text-muted-foreground">Adicionar</span>
-                  </button>
-                  <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFoto} />
-                </div>
-              </div>
-              <Textarea placeholder="Observações para o gestor da frota (opcional)" rows={2} />
             </div>
 
-            {/* Right: Items List */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-foreground">Itens do Orçamento ({orcamentoItems.length})</h3>
-              {orcamentoItems.length === 0 && (
-                <div className="bg-muted/50 rounded-xl p-8 text-center">
-                  <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Adicione peças e mão de obra</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <button onClick={() => setNovoItemTipo('peca')} className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${novoItemTipo === 'peca' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground'}`}>🔩 Peça</button>
+                  <button onClick={() => setNovoItemTipo('mao_de_obra')} className={`flex-1 py-3 rounded-xl font-semibold text-sm transition-all active:scale-[0.98] ${novoItemTipo === 'mao_de_obra' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground'}`}>🛠️ Mão de Obra</button>
                 </div>
-              )}
-              {orcamentoItems.map((item) => (
-                <div key={item.id} className="bg-card rounded-xl p-3 border flex items-center gap-3">
-                  <span className="text-lg">{item.tipo === 'peca' ? '🔩' : '🛠️'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      {item.statusIA === 'ok' && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✓ Preço OK</span>}
-                      {item.statusIA === 'atencao' && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠ Atenção</span>}
-                      {item.statusIA === 'alto' && <span className="text-xs text-red-600 dark:text-red-400 font-medium">⛔ Acima da média</span>}
-                    </div>
+                <Input placeholder={novoItemTipo === 'peca' ? 'Ex: Filtro de óleo Mann W940' : 'Ex: Troca de embreagem'} value={novoItemDesc} onChange={(e) => setNovoItemDesc(e.target.value)} className="h-12" />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+                    <Input placeholder="0,00" value={novoItemValor} onChange={(e) => setNovoItemValor(e.target.value)} className="h-12 pl-10 text-lg font-mono" />
                   </div>
-                  <span className="font-mono font-bold text-foreground">{fmt(item.valor)}</span>
-                  <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-lg hover:bg-muted active:scale-90 transition-all"><Trash2 className="w-4 h-4 text-muted-foreground" /></button>
+                  <Button onClick={addItem} className="h-12 px-6 bg-emerald-500 hover:bg-emerald-600 text-white"><Plus className="w-5 h-5" /></Button>
                 </div>
-              ))}
 
-              {orcamentoItems.length > 0 && (
-                <Card className="border-0 shadow-md bg-emerald-50 dark:bg-emerald-500/5">
-                  <CardContent className="p-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Peças</span>
-                      <span className="font-medium text-foreground">{fmt(orcamentoItems.filter(i => i.tipo === 'peca').reduce((s, i) => s + i.valor, 0))}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Mão de Obra</span>
-                      <span className="font-medium text-foreground">{fmt(orcamentoItems.filter(i => i.tipo === 'mao_de_obra').reduce((s, i) => s + i.valor, 0))}</span>
-                    </div>
-                    <Separator />
-                    <div className="flex justify-between">
-                      <span className="font-semibold text-foreground">Total</span>
-                      <span className="text-xl font-bold text-foreground">{fmt(totalOrcamento)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Você recebe (85%)</span>
-                      <span className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(totalOrcamento * 0.85)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {orcamentoItems.length > 0 && (
-          <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t p-4 z-40">
-            <div className="max-w-3xl mx-auto flex items-center gap-4">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Total do Orçamento</p>
-                <p className="text-2xl font-bold text-foreground">{fmt(totalOrcamento)}</p>
+                <div className="space-y-2">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Camera className="w-4 h-4 text-muted-foreground" />Fotos</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {fotos.map((f, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border bg-muted">
+                        <img src={f} alt={`Foto ${i + 1}`} className="w-full h-full object-cover" />
+                        <button onClick={() => setFotos(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"><X className="w-3 h-3 text-white" /></button>
+                      </div>
+                    ))}
+                    <button onClick={() => fileInputRef.current?.click()} className="w-20 h-20 rounded-xl border-2 border-dashed border-border hover:border-primary/50 flex flex-col items-center justify-center gap-1 active:scale-95 transition-all">
+                      <Camera className="w-5 h-5 text-muted-foreground" /><span className="text-[10px] text-muted-foreground">Adicionar</span>
+                    </button>
+                    <input ref={fileInputRef} type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFoto} />
+                  </div>
+                </div>
+                <Textarea placeholder="Observações para o gestor da frota (opcional)" rows={2} />
               </div>
-              <Button className="h-14 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold rounded-xl shadow-lg gap-2">
-                <Send className="w-5 h-5" /> Enviar
-              </Button>
+
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Itens do Orçamento ({orcamentoItems.length})</h3>
+                {orcamentoItems.length === 0 && (
+                  <div className="bg-muted/50 rounded-xl p-8 text-center">
+                    <FileText className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">Adicione peças e mão de obra</p>
+                  </div>
+                )}
+                {orcamentoItems.map((item) => (
+                  <div key={item.id} className="bg-card rounded-xl p-3 border flex items-center gap-3">
+                    <span className="text-lg">{item.tipo === 'peca' ? '🔩' : '🛠️'}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate">{item.descricao}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        {item.statusIA === 'ok' && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">✓ Preço OK</span>}
+                        {item.statusIA === 'atencao' && <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">⚠ Atenção</span>}
+                        {item.statusIA === 'alto' && <span className="text-xs text-red-600 dark:text-red-400 font-medium">⛔ Acima da média</span>}
+                      </div>
+                    </div>
+                    <span className="font-mono font-bold text-foreground">{fmt(item.valor)}</span>
+                    <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-lg hover:bg-muted active:scale-90 transition-all"><Trash2 className="w-4 h-4 text-muted-foreground" /></button>
+                  </div>
+                ))}
+
+                {orcamentoItems.length > 0 && (
+                  <Card className="border-0 shadow-md bg-emerald-50 dark:bg-emerald-500/5">
+                    <CardContent className="p-4 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Peças</span>
+                        <span className="font-medium text-foreground">{fmt(orcamentoItems.filter(i => i.tipo === 'peca').reduce((s, i) => s + i.valor, 0))}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Mão de Obra</span>
+                        <span className="font-medium text-foreground">{fmt(orcamentoItems.filter(i => i.tipo === 'mao_de_obra').reduce((s, i) => s + i.valor, 0))}</span>
+                      </div>
+                      <Separator />
+                      <div className="flex justify-between">
+                        <span className="font-semibold text-foreground">Total</span>
+                        <span className="text-xl font-bold text-foreground">{fmt(totalOrcamento)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Você recebe (85%)</span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(totalOrcamento * 0.85)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           </div>
-        )}
-      </div>
-    );
-  }
 
-  // ══════════════════════════════════════════════
-  // VIEW: PÁTIO DIGITAL
-  // ══════════════════════════════════════════════
-  if (view === 'patio') {
-    const autorizados = mockPatio.filter(v => v.status === 'autorizado');
-    const aguardandoList = mockPatio.filter(v => v.status === 'aguardando');
-    const ajusteList = mockPatio.filter(v => v.status === 'ajuste');
+          {orcamentoItems.length > 0 && (
+            <div className="fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur-sm border-t p-4 z-40">
+              <div className="max-w-3xl mx-auto flex items-center gap-4">
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">Total do Orçamento</p>
+                  <p className="text-2xl font-bold text-foreground">{fmt(totalOrcamento)}</p>
+                </div>
+                <Button className="h-14 px-8 bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold rounded-xl shadow-lg gap-2">
+                  <Send className="w-5 h-5" /> Enviar
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      );
+    }
 
-    return (
-      <div className="min-h-screen bg-background">
-        <PortalHeader title="Pátio Digital" />
+    // ══ PÁTIO DIGITAL ══
+    if (view === 'patio') {
+      const autorizados = mockPatio.filter(v => v.status === 'autorizado');
+      const aguardandoList = mockPatio.filter(v => v.status === 'aguardando');
+      const ajusteList = mockPatio.filter(v => v.status === 'ajuste');
+
+      return (
         <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24">
-          {/* Stats bar */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-3 text-center border border-emerald-200 dark:border-emerald-500/20">
               <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{autorizados.length}</p>
@@ -701,7 +720,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </div>
           </div>
 
-          {/* Cards Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {mockPatio.map(v => {
               const cfg = statusConfig[v.status];
@@ -739,85 +757,72 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
               );
             })}
           </div>
-        </div>
 
-        {/* Finalizar Dialog */}
-        <Dialog open={finalizarDialog} onOpenChange={setFinalizarDialog}>
-          <DialogContent className="max-w-md mx-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-emerald-500" />Finalizar Serviço</DialogTitle>
-            </DialogHeader>
-            {selectedVeiculo && (
-              <div className="space-y-4 mt-2">
-                <div className="bg-muted rounded-xl p-3 flex items-center gap-3">
-                  <Car className="w-5 h-5 text-muted-foreground" />
+          <Dialog open={finalizarDialog} onOpenChange={setFinalizarDialog}>
+            <DialogContent className="max-w-md mx-auto">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-emerald-500" />Finalizar Serviço</DialogTitle>
+              </DialogHeader>
+              {selectedVeiculo && (
+                <div className="space-y-4 mt-2">
+                  <div className="bg-muted rounded-xl p-3 flex items-center gap-3">
+                    <Car className="w-5 h-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-mono font-bold text-foreground">{selectedVeiculo.placa}</p>
+                      <p className="text-xs text-muted-foreground">{selectedVeiculo.modelo}</p>
+                    </div>
+                  </div>
+
                   <div>
-                    <p className="font-mono font-bold text-foreground">{selectedVeiculo.placa}</p>
-                    <p className="text-xs text-muted-foreground">{selectedVeiculo.modelo}</p>
+                    <p className="text-sm font-medium text-foreground mb-2">Foto do serviço concluído</p>
+                    <button onClick={() => fotoServicoRef.current?.click()} className="w-full border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center gap-2 hover:border-primary/50 active:scale-[0.98] transition-all">
+                      <Camera className="w-8 h-8 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Tirar foto ou selecionar</span>
+                    </button>
+                    <input ref={fotoServicoRef} type="file" accept="image/*" capture="environment" className="hidden" />
                   </div>
-                </div>
 
-                <div>
-                  <p className="text-sm font-medium text-foreground mb-2">Foto do serviço concluído</p>
-                  <button onClick={() => fotoServicoRef.current?.click()} className="w-full border-2 border-dashed border-border rounded-xl p-6 flex flex-col items-center gap-2 hover:border-primary/50 active:scale-[0.98] transition-all">
-                    <Camera className="w-8 h-8 text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground">Tirar foto ou selecionar</span>
-                  </button>
-                  <input ref={fotoServicoRef} type="file" accept="image/*" capture="environment" className="hidden" />
-                </div>
+                  <Separator />
 
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Resumo Financeiro</p>
-                  <div className="bg-muted rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Valor do serviço</span><span className="font-bold text-foreground">{fmt(selectedVeiculo.valorTotal)}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Comissão NovaLink (15%)</span><span className="text-red-500 font-medium">-{fmt(selectedVeiculo.valorTotal * 0.15)}</span></div>
-                    <Separator />
-                    <div className="flex justify-between"><span className="font-semibold text-foreground">Você recebe</span><span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{fmt(selectedVeiculo.valorTotal * 0.85)}</span></div>
-                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground"><Timer className="w-3.5 h-3.5" /><span>Depósito em até 24 horas (D+1)</span></div>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Resumo Financeiro</p>
+                    <div className="bg-muted rounded-xl p-4 space-y-2">
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Valor do serviço</span><span className="font-bold text-foreground">{fmt(selectedVeiculo.valorTotal)}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-muted-foreground">Comissão NovaLink (15%)</span><span className="text-red-500 font-medium">-{fmt(selectedVeiculo.valorTotal * 0.15)}</span></div>
+                      <Separator />
+                      <div className="flex justify-between"><span className="font-semibold text-foreground">Você recebe</span><span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">{fmt(selectedVeiculo.valorTotal * 0.85)}</span></div>
+                      <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground"><Timer className="w-3.5 h-3.5" /><span>Depósito em até 24 horas (D+1)</span></div>
+                    </div>
                   </div>
+
+                  <Button onClick={() => setFinalizarDialog(false)} className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold rounded-xl shadow-lg gap-2">
+                    <CheckCircle2 className="w-5 h-5" /> Confirmar Finalização
+                  </Button>
                 </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </div>
+      );
+    }
 
-                <Button onClick={() => setFinalizarDialog(false)} className="w-full h-14 bg-emerald-500 hover:bg-emerald-600 text-white text-lg font-bold rounded-xl shadow-lg gap-2">
-                  <CheckCircle2 className="w-5 h-5" /> Confirmar Finalização
-                </Button>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+    // ══ FINANCEIRO ══
+    if (view === 'financeiro') {
+      const depositos = mockRecebiveis.filter(r => r.status === 'depositado');
+      const emProcesso = mockRecebiveis.filter(r => r.status === 'em_processo');
+      const agendados = mockRecebiveis.filter(r => r.status === 'agendado');
 
-        <a href="https://wa.me/5599999999999?text=Preciso%20de%20ajuda%20com%20um%20serviço" target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg flex items-center justify-center active:scale-95 transition-all">
-          <MessageCircle className="w-6 h-6 text-white" />
-        </a>
-      </div>
-    );
-  }
+      const fluxoCaixaData = [
+        { dia: 'Seg', entrada: 4200, saida: 1800 },
+        { dia: 'Ter', entrada: 6300, saida: 2100 },
+        { dia: 'Qua', entrada: 3800, saida: 1500 },
+        { dia: 'Qui', entrada: 7100, saida: 2800 },
+        { dia: 'Sex', entrada: 8900, saida: 3200 },
+        { dia: 'Sáb', entrada: 5400, saida: 1900 },
+      ];
 
-  // ══════════════════════════════════════════════
-  // VIEW: FINANCEIRO
-  // ══════════════════════════════════════════════
-  if (view === 'financeiro') {
-    const depositos = mockRecebiveis.filter(r => r.status === 'depositado');
-    const emProcesso = mockRecebiveis.filter(r => r.status === 'em_processo');
-    const agendados = mockRecebiveis.filter(r => r.status === 'agendado');
-
-    const fluxoCaixaData = [
-      { dia: 'Seg', entrada: 4200, saida: 1800 },
-      { dia: 'Ter', entrada: 6300, saida: 2100 },
-      { dia: 'Qua', entrada: 3800, saida: 1500 },
-      { dia: 'Qui', entrada: 7100, saida: 2800 },
-      { dia: 'Sex', entrada: 8900, saida: 3200 },
-      { dia: 'Sáb', entrada: 5400, saida: 1900 },
-    ];
-
-    return (
-      <div className="min-h-screen bg-background">
-        <PortalHeader title="Financeiro" />
-
+      return (
         <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto pb-24">
-          {/* Summary Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <Card className="border-0 shadow-md bg-emerald-50 dark:bg-emerald-500/5">
               <CardContent className="p-4">
@@ -857,7 +862,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </Card>
           </div>
 
-          {/* Tabs */}
           <Tabs value={financeiroTab} onValueChange={setFinanceiroTab}>
             <TabsList className="bg-card border shadow-sm w-full justify-start overflow-x-auto">
               <TabsTrigger value="resumo" className="gap-1.5"><BarChart3 className="w-4 h-4" /> Resumo</TabsTrigger>
@@ -867,7 +871,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
             <TabsContent value="resumo" className="mt-4 space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                {/* Faturamento Mensal */}
                 <Card className="border-0 shadow-md">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-muted-foreground" />Faturamento Líquido Mensal</CardTitle>
@@ -887,7 +890,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                   </CardContent>
                 </Card>
 
-                {/* Serviços por mês */}
                 <Card className="border-0 shadow-md">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2"><Activity className="w-4 h-4 text-muted-foreground" />Volume de Serviços</CardTitle>
@@ -908,7 +910,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                 </Card>
               </div>
 
-              {/* KPIs extras */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                 <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
                   <p className="text-xs text-muted-foreground mb-1">Serviços este mês</p>
@@ -930,7 +931,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </TabsContent>
 
             <TabsContent value="recebiveis" className="mt-4 space-y-4">
-              {/* Em Processo */}
               {emProcesso.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><Timer className="w-4 h-4 text-amber-500" />Pagamento em Processo — D+1</h3>
@@ -959,7 +959,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                 </div>
               )}
 
-              {/* Agendados */}
               {agendados.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><CalendarDays className="w-4 h-4 text-primary" />Agendados</h3>
@@ -982,7 +981,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                 </div>
               )}
 
-              {/* Depositados */}
               {depositos.length > 0 && (
                 <div className="space-y-2">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-500" />Depositados</h3>
@@ -1040,7 +1038,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                 </CardContent>
               </Card>
 
-              {/* Resumo do Fluxo */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Card className="border-0 shadow-md"><CardContent className="p-5 text-center">
                   <ArrowUpRight className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
@@ -1061,14 +1058,102 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             </TabsContent>
           </Tabs>
         </div>
+      );
+    }
 
-        <a href="https://wa.me/5599999999999?text=Dúvida%20sobre%20meus%20recebíveis" target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg flex items-center justify-center active:scale-95 transition-all">
-          <MessageCircle className="w-6 h-6 text-white" />
-        </a>
+    // ══ CLIENTES (placeholder) ══
+    if (view === 'finalizar') {
+      return (
+        <div className="p-4 sm:p-6 space-y-6 max-w-7xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+              <Users className="w-6 h-6 text-primary mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground mb-1">Total Clientes</p>
+              <p className="text-2xl font-bold text-foreground">48</p>
+            </CardContent></Card>
+            <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+              <Car className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground mb-1">Veículos Atendidos</p>
+              <p className="text-2xl font-bold text-foreground">156</p>
+            </CardContent></Card>
+            <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+              <Star className="w-6 h-6 text-yellow-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground mb-1">Satisfação Média</p>
+              <p className="text-2xl font-bold text-foreground">4.8</p>
+            </CardContent></Card>
+            <Card className="border-0 shadow-md"><CardContent className="p-4 text-center">
+              <TrendingUp className="w-6 h-6 text-emerald-500 mx-auto mb-2" />
+              <p className="text-xs text-muted-foreground mb-1">Recorrência</p>
+              <p className="text-2xl font-bold text-foreground">72%</p>
+            </CardContent></Card>
+          </div>
+
+          <Card className="border-0 shadow-md">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">Frotas Cadastradas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {['TransLog Ltda', 'ExpressCargas SA', 'RodoNorte Transportes', 'BrasLog Logística', 'Veloz Entregas'].map((name, i) => (
+                <div key={i} className="flex items-center gap-4 p-3 rounded-xl border bg-card hover:bg-muted/50 transition-colors">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Wrench className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground text-sm">{name}</p>
+                    <p className="text-xs text-muted-foreground">{Math.floor(Math.random() * 30) + 5} veículos · {Math.floor(Math.random() * 20) + 3} serviços</p>
+                  </div>
+                  <Badge variant="secondary" className="text-[10px]">Ativo</Badge>
+                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  // ═══════════════════════════════════════════════
+  // MAIN LAYOUT WITH SIDEBAR
+  // ═══════════════════════════════════════════════
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-60 border-r border-border bg-card shrink-0 sticky top-0 h-screen">
+        <SidebarNav />
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Top Header */}
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b px-4 sm:px-6 py-3 flex items-center gap-3">
+          {/* Mobile menu trigger */}
+          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+            <SheetTrigger asChild>
+              <button className="md:hidden w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted active:scale-95 transition-all">
+                <Menu className="w-5 h-5" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-64 p-0">
+              <SidebarNav />
+            </SheetContent>
+          </Sheet>
+
+          <h1 className="text-lg font-bold text-foreground flex-1">{viewTitle[view]}</h1>
+        </div>
+
+        {/* Content */}
+        {renderContent()}
       </div>
-    );
-  }
 
-  return null;
+      {/* FAB WhatsApp */}
+      <a href="https://wa.me/5599999999999?text=Olá%20NovaLink,%20preciso%20de%20ajuda%20no%20portal%20da%20oficina!" target="_blank" rel="noopener noreferrer"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg flex items-center justify-center active:scale-95 transition-all"
+        title="Pé na Graxa — Suporte">
+        <MessageCircle className="w-6 h-6 text-white" />
+      </a>
+    </div>
+  );
 }
