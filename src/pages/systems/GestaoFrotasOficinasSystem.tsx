@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Truck, Wrench, Shield, DollarSign, Plus, Search, Star,
   MapPin, Phone, FileText, CheckCircle2, Clock, AlertTriangle,
@@ -20,7 +22,7 @@ import {
   ArrowUpRight, ArrowDownRight, Fuel, CalendarDays, Activity,
   PieChart as PieChartIcon, Gauge, Bell, Settings, RefreshCw,
   ChevronDown, MoreHorizontal, Layers, Package, TrendingDown,
-  CircleDollarSign, FileBarChart, AlertCircle
+  CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -218,6 +220,7 @@ const GestaoFrotasOficinasSystem = () => {
   const [selectedVeiculo, setSelectedVeiculo] = useState<string | null>(null);
   const [selectedOrcamento, setSelectedOrcamento] = useState<string | null>(null);
   const [filterAuditoria, setFilterAuditoria] = useState<string>('all');
+  const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
   const [chatOficina, setChatOficina] = useState<string>('');
   const [chatMessages, setChatMessages] = useState<{ id: number; from: 'frota' | 'oficina'; text: string; time: string; oficina: string }[]>([
     { id: 1, from: 'oficina', text: 'Bom dia! O compressor do Scania R450 (ABC-1D23) chegou. Podemos iniciar o serviço hoje às 14h.', time: '09:15', oficina: 'ThermoCar' },
@@ -1305,65 +1308,88 @@ const GestaoFrotasOficinasSystem = () => {
       }
     };
 
-    return (
-      <div className="min-h-screen bg-background">
-        <Header />
-        <main className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
-          {/* Top Bar */}
-          <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+    const frotaViewTitles: Record<FrotaTab, string> = {
+      overview: 'Visão Geral', aprovacoes: 'Aprovações', frota: 'Veículos',
+      orcamentos: 'Orçamentos', financeiro: 'Financeiro', relatorios: 'Relatórios',
+      questionar: 'Mensagens',
+    };
+
+    const FrotaSidebarNav = () => (
+      <div className="flex flex-col h-full">
+        <div className="px-5 py-5 border-b border-border/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center">
+              <Truck className="w-4.5 h-4.5 text-primary" />
+            </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground tracking-tight">Painel do Gestor de Frota</h1>
-              <p className="text-sm text-muted-foreground">NovaLink — Gestão Inteligente</p>
+              <p className="font-semibold text-foreground text-sm leading-none">NovaLink</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Gestor de Frota</p>
+            </div>
+          </div>
+        </div>
+        <nav className="flex-1 px-3 py-3 space-y-0.5">
+          {frotaTabs.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.value;
+            return (
+              <button key={tab.value} onClick={() => { setActiveTab(tab.value); setFrotaSidebarOpen(false); }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors ${
+                  active
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                }`}>
+                <Icon className="w-[18px] h-[18px] shrink-0" />
+                <span className="flex-1 text-left">{tab.label}</span>
+                {tab.value === 'aprovacoes' && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${active ? 'bg-primary/20 text-primary' : 'bg-red-500/10 text-red-500'}`}>
+                    {orcamentosPendentes}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="px-3 py-3 border-t border-border/50">
+          <button onClick={() => setRole('select')} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors">
+            <UserCheck className="w-[18px] h-[18px]" /><span>Trocar Perfil</span>
+          </button>
+        </div>
+      </div>
+    );
+
+    return (
+      <div className="min-h-screen bg-background flex">
+        {/* Desktop Sidebar */}
+        <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
+          <FrotaSidebarNav />
+        </aside>
+
+        {/* Main Content */}
+        <div className="flex-1 min-w-0 flex flex-col">
+          <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/50 px-5 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Sheet open={frotaSidebarOpen} onOpenChange={setFrotaSidebarOpen}>
+                <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden h-8 w-8"><Menu className="w-4 h-4" /></Button></SheetTrigger>
+                <SheetContent side="left" className="w-56 p-0"><FrotaSidebarNav /></SheetContent>
+              </Sheet>
+              <div>
+                <h1 className="text-base font-semibold text-foreground leading-none">{frotaViewTitles[activeTab]}</h1>
+                <p className="text-[11px] text-muted-foreground mt-0.5">Fev 2026 · Atualizado agora</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 relative">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground relative">
                 <Bell className="w-4 h-4" />
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">{orcamentosPendentes}</span>
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">{orcamentosPendentes}</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={() => setRole('select')}>Trocar Perfil</Button>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><Download className="w-4 h-4" /></Button>
             </div>
-          </div>
+          </header>
 
-          {/* Tab Navigation */}
-          <div className="flex items-center gap-1 mb-6 overflow-x-auto pb-1 border-b border-border">
-            {frotaTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.value;
-              return (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
-                    isActive
-                      ? 'border-primary text-primary'
-                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                  {tab.value === 'aprovacoes' && (
-                    <span className="ml-1 px-1.5 py-0.5 text-[10px] font-bold bg-red-500/10 text-red-500 rounded-full">{orcamentosPendentes}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Content */}
-          {renderContent()}
-        </main>
-
-        {/* WhatsApp FAB */}
-        <a
-          href="https://wa.me/5599999999999?text=Olá%20NovaLink,%20preciso%20de%20suporte!"
-          target="_blank" rel="noopener noreferrer"
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-emerald-500 hover:bg-emerald-600 shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group"
-        >
-          <MessageCircle className="w-6 h-6 text-white" />
-          <span className="absolute right-16 bg-card border shadow-md text-foreground text-xs font-medium px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Falar com Suporte</span>
-        </a>
-
-        <Footer />
+          <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
+            {renderContent()}
+          </main>
+        </div>
       </div>
     );
   }
