@@ -197,14 +197,14 @@ const auditoriaConfig = {
 
 type FrotaTab = 'overview' | 'aprovacoes' | 'frota' | 'orcamentos' | 'financeiro' | 'relatorios' | 'questionar';
 
-const frotaTabs: { value: FrotaTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { value: 'overview', label: 'Visão Geral', icon: BarChart3 },
-  { value: 'aprovacoes', label: 'Aprovações', icon: Shield },
-  { value: 'frota', label: 'Veículos', icon: Truck },
-  { value: 'orcamentos', label: 'Orçamentos', icon: FileText },
-  { value: 'financeiro', label: 'Financeiro', icon: CircleDollarSign },
-  { value: 'relatorios', label: 'Relatórios', icon: FileBarChart },
-  { value: 'questionar', label: 'Questionar', icon: MessageCircle },
+const frotaTabs: { value: FrotaTab; label: string; desc: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { value: 'overview', label: 'Visão Geral', desc: 'Resumo de gastos, economia e status da frota', icon: BarChart3 },
+  { value: 'aprovacoes', label: 'Aprovações', desc: 'Orçamentos aguardando sua decisão', icon: Shield },
+  { value: 'frota', label: 'Veículos', desc: 'Todos os veículos e histórico de manutenção', icon: Truck },
+  { value: 'orcamentos', label: 'Orçamentos', desc: 'Histórico completo de orçamentos recebidos', icon: FileText },
+  { value: 'financeiro', label: 'Financeiro', desc: 'Notas fiscais, extratos e pagamentos', icon: CircleDollarSign },
+  { value: 'relatorios', label: 'Relatórios', desc: 'Análises detalhadas e gráficos avançados', icon: FileBarChart },
+  { value: 'questionar', label: 'Mensagens', desc: 'Chat direto com as oficinas parceiras', icon: MessageCircle },
 ];
 
 // ═══════════════════════════════════════════════════════════
@@ -263,12 +263,13 @@ const GestaoFrotasOficinasSystem = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-foreground mb-2">Operador de Frota</h2>
-                    <p className="text-muted-foreground text-sm leading-relaxed">Gerencie milhões em manutenção com poucos cliques. Aprove orçamentos auditados pela IA.</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">Controle total da manutenção da sua frota. Sem manual, sem treinamento — é só clicar e usar.</p>
                   </div>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary" /> IA anti-fraude nos orçamentos</li>
-                    <li className="flex items-center gap-2"><Wallet className="w-4 h-4 text-primary" /> Controle financeiro total</li>
-                    <li className="flex items-center gap-2"><Car className="w-4 h-4 text-primary" /> Histórico completo de revisões</li>
+                    <li className="flex items-center gap-2"><Shield className="w-4 h-4 text-primary shrink-0" /> <span><strong className="text-foreground">Aprovações</strong> — IA audita cada orçamento e diz se o preço é justo</span></li>
+                    <li className="flex items-center gap-2"><Wallet className="w-4 h-4 text-primary shrink-0" /> <span><strong className="text-foreground">Financeiro</strong> — Notas fiscais, extratos e gastos por veículo</span></li>
+                    <li className="flex items-center gap-2"><Car className="w-4 h-4 text-primary shrink-0" /> <span><strong className="text-foreground">Veículos</strong> — Histórico completo de manutenção de cada placa</span></li>
+                    <li className="flex items-center gap-2"><MessageCircle className="w-4 h-4 text-primary shrink-0" /> <span><strong className="text-foreground">Mensagens</strong> — Chat direto com as oficinas sobre serviços</span></li>
                   </ul>
                 </div>
               </button>
@@ -280,12 +281,13 @@ const GestaoFrotasOficinasSystem = () => {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-foreground mb-2">Operador de Oficina</h2>
-                    <p className="text-muted-foreground text-sm leading-relaxed">Receba solicitações, envie orçamentos e receba pagamento em D+1.</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">Receba veículos, envie orçamentos validados por IA e receba em D+1. Tudo autoexplicativo.</p>
                   </div>
                   <ul className="space-y-2 text-sm text-muted-foreground">
-                    <li className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-500" /> Pagamento em D+1</li>
-                    <li className="flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-500" /> Receber solicitações</li>
-                    <li className="flex items-center gap-2"><Star className="w-4 h-4 text-emerald-500" /> Avaliações e ranking</li>
+                    <li className="flex items-center gap-2"><Plus className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Check-in</strong> — Escaneia a placa e o sistema carrega tudo automaticamente</span></li>
+                    <li className="flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Orçamentos</strong> — IA valida seus preços em tempo real</span></li>
+                    <li className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Financeiro</strong> — Controle de recebíveis com depósito em D+1</span></li>
+                    <li className="flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Mensagens</strong> — Negocie com os gestores sem sair do sistema</span></li>
                   </ul>
                 </div>
               </button>
@@ -1308,11 +1310,7 @@ const GestaoFrotasOficinasSystem = () => {
       }
     };
 
-    const frotaViewTitles: Record<FrotaTab, string> = {
-      overview: 'Visão Geral', aprovacoes: 'Aprovações', frota: 'Veículos',
-      orcamentos: 'Orçamentos', financeiro: 'Financeiro', relatorios: 'Relatórios',
-      questionar: 'Mensagens',
-    };
+    const activeTabData = frotaTabs.find(t => t.value === activeTab);
 
     const FrotaSidebarNav = () => (
       <div className="flex flex-col h-full">
@@ -1327,7 +1325,7 @@ const GestaoFrotasOficinasSystem = () => {
             </div>
           </div>
         </div>
-        <nav className="flex-1 px-3 py-3 space-y-0.5">
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {frotaTabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.value;
@@ -1339,9 +1337,12 @@ const GestaoFrotasOficinasSystem = () => {
                     : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
                 }`}>
                 <Icon className="w-[18px] h-[18px] shrink-0" />
-                <span className="flex-1 text-left">{tab.label}</span>
+                <div className="flex-1 text-left min-w-0">
+                  <span className="block">{tab.label}</span>
+                  <span className={`block text-[10px] font-normal leading-tight mt-0.5 ${active ? 'text-primary/70' : 'text-muted-foreground/60'}`}>{tab.desc}</span>
+                </div>
                 {tab.value === 'aprovacoes' && (
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${active ? 'bg-primary/20 text-primary' : 'bg-red-500/10 text-red-500'}`}>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${active ? 'bg-primary/20 text-primary' : 'bg-red-500/10 text-red-500'}`}>
                     {orcamentosPendentes}
                   </span>
                 )}
@@ -1373,8 +1374,8 @@ const GestaoFrotasOficinasSystem = () => {
                 <SheetContent side="left" className="w-56 p-0"><FrotaSidebarNav /></SheetContent>
               </Sheet>
               <div>
-                <h1 className="text-base font-semibold text-foreground leading-none">{frotaViewTitles[activeTab]}</h1>
-                <p className="text-[11px] text-muted-foreground mt-0.5">Fev 2026 · Atualizado agora</p>
+                <h1 className="text-base font-semibold text-foreground leading-none">{activeTabData?.label}</h1>
+                <p className="text-[11px] text-muted-foreground mt-0.5">{activeTabData?.desc}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">

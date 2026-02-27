@@ -355,23 +355,19 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const ticketMedio = faturamentoTotal / servicosTotais;
 
   // Nav
-  const navItems: { value: OficinaView; label: string; icon: any; badge?: string }[] = [
-    { value: 'home', label: 'Dashboard', icon: LayoutDashboard },
-    { value: 'checkin', label: 'Novo Atendimento', icon: Plus },
-    { value: 'orcamento', label: 'Orçamentos', icon: ClipboardList, badge: '3' },
-    { value: 'patio', label: 'Pátio Digital', icon: Car, badge: String(mockPatio.length) },
-    { value: 'financeiro', label: 'Financeiro', icon: Wallet },
-    { value: 'finalizar', label: 'Clientes', icon: Users, badge: '48' },
-    { value: 'mensagens', label: 'Mensagens', icon: MessageCircle, badge: '2' },
+  const navItems: { value: OficinaView; label: string; desc: string; icon: any; badge?: string }[] = [
+    { value: 'home', label: 'Dashboard', desc: 'Resumo de receita, serviços e avaliações', icon: LayoutDashboard },
+    { value: 'checkin', label: 'Novo Atendimento', desc: 'Escanear placa e iniciar serviço', icon: Plus },
+    { value: 'orcamento', label: 'Orçamentos', desc: 'Criar, revisar e acompanhar orçamentos', icon: ClipboardList, badge: '3' },
+    { value: 'patio', label: 'Pátio Digital', desc: 'Veículos em serviço e status em tempo real', icon: Car, badge: String(mockPatio.length) },
+    { value: 'financeiro', label: 'Financeiro', desc: 'Recebíveis, depósitos e fluxo de caixa', icon: Wallet },
+    { value: 'finalizar', label: 'Clientes', desc: 'Gestão de frotas parceiras e satisfação', icon: Users, badge: '48' },
+    { value: 'mensagens', label: 'Mensagens', desc: 'Chat com gestores de frota sobre serviços', icon: MessageCircle, badge: '2' },
   ];
 
   const navigateTo = (v: OficinaView) => { setView(v); setSidebarOpen(false); };
 
-  const viewTitles: Record<OficinaView, string> = {
-    home: 'Visão Geral', checkin: 'Novo Atendimento', orcamento: 'Orçamentos',
-    patio: 'Pátio Digital', finalizar: 'Gestão de Clientes', financeiro: 'Financeiro',
-    mensagens: 'Mensagens',
-  };
+  const activeNavItem = navItems.find(n => n.value === view);
 
   // Chat state for oficina
   const [oficinaChatMessages, setOficinaChatMessages] = useState([
@@ -399,7 +395,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
           </div>
         </div>
       </div>
-      <nav className="flex-1 px-3 py-3 space-y-0.5">
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => {
           const Icon = item.icon;
           const active = view === item.value;
@@ -411,9 +407,12 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                   : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
               }`}>
               <Icon className="w-[18px] h-[18px] shrink-0" />
-              <span className="flex-1 text-left">{item.label}</span>
+              <div className="flex-1 text-left min-w-0">
+                <span className="block">{item.label}</span>
+                <span className={`block text-[10px] font-normal leading-tight mt-0.5 ${active ? 'text-primary/70' : 'text-muted-foreground/60'}`}>{item.desc}</span>
+              </div>
               {item.badge && (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
                   {item.badge}
                 </span>
               )}
@@ -1443,8 +1442,8 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
               <SheetContent side="left" className="w-56 p-0"><SidebarNav /></SheetContent>
             </Sheet>
             <div>
-              <h1 className="text-base font-semibold text-foreground leading-none">{viewTitles[view]}</h1>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Fev 2026 · Atualizado agora</p>
+              <h1 className="text-base font-semibold text-foreground leading-none">{activeNavItem?.label}</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{activeNavItem?.desc}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
