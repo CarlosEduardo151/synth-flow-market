@@ -26,7 +26,7 @@ import {
   PieChart as PieChartIcon, Gauge, Bell, Settings, RefreshCw,
   ChevronDown, MoreHorizontal, Layers, Package, TrendingDown,
   CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck,
-  Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles
+  Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles, Edit
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -231,11 +231,10 @@ const GestaoFrotasOficinasSystem = () => {
   // VERO 1.0 states
   const [veroStep, setVeroStep] = useState<'idle' | 'uploading' | 'analyzing' | 'result' | 'confirmed'>('idle');
   const [veroImagePreview, setVeroImagePreview] = useState<string | null>(null);
-  const [veroResult, setVeroResult] = useState<{
-    placa: string; marca: string; modelo: string; cor: string; ano: string; tipo: string; confianca: number;
-  } | null>(null);
-  const [manualMode, setManualMode] = useState(false);
-  const [cadastroForm, setCadastroForm] = useState({ placa: '', modelo: '', ano: '', km: '', tipo: '', motorista: '', chassi: '' });
+  const [veroResult, setVeroResult] = useState<Record<string, any> | null>(null);
+  const [veroScanType, setVeroScanType] = useState<'traseira' | 'documento'>('traseira');
+  const [cadastroMode, setCadastroMode] = useState<'traseira' | 'documento' | 'manual'>('traseira');
+  const [cadastroForm, setCadastroForm] = useState({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
 
   if (!user) {
     navigate('/auth');
@@ -649,12 +648,12 @@ const GestaoFrotasOficinasSystem = () => {
         // CADASTRAR VEÍCULO — VERO 1.0
         // ════════════════════════════════════
         case 'cadastro': {
-          const handleVeroScan = async (base64: string, mime: string) => {
+          const handleVeroScan = async (base64: string, mime: string, scanType: 'traseira' | 'documento') => {
             setVeroStep('uploading');
             try {
               setVeroStep('analyzing');
               const { data, error } = await supabase.functions.invoke('vero-scan', {
-                body: { imageBase64: base64, mimeType: mime },
+                body: { imageBase64: base64, mimeType: mime, scanType },
               });
               if (error) throw error;
               if (data?.error) {
@@ -663,15 +662,8 @@ const GestaoFrotasOficinasSystem = () => {
                 return;
               }
               const r = data.result;
-              setVeroResult({
-                placa: r.placa || 'N/A',
-                marca: r.marca || 'N/A',
-                modelo: r.modelo || 'N/A',
-                cor: r.cor || 'N/A',
-                ano: r.ano || 'N/A',
-                tipo: r.tipo || 'N/A',
-                confianca: r.confianca || 0,
-              });
+              setVeroResult(r);
+              setVeroScanType(scanType);
               setVeroStep('result');
             } catch (err: any) {
               console.error('VERO scan error:', err);
@@ -680,17 +672,16 @@ const GestaoFrotasOficinasSystem = () => {
             }
           };
 
-          const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+          const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, scanType: 'traseira' | 'documento') => {
             const file = e.target.files?.[0];
             if (file) {
               const reader = new FileReader();
               reader.onload = (ev) => {
                 const dataUrl = ev.target?.result as string;
                 setVeroImagePreview(dataUrl);
-                // Extract base64 and mime from data URL
                 const [header, base64] = dataUrl.split(',');
                 const mime = header.match(/data:(.*?);/)?.[1] || 'image/jpeg';
-                handleVeroScan(base64, mime);
+                handleVeroScan(base64, mime, scanType);
               };
               reader.readAsDataURL(file);
             }
@@ -709,16 +700,56 @@ const GestaoFrotasOficinasSystem = () => {
             setVeroStep('idle');
             setVeroImagePreview(null);
             setVeroResult(null);
-            setManualMode(true);
+            setCadastroMode('manual');
+            if (veroResult) {
+              setCadastroForm(prev => ({
+                ...prev,
+                placa: veroResult.placa !== 'N/A' ? veroResult.placa : prev.placa,
+                marca: veroResult.marca !== 'N/A' ? veroResult.marca : prev.marca,
+                modelo: veroResult.modelo !== 'N/A' ? veroResult.modelo : prev.modelo,
+                cor: veroResult.cor !== 'N/A' ? veroResult.cor : prev.cor,
+                ano: veroResult.ano !== 'N/A' ? veroResult.ano : prev.ano,
+                tipo: veroResult.tipo !== 'N/A' ? veroResult.tipo : prev.tipo,
+                chassi: veroResult.chassi && veroResult.chassi !== 'N/A' ? veroResult.chassi : prev.chassi,
+                renavam: veroResult.renavam && veroResult.renavam !== 'N/A' ? veroResult.renavam : prev.renavam,
+                combustivel: veroResult.combustivel && veroResult.combustivel !== 'N/A' ? veroResult.combustivel : prev.combustivel,
+                potencia: veroResult.potencia && veroResult.potencia !== 'N/A' ? veroResult.potencia : prev.potencia,
+              }));
+            }
           };
 
           const resetVero = () => {
             setVeroStep('idle');
             setVeroImagePreview(null);
             setVeroResult(null);
-            setManualMode(false);
-            setCadastroForm({ placa: '', modelo: '', ano: '', km: '', tipo: '', motorista: '', chassi: '' });
+            setCadastroForm({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
           };
+
+          const isVeroMode = cadastroMode === 'traseira' || cadastroMode === 'documento';
+
+          // Build result fields dynamically based on scan type
+          const resultFields = veroScanType === 'documento'
+            ? [
+                { label: 'Placa', value: veroResult?.placa, icon: '🔤' },
+                { label: 'Marca', value: veroResult?.marca, icon: '🏭' },
+                { label: 'Modelo', value: veroResult?.modelo, icon: '🚗' },
+                { label: 'Ano Fab.', value: veroResult?.ano_fabricacao || veroResult?.ano, icon: '📅' },
+                { label: 'Ano Mod.', value: veroResult?.ano_modelo || veroResult?.ano, icon: '📅' },
+                { label: 'Cor', value: veroResult?.cor, icon: '🎨' },
+                { label: 'Tipo', value: veroResult?.tipo, icon: '📦' },
+                { label: 'Chassi', value: veroResult?.chassi, icon: '🔢' },
+                { label: 'RENAVAM', value: veroResult?.renavam, icon: '🆔' },
+                { label: 'Combustível', value: veroResult?.combustivel, icon: '⛽' },
+                { label: 'Potência', value: veroResult?.potencia, icon: '🔧' },
+              ].filter(f => f.value && f.value !== 'N/A')
+            : [
+                { label: 'Placa', value: veroResult?.placa, icon: '🔤' },
+                { label: 'Marca', value: veroResult?.marca, icon: '🏭' },
+                { label: 'Modelo', value: veroResult?.modelo, icon: '🚗' },
+                { label: 'Ano', value: veroResult?.ano, icon: '📅' },
+                { label: 'Cor', value: veroResult?.cor, icon: '🎨' },
+                { label: 'Tipo', value: veroResult?.tipo, icon: '📦' },
+              ];
 
           return (
             <div className="space-y-6 max-w-3xl">
@@ -727,26 +758,36 @@ const GestaoFrotasOficinasSystem = () => {
                 <p className="text-sm text-muted-foreground">Use o escaneamento inteligente ou preencha manualmente</p>
               </div>
 
-              {/* Tabs: VERO vs Manual */}
-              <div className="flex gap-2">
+              {/* Tabs: Foto Traseira / Foto Documento / Manual */}
+              <div className="flex gap-2 flex-wrap">
                 <Button
-                  variant={!manualMode ? 'default' : 'outline'}
-                  onClick={() => { setManualMode(false); resetVero(); }}
+                  variant={cadastroMode === 'traseira' ? 'default' : 'outline'}
+                  onClick={() => { setCadastroMode('traseira'); resetVero(); }}
                   className="gap-2"
+                  size="sm"
                 >
-                  <Sparkles className="w-4 h-4" /> Escaneamento VERO 1.0
+                  <Camera className="w-4 h-4" /> Foto Traseira
                 </Button>
                 <Button
-                  variant={manualMode ? 'default' : 'outline'}
-                  onClick={() => { setManualMode(true); setVeroStep('idle'); setVeroImagePreview(null); setVeroResult(null); }}
+                  variant={cadastroMode === 'documento' ? 'default' : 'outline'}
+                  onClick={() => { setCadastroMode('documento'); resetVero(); }}
                   className="gap-2"
+                  size="sm"
                 >
-                  <FileText className="w-4 h-4" /> Manual
+                  <FileText className="w-4 h-4" /> Foto Documento
+                </Button>
+                <Button
+                  variant={cadastroMode === 'manual' ? 'default' : 'outline'}
+                  onClick={() => { setCadastroMode('manual'); setVeroStep('idle'); setVeroImagePreview(null); setVeroResult(null); }}
+                  className="gap-2"
+                  size="sm"
+                >
+                  <Edit className="w-4 h-4" /> Manual
                 </Button>
               </div>
 
-              {/* ── VERO 1.0 FLOW ── */}
-              {!manualMode && (
+              {/* ── VERO 1.0 FLOW (traseira or documento) ── */}
+              {isVeroMode && (
                 <div className="space-y-5">
                   {/* Upload Area */}
                   {veroStep === 'idle' && (
@@ -754,12 +795,18 @@ const GestaoFrotasOficinasSystem = () => {
                       <CardContent className="p-8 flex flex-col items-center justify-center text-center">
                         <label className="cursor-pointer flex flex-col items-center gap-4">
                           <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
-                            <Camera className="w-10 h-10 text-primary" />
+                            {cadastroMode === 'documento' ? <FileText className="w-10 h-10 text-primary" /> : <Camera className="w-10 h-10 text-primary" />}
                           </div>
                           <div className="space-y-1">
-                            <p className="text-base font-semibold text-foreground">Fotografe a traseira do veículo</p>
+                            <p className="text-base font-semibold text-foreground">
+                              {cadastroMode === 'documento'
+                                ? 'Fotografe o documento do veículo (CRV/CRLV)'
+                                : 'Fotografe a traseira do veículo'}
+                            </p>
                             <p className="text-sm text-muted-foreground max-w-sm">
-                              A VERO 1.0 vai identificar automaticamente a <strong>placa</strong>, <strong>marca</strong>, <strong>modelo</strong> e <strong>ano</strong> do veículo a partir da imagem
+                              {cadastroMode === 'documento'
+                                ? 'A VERO 1.0 vai extrair automaticamente os dados do documento: placa, marca, modelo, ano, chassi, RENAVAM e mais'
+                                : 'A VERO 1.0 vai identificar automaticamente a placa, marca, modelo e ano do veículo a partir da imagem'}
                             </p>
                           </div>
                           <div className="flex gap-3 mt-2">
@@ -770,7 +817,7 @@ const GestaoFrotasOficinasSystem = () => {
                               <Upload className="w-3.5 h-3.5" /> Enviar Imagem
                             </span>
                           </div>
-                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileChange} />
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handleFileChange(e, cadastroMode as 'traseira' | 'documento')} />
                         </label>
                       </CardContent>
                     </Card>
@@ -782,7 +829,7 @@ const GestaoFrotasOficinasSystem = () => {
                       <CardContent className="p-8 flex flex-col items-center gap-5">
                         {veroImagePreview && (
                           <div className="w-full max-w-md rounded-xl overflow-hidden border border-border/50">
-                            <img src={veroImagePreview} alt="Veículo escaneado" className="w-full h-48 object-cover" />
+                            <img src={veroImagePreview} alt="Imagem escaneada" className="w-full h-48 object-cover" />
                           </div>
                         )}
                         <div className="flex flex-col items-center gap-3 text-center">
@@ -796,7 +843,9 @@ const GestaoFrotasOficinasSystem = () => {
                             <p className="text-sm text-muted-foreground mt-1">
                               {veroStep === 'uploading'
                                 ? 'Preparando a imagem para análise'
-                                : 'Identificando placa, marca, modelo e características do veículo'}
+                                : cadastroMode === 'documento'
+                                  ? 'Extraindo dados do documento veicular...'
+                                  : 'Identificando placa, marca, modelo e características do veículo'}
                             </p>
                           </div>
                           <Loader2 className="w-6 h-6 text-primary animate-spin" />
@@ -814,26 +863,21 @@ const GestaoFrotasOficinasSystem = () => {
                             <Sparkles className="w-5 h-5 text-primary" />
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-foreground">VERO 1.0 — Resultado da Análise</p>
-                            <p className="text-xs text-muted-foreground">Confiança: <strong className="text-primary">{veroResult.confianca}%</strong></p>
+                            <p className="text-sm font-bold text-foreground">
+                              VERO 1.0 — {veroScanType === 'documento' ? 'Dados do Documento' : 'Resultado da Análise'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Confiança: <strong className="text-primary">{veroResult.confianca || 0}%</strong></p>
                           </div>
                         </div>
 
                         {veroImagePreview && (
                           <div className="w-full rounded-xl overflow-hidden border border-border/50">
-                            <img src={veroImagePreview} alt="Veículo" className="w-full h-48 object-cover" />
+                            <img src={veroImagePreview} alt="Imagem analisada" className="w-full h-48 object-cover" />
                           </div>
                         )}
 
                         <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { label: 'Placa', value: veroResult.placa, icon: '🔤' },
-                            { label: 'Marca', value: veroResult.marca, icon: '🏭' },
-                            { label: 'Modelo', value: veroResult.modelo, icon: '🚗' },
-                            { label: 'Ano', value: veroResult.ano, icon: '📅' },
-                            { label: 'Cor', value: veroResult.cor, icon: '🎨' },
-                            { label: 'Tipo', value: veroResult.tipo, icon: '📦' },
-                          ].map(item => (
+                          {resultFields.map(item => (
                             <div key={item.label} className="p-3 bg-muted/30 rounded-lg border border-border/30">
                               <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider">{item.icon} {item.label}</p>
                               <p className="text-sm font-bold text-foreground mt-0.5">{item.value}</p>
@@ -857,7 +901,7 @@ const GestaoFrotasOficinasSystem = () => {
                             <CheckCircle className="w-4 h-4" /> Confirmar Dados
                           </Button>
                           <Button onClick={handleVeroReject} variant="outline" className="gap-2">
-                            <X className="w-4 h-4" /> Corrigir Manualmente
+                            <Edit className="w-4 h-4" /> Corrigir Manualmente
                           </Button>
                         </div>
                       </CardContent>
@@ -884,7 +928,7 @@ const GestaoFrotasOficinasSystem = () => {
               )}
 
               {/* ── MANUAL MODE ── */}
-              {manualMode && (
+              {cadastroMode === 'manual' && (
                 <Card className="border border-border/50 shadow-sm">
                   <CardContent className="p-6 space-y-4">
                     <div className="space-y-1">
@@ -893,7 +937,11 @@ const GestaoFrotasOficinasSystem = () => {
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       <Input placeholder="Placa (ex: ABC-1D23)" value={cadastroForm.placa} onChange={(e) => setCadastroForm({ ...cadastroForm, placa: e.target.value })} />
-                      <Input placeholder="Modelo (ex: Scania R450)" value={cadastroForm.modelo} onChange={(e) => setCadastroForm({ ...cadastroForm, modelo: e.target.value })} />
+                      <Input placeholder="Marca (ex: Toyota)" value={cadastroForm.marca} onChange={(e) => setCadastroForm({ ...cadastroForm, marca: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Modelo (ex: Hilux SRV)" value={cadastroForm.modelo} onChange={(e) => setCadastroForm({ ...cadastroForm, modelo: e.target.value })} />
+                      <Input placeholder="Cor" value={cadastroForm.cor} onChange={(e) => setCadastroForm({ ...cadastroForm, cor: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <Input placeholder="Ano" type="number" value={cadastroForm.ano} onChange={(e) => setCadastroForm({ ...cadastroForm, ano: e.target.value })} />
@@ -901,16 +949,28 @@ const GestaoFrotasOficinasSystem = () => {
                       <Select value={cadastroForm.tipo} onValueChange={(v) => setCadastroForm({ ...cadastroForm, tipo: v })}>
                         <SelectTrigger><SelectValue placeholder="Tipo" /></SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="cavalo">Cavalo Mecânico</SelectItem>
-                          <SelectItem value="truck">Truck</SelectItem>
-                          <SelectItem value="carreta">Carreta</SelectItem>
-                          <SelectItem value="van">Van</SelectItem>
+                          <SelectItem value="sedan">Sedan</SelectItem>
+                          <SelectItem value="suv">SUV</SelectItem>
+                          <SelectItem value="hatch">Hatch</SelectItem>
                           <SelectItem value="picape">Picape</SelectItem>
+                          <SelectItem value="van">Van</SelectItem>
+                          <SelectItem value="caminhao">Caminhão</SelectItem>
+                          <SelectItem value="cavalo">Cavalo Mecânico</SelectItem>
+                          <SelectItem value="carreta">Carreta</SelectItem>
+                          <SelectItem value="truck">Truck</SelectItem>
+                          <SelectItem value="moto">Moto</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Chassi (opcional)" value={cadastroForm.chassi} onChange={(e) => setCadastroForm({ ...cadastroForm, chassi: e.target.value })} />
+                      <Input placeholder="RENAVAM (opcional)" value={cadastroForm.renavam} onChange={(e) => setCadastroForm({ ...cadastroForm, renavam: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input placeholder="Combustível (ex: Flex)" value={cadastroForm.combustivel} onChange={(e) => setCadastroForm({ ...cadastroForm, combustivel: e.target.value })} />
+                      <Input placeholder="Potência (ex: 2.0)" value={cadastroForm.potencia} onChange={(e) => setCadastroForm({ ...cadastroForm, potencia: e.target.value })} />
+                    </div>
                     <Input placeholder="Motorista responsável" value={cadastroForm.motorista} onChange={(e) => setCadastroForm({ ...cadastroForm, motorista: e.target.value })} />
-                    <Input placeholder="Chassi (opcional)" value={cadastroForm.chassi} onChange={(e) => setCadastroForm({ ...cadastroForm, chassi: e.target.value })} />
                     <Button className="w-full gap-2"><Plus className="w-4 h-4" /> Cadastrar Veículo</Button>
                   </CardContent>
                 </Card>
