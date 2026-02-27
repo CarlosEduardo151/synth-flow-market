@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { FleetChat } from '@/components/fleet/FleetChat';
+import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -42,9 +43,10 @@ interface VeiculoPatio {
   placa: string;
   modelo: string;
   motorista: string;
-  status: 'aguardando' | 'autorizado' | 'ajuste';
+  stage: ServiceStage;
   valorTotal: number;
   horaEntrada: string;
+  frota: string;
 }
 
 interface Recebivel {
@@ -59,12 +61,12 @@ interface Recebivel {
 
 // ─── Mock Data ───
 const mockPatio: VeiculoPatio[] = [
-  { id: '1', placa: 'ABC-1D23', modelo: 'Scania R450', motorista: 'Carlos Silva', status: 'aguardando', valorTotal: 4850, horaEntrada: '08:32' },
-  { id: '2', placa: 'DEF-5G67', modelo: 'Volvo FH 540', motorista: 'João Pereira', status: 'autorizado', valorTotal: 3200, horaEntrada: '07:15' },
-  { id: '3', placa: 'GHI-8J90', modelo: 'MB Actros 2651', motorista: 'Pedro Santos', status: 'ajuste', valorTotal: 12300, horaEntrada: '09:50' },
-  { id: '4', placa: 'JKL-2M34', modelo: 'DAF XF 530', motorista: 'Marcos Lima', status: 'autorizado', valorTotal: 1890, horaEntrada: '10:05' },
-  { id: '5', placa: 'MNO-3P56', modelo: 'Iveco S-Way', motorista: 'Roberto Alves', status: 'aguardando', valorTotal: 6700, horaEntrada: '11:20' },
-  { id: '6', placa: 'PQR-7S89', modelo: 'Scania R500', motorista: 'André Costa', status: 'autorizado', valorTotal: 2450, horaEntrada: '06:45' },
+  { id: '1', placa: 'ABC-1D23', modelo: 'Scania R450', motorista: 'Carlos Silva', stage: 'checkin', valorTotal: 4850, horaEntrada: '08:32', frota: 'TransLog' },
+  { id: '2', placa: 'DEF-5G67', modelo: 'Volvo FH 540', motorista: 'João Pereira', stage: 'orcamento_aprovado', valorTotal: 3200, horaEntrada: '07:15', frota: 'ExpressC.' },
+  { id: '3', placa: 'GHI-8J90', modelo: 'MB Actros 2651', motorista: 'Pedro Santos', stage: 'orcamento_analise', valorTotal: 12300, horaEntrada: '09:50', frota: 'RodoNorte' },
+  { id: '4', placa: 'JKL-2M34', modelo: 'DAF XF 530', motorista: 'Marcos Lima', stage: 'veiculo_finalizado', valorTotal: 1890, horaEntrada: '10:05', frota: 'BrasLog' },
+  { id: '5', placa: 'MNO-3P56', modelo: 'Iveco S-Way', motorista: 'Roberto Alves', stage: 'orcamento_enviado', valorTotal: 6700, horaEntrada: '11:20', frota: 'TransLog' },
+  { id: '6', placa: 'PQR-7S89', modelo: 'Scania R500', motorista: 'André Costa', stage: 'veiculo_entregue', valorTotal: 2450, horaEntrada: '06:45', frota: 'Veloz' },
 ];
 
 const mockRecebiveis: Recebivel[] = [
@@ -349,8 +351,8 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const totalReceberHoje = mockRecebiveis.filter(r => r.status === 'em_processo').reduce((s, r) => s + r.valorLiquido, 0);
   const totalRecebido = mockRecebiveis.filter(r => r.status === 'depositado').reduce((s, r) => s + r.valorLiquido, 0);
   const totalAgendado = mockRecebiveis.filter(r => r.status === 'agendado').reduce((s, r) => s + r.valorLiquido, 0);
-  const servicosAtivos = mockPatio.filter(v => v.status === 'autorizado').length;
-  const aguardando = mockPatio.filter(v => v.status === 'aguardando').length;
+  const servicosAtivos = mockPatio.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length;
+  const aguardando = mockPatio.filter(v => v.stage === 'checkin' || v.stage === 'orcamento_enviado' || v.stage === 'orcamento_analise').length;
   const faturamentoTotal = faturamentoMensal.reduce((s, m) => s + m.faturamento, 0);
   const servicosTotais = faturamentoMensal.reduce((s, m) => s + m.servicos, 0);
   const ticketMedio = faturamentoTotal / servicosTotais;
@@ -523,7 +525,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             {/* Approved services quick list */}
             <ChartCard title="Aprovados — Iniciar Agora" icon={Bell}>
               <div className="space-y-2.5 max-h-52 overflow-y-auto">
-                {mockPatio.filter(v => v.status === 'autorizado').map(v => (
+                {mockPatio.filter(v => v.stage === 'orcamento_aprovado').map(v => (
                   <button key={v.id} onClick={() => { setSelectedVeiculo(v); setView('patio'); }}
                     className="w-full flex items-center gap-3 p-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors text-left">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -772,32 +774,137 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
 
     // ══════════════ PÁTIO DIGITAL ══════════════
     if (view === 'patio') {
+      const stageGroups = [
+        { label: 'Em Andamento', filter: (v: VeiculoPatio) => ['checkin', 'orcamento_enviado', 'orcamento_analise', 'orcamento_aprovado'].includes(v.stage) },
+        { label: 'Finalizados', filter: (v: VeiculoPatio) => v.stage === 'veiculo_finalizado' },
+        { label: 'Entregues', filter: (v: VeiculoPatio) => v.stage === 'veiculo_entregue' },
+      ];
+
       return (
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard label="No Pátio" value={String(mockPatio.length)} icon={Car} />
-            <KpiCard label="Autorizados" value={String(mockPatio.filter(v => v.status === 'autorizado').length)} icon={CheckCircle2} accent="text-emerald-600 dark:text-emerald-400" />
-            <KpiCard label="Aguardando" value={String(mockPatio.filter(v => v.status === 'aguardando').length)} icon={Clock} accent="text-amber-500" />
+            <KpiCard label="No Pátio" value={String(mockPatio.filter(v => v.stage !== 'veiculo_entregue').length)} icon={Car} />
+            <KpiCard label="Em Serviço" value={String(mockPatio.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length)} icon={CheckCircle2} accent="text-emerald-600 dark:text-emerald-400" />
+            <KpiCard label="Aguardando Aprov." value={String(mockPatio.filter(v => v.stage === 'orcamento_analise' || v.stage === 'orcamento_enviado').length)} icon={Clock} accent="text-amber-500" />
             <KpiCard label="Valor Total" value={fmt(mockPatio.reduce((s, v) => s + v.valorTotal, 0))} icon={DollarSign} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <ChartCard title="Distribuição por Status" icon={PieChart}>
-              <div className="flex items-center gap-4">
-                <div className="h-44 flex-1">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <RechartsPie><Pie data={patioStatusData} cx="50%" cy="50%" innerRadius={40} outerRadius={65} paddingAngle={3} dataKey="value" stroke="none">
-                      {patioStatusData.map((e, i) => <Cell key={i} fill={e.color} />)}
-                    </Pie><Tooltip contentStyle={ttStyle} /></RechartsPie>
-                  </ResponsiveContainer>
+          {/* Vehicle Cards with Pipeline */}
+          <div className="space-y-3">
+            {mockPatio.filter(v => v.stage !== 'veiculo_entregue').map(v => (
+              <div key={v.id} className="bg-card border border-border/60 rounded-lg overflow-hidden hover:border-primary/30 transition-colors">
+                <div className="p-4 sm:p-5">
+                  {/* Header Row */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                        <Car className="w-5 h-5 text-muted-foreground" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-bold text-foreground">{v.placa}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-sm text-muted-foreground">{v.modelo}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                          <span>{v.frota}</span>
+                          <span>·</span>
+                          <span>Entrada {v.horaEntrada}</span>
+                          <span>·</span>
+                          <span>{v.motorista}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-bold text-foreground">{fmt(v.valorTotal)}</p>
+                      <ServiceStageBadge stage={v.stage} />
+                    </div>
+                  </div>
+
+                  {/* Stage Pipeline */}
+                  <ServiceStagePipeline currentStage={v.stage} compact className="mb-3" />
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2 pt-3 border-t border-border/30">
+                    {v.stage === 'checkin' && (
+                      <Button size="sm" className="gap-1.5 text-xs" onClick={() => setView('orcamento')}>
+                        <FileText className="w-3.5 h-3.5" /> Criar Orçamento
+                      </Button>
+                    )}
+                    {v.stage === 'orcamento_analise' && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5" /> Aguardando aprovação do gestor
+                      </span>
+                    )}
+                    {v.stage === 'orcamento_aprovado' && (
+                      <Button size="sm" className="gap-1.5 text-xs" onClick={() => { setSelectedVeiculo(v); setFinalizarDialog(true); }}>
+                        <Wrench className="w-3.5 h-3.5" /> Finalizar Serviço
+                      </Button>
+                    )}
+                    {v.stage === 'veiculo_finalizado' && (
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                        <Truck className="w-3.5 h-3.5" /> Registrar Entrega
+                      </Button>
+                    )}
+                    {v.stage === 'orcamento_enviado' && (
+                      <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                        <Send className="w-3.5 h-3.5" /> Orçamento enviado para análise
+                      </span>
+                    )}
+                    <div className="flex-1" />
+                    <Button size="sm" variant="ghost" className="gap-1 text-xs" onClick={() => setView('mensagens')}>
+                      <MessageCircle className="w-3.5 h-3.5" /> Chat
+                    </Button>
+                  </div>
                 </div>
-                <div className="space-y-2 shrink-0">{patioStatusData.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} /><span className="text-xs text-muted-foreground">{item.name}</span><span className="text-xs font-semibold">{item.value}</span></div>
-                ))}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Entregues (collapsed) */}
+          {mockPatio.filter(v => v.stage === 'veiculo_entregue').length > 0 && (
+            <div className="bg-card border border-border/60 rounded-lg overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-border/40 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Entregues Recentemente
+                </h3>
+                <span className="text-xs text-muted-foreground">{mockPatio.filter(v => v.stage === 'veiculo_entregue').length} veículos</span>
+              </div>
+              <div className="divide-y divide-border/30">
+                {mockPatio.filter(v => v.stage === 'veiculo_entregue').map(v => (
+                  <div key={v.id} className="flex items-center justify-between px-5 py-3">
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono font-semibold text-sm text-foreground">{v.placa}</span>
+                      <span className="text-sm text-muted-foreground">{v.modelo}</span>
+                      <span className="text-xs text-muted-foreground">· {v.frota}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-foreground">{fmt(v.valorTotal)}</span>
+                      <ServiceStageBadge stage={v.stage} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Charts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <ChartCard title="Tempo Médio por Tipo de Serviço (h)" icon={Timer}>
+              <div className="h-44">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={patioTempoMedio} layout="vertical" barSize={14}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
+                    <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}h`} />
+                    <YAxis type="category" dataKey="tipo" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} width={65} />
+                    <Tooltip formatter={(v: number) => [`${v}h`, 'Tempo']} contentStyle={ttStyle} />
+                    <Bar dataKey="horas" fill="hsl(43, 74%, 66%)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </ChartCard>
 
-            <ChartCard title="Valor por Status" icon={DollarSign}>
+            <ChartCard title="Valor por Etapa" icon={DollarSign}>
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={patioValorPorStatus} barSize={28}>
@@ -831,75 +938,6 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                 <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-sm bg-primary" /><span className="text-[11px] text-muted-foreground">Saídas</span></div>
               </div>
             </ChartCard>
-          </div>
-
-          <ChartCard title="Tempo Médio por Tipo de Serviço (h)" icon={Timer}>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={patioTempoMedio} layout="vertical" barSize={14}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}h`} />
-                  <YAxis type="category" dataKey="tipo" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} width={65} />
-                  <Tooltip formatter={(v: number) => [`${v}h`, 'Tempo']} contentStyle={ttStyle} />
-                  <Bar dataKey="horas" fill="hsl(43, 74%, 66%)" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </ChartCard>
-
-          {/* Vehicle Table */}
-          <div className="bg-card border border-border/60 rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40">
-              <h3 className="text-sm font-semibold text-foreground">Veículos no Pátio</h3>
-              <span className="text-xs text-muted-foreground">{mockPatio.length} veículos</span>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead><tr className="bg-muted/30 text-xs text-muted-foreground uppercase tracking-wider">
-                  <th className="px-4 py-3 text-left font-medium">Placa</th>
-                  <th className="px-4 py-3 text-left font-medium">Modelo</th>
-                  <th className="px-4 py-3 text-left font-medium">Motorista</th>
-                  <th className="px-4 py-3 text-left font-medium">Entrada</th>
-                  <th className="px-4 py-3 text-left font-medium">Status</th>
-                  <th className="px-4 py-3 text-right font-medium">Valor</th>
-                  <th className="px-4 py-3 text-center font-medium">Ação</th>
-                </tr></thead>
-                <tbody>
-                  {mockPatio.map(v => {
-                    const cfg = statusConfig[v.status];
-                    return (
-                      <tr key={v.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                        <td className="px-4 py-3 font-mono font-semibold">{v.placa}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{v.modelo}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{v.motorista}</td>
-                        <td className="px-4 py-3 text-muted-foreground">{v.horaEntrada}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded ${cfg.bg} ${cfg.text}`}>
-                            <cfg.icon className="w-3 h-3" />{cfg.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-semibold">{fmt(v.valorTotal)}</td>
-                        <td className="px-4 py-3 text-center">
-                          {v.status === 'autorizado' && (
-                            <Button size="sm" variant="default" className="h-7 text-xs gap-1" onClick={() => { setSelectedVeiculo(v); setFinalizarDialog(true); }}>
-                              <CheckCircle2 className="w-3 h-3" /> Finalizar
-                            </Button>
-                          )}
-                          {v.status === 'ajuste' && (
-                            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => setView('orcamento')}>
-                              <FileText className="w-3 h-3" /> Revisar
-                            </Button>
-                          )}
-                          {v.status === 'aguardando' && (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
           </div>
 
           <Dialog open={finalizarDialog} onOpenChange={setFinalizarDialog}>

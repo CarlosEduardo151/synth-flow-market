@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OficinaPortal } from '@/components/oficina/OficinaPortal';
 import { FleetChat } from '@/components/fleet/FleetChat';
+import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -143,14 +144,14 @@ const mockPendencias = [
 ];
 
 const mockVeiculos = [
-  { placa: 'ABC-1D23', modelo: 'Scania R450', ano: 2022, km: 185420, tipo: 'Cavalo Mecânico', status: 'Em manutenção', servicos: 12, gastoTotal: 48500, ultimaRev: '26/02/2026', motorista: 'Carlos Silva' },
-  { placa: 'DEF-5G67', modelo: 'Volvo FH 540', ano: 2021, km: 220380, tipo: 'Cavalo Mecânico', status: 'Em manutenção', servicos: 8, gastoTotal: 62300, ultimaRev: '25/02/2026', motorista: 'Roberto Santos' },
-  { placa: 'GHI-8J90', modelo: 'Mercedes Actros 2651', ano: 2023, km: 95120, tipo: 'Cavalo Mecânico', status: 'Em manutenção', servicos: 4, gastoTotal: 18900, ultimaRev: '24/02/2026', motorista: 'João Pereira' },
-  { placa: 'JKL-2M34', modelo: 'DAF XF 530', ano: 2022, km: 161200, tipo: 'Cavalo Mecânico', status: 'Ativo', servicos: 15, gastoTotal: 72100, ultimaRev: '10/02/2026', motorista: 'Pedro Oliveira' },
-  { placa: 'MNO-5P67', modelo: 'Iveco S-Way', ano: 2024, km: 45200, tipo: 'Cavalo Mecânico', status: 'Ativo', servicos: 2, gastoTotal: 5800, ultimaRev: '15/01/2026', motorista: 'Lucas Costa' },
-  { placa: 'PQR-8S01', modelo: 'Scania R500', ano: 2023, km: 132000, tipo: 'Cavalo Mecânico', status: 'Ativo', servicos: 7, gastoTotal: 34200, ultimaRev: '05/02/2026', motorista: 'Marcos Lima' },
-  { placa: 'STU-3V45', modelo: 'Volvo FM 460', ano: 2021, km: 245000, tipo: 'Truck', status: 'Ativo', servicos: 19, gastoTotal: 89500, ultimaRev: '18/02/2026', motorista: 'André Souza' },
-  { placa: 'VWX-6Y78', modelo: 'Mercedes Atego 2430', ano: 2022, km: 178500, tipo: 'Truck', status: 'Ativo', servicos: 11, gastoTotal: 41800, ultimaRev: '22/02/2026', motorista: 'Ricardo Alves' },
+  { placa: 'ABC-1D23', modelo: 'Scania R450', ano: 2022, km: 185420, tipo: 'Cavalo Mecânico', stage: 'orcamento_analise' as ServiceStage, oficina: 'ThermoCar', servicos: 12, gastoTotal: 48500, ultimaRev: '26/02/2026', motorista: 'Carlos Silva' },
+  { placa: 'DEF-5G67', modelo: 'Volvo FH 540', ano: 2021, km: 220380, tipo: 'Cavalo Mecânico', stage: 'orcamento_aprovado' as ServiceStage, oficina: 'EngeMec', servicos: 8, gastoTotal: 62300, ultimaRev: '25/02/2026', motorista: 'Roberto Santos' },
+  { placa: 'GHI-8J90', modelo: 'Mercedes Actros 2651', ano: 2023, km: 95120, tipo: 'Cavalo Mecânico', stage: 'checkin' as ServiceStage, oficina: 'Oskauto', servicos: 4, gastoTotal: 18900, ultimaRev: '24/02/2026', motorista: 'João Pereira' },
+  { placa: 'JKL-2M34', modelo: 'DAF XF 530', ano: 2022, km: 161200, tipo: 'Cavalo Mecânico', stage: 'veiculo_finalizado' as ServiceStage, oficina: 'AutoTech BR', servicos: 15, gastoTotal: 72100, ultimaRev: '10/02/2026', motorista: 'Pedro Oliveira' },
+  { placa: 'MNO-5P67', modelo: 'Iveco S-Way', ano: 2024, km: 45200, tipo: 'Cavalo Mecânico', stage: null as ServiceStage | null, oficina: null, servicos: 2, gastoTotal: 5800, ultimaRev: '15/01/2026', motorista: 'Lucas Costa' },
+  { placa: 'PQR-8S01', modelo: 'Scania R500', ano: 2023, km: 132000, tipo: 'Cavalo Mecânico', stage: null as ServiceStage | null, oficina: null, servicos: 7, gastoTotal: 34200, ultimaRev: '05/02/2026', motorista: 'Marcos Lima' },
+  { placa: 'STU-3V45', modelo: 'Volvo FM 460', ano: 2021, km: 245000, tipo: 'Truck', stage: 'veiculo_entregue' as ServiceStage, oficina: 'Oskauto', servicos: 19, gastoTotal: 89500, ultimaRev: '18/02/2026', motorista: 'André Souza' },
+  { placa: 'VWX-6Y78', modelo: 'Mercedes Atego 2430', ano: 2022, km: 178500, tipo: 'Truck', stage: null as ServiceStage | null, oficina: null, servicos: 11, gastoTotal: 41800, ultimaRev: '22/02/2026', motorista: 'Ricardo Alves' },
 ];
 
 const mockNotas = [
@@ -308,7 +309,7 @@ const GestaoFrotasOficinasSystem = () => {
   if (role === 'frota') {
     const saldoDisponivel = 185000;
     const economiaMes = 12450;
-    const veiculosManutencao = 3;
+    const veiculosManutencao = mockVeiculos.filter(v => v.stage !== null).length;
     const totalFrota = mockVeiculos.length;
     const ticketMedio = 4580;
     const totalGastoMes = 28700;
@@ -982,13 +983,16 @@ const GestaoFrotasOficinasSystem = () => {
         // ════════════════════════════════════
         // VEÍCULOS (FROTA)
         // ════════════════════════════════════
-        case 'frota':
+        case 'frota': {
+          const emManutencao = veiculosFiltrados.filter(v => v.stage !== null);
+          const disponiveis = veiculosFiltrados.filter(v => v.stage === null);
+
           return (
-            <div className="space-y-4">
+            <div className="space-y-5">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Minha Frota</h2>
-                  <p className="text-sm text-muted-foreground">{mockVeiculos.length} veículos cadastrados</p>
+                  <p className="text-sm text-muted-foreground">{mockVeiculos.length} veículos · {emManutencao.length} em serviço</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="relative">
@@ -1001,122 +1005,249 @@ const GestaoFrotasOficinasSystem = () => {
                 </div>
               </div>
 
-              {/* Vehicles Table */}
-              <Card className="border border-border/50 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Placa</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Modelo</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Motorista</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Tipo</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">KM</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Gasto Total</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Serviços</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {veiculosFiltrados.map((v) => (
-                        <tr key={v.placa} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3.5">
-                            <span className="font-mono font-bold text-foreground text-sm">{v.placa}</span>
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <div>
-                              <span className="text-sm text-foreground">{v.modelo}</span>
-                              <span className="text-xs text-muted-foreground ml-1">({v.ano})</span>
+              {/* Vehicles in Service — Card view with pipeline */}
+              {emManutencao.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Wrench className="w-4 h-4 text-amber-500" /> Em Serviço ({emManutencao.length})
+                  </h3>
+                  {emManutencao.map((v) => (
+                    <Card key={v.placa} className="border border-border/50 shadow-sm hover:border-primary/30 transition-colors overflow-hidden">
+                      <CardContent className="p-4 sm:p-5">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                              <Car className="w-5 h-5 text-muted-foreground" />
                             </div>
-                          </td>
-                          <td className="px-4 py-3.5 text-sm text-muted-foreground hidden md:table-cell">{v.motorista}</td>
-                          <td className="px-4 py-3.5 hidden sm:table-cell">
-                            <Badge variant="outline" className="text-[10px]">{v.tipo}</Badge>
-                          </td>
-                          <td className="px-4 py-3.5 text-center text-sm text-muted-foreground hidden lg:table-cell font-mono">
-                            {v.km.toLocaleString('pt-BR')}
-                          </td>
-                          <td className="px-4 py-3.5 text-center">
-                            <Badge className={`text-[10px] ${v.status === 'Em manutenção' ? 'bg-amber-500/10 text-amber-600 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'}`} variant="outline">
-                              {v.status}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3.5 text-right hidden sm:table-cell">
-                            <span className="font-semibold text-sm text-foreground">
-                              R$ {v.gastoTotal.toLocaleString('pt-BR')}
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-foreground">{v.placa}</span>
+                                <span className="text-xs text-muted-foreground">·</span>
+                                <span className="text-sm text-muted-foreground">{v.modelo} ({v.ano})</span>
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                                <span>{v.motorista}</span>
+                                {v.oficina && <><span>·</span><Building2 className="w-3 h-3" /><span>{v.oficina}</span></>}
+                                <span>·</span>
+                                <span className="font-mono">{v.km.toLocaleString('pt-BR')} km</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right hidden sm:block">
+                            <p className="text-sm font-semibold text-foreground">R$ {v.gastoTotal.toLocaleString('pt-BR')}</p>
+                            <p className="text-[10px] text-muted-foreground">{v.servicos} serviços</p>
+                          </div>
+                        </div>
+
+                        {/* Pipeline */}
+                        {v.stage && <ServiceStagePipeline currentStage={v.stage} compact className="mb-3" />}
+
+                        {/* Actions */}
+                        <div className="flex items-center gap-2 pt-3 border-t border-border/30">
+                          {v.stage === 'orcamento_analise' && (
+                            <Button size="sm" className="gap-1.5 text-xs" onClick={() => setActiveTab('aprovacoes')}>
+                              <Shield className="w-3.5 h-3.5" /> Revisar Orçamento
+                            </Button>
+                          )}
+                          {v.stage === 'veiculo_finalizado' && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Serviço concluído — aguardando retirada
                             </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-center text-sm text-muted-foreground hidden lg:table-cell">{v.servicos}</td>
-                          <td className="px-4 py-3.5 text-right">
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                                  <History className="w-3.5 h-3.5" /> Histórico
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-2xl">
-                                <DialogHeader>
-                                  <DialogTitle className="flex items-center gap-2">
-                                    <span className="font-mono">{v.placa}</span>
-                                    <span className="text-muted-foreground font-normal">— {v.modelo}</span>
-                                  </DialogTitle>
-                                </DialogHeader>
-                                <div className="space-y-4 mt-2">
-                                  <div className="grid grid-cols-3 gap-3">
-                                    <div className="p-3 bg-muted/30 rounded-lg text-center">
-                                      <p className="text-lg font-bold text-foreground">{v.servicos}</p>
-                                      <p className="text-[10px] text-muted-foreground">Serviços</p>
-                                    </div>
-                                    <div className="p-3 bg-muted/30 rounded-lg text-center">
-                                      <p className="text-lg font-bold text-foreground">R$ {v.gastoTotal.toLocaleString('pt-BR')}</p>
-                                      <p className="text-[10px] text-muted-foreground">Gasto Total</p>
-                                    </div>
-                                    <div className="p-3 bg-muted/30 rounded-lg text-center">
-                                      <p className="text-lg font-bold text-foreground font-mono">{v.km.toLocaleString('pt-BR')}</p>
-                                      <p className="text-[10px] text-muted-foreground">KM Atual</p>
-                                    </div>
+                          )}
+                          {v.stage === 'veiculo_entregue' && (
+                            <ServiceStageBadge stage={v.stage} />
+                          )}
+                          {(v.stage === 'checkin' || v.stage === 'orcamento_enviado') && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <Clock className="w-3.5 h-3.5" /> Aguardando oficina
+                            </span>
+                          )}
+                          {v.stage === 'orcamento_aprovado' && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <Wrench className="w-3.5 h-3.5 text-primary" /> Em execução na oficina
+                            </span>
+                          )}
+                          <div className="flex-1" />
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button variant="ghost" size="sm" className="gap-1 text-xs">
+                                <History className="w-3.5 h-3.5" /> Histórico
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-2xl">
+                              <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                  <span className="font-mono">{v.placa}</span>
+                                  <span className="text-muted-foreground font-normal">— {v.modelo}</span>
+                                </DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4 mt-2">
+                                {v.stage && (
+                                  <>
+                                    <ServiceStagePipeline currentStage={v.stage} />
+                                    <Separator />
+                                  </>
+                                )}
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                    <p className="text-lg font-bold text-foreground">{v.servicos}</p>
+                                    <p className="text-[10px] text-muted-foreground">Serviços</p>
                                   </div>
-                                  <Separator />
-                                  <table className="w-full text-xs">
-                                    <thead>
-                                      <tr className="border-b bg-muted/30">
-                                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">DATA</th>
-                                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">OFICINA</th>
-                                        <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SERVIÇO</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-muted-foreground">KM</th>
-                                        <th className="text-right px-3 py-2 font-semibold text-muted-foreground">VALOR</th>
-                                        <th className="text-center px-3 py-2 font-semibold text-muted-foreground">IA</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {mockHistoricoVeiculo.map((h, i) => (
-                                        <tr key={i} className="border-b border-border/30">
-                                          <td className="px-3 py-2 text-muted-foreground">{h.data}</td>
-                                          <td className="px-3 py-2 text-foreground">{h.oficina}</td>
-                                          <td className="px-3 py-2 text-foreground">{h.servico}</td>
-                                          <td className="px-3 py-2 text-right font-mono text-muted-foreground">{h.km.toLocaleString('pt-BR')}</td>
-                                          <td className="px-3 py-2 text-right font-semibold text-foreground">R$ {h.valor.toLocaleString('pt-BR')}</td>
-                                          <td className="px-3 py-2 text-center">
-                                            {h.auditoria === 'verde' ? <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto" /> : <ShieldAlert className="w-4 h-4 text-amber-500 mx-auto" />}
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
+                                  <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                    <p className="text-lg font-bold text-foreground">R$ {v.gastoTotal.toLocaleString('pt-BR')}</p>
+                                    <p className="text-[10px] text-muted-foreground">Gasto Total</p>
+                                  </div>
+                                  <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                    <p className="text-lg font-bold text-foreground font-mono">{v.km.toLocaleString('pt-BR')}</p>
+                                    <p className="text-[10px] text-muted-foreground">KM Atual</p>
+                                  </div>
                                 </div>
-                              </DialogContent>
-                            </Dialog>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                                <Separator />
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b bg-muted/30">
+                                      <th className="text-left px-3 py-2 font-semibold text-muted-foreground">DATA</th>
+                                      <th className="text-left px-3 py-2 font-semibold text-muted-foreground">OFICINA</th>
+                                      <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SERVIÇO</th>
+                                      <th className="text-right px-3 py-2 font-semibold text-muted-foreground">KM</th>
+                                      <th className="text-right px-3 py-2 font-semibold text-muted-foreground">VALOR</th>
+                                      <th className="text-center px-3 py-2 font-semibold text-muted-foreground">IA</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {mockHistoricoVeiculo.map((h, i) => (
+                                      <tr key={i} className="border-b border-border/30">
+                                        <td className="px-3 py-2 text-muted-foreground">{h.data}</td>
+                                        <td className="px-3 py-2 text-foreground">{h.oficina}</td>
+                                        <td className="px-3 py-2 text-foreground">{h.servico}</td>
+                                        <td className="px-3 py-2 text-right font-mono text-muted-foreground">{h.km.toLocaleString('pt-BR')}</td>
+                                        <td className="px-3 py-2 text-right font-semibold text-foreground">R$ {h.valor.toLocaleString('pt-BR')}</td>
+                                        <td className="px-3 py-2 text-center">
+                                          {h.auditoria === 'verde' ? <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto" /> : <ShieldAlert className="w-4 h-4 text-amber-500 mx-auto" />}
+                                        </td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setActiveTab('questionar')}>
+                            <MessageCircle className="w-3.5 h-3.5" /> Chat
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
                 </div>
-              </Card>
+              )}
+
+              {/* Available vehicles — compact table */}
+              {disponiveis.length > 0 && (
+                <div className="space-y-3">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Disponíveis ({disponiveis.length})
+                  </h3>
+                  <Card className="border border-border/50 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b bg-muted/30">
+                            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Placa</th>
+                            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Modelo</th>
+                            <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Motorista</th>
+                            <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">KM</th>
+                            <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Gasto Total</th>
+                            <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
+                            <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {disponiveis.map((v) => (
+                            <tr key={v.placa} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3.5"><span className="font-mono font-bold text-foreground text-sm">{v.placa}</span></td>
+                              <td className="px-4 py-3.5">
+                                <span className="text-sm text-foreground">{v.modelo}</span>
+                                <span className="text-xs text-muted-foreground ml-1">({v.ano})</span>
+                              </td>
+                              <td className="px-4 py-3.5 text-sm text-muted-foreground hidden md:table-cell">{v.motorista}</td>
+                              <td className="px-4 py-3.5 text-center text-sm text-muted-foreground hidden lg:table-cell font-mono">{v.km.toLocaleString('pt-BR')}</td>
+                              <td className="px-4 py-3.5 text-right hidden sm:table-cell">
+                                <span className="font-semibold text-sm text-foreground">R$ {v.gastoTotal.toLocaleString('pt-BR')}</span>
+                              </td>
+                              <td className="px-4 py-3.5 text-center">
+                                <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20" variant="outline">Disponível</Badge>
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="gap-1 text-xs"><History className="w-3.5 h-3.5" /> Histórico</Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-2xl">
+                                    <DialogHeader>
+                                      <DialogTitle className="flex items-center gap-2">
+                                        <span className="font-mono">{v.placa}</span>
+                                        <span className="text-muted-foreground font-normal">— {v.modelo}</span>
+                                      </DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4 mt-2">
+                                      <div className="grid grid-cols-3 gap-3">
+                                        <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                          <p className="text-lg font-bold text-foreground">{v.servicos}</p>
+                                          <p className="text-[10px] text-muted-foreground">Serviços</p>
+                                        </div>
+                                        <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                          <p className="text-lg font-bold text-foreground">R$ {v.gastoTotal.toLocaleString('pt-BR')}</p>
+                                          <p className="text-[10px] text-muted-foreground">Gasto Total</p>
+                                        </div>
+                                        <div className="p-3 bg-muted/30 rounded-lg text-center">
+                                          <p className="text-lg font-bold text-foreground font-mono">{v.km.toLocaleString('pt-BR')}</p>
+                                          <p className="text-[10px] text-muted-foreground">KM Atual</p>
+                                        </div>
+                                      </div>
+                                      <Separator />
+                                      <table className="w-full text-xs">
+                                        <thead>
+                                          <tr className="border-b bg-muted/30">
+                                            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">DATA</th>
+                                            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">OFICINA</th>
+                                            <th className="text-left px-3 py-2 font-semibold text-muted-foreground">SERVIÇO</th>
+                                            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">KM</th>
+                                            <th className="text-right px-3 py-2 font-semibold text-muted-foreground">VALOR</th>
+                                            <th className="text-center px-3 py-2 font-semibold text-muted-foreground">IA</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {mockHistoricoVeiculo.map((h, i) => (
+                                            <tr key={i} className="border-b border-border/30">
+                                              <td className="px-3 py-2 text-muted-foreground">{h.data}</td>
+                                              <td className="px-3 py-2 text-foreground">{h.oficina}</td>
+                                              <td className="px-3 py-2 text-foreground">{h.servico}</td>
+                                              <td className="px-3 py-2 text-right font-mono text-muted-foreground">{h.km.toLocaleString('pt-BR')}</td>
+                                              <td className="px-3 py-2 text-right font-semibold text-foreground">R$ {h.valor.toLocaleString('pt-BR')}</td>
+                                              <td className="px-3 py-2 text-center">
+                                                {h.auditoria === 'verde' ? <ShieldCheck className="w-4 h-4 text-emerald-500 mx-auto" /> : <ShieldAlert className="w-4 h-4 text-amber-500 mx-auto" />}
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </Card>
+                </div>
+              )}
             </div>
           );
-
+        }
         // ════════════════════════════════════
         // TODOS OS ORÇAMENTOS
         // ════════════════════════════════════
