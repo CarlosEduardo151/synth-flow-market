@@ -1021,6 +1021,172 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_service_orders: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          data_entrada: string | null
+          data_entrega: string | null
+          data_finalizacao: string | null
+          data_previsao_entrega: string | null
+          descricao_servico: string | null
+          id: string
+          observacoes: string | null
+          oficina_nome: string | null
+          stage: string
+          updated_at: string
+          valor_aprovado: number | null
+          valor_orcamento: number | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          data_entrada?: string | null
+          data_entrega?: string | null
+          data_finalizacao?: string | null
+          data_previsao_entrega?: string | null
+          descricao_servico?: string | null
+          id?: string
+          observacoes?: string | null
+          oficina_nome?: string | null
+          stage?: string
+          updated_at?: string
+          valor_aprovado?: number | null
+          valor_orcamento?: number | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          data_entrada?: string | null
+          data_entrega?: string | null
+          data_finalizacao?: string | null
+          data_previsao_entrega?: string | null
+          descricao_servico?: string | null
+          id?: string
+          observacoes?: string | null
+          oficina_nome?: string | null
+          stage?: string
+          updated_at?: string
+          valor_aprovado?: number | null
+          valor_orcamento?: number | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_service_orders_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_stage_history: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_stage: string | null
+          id: string
+          notes: string | null
+          service_order_id: string
+          to_stage: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id: string
+          to_stage: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: string | null
+          id?: string
+          notes?: string | null
+          service_order_id?: string
+          to_stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_stage_history_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_vehicles: {
+        Row: {
+          ano: string | null
+          ano_fabricacao: string | null
+          ano_modelo: string | null
+          chassi: string | null
+          combustivel: string | null
+          cor: string | null
+          created_at: string
+          customer_product_id: string
+          foto_url: string | null
+          id: string
+          km_atual: number | null
+          marca: string | null
+          modelo: string | null
+          observacoes: string | null
+          placa: string
+          potencia: string | null
+          renavam: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ano?: string | null
+          ano_fabricacao?: string | null
+          ano_modelo?: string | null
+          chassi?: string | null
+          combustivel?: string | null
+          cor?: string | null
+          created_at?: string
+          customer_product_id: string
+          foto_url?: string | null
+          id?: string
+          km_atual?: number | null
+          marca?: string | null
+          modelo?: string | null
+          observacoes?: string | null
+          placa: string
+          potencia?: string | null
+          renavam?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ano?: string | null
+          ano_fabricacao?: string | null
+          ano_modelo?: string | null
+          chassi?: string | null
+          combustivel?: string | null
+          cor?: string | null
+          created_at?: string
+          customer_product_id?: string
+          foto_url?: string | null
+          id?: string
+          km_atual?: number | null
+          marca?: string | null
+          modelo?: string | null
+          observacoes?: string | null
+          placa?: string
+          potencia?: string | null
+          renavam?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       free_trials: {
         Row: {
           created_at: string
