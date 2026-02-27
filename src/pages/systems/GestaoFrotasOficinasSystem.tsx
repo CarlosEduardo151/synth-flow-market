@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { OficinaPortal } from '@/components/oficina/OficinaPortal';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { useAuth } from '@/hooks/useAuth';
@@ -647,23 +649,35 @@ const GestaoFrotasOficinasSystem = () => {
         // CADASTRAR VEÍCULO — VERO 1.0
         // ════════════════════════════════════
         case 'cadastro': {
-          const handleVeroScan = () => {
+          const handleVeroScan = async (base64: string, mime: string) => {
             setVeroStep('uploading');
-            setTimeout(() => {
+            try {
               setVeroStep('analyzing');
-              setTimeout(() => {
-                setVeroResult({
-                  placa: 'HXB-4K92',
-                  marca: 'Mitsubishi',
-                  modelo: 'L200 Triton Sport HPE-S',
-                  cor: 'Prata',
-                  ano: '2024',
-                  tipo: 'Picape',
-                  confianca: 96,
-                });
-                setVeroStep('result');
-              }, 3000);
-            }, 1500);
+              const { data, error } = await supabase.functions.invoke('vero-scan', {
+                body: { imageBase64: base64, mimeType: mime },
+              });
+              if (error) throw error;
+              if (data?.error) {
+                toast.error(data.message || data.error);
+                setVeroStep('idle');
+                return;
+              }
+              const r = data.result;
+              setVeroResult({
+                placa: r.placa || 'N/A',
+                marca: r.marca || 'N/A',
+                modelo: r.modelo || 'N/A',
+                cor: r.cor || 'N/A',
+                ano: r.ano || 'N/A',
+                tipo: r.tipo || 'N/A',
+                confianca: r.confianca || 0,
+              });
+              setVeroStep('result');
+            } catch (err: any) {
+              console.error('VERO scan error:', err);
+              toast.error('Erro ao analisar imagem. Verifique as chaves de IA no painel admin.');
+              setVeroStep('idle');
+            }
           };
 
           const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -671,8 +685,12 @@ const GestaoFrotasOficinasSystem = () => {
             if (file) {
               const reader = new FileReader();
               reader.onload = (ev) => {
-                setVeroImagePreview(ev.target?.result as string);
-                handleVeroScan();
+                const dataUrl = ev.target?.result as string;
+                setVeroImagePreview(dataUrl);
+                // Extract base64 and mime from data URL
+                const [header, base64] = dataUrl.split(',');
+                const mime = header.match(/data:(.*?);/)?.[1] || 'image/jpeg';
+                handleVeroScan(base64, mime);
               };
               reader.readAsDataURL(file);
             }

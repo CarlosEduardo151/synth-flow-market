@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.bot-knowledge-process]
 verify_jwt = false
+
+[functions.vero-scan]
+verify_jwt = false
