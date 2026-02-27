@@ -1339,7 +1339,7 @@ const GestaoFrotasOficinasSystem = () => {
                 <Icon className="w-[18px] h-[18px] shrink-0" />
                 <div className="flex-1 text-left min-w-0">
                   <span className="block">{tab.label}</span>
-                  <span className={`block text-[10px] font-normal leading-tight mt-0.5 ${active ? 'text-primary/70' : 'text-muted-foreground/60'}`}>{tab.desc}</span>
+                  
                 </div>
                 {tab.value === 'aprovacoes' && (
                   <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${active ? 'bg-primary/20 text-primary' : 'bg-red-500/10 text-red-500'}`}>

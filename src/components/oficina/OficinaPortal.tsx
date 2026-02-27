@@ -409,7 +409,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
               <Icon className="w-[18px] h-[18px] shrink-0" />
               <div className="flex-1 text-left min-w-0">
                 <span className="block">{item.label}</span>
-                <span className={`block text-[10px] font-normal leading-tight mt-0.5 ${active ? 'text-primary/70' : 'text-muted-foreground/60'}`}>{item.desc}</span>
+                
               </div>
               {item.badge && (
                 <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${active ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
