@@ -7,7 +7,8 @@ import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/co
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { useProductAccess } from '@/hooks/useProductAccess';
-import { useFleetData } from '@/hooks/useFleetData';
+import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
+import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -229,6 +230,7 @@ const GestaoFrotasOficinasSystem = () => {
   const [selectedOrcamento, setSelectedOrcamento] = useState<string | null>(null);
   const [filterAuditoria, setFilterAuditoria] = useState<string>('all');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
+  const [maintenanceVehicle, setMaintenanceVehicle] = useState<FleetVehicle | null>(null);
   const isMobile = useIsMobile();
 
   // Product access & fleet data
@@ -1145,6 +1147,7 @@ const GestaoFrotasOficinasSystem = () => {
                             <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Modelo</th>
                             <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">KM</th>
                             <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
+                            <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ação</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1158,6 +1161,16 @@ const GestaoFrotasOficinasSystem = () => {
                               <td className="px-4 py-3.5 text-center text-sm text-muted-foreground hidden lg:table-cell font-mono">{(v.km_atual || 0).toLocaleString('pt-BR')}</td>
                               <td className="px-4 py-3.5 text-center">
                                 <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20" variant="outline">Disponível</Badge>
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 text-xs border-amber-500/30 text-amber-600 hover:bg-amber-500/10 hover:border-amber-500/50"
+                                  onClick={() => setMaintenanceVehicle(v)}
+                                >
+                                  <Wrench className="w-3.5 h-3.5" /> Manutenção
+                                </Button>
                               </td>
                             </tr>
                           ))}
@@ -1590,6 +1603,32 @@ const GestaoFrotasOficinasSystem = () => {
             {renderContent()}
           </main>
         </div>
+
+        {/* Maintenance Request Dialog */}
+        {maintenanceVehicle && (
+          <MaintenanceRequestDialog
+            open={!!maintenanceVehicle}
+            onOpenChange={(open) => { if (!open) setMaintenanceVehicle(null); }}
+            vehicle={maintenanceVehicle}
+            saving={fleet.saving}
+            onSubmit={async (data) => {
+              // Update vehicle km
+              await supabase
+                .from('fleet_vehicles')
+                .update({ km_atual: data.km_atual })
+                .eq('id', data.vehicle_id);
+
+              // Create service order with description
+              const descricao = `**Problema:** ${data.descricao_problema}\n\n**Serviços solicitados:**\n${data.servicos_solicitados.map(s => `• ${s}`).join('\n')}`;
+              const result = await fleet.createServiceOrder({
+                vehicle_id: data.vehicle_id,
+                oficina_nome: data.oficina_nome,
+                descricao_servico: descricao,
+              });
+              return !!result;
+            }}
+          />
+        )}
       </div>
     );
   }
