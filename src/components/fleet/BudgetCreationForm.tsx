@@ -59,66 +59,219 @@ const damageZones = [
 
 // ── Parts catalog ──
 const partsCatalog = [
+  // ── FILTROS ──
   { code: 'FLT-OL-001', desc: 'Filtro de óleo motor', marca: 'Mann', precoRef: 45, categoria: 'motor' },
   { code: 'FLT-AR-001', desc: 'Filtro de ar motor', marca: 'Mann', precoRef: 65, categoria: 'motor' },
   { code: 'FLT-CB-001', desc: 'Filtro de combustível', marca: 'Bosch', precoRef: 85, categoria: 'motor' },
   { code: 'FLT-AC-001', desc: 'Filtro de ar-condicionado', marca: 'Mann', precoRef: 55, categoria: 'ar_condicionado' },
+  { code: 'FLT-SEP-001', desc: 'Filtro separador de água/diesel', marca: 'Parker', precoRef: 120, categoria: 'motor' },
+
+  // ── ÓLEOS E FLUIDOS ──
   { code: 'OLE-001', desc: 'Óleo motor 15W40 (litro)', marca: 'Shell', precoRef: 32, categoria: 'motor' },
   { code: 'OLE-002', desc: 'Óleo câmbio 75W90 (litro)', marca: 'Shell', precoRef: 48, categoria: 'transmissao' },
+  { code: 'OLE-003', desc: 'Fluido de arrefecimento (litro)', marca: 'Paraflu', precoRef: 22, categoria: 'motor' },
+  { code: 'OLE-004', desc: 'Óleo hidráulico direção (litro)', marca: 'Shell', precoRef: 38, categoria: 'direcao' },
+
+  // ── FREIOS ──
   { code: 'PAS-001', desc: 'Jogo de pastilhas de freio', marca: 'Fras-le', precoRef: 180, categoria: 'freios_d' },
   { code: 'PAS-002', desc: 'Jogo de pastilhas traseiras', marca: 'Fras-le', precoRef: 160, categoria: 'freios_t' },
   { code: 'DIS-001', desc: 'Disco de freio ventilado dianteiro', marca: 'Fremax', precoRef: 320, categoria: 'freios_d' },
   { code: 'DIS-002', desc: 'Disco de freio ventilado traseiro', marca: 'Fremax', precoRef: 290, categoria: 'freios_t' },
   { code: 'LON-001', desc: 'Lona de freio (jogo)', marca: 'Fras-le', precoRef: 250, categoria: 'freios_t' },
+  { code: 'CIL-FRE-001', desc: 'Cilindro mestre de freio', marca: 'Bosch', precoRef: 480, categoria: 'freios_d' },
+  { code: 'FLU-FRE-001', desc: 'Fluido de freio DOT4 (500ml)', marca: 'Bosch', precoRef: 35, categoria: 'freios_d' },
+  { code: 'TAM-001', desc: 'Tambor de freio traseiro', marca: 'Fremax', precoRef: 380, categoria: 'freios_t' },
+
+  // ── SUSPENSÃO ──
   { code: 'AMO-001', desc: 'Amortecedor dianteiro', marca: 'Monroe', precoRef: 450, categoria: 'suspensao_d' },
   { code: 'AMO-002', desc: 'Amortecedor traseiro', marca: 'Monroe', precoRef: 380, categoria: 'suspensao_t' },
   { code: 'MOL-001', desc: 'Feixe de molas traseiro', marca: 'Fabrini', precoRef: 950, categoria: 'suspensao_t' },
+  { code: 'BUC-001', desc: 'Bucha de mola (jogo)', marca: 'Sampel', precoRef: 120, categoria: 'suspensao_t' },
+  { code: 'PIV-001', desc: 'Pivô de suspensão', marca: 'Nakata', precoRef: 220, categoria: 'suspensao_d' },
+  { code: 'TER-001', desc: 'Terminal de direção', marca: 'Nakata', precoRef: 180, categoria: 'suspensao_d' },
+  { code: 'BAR-EST-001', desc: 'Barra estabilizadora', marca: 'Sampel', precoRef: 350, categoria: 'suspensao_d' },
+
+  // ── MOTOR - PEÇAS INTERNAS (RETÍFICA / MOTOR BATIDO) ──
+  { code: 'KIT-RET-001', desc: '⭐ Kit retífica completo (pistões+anéis+bronzinas+juntas)', marca: 'Metal Leve/Mahle', precoRef: 4800, categoria: 'motor' },
+  { code: 'PIS-001', desc: 'Jogo de pistões com pinos', marca: 'Metal Leve', precoRef: 1800, categoria: 'motor' },
+  { code: 'ANE-001', desc: 'Jogo de anéis de pistão', marca: 'Mahle', precoRef: 650, categoria: 'motor' },
+  { code: 'BRZ-BIE-001', desc: 'Jogo de bronzinas de biela', marca: 'Metal Leve', precoRef: 380, categoria: 'motor' },
+  { code: 'BRZ-MAN-001', desc: 'Jogo de bronzinas de mancal', marca: 'Metal Leve', precoRef: 420, categoria: 'motor' },
+  { code: 'BIE-001', desc: 'Biela recondicionada (unidade)', marca: 'Motor Parts', precoRef: 650, categoria: 'motor' },
+  { code: 'VIR-001', desc: 'Virabrequim retificado', marca: 'Motor Parts', precoRef: 3500, categoria: 'motor' },
+  { code: 'CAB-001', desc: 'Cabeçote retificado completo', marca: 'Motor Parts', precoRef: 4200, categoria: 'motor' },
+  { code: 'JNT-CAB-001', desc: 'Junta do cabeçote', marca: 'Sabó', precoRef: 280, categoria: 'motor' },
+  { code: 'JNT-KIT-001', desc: 'Kit completo de juntas do motor', marca: 'Sabó', precoRef: 850, categoria: 'motor' },
+  { code: 'VLV-ADM-001', desc: 'Jogo de válvulas de admissão', marca: 'TRW', precoRef: 520, categoria: 'motor' },
+  { code: 'VLV-ESC-001', desc: 'Jogo de válvulas de escape', marca: 'TRW', precoRef: 580, categoria: 'motor' },
+  { code: 'GUA-VLV-001', desc: 'Jogo de guias de válvula', marca: 'Metal Leve', precoRef: 320, categoria: 'motor' },
+  { code: 'RET-VLV-001', desc: 'Jogo de retentores de válvula', marca: 'Sabó', precoRef: 180, categoria: 'motor' },
+  { code: 'CMD-001', desc: 'Eixo comando de válvulas', marca: 'Motor Parts', precoRef: 1800, categoria: 'motor' },
+  { code: 'TUC-001', desc: 'Jogo de tuchos hidráulicos', marca: 'INA', precoRef: 850, categoria: 'motor' },
+  { code: 'VOL-001', desc: 'Volante do motor', marca: 'Sachs', precoRef: 1200, categoria: 'motor' },
+  { code: 'RET-VIR-001', desc: 'Retentor dianteiro do virabrequim', marca: 'Sabó', precoRef: 85, categoria: 'motor' },
+  { code: 'RET-VIR-002', desc: 'Retentor traseiro do virabrequim', marca: 'Sabó', precoRef: 95, categoria: 'motor' },
+  { code: 'CRT-OLE-001', desc: 'Cárter de óleo do motor', marca: 'Motor Parts', precoRef: 680, categoria: 'motor' },
+  { code: 'BOM-OLE-001', desc: 'Bomba de óleo do motor', marca: 'Schadek', precoRef: 520, categoria: 'motor' },
+
+  // ── MOTOR - PERIFÉRICOS ──
   { code: 'COR-001', desc: 'Kit correia dentada + tensor', marca: 'Gates', precoRef: 380, categoria: 'motor' },
   { code: 'COR-002', desc: 'Correia do alternador', marca: 'Gates', precoRef: 85, categoria: 'sistema_eletrico' },
-  { code: 'EMB-KIT', desc: 'Kit embreagem completo', marca: 'Sachs', precoRef: 1200, categoria: 'transmissao' },
-  { code: 'BAT-001', desc: 'Bateria 12V 150Ah', marca: 'Moura', precoRef: 680, categoria: 'sistema_eletrico' },
   { code: 'VEL-001', desc: 'Vela de ignição (unidade)', marca: 'NGK', precoRef: 35, categoria: 'motor' },
   { code: 'RAD-001', desc: 'Radiador completo', marca: 'Visconde', precoRef: 890, categoria: 'motor' },
-  { code: 'TUR-001', desc: 'Turbocompressor recondicionado', marca: 'BorgWarner', precoRef: 3200, categoria: 'turbo' },
-  { code: 'BIC-001', desc: 'Bico injetor (unidade)', marca: 'Bosch', precoRef: 450, categoria: 'motor' },
   { code: 'BOM-001', desc: 'Bomba d\'água', marca: 'Indisa', precoRef: 280, categoria: 'motor' },
+  { code: 'TRM-001', desc: 'Válvula termostática', marca: 'Wahler', precoRef: 120, categoria: 'motor' },
+  { code: 'MNG-001', desc: 'Kit mangueiras do radiador (sup+inf)', marca: 'Gates', precoRef: 180, categoria: 'motor' },
+  { code: 'INT-001', desc: 'Intercooler', marca: 'Visconde', precoRef: 1200, categoria: 'turbo' },
+  { code: 'BIC-001', desc: 'Bico injetor (unidade)', marca: 'Bosch', precoRef: 450, categoria: 'motor' },
+  { code: 'BOM-COMB-001', desc: 'Bomba de combustível de alta pressão', marca: 'Bosch', precoRef: 3800, categoria: 'motor' },
+
+  // ── TURBO ──
+  { code: 'TUR-001', desc: 'Turbocompressor recondicionado', marca: 'BorgWarner', precoRef: 3200, categoria: 'turbo' },
+  { code: 'TUR-002', desc: 'Turbocompressor novo', marca: 'Garrett', precoRef: 5800, categoria: 'turbo' },
+  { code: 'MNG-TUR-001', desc: 'Mangueira do turbo (pressão)', marca: 'Gates', precoRef: 250, categoria: 'turbo' },
+  { code: 'JNT-TUR-001', desc: 'Kit juntas do turbo', marca: 'Sabó', precoRef: 180, categoria: 'turbo' },
+
+  // ── TRANSMISSÃO / EMBREAGEM ──
+  { code: 'EMB-KIT', desc: 'Kit embreagem completo', marca: 'Sachs', precoRef: 1200, categoria: 'transmissao' },
+  { code: 'EMB-VOL', desc: 'Volante bimassa', marca: 'Sachs', precoRef: 2800, categoria: 'transmissao' },
+  { code: 'CIL-EMB-001', desc: 'Cilindro de embreagem (atuador)', marca: 'Sachs', precoRef: 450, categoria: 'transmissao' },
+  { code: 'RLM-EMB-001', desc: 'Rolamento de embreagem', marca: 'INA', precoRef: 280, categoria: 'transmissao' },
+  { code: 'CRD-001', desc: 'Cruzeta do cardã', marca: 'Spicer', precoRef: 320, categoria: 'transmissao' },
+  { code: 'CRD-002', desc: 'Junta homocinética (eixo)', marca: 'Cofap', precoRef: 580, categoria: 'eixo_dianteiro' },
+  { code: 'DIF-001', desc: 'Kit reparo diferencial', marca: 'Eaton', precoRef: 2200, categoria: 'eixo_traseiro' },
+  { code: 'RET-CX-001', desc: 'Kit retentores do câmbio', marca: 'Sabó', precoRef: 350, categoria: 'transmissao' },
+
+  // ── ELÉTRICA ──
+  { code: 'BAT-001', desc: 'Bateria 12V 150Ah', marca: 'Moura', precoRef: 680, categoria: 'sistema_eletrico' },
   { code: 'ALT-001', desc: 'Alternador recondicionado', marca: 'Bosch', precoRef: 650, categoria: 'sistema_eletrico' },
   { code: 'MPA-001', desc: 'Motor de partida recondicionado', marca: 'Bosch', precoRef: 580, categoria: 'sistema_eletrico' },
+  { code: 'CHI-001', desc: 'Chicote elétrico principal', marca: 'Original', precoRef: 1500, categoria: 'sistema_eletrico' },
+  { code: 'MOD-ECU-001', desc: 'Módulo de injeção (ECU) recondicionado', marca: 'Bosch', precoRef: 2800, categoria: 'sistema_eletrico' },
+  { code: 'SEN-001', desc: 'Sensor de rotação', marca: 'Bosch', precoRef: 180, categoria: 'sistema_eletrico' },
+  { code: 'SEN-002', desc: 'Sensor de temperatura do motor', marca: 'MTE', precoRef: 65, categoria: 'motor' },
+  { code: 'SEN-003', desc: 'Sensor de pressão do turbo (MAP)', marca: 'Bosch', precoRef: 220, categoria: 'turbo' },
+
+  // ── DIREÇÃO ──
   { code: 'CXD-001', desc: 'Caixa de direção hidráulica', marca: 'TRW', precoRef: 1800, categoria: 'direcao' },
   { code: 'BDI-001', desc: 'Bomba de direção hidráulica', marca: 'TRW', precoRef: 950, categoria: 'direcao' },
+  { code: 'MNG-DIR-001', desc: 'Mangueira de pressão da direção', marca: 'Gates', precoRef: 280, categoria: 'direcao' },
+
+  // ── AR-CONDICIONADO ──
   { code: 'CMP-001', desc: 'Compressor de ar-condicionado', marca: 'Delphi', precoRef: 1400, categoria: 'ar_condicionado' },
+  { code: 'CND-001', desc: 'Condensador do ar-condicionado', marca: 'Visconde', precoRef: 680, categoria: 'ar_condicionado' },
+  { code: 'EVP-001', desc: 'Evaporador do ar-condicionado', marca: 'Visconde', precoRef: 520, categoria: 'ar_condicionado' },
+  { code: 'VEX-001', desc: 'Válvula de expansão', marca: 'Danfoss', precoRef: 180, categoria: 'ar_condicionado' },
+
+  // ── PNEUS ──
   { code: 'PNE-001', desc: 'Pneu 295/80R22.5 (unidade)', marca: 'Bridgestone', precoRef: 1800, categoria: 'pneus' },
   { code: 'PNE-002', desc: 'Pneu 275/80R22.5 (unidade)', marca: 'Michelin', precoRef: 2100, categoria: 'pneus' },
+  { code: 'PNE-003', desc: 'Recapagem de pneu (unidade)', marca: 'Bandag', precoRef: 650, categoria: 'pneus' },
+
+  // ── ESCAPAMENTO ──
   { code: 'ESC-001', desc: 'Silencioso do escapamento', marca: 'Cofap', precoRef: 650, categoria: 'escapamento' },
   { code: 'CAT-001', desc: 'Catalisador', marca: 'Umicore', precoRef: 2800, categoria: 'escapamento' },
+  { code: 'COL-ESC-001', desc: 'Coletor de escapamento', marca: 'Motor Parts', precoRef: 950, categoria: 'escapamento' },
+  { code: 'FLX-001', desc: 'Flexível do escapamento', marca: 'Cofap', precoRef: 280, categoria: 'escapamento' },
+
+  // ── CARROCERIA ──
+  { code: 'FNR-001', desc: 'Farol dianteiro (unidade)', marca: 'Arteb', precoRef: 480, categoria: 'cabine' },
+  { code: 'LNT-001', desc: 'Lanterna traseira (unidade)', marca: 'Arteb', precoRef: 280, categoria: 'carroceria' },
+  { code: 'PBR-001', desc: 'Para-brisa', marca: 'Saint-Gobain', precoRef: 850, categoria: 'cabine' },
+  { code: 'ESP-001', desc: 'Espelho retrovisor (unidade)', marca: 'Metagal', precoRef: 320, categoria: 'cabine' },
 ];
 
 // ── Service catalog ──
 const serviceCatalog = [
+  // ── REVISÕES ──
   { code: 'REV-050', desc: 'Revisão dos 50.000 km', defaultHours: 4, defaultRate: 120, categoria: 'motor' },
   { code: 'REV-100', desc: 'Revisão dos 100.000 km', defaultHours: 6, defaultRate: 120, categoria: 'motor' },
+
+  // ── FREIOS ──
   { code: 'FRE-001', desc: 'Substituição de pastilhas de freio (eixo)', defaultHours: 1.5, defaultRate: 110, categoria: 'freios_d' },
   { code: 'FRE-002', desc: 'Substituição de discos de freio (eixo)', defaultHours: 2, defaultRate: 110, categoria: 'freios_d' },
   { code: 'FRE-003', desc: 'Regulagem de freio a tambor', defaultHours: 1, defaultRate: 100, categoria: 'freios_t' },
   { code: 'FRE-004', desc: 'Troca de lona de freio (eixo)', defaultHours: 2.5, defaultRate: 110, categoria: 'freios_t' },
+  { code: 'FRE-005', desc: 'Troca de cilindro mestre de freio', defaultHours: 2, defaultRate: 110, categoria: 'freios_d' },
+  { code: 'FRE-006', desc: 'Sangria completa do sistema de freio', defaultHours: 1, defaultRate: 100, categoria: 'freios_d' },
+
+  // ── MOTOR - BÁSICO ──
   { code: 'MOT-001', desc: 'Troca de óleo e filtro do motor', defaultHours: 1, defaultRate: 100, categoria: 'motor' },
   { code: 'MOT-002', desc: 'Troca de correia dentada / alternador', defaultHours: 3.5, defaultRate: 130, categoria: 'motor' },
-  { code: 'MOT-003', desc: 'Retífica de motor', defaultHours: 24, defaultRate: 150, categoria: 'motor' },
   { code: 'MOT-004', desc: 'Troca de bomba d\'água', defaultHours: 2.5, defaultRate: 120, categoria: 'motor' },
+  { code: 'MOT-005', desc: 'Troca de válvula termostática', defaultHours: 1.5, defaultRate: 110, categoria: 'motor' },
+  { code: 'MOT-006', desc: 'Troca de radiador completo', defaultHours: 3, defaultRate: 120, categoria: 'motor' },
+  { code: 'MOT-007', desc: 'Troca de mangueiras do radiador', defaultHours: 1, defaultRate: 100, categoria: 'motor' },
+
+  // ── MOTOR - RETÍFICA / MOTOR BATIDO ──
+  { code: 'MOT-003', desc: '⭐ Retífica completa de motor (abrir, medir, retificar, montar)', defaultHours: 40, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-010', desc: 'Desmontagem e diagnóstico interno do motor', defaultHours: 8, defaultRate: 140, categoria: 'motor' },
+  { code: 'MOT-011', desc: 'Retífica do bloco do motor (usinagem)', defaultHours: 12, defaultRate: 160, categoria: 'motor' },
+  { code: 'MOT-012', desc: 'Retífica do cabeçote (plainar + sedes de válvula)', defaultHours: 8, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-013', desc: 'Retífica do virabrequim', defaultHours: 6, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-014', desc: 'Montagem e regulagem do motor retificado', defaultHours: 16, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-015', desc: 'Instalação do motor retificado no veículo', defaultHours: 10, defaultRate: 140, categoria: 'motor' },
+  { code: 'MOT-016', desc: 'Troca de junta do cabeçote', defaultHours: 8, defaultRate: 140, categoria: 'motor' },
+  { code: 'MOT-017', desc: 'Troca de jogo de pistões e anéis', defaultHours: 12, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-018', desc: 'Troca de bronzinas de biela e mancal', defaultHours: 10, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-019', desc: 'Substituição de bielas', defaultHours: 8, defaultRate: 150, categoria: 'motor' },
+  { code: 'MOT-020', desc: 'Troca de válvulas + guias + retentores', defaultHours: 6, defaultRate: 140, categoria: 'motor' },
+  { code: 'MOT-021', desc: 'Troca do eixo comando de válvulas', defaultHours: 5, defaultRate: 140, categoria: 'motor' },
+  { code: 'MOT-022', desc: 'Troca de tuchos hidráulicos (jogo)', defaultHours: 4, defaultRate: 130, categoria: 'motor' },
+  { code: 'MOT-023', desc: 'Troca de bomba de óleo do motor', defaultHours: 4, defaultRate: 130, categoria: 'motor' },
+  { code: 'MOT-024', desc: 'Troca de cárter + junta do cárter', defaultHours: 2, defaultRate: 110, categoria: 'motor' },
+  { code: 'MOT-025', desc: 'Troca de retentores do virabrequim (diant+tras)', defaultHours: 3, defaultRate: 120, categoria: 'motor' },
+  { code: 'MOT-026', desc: 'Teste e amaciamento do motor retificado', defaultHours: 4, defaultRate: 120, categoria: 'motor' },
+
+  // ── INJEÇÃO / COMBUSTÍVEL ──
+  { code: 'INJ-001', desc: 'Limpeza / troca de bicos injetores', defaultHours: 3, defaultRate: 120, categoria: 'motor' },
+  { code: 'INJ-002', desc: 'Troca de bomba de combustível de alta pressão', defaultHours: 5, defaultRate: 140, categoria: 'motor' },
+  { code: 'INJ-003', desc: 'Diagnóstico eletrônico completo (scanner)', defaultHours: 2, defaultRate: 120, categoria: 'motor' },
+
+  // ── SUSPENSÃO ──
   { code: 'SUS-001', desc: 'Troca de amortecedores (par)', defaultHours: 2.5, defaultRate: 110, categoria: 'suspensao_d' },
   { code: 'SUS-002', desc: 'Alinhamento e balanceamento', defaultHours: 1, defaultRate: 80, categoria: 'eixo_dianteiro' },
   { code: 'SUS-003', desc: 'Troca de molas / feixe de molas', defaultHours: 4, defaultRate: 120, categoria: 'suspensao_t' },
+  { code: 'SUS-004', desc: 'Troca de pivôs e terminais de direção', defaultHours: 2.5, defaultRate: 110, categoria: 'suspensao_d' },
+  { code: 'SUS-005', desc: 'Troca de buchas de mola (jogo)', defaultHours: 3, defaultRate: 110, categoria: 'suspensao_t' },
+
+  // ── EMBREAGEM / TRANSMISSÃO ──
   { code: 'EMB-001', desc: 'Substituição de embreagem completa', defaultHours: 6, defaultRate: 140, categoria: 'transmissao' },
+  { code: 'EMB-002', desc: 'Troca de volante bimassa', defaultHours: 7, defaultRate: 140, categoria: 'transmissao' },
+  { code: 'CAM-001', desc: 'Revisão de câmbio automático', defaultHours: 8, defaultRate: 150, categoria: 'transmissao' },
+  { code: 'CAM-002', desc: 'Revisão de câmbio manual (retentores + sincronizadores)', defaultHours: 12, defaultRate: 140, categoria: 'transmissao' },
+  { code: 'CRD-001', desc: 'Troca de cruzetas do cardã', defaultHours: 2, defaultRate: 110, categoria: 'transmissao' },
+  { code: 'DIF-001', desc: 'Revisão do diferencial', defaultHours: 8, defaultRate: 140, categoria: 'eixo_traseiro' },
+
+  // ── ELÉTRICA ──
   { code: 'ELE-001', desc: 'Diagnóstico elétrico completo', defaultHours: 2, defaultRate: 100, categoria: 'sistema_eletrico' },
   { code: 'ELE-002', desc: 'Troca de alternador / motor de partida', defaultHours: 2, defaultRate: 110, categoria: 'sistema_eletrico' },
-  { code: 'ARR-001', desc: 'Reparo no sistema de ar-condicionado', defaultHours: 3, defaultRate: 120, categoria: 'ar_condicionado' },
-  { code: 'CAM-001', desc: 'Revisão de câmbio automático', defaultHours: 8, defaultRate: 150, categoria: 'transmissao' },
+  { code: 'ELE-003', desc: 'Reparo de chicote elétrico', defaultHours: 4, defaultRate: 120, categoria: 'sistema_eletrico' },
+  { code: 'ELE-004', desc: 'Reprogramação / troca de módulo ECU', defaultHours: 3, defaultRate: 150, categoria: 'sistema_eletrico' },
+
+  // ── TURBO ──
   { code: 'TUR-001', desc: 'Reparo / troca de turbocompressor', defaultHours: 5, defaultRate: 140, categoria: 'turbo' },
-  { code: 'INJ-001', desc: 'Limpeza / troca de bicos injetores', defaultHours: 3, defaultRate: 120, categoria: 'motor' },
+  { code: 'TUR-002', desc: 'Troca de intercooler', defaultHours: 3, defaultRate: 120, categoria: 'turbo' },
+
+  // ── AR-CONDICIONADO ──
+  { code: 'ARR-001', desc: 'Reparo no sistema de ar-condicionado', defaultHours: 3, defaultRate: 120, categoria: 'ar_condicionado' },
+  { code: 'ARR-002', desc: 'Carga de gás + teste de vazamento', defaultHours: 1.5, defaultRate: 100, categoria: 'ar_condicionado' },
+
+  // ── DIREÇÃO ──
   { code: 'DIR-001', desc: 'Reparo da caixa de direção', defaultHours: 4.5, defaultRate: 130, categoria: 'direcao' },
   { code: 'DIR-002', desc: 'Troca de bomba de direção', defaultHours: 2, defaultRate: 120, categoria: 'direcao' },
+
+  // ── PNEUS ──
   { code: 'PNE-001', desc: 'Troca de pneu (unidade)', defaultHours: 0.5, defaultRate: 80, categoria: 'pneus' },
+  { code: 'PNE-002', desc: 'Rodízio de pneus (6 posições)', defaultHours: 1.5, defaultRate: 80, categoria: 'pneus' },
+
+  // ── ESCAPAMENTO ──
   { code: 'ESC-001', desc: 'Reparo do sistema de escapamento', defaultHours: 2, defaultRate: 100, categoria: 'escapamento' },
+  { code: 'ESC-002', desc: 'Troca de coletor de escapamento', defaultHours: 3, defaultRate: 120, categoria: 'escapamento' },
+
+  // ── CARROCERIA ──
+  { code: 'CAR-001', desc: 'Troca de para-brisa', defaultHours: 2, defaultRate: 100, categoria: 'cabine' },
+  { code: 'CAR-002', desc: 'Troca de farol / lanterna', defaultHours: 1, defaultRate: 80, categoria: 'cabine' },
 ];
 
 interface BudgetCreationFormProps {
