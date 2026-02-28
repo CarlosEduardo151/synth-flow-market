@@ -21,183 +21,19 @@ import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import {
-  Truck, Wrench, Shield, DollarSign, Plus, Search, Star,
-  MapPin, Phone, FileText, CheckCircle2, Clock, AlertTriangle,
-  Car, Building2, TrendingUp, Eye, QrCode, Zap, Users, BarChart3,
-  Download, MessageCircle, ChevronRight, Wallet, ShieldCheck,
-  ShieldAlert, ShieldX, History, Receipt, X, Check, Filter,
-  ArrowUpRight, ArrowDownRight, Fuel, CalendarDays, Activity,
-  PieChart as PieChartIcon, Gauge, Bell, Settings, RefreshCw,
-  ChevronDown, MoreHorizontal, Layers, Package, TrendingDown,
+  Truck, Wrench, Shield, Plus, Search,
+  FileText, CheckCircle2, Clock,
+  Car, Building2, Zap, BarChart3,
+  Download, MessageCircle, Wallet,
+  X, Check,
+  Bell,
+  ChevronDown,
   CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck,
   Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles, Edit
 } from 'lucide-react';
-import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  LineChart, Line, PieChart, Pie, Cell, Area, AreaChart, ComposedChart,
-  Legend, RadialBarChart, RadialBar
-} from 'recharts';
 
 type UserRole = 'select' | 'frota' | 'oficina';
 
-// ═══════════════════════════════════════════════════════════
-// MOCK DATA — Frota
-// ═══════════════════════════════════════════════════════════
-
-const mockGastos12Meses = [
-  { mes: 'Mar', valor: 62300, servicos: 18, preventiva: 28000, corretiva: 34300 },
-  { mes: 'Abr', valor: 48100, servicos: 14, preventiva: 30000, corretiva: 18100 },
-  { mes: 'Mai', valor: 55800, servicos: 16, preventiva: 25000, corretiva: 30800 },
-  { mes: 'Jun', valor: 71200, servicos: 22, preventiva: 32000, corretiva: 39200 },
-  { mes: 'Jul', valor: 43500, servicos: 12, preventiva: 27000, corretiva: 16500 },
-  { mes: 'Ago', valor: 58900, servicos: 17, preventiva: 31000, corretiva: 27900 },
-  { mes: 'Set', valor: 42500, servicos: 13, preventiva: 24000, corretiva: 18500 },
-  { mes: 'Out', valor: 38200, servicos: 11, preventiva: 22000, corretiva: 16200 },
-  { mes: 'Nov', valor: 55800, servicos: 15, preventiva: 28500, corretiva: 27300 },
-  { mes: 'Dez', valor: 47100, servicos: 14, preventiva: 26000, corretiva: 21100 },
-  { mes: 'Jan', valor: 31900, servicos: 9, preventiva: 20000, corretiva: 11900 },
-  { mes: 'Fev', valor: 28700, servicos: 8, preventiva: 18000, corretiva: 10700 },
-];
-
-const mockCategoriaGastos = [
-  { name: 'Motor & Transmissão', value: 145000, pct: 28 },
-  { name: 'Freios & Suspensão', value: 98000, pct: 19 },
-  { name: 'Elétrica & Eletrônica', value: 82000, pct: 16 },
-  { name: 'Ar-Condicionado', value: 65000, pct: 13 },
-  { name: 'Pneus & Rodas', value: 52000, pct: 10 },
-  { name: 'Funilaria & Pintura', value: 38000, pct: 7 },
-  { name: 'Outros', value: 36000, pct: 7 },
-];
-
-const CHART_COLORS = [
-  'hsl(var(--primary))',
-  'hsl(142, 76%, 36%)',
-  'hsl(38, 92%, 50%)',
-  'hsl(280, 65%, 60%)',
-  'hsl(200, 80%, 50%)',
-  'hsl(350, 80%, 55%)',
-  'hsl(var(--muted-foreground))',
-];
-
-const mockPendencias = [
-  {
-    id: '1', oficina: 'ThermoCar', cnpj: '12.345.678/0001-90',
-    placa: 'ABC-1D23', modelo: 'Scania R450', ano: 2022, km: 185420,
-    servico: 'Troca do compressor de ar-condicionado + filtro secador',
-    itens: [
-      { desc: 'Compressor Denso 10PA17C', qtd: 1, unit: 2800, total: 2800 },
-      { desc: 'Filtro Secador', qtd: 1, unit: 350, total: 350 },
-      { desc: 'Gás R134a (kg)', qtd: 3, unit: 120, total: 360 },
-      { desc: 'Mão de obra (h)', qtd: 4, unit: 185, total: 740 },
-      { desc: 'Diagnóstico eletrônico', qtd: 1, unit: 250, total: 250 },
-      { desc: 'Higienização do sistema', qtd: 1, unit: 350, total: 350 },
-    ],
-    valor: 4850.00, auditoria: 'verde' as const,
-    iaMsg: 'Preço dentro da média regional BR-010. Todas as peças são compatíveis com Scania R450 2022.',
-    iaScore: 92, data: '26/02/2026', fotos: 3,
-  },
-  {
-    id: '2', oficina: 'EngeMec', cnpj: '98.765.432/0001-10',
-    placa: 'DEF-5G67', modelo: 'Volvo FH 540', ano: 2021, km: 220380,
-    servico: 'Retífica do motor + troca de bronzinas e junta do cabeçote',
-    itens: [
-      { desc: 'Retífica completa do motor D13', qtd: 1, unit: 8500, total: 8500 },
-      { desc: 'Jogo de bronzinas (biela+mancal)', qtd: 1, unit: 2800, total: 2800 },
-      { desc: 'Junta do cabeçote OEM', qtd: 1, unit: 1900, total: 1900 },
-      { desc: 'Filtro de óleo HDF396', qtd: 2, unit: 280, total: 560 },
-      { desc: 'Óleo sintético 15W40 (L)', qtd: 38, unit: 42, total: 1596 },
-      { desc: 'Mão de obra especializada (h)', qtd: 18, unit: 195, total: 3510 },
-      { desc: 'Teste de bancada', qtd: 1, unit: 350, total: 350 },
-    ],
-    valor: 19216.00, auditoria: 'amarelo' as const,
-    iaMsg: 'Filtro de óleo HDF396 está 15% acima da média regional (R$243). Mão de obra compatível. Considere solicitar ajuste.',
-    iaScore: 74, data: '25/02/2026', fotos: 8,
-  },
-  {
-    id: '3', oficina: 'Oskauto', cnpj: '11.222.333/0001-44',
-    placa: 'GHI-8J90', modelo: 'Mercedes Actros 2651', ano: 2023, km: 95120,
-    servico: 'Substituição do módulo de injeção eletrônica + reprogramação ECU',
-    itens: [
-      { desc: 'Módulo de injeção PLD MR2', qtd: 1, unit: 8900, total: 8900 },
-      { desc: 'Reprogramação ECU', qtd: 1, unit: 1800, total: 1800 },
-      { desc: 'Mão de obra (h)', qtd: 6, unit: 200, total: 1200 },
-      { desc: 'Diagnóstico avançado Star', qtd: 1, unit: 400, total: 400 },
-    ],
-    valor: 12300.00, auditoria: 'vermelho' as const,
-    iaMsg: 'Módulo PLD MR2 cotado a R$8.900 — fornecedor homologado oferece por R$6.050 (32% mais barato). Recomendação: solicitar revisão ou trocar fornecedor.',
-    iaScore: 38, data: '24/02/2026', fotos: 2,
-  },
-  {
-    id: '4', oficina: 'AutoTech BR', cnpj: '55.666.777/0001-88',
-    placa: 'JKL-2M34', modelo: 'DAF XF 530', ano: 2022, km: 161200,
-    servico: 'Revisão preventiva 160.000km — troca de correias, filtros e fluidos',
-    itens: [
-      { desc: 'Kit correia dentada + tensor', qtd: 1, unit: 1850, total: 1850 },
-      { desc: 'Correia do alternador', qtd: 1, unit: 320, total: 320 },
-      { desc: 'Filtro de ar primário', qtd: 1, unit: 280, total: 280 },
-      { desc: 'Filtro de ar secundário', qtd: 1, unit: 190, total: 190 },
-      { desc: 'Filtro separador de água', qtd: 1, unit: 210, total: 210 },
-      { desc: 'Fluido de arrefecimento (L)', qtd: 20, unit: 28, total: 560 },
-      { desc: 'Mão de obra (h)', qtd: 6, unit: 175, total: 1050 },
-    ],
-    valor: 4460.00, auditoria: 'verde' as const,
-    iaMsg: 'Revisão preventiva dentro do esperado para 160.000km. Todos os itens com preço justo.',
-    iaScore: 96, data: '27/02/2026', fotos: 4,
-  },
-];
-
-const mockVeiculos = [
-  { placa: 'ABC-1D23', modelo: 'Scania R450', ano: 2022, km: 185420, tipo: 'Cavalo Mecânico', stage: 'orcamento_analise' as ServiceStage, oficina: 'ThermoCar', servicos: 12, gastoTotal: 48500, ultimaRev: '26/02/2026', motorista: 'Carlos Silva' },
-  { placa: 'DEF-5G67', modelo: 'Volvo FH 540', ano: 2021, km: 220380, tipo: 'Cavalo Mecânico', stage: 'orcamento_aprovado' as ServiceStage, oficina: 'EngeMec', servicos: 8, gastoTotal: 62300, ultimaRev: '25/02/2026', motorista: 'Roberto Santos' },
-  { placa: 'GHI-8J90', modelo: 'Mercedes Actros 2651', ano: 2023, km: 95120, tipo: 'Cavalo Mecânico', stage: 'checkin' as ServiceStage, oficina: 'Oskauto', servicos: 4, gastoTotal: 18900, ultimaRev: '24/02/2026', motorista: 'João Pereira' },
-  { placa: 'JKL-2M34', modelo: 'DAF XF 530', ano: 2022, km: 161200, tipo: 'Cavalo Mecânico', stage: 'veiculo_finalizado' as ServiceStage, oficina: 'AutoTech BR', servicos: 15, gastoTotal: 72100, ultimaRev: '10/02/2026', motorista: 'Pedro Oliveira' },
-  { placa: 'MNO-5P67', modelo: 'Iveco S-Way', ano: 2024, km: 45200, tipo: 'Cavalo Mecânico', stage: null as ServiceStage | null, oficina: null, servicos: 2, gastoTotal: 5800, ultimaRev: '15/01/2026', motorista: 'Lucas Costa' },
-  { placa: 'PQR-8S01', modelo: 'Scania R500', ano: 2023, km: 132000, tipo: 'Cavalo Mecânico', stage: null as ServiceStage | null, oficina: null, servicos: 7, gastoTotal: 34200, ultimaRev: '05/02/2026', motorista: 'Marcos Lima' },
-  { placa: 'STU-3V45', modelo: 'Volvo FM 460', ano: 2021, km: 245000, tipo: 'Truck', stage: 'veiculo_entregue' as ServiceStage, oficina: 'Oskauto', servicos: 19, gastoTotal: 89500, ultimaRev: '18/02/2026', motorista: 'André Souza' },
-  { placa: 'VWX-6Y78', modelo: 'Mercedes Atego 2430', ano: 2022, km: 178500, tipo: 'Truck', stage: null as ServiceStage | null, oficina: null, servicos: 11, gastoTotal: 41800, ultimaRev: '22/02/2026', motorista: 'Ricardo Alves' },
-];
-
-const mockNotas = [
-  { id: 'NF-2026-001', tipo: 'Serviço', emitente: 'ThermoCar', placa: 'ABC-1D23', valor: 4850.00, data: '26/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-002', tipo: 'Tecnologia', emitente: 'NovaLink', placa: '—', valor: 727.50, data: '26/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-003', tipo: 'Serviço', emitente: 'EngeMec', placa: 'DEF-5G67', valor: 8200.00, data: '20/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-004', tipo: 'Tecnologia', emitente: 'NovaLink', placa: '—', valor: 1230.00, data: '20/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-005', tipo: 'Serviço', emitente: 'AutoTech BR', placa: 'JKL-2M34', valor: 3200.00, data: '15/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-006', tipo: 'Tecnologia', emitente: 'NovaLink', placa: '—', valor: 480.00, data: '15/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-007', tipo: 'Serviço', emitente: 'Oskauto', placa: 'STU-3V45', valor: 6800.00, data: '10/02/2026', status: 'Disponível' },
-  { id: 'NF-2026-008', tipo: 'Tecnologia', emitente: 'NovaLink', placa: '—', valor: 1020.00, data: '10/02/2026', status: 'Disponível' },
-];
-
-const mockHistoricoVeiculo = [
-  { data: '26/02/2026', oficina: 'ThermoCar', servico: 'Troca compressor A/C', valor: 4850, auditoria: 'verde', km: 185420 },
-  { data: '15/01/2026', oficina: 'EngeMec', servico: 'Troca de pastilhas de freio', valor: 1200, auditoria: 'verde', km: 180200 },
-  { data: '10/12/2025', oficina: 'AutoTech BR', servico: 'Revisão preventiva 175k', valor: 3800, auditoria: 'verde', km: 175000 },
-  { data: '22/10/2025', oficina: 'ThermoCar', servico: 'Troca correia alternador', valor: 950, auditoria: 'verde', km: 168500 },
-  { data: '05/09/2025', oficina: 'Oskauto', servico: 'Reparo no turbo + junta', valor: 7200, auditoria: 'amarelo', km: 160000 },
-];
-
-const mockEconomiaIA = [
-  { mes: 'Set', economia: 3200 },
-  { mes: 'Out', economia: 1800 },
-  { mes: 'Nov', economia: 5400 },
-  { mes: 'Dez', economia: 2100 },
-  { mes: 'Jan', economia: 4800 },
-  { mes: 'Fev', economia: 12450 },
-];
-
-const mockGastoPorVeiculo = [
-  { placa: 'STU-3V45', gasto: 89500 },
-  { placa: 'JKL-2M34', gasto: 72100 },
-  { placa: 'DEF-5G67', gasto: 62300 },
-  { placa: 'ABC-1D23', gasto: 48500 },
-  { placa: 'VWX-6Y78', gasto: 41800 },
-];
-
-const auditoriaConfig = {
-  verde: { icon: ShieldCheck, label: 'Preço Justo', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', barColor: 'hsl(142, 76%, 36%)' },
-  amarelo: { icon: ShieldAlert, label: 'Atenção', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', barColor: 'hsl(38, 92%, 50%)' },
-  vermelho: { icon: ShieldX, label: 'Sobrepreço', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/20', barColor: 'hsl(0, 72%, 51%)' },
-};
 
 // ═══════════════════════════════════════════════════════════
 // FLEET SIDEBAR TABS
@@ -226,9 +62,6 @@ const GestaoFrotasOficinasSystem = () => {
   const [role, setRole] = useState<UserRole>('select');
   const [activeTab, setActiveTab] = useState<FrotaTab>('overview');
   const [searchVeiculos, setSearchVeiculos] = useState('');
-  const [selectedVeiculo, setSelectedVeiculo] = useState<string | null>(null);
-  const [selectedOrcamento, setSelectedOrcamento] = useState<string | null>(null);
-  const [filterAuditoria, setFilterAuditoria] = useState<string>('all');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<FleetVehicle | null>(null);
   const isMobile = useIsMobile();
@@ -301,7 +134,7 @@ const GestaoFrotasOficinasSystem = () => {
                   <ul className="space-y-2 text-sm text-muted-foreground">
                     <li className="flex items-center gap-2"><Plus className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Check-in</strong> — Escaneia a placa e o sistema carrega tudo automaticamente</span></li>
                     <li className="flex items-center gap-2"><FileText className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Orçamentos</strong> — IA valida seus preços em tempo real</span></li>
-                    <li className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Financeiro</strong> — Controle de recebíveis com depósito em D+1</span></li>
+                    <li className="flex items-center gap-2"><CircleDollarSign className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Financeiro</strong> — Controle de recebíveis com depósito em D+1</span></li>
                     <li className="flex items-center gap-2"><MessageCircle className="w-4 h-4 text-emerald-500 shrink-0" /> <span><strong className="text-foreground">Mensagens</strong> — Negocie com os gestores sem sair do sistema</span></li>
                   </ul>
                 </div>
@@ -318,27 +151,13 @@ const GestaoFrotasOficinasSystem = () => {
   // FROTA DASHBOARD — PROFESSIONAL REMASTER
   // ═══════════════════════════════════════════════════════════
   if (role === 'frota') {
-    const saldoDisponivel = 185000;
-    const economiaMes = 12450;
-    const veiculosManutencao = mockVeiculos.filter(v => v.stage !== null).length;
-    const totalFrota = mockVeiculos.length;
-    const ticketMedio = 4580;
-    const totalGastoMes = 28700;
+    const totalFrota = fleet.vehicles.length;
+    const veiculosManutencao = fleet.vehiclesInService.length;
     // Real pending budgets from fleet data (stage = orcamento_enviado or orcamento_analise)
     const pendingOrders = fleet.serviceOrders.filter(
       so => so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise'
     );
     const orcamentosPendentes = pendingOrders.length;
-
-    const veiculosFiltrados = mockVeiculos.filter(v =>
-      v.placa.toLowerCase().includes(searchVeiculos.toLowerCase()) ||
-      v.modelo.toLowerCase().includes(searchVeiculos.toLowerCase()) ||
-      v.motorista.toLowerCase().includes(searchVeiculos.toLowerCase())
-    );
-
-    const orcamentosFiltrados = filterAuditoria === 'all'
-      ? mockPendencias
-      : mockPendencias.filter(p => p.auditoria === filterAuditoria);
 
     // ── RENDER CONTENT BASED ON ACTIVE TAB ──
     const renderContent = () => {
@@ -350,35 +169,6 @@ const GestaoFrotasOficinasSystem = () => {
         case 'overview':
           return (
             <div className="space-y-6">
-              {/* KPI ROW */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: 'Saldo Disponível', value: saldoDisponivel, prefix: 'R$', icon: Wallet, trend: null, iconBg: 'bg-primary/10', iconColor: 'text-primary' },
-                  { label: 'Economia c/ IA', value: economiaMes, prefix: 'R$', icon: TrendingUp, trend: '+34%', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-500' },
-                  { label: 'Gasto Mensal', value: totalGastoMes, prefix: 'R$', icon: TrendingDown, trend: '-10%', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-500' },
-                  { label: 'Ticket Médio', value: ticketMedio, prefix: 'R$', icon: Gauge, trend: null, iconBg: 'bg-muted', iconColor: 'text-muted-foreground' },
-                ].map((kpi) => (
-                  <Card key={kpi.label} className="border border-border/50 shadow-sm">
-                    <CardContent className="p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <div className={`w-9 h-9 rounded-lg ${kpi.iconBg} flex items-center justify-center`}>
-                          <kpi.icon className={`w-4.5 h-4.5 ${kpi.iconColor}`} />
-                        </div>
-                        {kpi.trend && (
-                          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${kpi.trend.startsWith('+') ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}`}>
-                            {kpi.trend}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-2xl font-bold text-foreground tracking-tight">
-                        {kpi.prefix}{' '}{kpi.value.toLocaleString('pt-BR')}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{kpi.label}</p>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
               {/* STATUS ROW */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border border-border/50 shadow-sm">
@@ -417,126 +207,70 @@ const GestaoFrotasOficinasSystem = () => {
                 <Card className="border border-border/50 shadow-sm">
                   <CardContent className="p-5 flex items-center gap-4">
                     <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center">
-                      <Building2 className="w-6 h-6 text-emerald-500" />
+                      <CheckCircle2 className="w-6 h-6 text-emerald-500" />
                     </div>
                     <div>
-                      <p className="text-2xl font-bold text-foreground">4</p>
-                      <p className="text-xs text-muted-foreground">Oficinas ativas</p>
+                      <p className="text-2xl font-bold text-foreground">{fleet.vehiclesAvailable.length}</p>
+                      <p className="text-xs text-muted-foreground">Disponíveis</p>
                     </div>
                   </CardContent>
                 </Card>
               </div>
 
-              {/* CHARTS ROW */}
-              <div className="grid lg:grid-cols-2 gap-4">
-                {/* Gastos 12 meses — Preventiva vs Corretiva */}
+              {totalFrota === 0 && (
+                <Card className="border border-border/50">
+                  <CardContent className="p-12 text-center">
+                    <Truck className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-foreground">Nenhum veículo cadastrado</h3>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                      Cadastre seus veículos para começar a acompanhar manutenções, orçamentos e relatórios.
+                    </p>
+                    <Button className="mt-4 gap-2" onClick={() => setActiveTab('cadastro')}>
+                      <Plus className="w-4 h-4" /> Cadastrar Veículo
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Recent service orders */}
+              {fleet.serviceOrders.length > 0 && (
                 <Card className="border border-border/50 shadow-sm">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                      Gastos com Manutenção — 12 Meses
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      Últimas Ordens de Serviço
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <ComposedChart data={mockGastos12Meses} barGap={0} barSize={14}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), '']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                          <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
-                          <Bar dataKey="preventiva" name="Preventiva" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
-                          <Bar dataKey="corretiva" name="Corretiva" stackId="a" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
-                          <Line type="monotone" dataKey="servicos" name="Nº Serviços" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 3 }} yAxisId={0} />
-                        </ComposedChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Economia com IA */}
-                <Card className="border border-border/50 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                      <Shield className="w-4 h-4 text-emerald-500" />
-                      Economia com Auditoria IA
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={mockEconomiaIA}>
-                          <defs>
-                            <linearGradient id="econGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0.3} />
-                              <stop offset="100%" stopColor="hsl(142, 76%, 36%)" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), 'Economia']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                          <Area type="monotone" dataKey="economia" stroke="hsl(142, 76%, 36%)" strokeWidth={2.5} fill="url(#econGrad)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* BOTTOM ROW */}
-              <div className="grid lg:grid-cols-3 gap-4">
-                {/* Gastos por Categoria (Pie) */}
-                <Card className="border border-border/50 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Gastos por Categoria</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-52">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie data={mockCategoriaGastos} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={45} outerRadius={75} strokeWidth={2} stroke="hsl(var(--card))">
-                            {mockCategoriaGastos.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                          </Pie>
-                          <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), '']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 11 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="space-y-1.5 mt-2">
-                      {mockCategoriaGastos.slice(0, 4).map((c, i) => (
-                        <div key={c.name} className="flex items-center justify-between text-xs">
-                          <div className="flex items-center gap-2">
-                            <div className="w-2.5 h-2.5 rounded-sm" style={{ background: CHART_COLORS[i] }} />
-                            <span className="text-muted-foreground truncate max-w-[140px]">{c.name}</span>
+                    <div className="space-y-3">
+                      {fleet.serviceOrders.slice(0, 5).map((so) => {
+                        const vehicle = fleet.vehicles.find(v => v.id === so.vehicle_id);
+                        return (
+                          <div key={so.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border border-border/30">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center">
+                                <Car className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <span className="font-mono font-bold text-foreground text-sm">{vehicle?.placa || '—'}</span>
+                                <p className="text-xs text-muted-foreground">{so.oficina_nome || 'Sem oficina'}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {so.valor_orcamento && (
+                                <span className="text-sm font-semibold text-foreground">
+                                  R$ {so.valor_orcamento.toLocaleString('pt-BR')}
+                                </span>
+                              )}
+                              <ServiceStageBadge stage={so.stage as ServiceStage} />
+                            </div>
                           </div>
-                          <span className="font-medium text-foreground">{c.pct}%</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </CardContent>
                 </Card>
-
-                {/* Top 5 Veículos — Gasto Acumulado */}
-                <Card className="border border-border/50 shadow-sm lg:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Top 5 Veículos — Gasto Acumulado</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={mockGastoPorVeiculo} layout="vertical" barSize={20}>
-                          <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                          <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                          <YAxis type="category" dataKey="placa" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontFamily: 'monospace' }} width={80} />
-                          <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), 'Gasto Total']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                          <Bar dataKey="gasto" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
+              )}
             </div>
           );
 
@@ -1201,264 +935,91 @@ const GestaoFrotasOficinasSystem = () => {
         // ════════════════════════════════════
         // TODOS OS ORÇAMENTOS
         // ════════════════════════════════════
-        case 'orcamentos':
+        case 'orcamentos': {
+          const allOrders = fleet.serviceOrders;
           return (
             <div className="space-y-4">
               <div>
-                <h2 className="text-lg font-semibold text-foreground">Orçamentos Completos</h2>
-                <p className="text-sm text-muted-foreground">Histórico detalhado de todos os orçamentos recebidos</p>
+                <h2 className="text-lg font-semibold text-foreground">Orçamentos</h2>
+                <p className="text-sm text-muted-foreground">Histórico de todos os orçamentos recebidos ({allOrders.length})</p>
               </div>
 
-              <Card className="border border-border/50 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Placa</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Oficina</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Serviço</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Auditoria IA</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Score</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Itens</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Data</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mockPendencias.map((item) => {
-                        const audit = auditoriaConfig[item.auditoria];
-                        const AuditIcon = audit.icon;
-                        return (
-                          <tr key={item.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                            <td className="px-4 py-3.5">
-                              <div>
-                                <span className="font-mono font-bold text-foreground text-sm">{item.placa}</span>
-                                <p className="text-[10px] text-muted-foreground">{item.modelo}</p>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3.5 text-sm text-foreground">{item.oficina}</td>
-                            <td className="px-4 py-3.5 text-sm text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{item.servico}</td>
-                            <td className="px-4 py-3.5 text-center">
-                              <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full ${audit.bg} border ${audit.border}`}>
-                                <AuditIcon className={`w-3.5 h-3.5 ${audit.color}`} />
-                                <span className={`text-[10px] font-semibold ${audit.color}`}>{audit.label}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3.5 text-center hidden sm:table-cell">
-                              <span className={`text-sm font-bold ${item.iaScore >= 80 ? 'text-emerald-500' : item.iaScore >= 60 ? 'text-amber-500' : 'text-red-500'}`}>
-                                {item.iaScore}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-center text-sm text-muted-foreground hidden lg:table-cell">{item.itens.length}</td>
-                            <td className="px-4 py-3.5 text-right">
-                              <span className="font-bold text-foreground">
-                                {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-center text-xs text-muted-foreground hidden sm:table-cell">{item.data}</td>
-                            <td className="px-4 py-3.5 text-right">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="gap-1 text-xs">
-                                    <Eye className="w-3.5 h-3.5" /> Detalhar
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-2xl">
-                                  <DialogHeader>
-                                    <DialogTitle className="flex items-center gap-2">
-                                      <span className="font-mono">{item.placa}</span> — Orçamento {item.oficina}
-                                    </DialogTitle>
-                                  </DialogHeader>
-                                  <div className="space-y-4 mt-2">
-                                    <div className={`flex items-start gap-3 px-4 py-3 rounded-lg ${audit.bg} border ${audit.border}`}>
-                                      <AuditIcon className={`w-5 h-5 ${audit.color} shrink-0 mt-0.5`} />
-                                      <div>
-                                        <p className={`text-xs font-bold ${audit.color}`}>{audit.label} — Score {item.iaScore}/100</p>
-                                        <p className="text-xs text-muted-foreground mt-1">{item.iaMsg}</p>
-                                      </div>
-                                    </div>
-                                    <table className="w-full text-xs">
-                                      <thead>
-                                        <tr className="border-b bg-muted/30">
-                                          <th className="text-left px-3 py-2 font-semibold text-muted-foreground">ITEM</th>
-                                          <th className="text-center px-3 py-2 font-semibold text-muted-foreground">QTD</th>
-                                          <th className="text-right px-3 py-2 font-semibold text-muted-foreground">UNIT.</th>
-                                          <th className="text-right px-3 py-2 font-semibold text-muted-foreground">TOTAL</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody>
-                                        {item.itens.map((it, idx) => (
-                                          <tr key={idx} className="border-b border-border/30">
-                                            <td className="px-3 py-2 text-foreground">{it.desc}</td>
-                                            <td className="px-3 py-2 text-center text-muted-foreground">{it.qtd}</td>
-                                            <td className="px-3 py-2 text-right text-muted-foreground">R$ {it.unit.toLocaleString('pt-BR')}</td>
-                                            <td className="px-3 py-2 text-right font-medium text-foreground">R$ {it.total.toLocaleString('pt-BR')}</td>
-                                          </tr>
-                                        ))}
-                                        <tr className="bg-muted/20">
-                                          <td colSpan={3} className="px-3 py-2 text-right font-bold text-foreground">TOTAL</td>
-                                          <td className="px-3 py-2 text-right font-bold text-foreground text-sm">
-                                            {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                          </td>
-                                        </tr>
-                                      </tbody>
-                                    </table>
-                                    <div className="flex gap-2 justify-end">
-                                      <Button
-                                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
-                                        onClick={() => {
-                                          // Find matching real service order by placa
-                                          const realVehicle = fleet.vehicles.find(v => v.placa === item.placa);
-                                          if (realVehicle) {
-                                            const realOrder = fleet.serviceOrders.find(
-                                              so => so.vehicle_id === realVehicle.id && (so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise')
-                                            );
-                                            if (realOrder) {
-                                              fleet.updateStage(realOrder.id, 'orcamento_aprovado', 'gestor_frota', 'Orçamento aprovado pelo gestor', { valor_aprovado: item.valor });
-                                              return;
-                                            }
-                                          }
-                                          toast.success(`Orçamento de ${item.placa} aprovado! (demonstração)`);
-                                        }}
-                                      >
-                                        <Check className="w-4 h-4" /> Aprovar
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        className="gap-2"
-                                        onClick={() => setActiveTab('questionar')}
-                                      >
-                                        <MessageCircle className="w-4 h-4" /> Questionar
-                                      </Button>
-                                      <Button
-                                        variant="ghost"
-                                        className="gap-2 text-destructive"
-                                        onClick={() => {
-                                          const realVehicle = fleet.vehicles.find(v => v.placa === item.placa);
-                                          if (realVehicle) {
-                                            const realOrder = fleet.serviceOrders.find(
-                                              so => so.vehicle_id === realVehicle.id && (so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise')
-                                            );
-                                            if (realOrder) {
-                                              fleet.updateStage(realOrder.id, 'checkin', 'gestor_frota', 'Orçamento recusado pelo gestor');
-                                              return;
-                                            }
-                                          }
-                                          toast.success(`Orçamento de ${item.placa} recusado. (demonstração)`);
-                                        }}
-                                      >
-                                        <X className="w-4 h-4" /> Recusar
-                                      </Button>
-                                    </div>
-                                  </div>
-                                </DialogContent>
-                              </Dialog>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+              {allOrders.length === 0 ? (
+                <Card className="border border-border/50">
+                  <CardContent className="p-12 text-center">
+                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-foreground">Nenhum orçamento ainda</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Os orçamentos aparecerão aqui quando forem enviados pelas oficinas.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="border border-border/50 shadow-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b bg-muted/30">
+                          <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Placa</th>
+                          <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Oficina</th>
+                          <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Serviço</th>
+                          <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Etapa</th>
+                          <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
+                          <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Data</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allOrders.map((order) => {
+                          const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
+                          return (
+                            <tr key={order.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
+                              <td className="px-4 py-3.5">
+                                <span className="font-mono font-bold text-foreground text-sm">{vehicle?.placa || '—'}</span>
+                                {vehicle?.modelo && <p className="text-[10px] text-muted-foreground">{vehicle.modelo}</p>}
+                              </td>
+                              <td className="px-4 py-3.5 text-sm text-foreground">{order.oficina_nome || '—'}</td>
+                              <td className="px-4 py-3.5 text-sm text-muted-foreground hidden md:table-cell max-w-[200px] truncate">{order.descricao_servico || '—'}</td>
+                              <td className="px-4 py-3.5 text-center">
+                                <ServiceStageBadge stage={order.stage as ServiceStage} />
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <span className="font-bold text-foreground">
+                                  {order.valor_orcamento ? order.valor_orcamento.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : '—'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-center text-xs text-muted-foreground hidden sm:table-cell">
+                                {order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '—'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
             </div>
           );
+        }
 
         // ════════════════════════════════════
         // FINANCEIRO
         // ════════════════════════════════════
         case 'financeiro':
-          const totalServico = mockNotas.filter(n => n.tipo === 'Serviço').reduce((s, n) => s + n.valor, 0);
-          const totalTecnologia = mockNotas.filter(n => n.tipo === 'Tecnologia').reduce((s, n) => s + n.valor, 0);
           return (
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Extrato & Notas Fiscais</h2>
-                  <p className="text-sm text-muted-foreground">Controle completo de NFs de serviço e tecnologia</p>
+                  <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
+                  <p className="text-sm text-muted-foreground">Controle de pagamentos e notas fiscais</p>
                 </div>
-                <Button variant="outline" size="sm" className="gap-1.5"><Download className="w-4 h-4" /> Exportar Tudo</Button>
               </div>
-
-              {/* Summary cards */}
-              <div className="grid sm:grid-cols-3 gap-4">
-                <Card className="border border-border/50 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center">
-                        <Receipt className="w-4.5 h-4.5 text-muted-foreground" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">Total Geral</span>
-                    </div>
-                    <p className="text-2xl font-bold text-foreground">R$ {(totalServico + totalTecnologia).toLocaleString('pt-BR')}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{mockNotas.length} notas emitidas</p>
-                  </CardContent>
-                </Card>
-                <Card className="border border-border/50 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-                        <Wrench className="w-4.5 h-4.5 text-amber-500" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">NFs de Serviço</span>
-                    </div>
-                    <p className="text-2xl font-bold text-foreground">R$ {totalServico.toLocaleString('pt-BR')}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{mockNotas.filter(n => n.tipo === 'Serviço').length} notas · Oficinas parceiras</p>
-                  </CardContent>
-                </Card>
-                <Card className="border border-border/50 shadow-sm">
-                  <CardContent className="p-5">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Zap className="w-4.5 h-4.5 text-primary" />
-                      </div>
-                      <span className="text-xs font-medium text-muted-foreground">NFs de Tecnologia</span>
-                    </div>
-                    <p className="text-2xl font-bold text-primary">R$ {totalTecnologia.toLocaleString('pt-BR')}</p>
-                    <p className="text-[10px] text-muted-foreground mt-1">{mockNotas.filter(n => n.tipo === 'Tecnologia').length} notas · NovaLink 15%</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* NF Table */}
-              <Card className="border border-border/50 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b bg-muted/30">
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Nº NF</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Tipo</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Emitente</th>
-                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Placa</th>
-                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Data</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
-                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {mockNotas.map((nf) => (
-                        <tr key={nf.id} className="border-b border-border/30 hover:bg-muted/20 transition-colors">
-                          <td className="px-4 py-3.5"><span className="font-mono text-sm font-medium text-foreground">{nf.id}</span></td>
-                          <td className="px-4 py-3.5">
-                            <Badge variant="outline" className={`text-[10px] ${nf.tipo === 'Tecnologia' ? 'bg-primary/10 text-primary border-primary/20' : 'bg-amber-500/10 text-amber-600 border-amber-500/20'}`}>
-                              {nf.tipo === 'Serviço' ? '🔧 Serviço' : '⚡ Tecnologia'}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3.5 text-sm text-foreground">{nf.emitente}</td>
-                          <td className="px-4 py-3.5 text-sm font-mono text-muted-foreground hidden sm:table-cell">{nf.placa}</td>
-                          <td className="px-4 py-3.5 text-center text-xs text-muted-foreground hidden sm:table-cell">{nf.data}</td>
-                          <td className="px-4 py-3.5 text-right">
-                            <span className="font-semibold text-foreground">R$ {nf.valor.toLocaleString('pt-BR')}</span>
-                          </td>
-                          <td className="px-4 py-3.5 text-right">
-                            <Button variant="ghost" size="sm" className="gap-1 text-xs"><Download className="w-3.5 h-3.5" /> PDF</Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              <Card className="border border-border/50">
+                <CardContent className="p-12 text-center">
+                  <CircleDollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-foreground">Em breve</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                    O módulo financeiro será alimentado automaticamente conforme os orçamentos forem aprovados e os serviços concluídos.
+                  </p>
+                </CardContent>
               </Card>
             </div>
           );
@@ -1468,87 +1029,18 @@ const GestaoFrotasOficinasSystem = () => {
         // ════════════════════════════════════
         case 'relatorios':
           return (
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div>
                 <h2 className="text-lg font-semibold text-foreground">Relatórios & Análises</h2>
-                <p className="text-sm text-muted-foreground">Visão analítica completa da sua operação</p>
+                <p className="text-sm text-muted-foreground">Visão analítica da sua operação</p>
               </div>
-
-              <div className="grid lg:grid-cols-2 gap-4">
-                {/* Preventiva vs Corretiva (trend) */}
-                <Card className="border border-border/50 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Preventiva vs Corretiva — Tendência</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={mockGastos12Meses}>
-                          <defs>
-                            <linearGradient id="prevGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
-                              <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                            </linearGradient>
-                            <linearGradient id="corrGrad" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="0%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0.2} />
-                              <stop offset="100%" stopColor="hsl(38, 92%, 50%)" stopOpacity={0} />
-                            </linearGradient>
-                          </defs>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="mes" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                          <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), '']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                          <Legend iconType="square" wrapperStyle={{ fontSize: 11 }} />
-                          <Area type="monotone" dataKey="preventiva" name="Preventiva" stroke="hsl(var(--primary))" strokeWidth={2} fill="url(#prevGrad)" />
-                          <Area type="monotone" dataKey="corretiva" name="Corretiva" stroke="hsl(38, 92%, 50%)" strokeWidth={2} fill="url(#corrGrad)" />
-                        </AreaChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Score IA por orçamento */}
-                <Card className="border border-border/50 shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold">Score IA por Orçamento</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-64">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={mockPendencias.map(p => ({ name: p.placa, score: p.iaScore, valor: p.valor }))} barSize={32}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                          <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontFamily: 'monospace' }} />
-                          <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11 }} domain={[0, 100]} />
-                          <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                          <Bar dataKey="score" name="Score IA" radius={[6, 6, 0, 0]}>
-                            {mockPendencias.map((p, i) => (
-                              <Cell key={i} fill={auditoriaConfig[p.auditoria].barColor} />
-                            ))}
-                          </Bar>
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Gasto acumulado por veículo */}
-              <Card className="border border-border/50 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold">Gasto Acumulado por Veículo (Ranking Completo)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="h-72">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={mockVeiculos.sort((a, b) => b.gastoTotal - a.gastoTotal).map(v => ({ placa: v.placa, gasto: v.gastoTotal, modelo: v.modelo }))} layout="vertical" barSize={18}>
-                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="hsl(var(--border))" />
-                        <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
-                        <YAxis type="category" dataKey="placa" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontFamily: 'monospace' }} width={80} />
-                        <Tooltip formatter={(value: number) => ['R$ ' + value.toLocaleString('pt-BR'), 'Gasto']} contentStyle={{ borderRadius: '8px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))', fontSize: 12 }} />
-                        <Bar dataKey="gasto" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+              <Card className="border border-border/50">
+                <CardContent className="p-12 text-center">
+                  <FileBarChart className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <h3 className="text-lg font-semibold text-foreground">Em breve</h3>
+                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+                    Os relatórios serão gerados automaticamente a partir dos dados reais de manutenção da sua frota.
+                  </p>
                 </CardContent>
               </Card>
             </div>
