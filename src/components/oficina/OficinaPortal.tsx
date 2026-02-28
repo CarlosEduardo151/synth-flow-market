@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
+import type { useFleetData } from '@/hooks/useFleetData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -303,7 +304,11 @@ function TableRow({ cols, header }: { cols: React.ReactNode[]; header?: boolean 
   );
 }
 
-export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
+export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: { 
+  onSwitchRole: () => void;
+  fleet?: ReturnType<typeof useFleetData>;
+  customerProductId?: string | null;
+}) {
   const [view, setView] = useState<OficinaView>('home');
   const [placaInput, setPlacaInput] = useState('');
   const [veiculoCarregado, setVeiculoCarregado] = useState(false);
@@ -321,6 +326,23 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const isMobile = useIsMobile();
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  // Build patio data from real fleet data if available
+  const realPatio: VeiculoPatio[] = fleet ? fleet.serviceOrders.map(so => {
+    const vehicle = fleet.vehicles.find(v => v.id === so.vehicle_id);
+    return {
+      id: so.id,
+      placa: vehicle?.placa || 'N/A',
+      modelo: vehicle ? `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() : 'N/A',
+      motorista: '',
+      stage: so.stage as ServiceStage,
+      valorTotal: so.valor_orcamento || so.valor_aprovado || 0,
+      horaEntrada: so.data_entrada ? new Date(so.data_entrada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : '--:--',
+      frota: 'Frota',
+    };
+  }) : [];
+
+  const patioData = realPatio.length > 0 ? realPatio : mockPatio;
 
   const buscarPlaca = () => { if (placaInput.length >= 7) setVeiculoCarregado(true); };
 
@@ -351,8 +373,8 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
   const totalReceberHoje = mockRecebiveis.filter(r => r.status === 'em_processo').reduce((s, r) => s + r.valorLiquido, 0);
   const totalRecebido = mockRecebiveis.filter(r => r.status === 'depositado').reduce((s, r) => s + r.valorLiquido, 0);
   const totalAgendado = mockRecebiveis.filter(r => r.status === 'agendado').reduce((s, r) => s + r.valorLiquido, 0);
-  const servicosAtivos = mockPatio.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length;
-  const aguardando = mockPatio.filter(v => v.stage === 'checkin' || v.stage === 'orcamento_enviado' || v.stage === 'orcamento_analise').length;
+  const servicosAtivos = patioData.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length;
+  const aguardando = patioData.filter(v => v.stage === 'checkin' || v.stage === 'orcamento_enviado' || v.stage === 'orcamento_analise').length;
   const faturamentoTotal = faturamentoMensal.reduce((s, m) => s + m.faturamento, 0);
   const servicosTotais = faturamentoMensal.reduce((s, m) => s + m.servicos, 0);
   const ticketMedio = faturamentoTotal / servicosTotais;
@@ -362,7 +384,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
     { value: 'home', label: 'Dashboard', desc: 'Resumo de receita, serviços e avaliações', icon: LayoutDashboard },
     { value: 'checkin', label: 'Novo Atendimento', desc: 'Escanear placa e iniciar serviço', icon: Plus },
     { value: 'orcamento', label: 'Orçamentos', desc: 'Criar, revisar e acompanhar orçamentos', icon: ClipboardList, badge: '3' },
-    { value: 'patio', label: 'Pátio Digital', desc: 'Veículos em serviço e status em tempo real', icon: Car, badge: String(mockPatio.length) },
+    { value: 'patio', label: 'Pátio Digital', desc: 'Veículos em serviço e status em tempo real', icon: Car, badge: String(patioData.length) },
     { value: 'financeiro', label: 'Financeiro', desc: 'Recebíveis, depósitos e fluxo de caixa', icon: Wallet },
     { value: 'finalizar', label: 'Clientes', desc: 'Gestão de frotas parceiras e satisfação', icon: Users, badge: '48' },
     { value: 'mensagens', label: 'Mensagens', desc: 'Chat com gestores de frota sobre serviços', icon: MessageCircle, badge: '2' },
@@ -525,7 +547,7 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
             {/* Approved services quick list */}
             <ChartCard title="Aprovados — Iniciar Agora" icon={Bell}>
               <div className="space-y-2.5 max-h-52 overflow-y-auto">
-                {mockPatio.filter(v => v.stage === 'orcamento_aprovado').map(v => (
+                {patioData.filter(v => v.stage === 'orcamento_aprovado').map(v => (
                   <button key={v.id} onClick={() => { setSelectedVeiculo(v); setView('patio'); }}
                     className="w-full flex items-center gap-3 p-3 rounded-md border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors text-left">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -783,15 +805,15 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
       return (
         <div className="space-y-6">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard label="No Pátio" value={String(mockPatio.filter(v => v.stage !== 'veiculo_entregue').length)} icon={Car} />
-            <KpiCard label="Em Serviço" value={String(mockPatio.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length)} icon={CheckCircle2} accent="text-emerald-600 dark:text-emerald-400" />
-            <KpiCard label="Aguardando Aprov." value={String(mockPatio.filter(v => v.stage === 'orcamento_analise' || v.stage === 'orcamento_enviado').length)} icon={Clock} accent="text-amber-500" />
-            <KpiCard label="Valor Total" value={fmt(mockPatio.reduce((s, v) => s + v.valorTotal, 0))} icon={DollarSign} />
+            <KpiCard label="No Pátio" value={String(patioData.filter(v => v.stage !== 'veiculo_entregue').length)} icon={Car} />
+            <KpiCard label="Em Serviço" value={String(patioData.filter(v => v.stage === 'orcamento_aprovado' || v.stage === 'veiculo_finalizado').length)} icon={CheckCircle2} accent="text-emerald-600 dark:text-emerald-400" />
+            <KpiCard label="Aguardando Aprov." value={String(patioData.filter(v => v.stage === 'orcamento_analise' || v.stage === 'orcamento_enviado').length)} icon={Clock} accent="text-amber-500" />
+            <KpiCard label="Valor Total" value={fmt(patioData.reduce((s, v) => s + v.valorTotal, 0))} icon={DollarSign} />
           </div>
 
           {/* Vehicle Cards with Pipeline */}
           <div className="space-y-3">
-            {mockPatio.filter(v => v.stage !== 'veiculo_entregue').map(v => (
+            {patioData.filter(v => v.stage !== 'veiculo_entregue').map(v => (
               <div key={v.id} className="bg-card border border-border/60 rounded-lg overflow-hidden hover:border-primary/30 transition-colors">
                 <div className="p-4 sm:p-5">
                   {/* Header Row */}
@@ -827,7 +849,12 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-3 border-t border-border/30">
                     {v.stage === 'checkin' && (
-                      <Button size="sm" className="gap-1.5 text-xs" onClick={() => setView('orcamento')}>
+                      <Button size="sm" className="gap-1.5 text-xs" onClick={async () => {
+                        if (fleet) {
+                          await fleet.updateStage(v.id, 'orcamento_enviado', 'oficina', 'Orçamento criado pela oficina');
+                        }
+                        setView('orcamento');
+                      }}>
                         <FileText className="w-3.5 h-3.5" /> Criar Orçamento
                       </Button>
                     )}
@@ -842,7 +869,11 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                       </Button>
                     )}
                     {v.stage === 'veiculo_finalizado' && (
-                      <Button size="sm" variant="outline" className="gap-1.5 text-xs">
+                      <Button size="sm" variant="outline" className="gap-1.5 text-xs" onClick={async () => {
+                        if (fleet) {
+                          await fleet.updateStage(v.id, 'veiculo_entregue', 'oficina', 'Veículo entregue ao cliente');
+                        }
+                      }}>
                         <Truck className="w-3.5 h-3.5" /> Registrar Entrega
                       </Button>
                     )}
@@ -862,16 +893,16 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
           </div>
 
           {/* Entregues (collapsed) */}
-          {mockPatio.filter(v => v.stage === 'veiculo_entregue').length > 0 && (
+          {patioData.filter(v => v.stage === 'veiculo_entregue').length > 0 && (
             <div className="bg-card border border-border/60 rounded-lg overflow-hidden">
               <div className="px-5 py-3.5 border-b border-border/40 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Entregues Recentemente
                 </h3>
-                <span className="text-xs text-muted-foreground">{mockPatio.filter(v => v.stage === 'veiculo_entregue').length} veículos</span>
+                <span className="text-xs text-muted-foreground">{patioData.filter(v => v.stage === 'veiculo_entregue').length} veículos</span>
               </div>
               <div className="divide-y divide-border/30">
-                {mockPatio.filter(v => v.stage === 'veiculo_entregue').map(v => (
+                {patioData.filter(v => v.stage === 'veiculo_entregue').map(v => (
                   <div key={v.id} className="flex items-center justify-between px-5 py-3">
                     <div className="flex items-center gap-3">
                       <span className="font-mono font-semibold text-sm text-foreground">{v.placa}</span>
@@ -967,7 +998,12 @@ export function OficinaPortal({ onSwitchRole }: { onSwitchRole: () => void }) {
                       <div className="flex items-center gap-1.5 mt-1 text-xs text-muted-foreground"><Timer className="w-3 h-3" /><span>Depósito em D+1 (24h)</span></div>
                     </div>
                   </div>
-                  <Button onClick={() => setFinalizarDialog(false)} className="w-full h-11 gap-2"><CheckCircle2 className="w-4 h-4" /> Confirmar Finalização</Button>
+                  <Button onClick={async () => {
+                    if (fleet && selectedVeiculo) {
+                      await fleet.updateStage(selectedVeiculo.id, 'veiculo_finalizado', 'oficina', 'Serviço finalizado pela oficina');
+                    }
+                    setFinalizarDialog(false);
+                  }} className="w-full h-11 gap-2"><CheckCircle2 className="w-4 h-4" /> Confirmar Finalização</Button>
                 </div>
               )}
             </DialogContent>
