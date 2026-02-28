@@ -1305,13 +1305,49 @@ const GestaoFrotasOficinasSystem = () => {
                                       </tbody>
                                     </table>
                                     <div className="flex gap-2 justify-end">
-                                      <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white">
+                                      <Button
+                                        className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                        onClick={() => {
+                                          // Find matching real service order by placa
+                                          const realVehicle = fleet.vehicles.find(v => v.placa === item.placa);
+                                          if (realVehicle) {
+                                            const realOrder = fleet.serviceOrders.find(
+                                              so => so.vehicle_id === realVehicle.id && (so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise')
+                                            );
+                                            if (realOrder) {
+                                              fleet.updateStage(realOrder.id, 'orcamento_aprovado', 'gestor_frota', 'Orçamento aprovado pelo gestor', { valor_aprovado: item.valor });
+                                              return;
+                                            }
+                                          }
+                                          toast.success(`Orçamento de ${item.placa} aprovado! (demonstração)`);
+                                        }}
+                                      >
                                         <Check className="w-4 h-4" /> Aprovar
                                       </Button>
-                                      <Button variant="outline" className="gap-2">
+                                      <Button
+                                        variant="outline"
+                                        className="gap-2"
+                                        onClick={() => setActiveTab('questionar')}
+                                      >
                                         <MessageCircle className="w-4 h-4" /> Questionar
                                       </Button>
-                                      <Button variant="ghost" className="gap-2 text-destructive">
+                                      <Button
+                                        variant="ghost"
+                                        className="gap-2 text-destructive"
+                                        onClick={() => {
+                                          const realVehicle = fleet.vehicles.find(v => v.placa === item.placa);
+                                          if (realVehicle) {
+                                            const realOrder = fleet.serviceOrders.find(
+                                              so => so.vehicle_id === realVehicle.id && (so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise')
+                                            );
+                                            if (realOrder) {
+                                              fleet.updateStage(realOrder.id, 'checkin', 'gestor_frota', 'Orçamento recusado pelo gestor');
+                                              return;
+                                            }
+                                          }
+                                          toast.success(`Orçamento de ${item.placa} recusado. (demonstração)`);
+                                        }}
+                                      >
                                         <X className="w-4 h-4" /> Recusar
                                       </Button>
                                     </div>
