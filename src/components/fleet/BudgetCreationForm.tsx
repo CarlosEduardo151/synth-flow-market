@@ -473,97 +473,113 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
             </div>
           </div>
 
-          {/* Items list */}
-          <div className="divide-y divide-border/30">
+          {/* Items list — separated by type */}
+          <div>
             {items.length === 0 && (
               <div className="p-8 text-center text-muted-foreground text-sm">
                 Nenhum item adicionado. Use os campos acima para buscar peças ou serviços.
               </div>
             )}
-            {items.map(item => {
-              const flag = item.tipo === 'peca' ? getPriceFlag(item.valorUnitario, item.precoRef) : null;
-              const subtotal = item.tipo === 'peca'
-                ? item.valorUnitario * item.quantidade
-                : (item.horas || 0) * (item.valorHora || 0);
 
-              return (
-                <div key={item.id} className={`p-3 flex items-start gap-3 ${
-                  flag === 'alto' ? 'bg-destructive/5' : flag === 'atencao' ? 'bg-yellow-500/5' : ''
-                }`}>
-                  {/* Icon */}
-                  <div className={`mt-1 w-6 h-6 rounded flex items-center justify-center shrink-0 ${
-                    item.tipo === 'peca' ? 'bg-primary/10 text-primary' : 'bg-accent/20 text-accent-foreground'
-                  }`}>
-                    {item.tipo === 'peca' ? <Package className="w-3 h-3" /> : <Wrench className="w-3 h-3" />}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium text-foreground truncate">{item.descricao}</span>
-                      {item.marca && <span className="text-[10px] text-muted-foreground shrink-0">{item.marca}</span>}
-                      {flag && (
-                        <AlertTriangle className={`w-3 h-3 shrink-0 ${flag === 'alto' ? 'text-destructive' : 'text-yellow-500'}`} />
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[10px] font-mono text-muted-foreground">{item.codigo}</span>
-                      {item.tipo === 'peca' ? (
-                        <>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={item.quantidade}
-                            onChange={e => updateItem(item.id, 'quantidade', Math.max(1, Number(e.target.value)))}
-                            className="w-14 h-7 text-xs text-center border-border"
-                          />
-                          <span className="text-[10px] text-muted-foreground">×</span>
-                          <Input
-                            type="number"
-                            value={item.valorUnitario}
-                            onChange={e => updateItem(item.id, 'valorUnitario', Number(e.target.value))}
-                            className="w-24 h-7 text-xs font-mono border-border"
-                          />
-                        </>
-                      ) : (
-                        <>
-                          <Input
-                            type="number"
-                            step={0.5}
-                            min={0.5}
-                            value={item.horas || 0}
-                            onChange={e => updateItem(item.id, 'horas', Number(e.target.value))}
-                            className="w-16 h-7 text-xs text-center border-border"
-                          />
-                          <span className="text-[10px] text-muted-foreground">h ×</span>
-                          <Input
-                            type="number"
-                            value={item.valorHora || 0}
-                            onChange={e => updateItem(item.id, 'valorHora', Number(e.target.value))}
-                            className="w-20 h-7 text-xs font-mono border-border"
-                          />
-                          <span className="text-[10px] text-muted-foreground">/h</span>
-                        </>
-                      )}
-                    </div>
-                    {flag === 'atencao' && (
-                      <p className="text-[10px] text-yellow-600">⚠ Valor acima da tabela regional</p>
-                    )}
-                    {flag === 'alto' && (
-                      <p className="text-[10px] text-destructive">⚠ Valor muito acima — justifique antes de enviar</p>
-                    )}
-                  </div>
-
-                  {/* Subtotal + delete */}
-                  <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                    <span className="font-mono text-xs font-bold text-foreground">{fmt(subtotal)}</span>
-                    <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive p-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+            {/* ── PEÇAS ── */}
+            {pecas.length > 0 && (
+              <div>
+                <div className="px-3 py-2 bg-muted/30 border-b border-border flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">Peças</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{pecas.length} item(ns) · {fmt(totalPecas)}</span>
                 </div>
-              );
-            })}
+                <div className="divide-y divide-border/30">
+                  {pecas.map(item => {
+                    const flag = getPriceFlag(item.valorUnitario, item.precoRef);
+                    return (
+                      <div key={item.id} className={`px-4 py-2.5 ${
+                        flag === 'alto' ? 'bg-destructive/5' : flag === 'atencao' ? 'bg-yellow-500/5' : ''
+                      }`}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-foreground">{item.descricao}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-foreground">{fmt(item.valorUnitario * item.quantidade)}</span>
+                            <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px]">
+                          <span className="text-muted-foreground">{item.marca}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground">Qtd:</span>
+                            <Input
+                              type="number" min={1} value={item.quantidade}
+                              onChange={e => updateItem(item.id, 'quantidade', Math.max(1, Number(e.target.value)))}
+                              className="w-12 h-6 text-[11px] text-center border-border px-1"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground">Valor:</span>
+                            <Input
+                              type="number" value={item.valorUnitario}
+                              onChange={e => updateItem(item.id, 'valorUnitario', Number(e.target.value))}
+                              className="w-20 h-6 text-[11px] font-mono border-border px-1"
+                            />
+                          </div>
+                          {flag && <AlertTriangle className={`w-3 h-3 ${flag === 'alto' ? 'text-destructive' : 'text-yellow-500'}`} />}
+                        </div>
+                        {flag === 'atencao' && <p className="text-[10px] text-yellow-600 mt-1">⚠ Valor acima da tabela regional</p>}
+                        {flag === 'alto' && <p className="text-[10px] text-destructive mt-1">⚠ Valor muito acima — justifique antes de enviar</p>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* ── MÃO DE OBRA ── */}
+            {maoDeObra.length > 0 && (
+              <div>
+                <div className="px-3 py-2 bg-muted/30 border-y border-border flex items-center gap-2">
+                  <Wrench className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-[11px] font-bold text-foreground uppercase tracking-wider">Mão de Obra</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{maoDeObra.length} serviço(s) · {fmt(totalMaoObra)}</span>
+                </div>
+                <div className="divide-y divide-border/30">
+                  {maoDeObra.map(item => {
+                    const subtotal = (item.horas || 0) * (item.valorHora || 0);
+                    return (
+                      <div key={item.id} className="px-4 py-2.5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-medium text-foreground">{item.descricao}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-xs font-bold text-foreground">{fmt(subtotal)}</span>
+                            <button onClick={() => removeItem(item.id)} className="text-muted-foreground hover:text-destructive">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px]">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground">Horas:</span>
+                            <Input
+                              type="number" step={0.5} min={0.5} value={item.horas || 0}
+                              onChange={e => updateItem(item.id, 'horas', Number(e.target.value))}
+                              className="w-14 h-6 text-[11px] text-center border-border px-1"
+                            />
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-muted-foreground">Valor/Hora:</span>
+                            <Input
+                              type="number" value={item.valorHora || 0}
+                              onChange={e => updateItem(item.id, 'valorHora', Number(e.target.value))}
+                              className="w-20 h-6 text-[11px] font-mono border-border px-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
