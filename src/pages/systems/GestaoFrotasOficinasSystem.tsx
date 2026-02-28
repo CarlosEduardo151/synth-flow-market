@@ -324,7 +324,11 @@ const GestaoFrotasOficinasSystem = () => {
     const totalFrota = mockVeiculos.length;
     const ticketMedio = 4580;
     const totalGastoMes = 28700;
-    const orcamentosPendentes = mockPendencias.length;
+    // Real pending budgets from fleet data (stage = orcamento_enviado or orcamento_analise)
+    const pendingOrders = fleet.serviceOrders.filter(
+      so => so.stage === 'orcamento_enviado' || so.stage === 'orcamento_analise'
+    );
+    const orcamentosPendentes = pendingOrders.length;
 
     const veiculosFiltrados = mockVeiculos.filter(v =>
       v.placa.toLowerCase().includes(searchVeiculos.toLowerCase()) ||
@@ -537,7 +541,7 @@ const GestaoFrotasOficinasSystem = () => {
           );
 
         // ════════════════════════════════════
-        // CENTRAL DE APROVAÇÕES
+        // CENTRAL DE APROVAÇÕES (REAL DATA)
         // ════════════════════════════════════
         case 'aprovacoes':
           return (
@@ -545,84 +549,62 @@ const GestaoFrotasOficinasSystem = () => {
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-foreground">Central de Aprovações</h2>
-                  <p className="text-sm text-muted-foreground">{mockPendencias.length} orçamentos aguardando sua decisão</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {(['all', 'verde', 'amarelo', 'vermelho'] as const).map((f) => (
-                    <Button key={f} variant={filterAuditoria === f ? 'default' : 'outline'} size="sm" onClick={() => setFilterAuditoria(f)} className="text-xs">
-                      {f === 'all' ? 'Todos' : f === 'verde' ? '🟢 Justo' : f === 'amarelo' ? '🟡 Atenção' : '🔴 Sobrepreço'}
-                    </Button>
-                  ))}
+                  <p className="text-sm text-muted-foreground">{pendingOrders.length} orçamento(s) aguardando sua decisão</p>
                 </div>
               </div>
 
+              {pendingOrders.length === 0 && (
+                <Card className="border border-border/50">
+                  <CardContent className="p-12 text-center">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                    <h3 className="text-lg font-semibold text-foreground mb-1">Tudo em dia!</h3>
+                    <p className="text-sm text-muted-foreground">Não há orçamentos pendentes de aprovação.</p>
+                  </CardContent>
+                </Card>
+              )}
+
               <div className="space-y-3">
-                {orcamentosFiltrados.map((item) => {
-                  const audit = auditoriaConfig[item.auditoria];
-                  const AuditIcon = audit.icon;
+                {pendingOrders.map((order) => {
+                  const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
+                  const placa = vehicle?.placa || 'N/A';
+                  const modelo = vehicle ? `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() : 'N/A';
+                  const km = vehicle?.km_atual || 0;
+                  const descricao = order.descricao_servico || 'Sem descrição';
+                  const valor = order.valor_orcamento || 0;
+                  const oficina = order.oficina_nome || 'Oficina';
+                  const dataEntrada = order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '--';
+
                   return (
-                    <Card key={item.id} className="border border-border/50 shadow-sm overflow-hidden">
-                      <div className={`h-1 ${item.auditoria === 'verde' ? 'bg-emerald-500' : item.auditoria === 'amarelo' ? 'bg-amber-500' : 'bg-red-500'}`} />
+                    <Card key={order.id} className="border border-border/50 shadow-sm overflow-hidden">
+                      <div className={`h-1 ${order.stage === 'orcamento_enviado' ? 'bg-amber-500' : 'bg-primary'}`} />
                       <CardContent className="p-5">
                         <div className="flex flex-col lg:flex-row lg:items-start gap-4">
                           <div className="flex-1 min-w-0 space-y-3">
-                            {/* Header */}
                             <div className="flex items-center gap-3 flex-wrap">
-                              <span className="font-mono font-bold text-foreground text-lg">{item.placa}</span>
+                              <span className="font-mono font-bold text-foreground text-lg">{placa}</span>
                               <Separator orientation="vertical" className="h-5" />
-                              <span className="text-sm text-muted-foreground">{item.modelo} · {item.ano}</span>
+                              <span className="text-sm text-muted-foreground">{modelo}</span>
                               <Separator orientation="vertical" className="h-5" />
-                              <span className="text-sm font-medium text-muted-foreground">{item.oficina}</span>
-                              <Badge variant="outline" className="text-[10px] font-mono">{item.cnpj}</Badge>
+                              <span className="text-sm font-medium text-muted-foreground">{oficina}</span>
+                              <ServiceStageBadge stage={order.stage as ServiceStage} />
                             </div>
-                            <p className="text-sm text-foreground font-medium">{item.servico}</p>
+
                             <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>KM: {item.km.toLocaleString('pt-BR')}</span>
+                              <span>KM: {km.toLocaleString('pt-BR')}</span>
                               <span>·</span>
-                              <span>{item.fotos} fotos anexadas</span>
-                              <span>·</span>
-                              <span>{item.data}</span>
+                              <span>Entrada: {dataEntrada}</span>
                             </div>
 
-                            {/* Selo IA */}
-                            <div className={`flex items-start gap-3 px-4 py-3 rounded-lg ${audit.bg} border ${audit.border}`}>
-                              <AuditIcon className={`w-5 h-5 ${audit.color} shrink-0 mt-0.5`} />
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className={`text-xs font-bold ${audit.color}`}>{audit.label}</span>
-                                  <span className="text-xs text-muted-foreground">Score IA: {item.iaScore}/100</span>
-                                </div>
-                                <p className="text-xs text-muted-foreground leading-relaxed">{item.iaMsg}</p>
-                              </div>
-                            </div>
-
-                            {/* Mini table */}
+                            {/* Budget details */}
                             <details className="group">
                               <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
                                 <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
-                                Ver {item.itens.length} itens do orçamento
+                                Ver detalhes do orçamento
                               </summary>
-                              <div className="mt-2 overflow-x-auto">
-                                <table className="w-full text-xs">
-                                  <thead>
-                                    <tr className="border-b bg-muted/30">
-                                      <th className="text-left px-3 py-2 font-semibold text-muted-foreground">ITEM</th>
-                                      <th className="text-center px-3 py-2 font-semibold text-muted-foreground">QTD</th>
-                                      <th className="text-right px-3 py-2 font-semibold text-muted-foreground">UNIT.</th>
-                                      <th className="text-right px-3 py-2 font-semibold text-muted-foreground">TOTAL</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {item.itens.map((it, idx) => (
-                                      <tr key={idx} className="border-b border-border/30">
-                                        <td className="px-3 py-2 text-foreground">{it.desc}</td>
-                                        <td className="px-3 py-2 text-center text-muted-foreground">{it.qtd}</td>
-                                        <td className="px-3 py-2 text-right text-muted-foreground">R$ {it.unit.toLocaleString('pt-BR')}</td>
-                                        <td className="px-3 py-2 text-right font-medium text-foreground">R$ {it.total.toLocaleString('pt-BR')}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
+                              <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border/30">
+                                <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
+                                  {descricao}
+                                </pre>
                               </div>
                             </details>
                           </div>
@@ -631,19 +613,52 @@ const GestaoFrotasOficinasSystem = () => {
                           <div className="flex flex-col items-end gap-3 shrink-0 lg:min-w-[200px]">
                             <div className="text-right">
                               <p className="text-2xl font-bold text-foreground">
-                                {item.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                               </p>
-                              <p className="text-xs text-muted-foreground">{item.itens.length} itens</p>
+                              <p className="text-xs text-muted-foreground">Valor do orçamento</p>
                             </div>
                             <div className="flex gap-2 w-full lg:w-auto">
-                              <Button size="default" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white flex-1 lg:flex-none">
+                              <Button
+                                size="default"
+                                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white flex-1 lg:flex-none"
+                                disabled={fleet.saving}
+                                onClick={async () => {
+                                  const ok = await fleet.updateStage(
+                                    order.id,
+                                    'orcamento_aprovado',
+                                    'gestor_frota',
+                                    'Orçamento aprovado pelo gestor',
+                                    { valor_aprovado: valor }
+                                  );
+                                  if (ok) toast.success(`Orçamento de ${placa} aprovado!`);
+                                }}
+                              >
                                 <Check className="w-4 h-4" /> Aprovar
                               </Button>
-                              <Button size="default" variant="outline" className="gap-2 flex-1 lg:flex-none">
+                              <Button
+                                size="default"
+                                variant="outline"
+                                className="gap-2 flex-1 lg:flex-none"
+                                onClick={() => { setActiveTab('questionar'); }}
+                              >
                                 <MessageCircle className="w-4 h-4" /> Questionar
                               </Button>
                             </div>
-                            <Button size="sm" variant="ghost" className="gap-1 text-xs text-destructive">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="gap-1 text-xs text-destructive"
+                              disabled={fleet.saving}
+                              onClick={async () => {
+                                const ok = await fleet.updateStage(
+                                  order.id,
+                                  'checkin',
+                                  'gestor_frota',
+                                  'Orçamento recusado pelo gestor — devolvido para check-in'
+                                );
+                                if (ok) toast.success(`Orçamento de ${placa} recusado.`);
+                              }}
+                            >
                               <X className="w-3.5 h-3.5" /> Recusar
                             </Button>
                           </div>
