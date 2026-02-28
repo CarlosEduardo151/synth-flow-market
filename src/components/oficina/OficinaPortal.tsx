@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
-import type { useFleetData } from '@/hooks/useFleetData';
+import { BudgetCreationForm } from '@/components/fleet/BudgetCreationForm';
+import type { useFleetData, FleetServiceOrder } from '@/hooks/useFleetData';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -321,6 +322,7 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
   const [selectedVeiculo, setSelectedVeiculo] = useState<VeiculoPatio | null>(null);
   const [financeiroTab, setFinanceiroTab] = useState('resumo');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [budgetServiceOrder, setBudgetServiceOrder] = useState<FleetServiceOrder | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fotoServicoRef = useRef<HTMLInputElement>(null);
   const isMobile = useIsMobile();
@@ -848,12 +850,10 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 pt-3 border-t border-border/30">
-                    {v.stage === 'checkin' && (
-                      <Button size="sm" className="gap-1.5 text-xs" onClick={async () => {
-                        if (fleet) {
-                          await fleet.updateStage(v.id, 'orcamento_enviado', 'oficina', 'Orçamento criado pela oficina');
-                        }
-                        setView('orcamento');
+                    {v.stage === 'checkin' && fleet && (
+                      <Button size="sm" className="gap-1.5 text-xs" onClick={() => {
+                        const so = fleet.serviceOrders.find(so => so.id === v.id);
+                        if (so) setBudgetServiceOrder(so);
                       }}>
                         <FileText className="w-3.5 h-3.5" /> Criar Orçamento
                       </Button>
@@ -1324,6 +1324,25 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
 
     return null;
   };
+
+  // ══════════════ BUDGET FORM (FULL SCREEN) ══════════════
+  if (budgetServiceOrder && fleet) {
+    const budgetVehicle = fleet.vehicles.find(v => v.id === budgetServiceOrder.vehicle_id);
+    if (budgetVehicle) {
+      return (
+        <BudgetCreationForm
+          serviceOrder={budgetServiceOrder}
+          vehicle={budgetVehicle}
+          fleet={fleet}
+          onClose={() => setBudgetServiceOrder(null)}
+          onSuccess={() => {
+            setBudgetServiceOrder(null);
+            setView('patio');
+          }}
+        />
+      );
+    }
+  }
 
   // ══════════════ LAYOUT ══════════════
   return (
