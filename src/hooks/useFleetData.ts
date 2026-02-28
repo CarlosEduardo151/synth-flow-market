@@ -366,6 +366,50 @@ export function useFleetData(customerProductId: string | null) {
     loadStageHistory,
     searchVehicleByPlaca,
     getActiveServiceOrder,
+    deleteServiceOrder: async (serviceOrderId: string): Promise<boolean> => {
+      setSaving(true);
+      try {
+        // Get order to find vehicle
+        const { data: order } = await supabase
+          .from('fleet_service_orders')
+          .select('vehicle_id')
+          .eq('id', serviceOrderId)
+          .single();
+
+        // Delete related budget items & budgets
+        const { data: budgets } = await supabase
+          .from('fleet_budgets')
+          .select('id')
+          .eq('service_order_id', serviceOrderId);
+        if (budgets && budgets.length > 0) {
+          const budgetIds = budgets.map((b: any) => b.id);
+          await supabase.from('fleet_budget_items').delete().in('budget_id', budgetIds);
+          await supabase.from('fleet_budgets').delete().eq('service_order_id', serviceOrderId);
+        }
+
+        // Delete stage history
+        await supabase.from('fleet_stage_history').delete().eq('service_order_id', serviceOrderId);
+
+        // Delete the service order
+        const { error } = await supabase.from('fleet_service_orders').delete().eq('id', serviceOrderId);
+        if (error) throw error;
+
+        // Set vehicle back to available
+        if (order?.vehicle_id) {
+          await supabase.from('fleet_vehicles').update({ status: 'disponivel' }).eq('id', order.vehicle_id);
+        }
+
+        toast.success('Orçamento/OS apagado com sucesso!');
+        await Promise.all([loadVehicles(), loadServiceOrders()]);
+        return true;
+      } catch (err: any) {
+        console.error('Error deleting service order:', err);
+        toast.error('Erro ao apagar orçamento.');
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
     refresh: () => Promise.all([loadVehicles(), loadServiceOrders()]),
   };
 }
