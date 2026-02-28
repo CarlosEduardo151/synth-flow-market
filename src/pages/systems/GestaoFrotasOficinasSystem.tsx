@@ -964,7 +964,6 @@ const GestaoFrotasOficinasSystem = () => {
                           <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Etapa</th>
                           <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Valor</th>
                           <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Data</th>
-                          <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -988,21 +987,6 @@ const GestaoFrotasOficinasSystem = () => {
                               </td>
                               <td className="px-4 py-3.5 text-center text-xs text-muted-foreground hidden sm:table-cell">
                                 {order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '—'}
-                              </td>
-                              <td className="px-4 py-3.5 text-center">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1 text-xs"
-                                  disabled={fleet.saving}
-                                  onClick={() => {
-                                    if (confirm(`Apagar orçamento/OS do veículo ${vehicle?.placa || ''}?`)) {
-                                      fleet.deleteServiceOrder(order.id);
-                                    }
-                                  }}
-                                >
-                                  <X className="w-3.5 h-3.5" /> Apagar
-                                </Button>
                               </td>
                             </tr>
                           );
