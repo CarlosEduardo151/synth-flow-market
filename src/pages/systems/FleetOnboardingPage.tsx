@@ -1,0 +1,840 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
+import { toast } from '@/components/ui/sonner';
+import {
+  Wrench, Truck, ArrowLeft, ArrowRight, Check, Upload, Building2,
+  Banknote, Camera, Shield, Search, Plus, Trash2, Copy, Share2,
+  FileSpreadsheet
+} from 'lucide-react';
+
+// ─── Types ───
+type UserType = null | 'oficina' | 'frota';
+type OficinaStep = 'cnpj' | 'servicos' | 'banco' | 'documentos' | 'finalizado';
+type FrotaStep = 'cnpj' | 'frota' | 'veiculos' | 'convite' | 'finalizado';
+
+interface VeiculoForm {
+  id: string;
+  placa: string;
+  modelo: string;
+  ano: string;
+}
+
+const OFICINA_STEPS: { key: OficinaStep; label: string }[] = [
+  { key: 'cnpj', label: 'Empresa' },
+  { key: 'servicos', label: 'Serviços' },
+  { key: 'banco', label: 'Banco' },
+  { key: 'documentos', label: 'Documentos' },
+  { key: 'finalizado', label: 'Pronto' },
+];
+
+const FROTA_STEPS: { key: FrotaStep; label: string }[] = [
+  { key: 'cnpj', label: 'Empresa' },
+  { key: 'frota', label: 'Frota' },
+  { key: 'veiculos', label: 'Veículos' },
+  { key: 'convite', label: 'Motoristas' },
+  { key: 'finalizado', label: 'Pronto' },
+];
+
+const CATEGORIAS = [
+  'Mecânica Geral', 'Elétrica', 'Suspensão', 'Freios',
+  'Motor Diesel', 'Câmbio', 'Ar Condicionado', 'Funilaria',
+];
+
+export default function FleetOnboardingPage() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [userType, setUserType] = useState<UserType>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Oficina state
+  const [oficinaStep, setOficinaStep] = useState<OficinaStep>('cnpj');
+  const [oficinaCnpj, setOficinaCnpj] = useState('');
+  const [oficinaRazao, setOficinaRazao] = useState('');
+  const [oficinaNome, setOficinaNome] = useState('');
+  const [oficinaEndereco, setOficinaEndereco] = useState('');
+  const [oficinaCidade, setOficinaCidade] = useState('');
+  const [oficinaEstado, setOficinaEstado] = useState('');
+  const [oficinaCep, setOficinaCep] = useState('');
+  const [oficinaTelefone, setOficinaTelefone] = useState('');
+  const [oficinaEmail, setOficinaEmail] = useState('');
+  const [valorHora, setValorHora] = useState('');
+  const [categorias, setCategorias] = useState<string[]>([]);
+  const [bancoNome, setBancoNome] = useState('');
+  const [bancoAgencia, setBancoAgencia] = useState('');
+  const [bancoConta, setBancoConta] = useState('');
+  const [bancoTipo, setBancoTipo] = useState('corrente');
+  const [bancoTitular, setBancoTitular] = useState('');
+  const [bancoCpfCnpj, setBancoCpfCnpj] = useState('');
+  const [pixChave, setPixChave] = useState('');
+  const [alvaraFile, setAlvaraFile] = useState<File | null>(null);
+  const [fachadaFile, setFachadaFile] = useState<File | null>(null);
+
+  // Frota state
+  const [frotaStep, setFrotaStep] = useState<FrotaStep>('cnpj');
+  const [frotaCnpj, setFrotaCnpj] = useState('');
+  const [frotaRazao, setFrotaRazao] = useState('');
+  const [frotaNome, setFrotaNome] = useState('');
+  const [frotaEndereco, setFrotaEndereco] = useState('');
+  const [frotaCidade, setFrotaCidade] = useState('');
+  const [frotaEstado, setFrotaEstado] = useState('');
+  const [frotaTelefone, setFrotaTelefone] = useState('');
+  const [frotaEmail, setFrotaEmail] = useState('');
+  const [tamanhoFrota, setTamanhoFrota] = useState('');
+  const [veiculos, setVeiculos] = useState<VeiculoForm[]>([
+    { id: '1', placa: '', modelo: '', ano: '' }
+  ]);
+  const [inviteLink, setInviteLink] = useState('');
+
+  // ─── CNPJ Lookup (BrasilAPI) ───
+  const buscarCnpj = async (cnpj: string, type: 'oficina' | 'frota') => {
+    const cleaned = cnpj.replace(/\D/g, '');
+    if (cleaned.length !== 14) {
+      toast.error('CNPJ deve ter 14 dígitos');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleaned}`);
+      if (!res.ok) throw new Error('CNPJ não encontrado');
+      const data = await res.json();
+      if (type === 'oficina') {
+        setOficinaRazao(data.razao_social || '');
+        setOficinaNome(data.nome_fantasia || data.razao_social || '');
+        setOficinaEndereco(`${data.logradouro || ''}, ${data.numero || ''} - ${data.bairro || ''}`);
+        setOficinaCidade(data.municipio || '');
+        setOficinaEstado(data.uf || '');
+        setOficinaCep(data.cep || '');
+      } else {
+        setFrotaRazao(data.razao_social || '');
+        setFrotaNome(data.nome_fantasia || data.razao_social || '');
+        setFrotaEndereco(`${data.logradouro || ''}, ${data.numero || ''} - ${data.bairro || ''}`);
+        setFrotaCidade(data.municipio || '');
+        setFrotaEstado(data.uf || '');
+      }
+      toast.success('CNPJ encontrado! Dados preenchidos automaticamente.');
+    } catch {
+      toast.error('Não foi possível buscar o CNPJ. Preencha manualmente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Upload file to storage ───
+  const uploadDoc = async (file: File, folder: string): Promise<string | null> => {
+    if (!user) return null;
+    const ext = file.name.split('.').pop();
+    const path = `${user.id}/${folder}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('fleet_docs').upload(path, file);
+    if (error) { toast.error('Erro ao enviar arquivo'); return null; }
+    return path;
+  };
+
+  // ─── Submit Oficina ───
+  const submitOficina = async () => {
+    if (!user) { toast.error('Faça login primeiro'); return; }
+    setLoading(true);
+    try {
+      let alvaraUrl: string | null = null;
+      let fachadaUrl: string | null = null;
+      if (alvaraFile) alvaraUrl = await uploadDoc(alvaraFile, 'alvara');
+      if (fachadaFile) fachadaUrl = await uploadDoc(fachadaFile, 'fachada');
+
+      const { error } = await (supabase.from('fleet_partner_workshops') as any).insert({
+        user_id: user.id,
+        cnpj: oficinaCnpj.replace(/\D/g, ''),
+        razao_social: oficinaRazao,
+        nome_fantasia: oficinaNome,
+        endereco: oficinaEndereco,
+        cidade: oficinaCidade,
+        estado: oficinaEstado,
+        cep: oficinaCep,
+        telefone: oficinaTelefone,
+        email: oficinaEmail,
+        valor_hora_tecnica: parseFloat(valorHora) || 0,
+        categorias,
+        banco_nome: bancoNome,
+        banco_agencia: bancoAgencia,
+        banco_conta: bancoConta,
+        banco_tipo_conta: bancoTipo,
+        banco_titular: bancoTitular,
+        banco_cpf_cnpj: bancoCpfCnpj,
+        pix_chave: pixChave,
+        alvara_url: alvaraUrl,
+        fachada_url: fachadaUrl,
+        status: 'pendente',
+      });
+      if (error) throw error;
+      setOficinaStep('finalizado');
+      toast.success('Cadastro enviado para aprovação!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao cadastrar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Submit Frota ───
+  const submitFrota = async () => {
+    if (!user) { toast.error('Faça login primeiro'); return; }
+    setLoading(true);
+    try {
+      // Create operator
+      const { data: op, error: opErr } = await (supabase.from('fleet_operators') as any)
+        .insert({
+          user_id: user.id,
+          cnpj: frotaCnpj.replace(/\D/g, ''),
+          razao_social: frotaRazao,
+          nome_fantasia: frotaNome,
+          endereco: frotaEndereco,
+          cidade: frotaCidade,
+          estado: frotaEstado,
+          telefone: frotaTelefone,
+          email: frotaEmail,
+          tamanho_frota: parseInt(tamanhoFrota) || 0,
+        })
+        .select('id')
+        .single();
+      if (opErr) throw opErr;
+
+      // Create invite link
+      const { data: invite, error: invErr } = await (supabase.from('fleet_driver_invites') as any)
+        .insert({ operator_id: op.id })
+        .select('invite_code')
+        .single();
+      if (invErr) throw invErr;
+      setInviteLink(`${window.location.origin}/convite-motorista/${invite.invite_code}`);
+
+      // Create customer_product if not exists
+      await (supabase.from('customer_products') as any).upsert({
+        user_id: user.id,
+        product_slug: 'gestao-frotas-oficinas',
+        product_title: 'Gestão de Frotas & Oficinas',
+        acquisition_type: 'purchase',
+        is_active: true,
+        delivered_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,product_slug' });
+
+      // Insert vehicles with the customer_product_id
+      const { data: cp } = await (supabase.from('customer_products') as any)
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('product_slug', 'gestao-frotas-oficinas')
+        .single();
+
+      if (cp) {
+        const validVeiculos = veiculos.filter(v => v.placa.trim());
+        if (validVeiculos.length > 0) {
+          await (supabase.from('fleet_vehicles') as any).insert(
+            validVeiculos.map(v => ({
+              customer_product_id: cp.id,
+              placa: v.placa.toUpperCase().trim(),
+              modelo: v.modelo.trim(),
+              ano: v.ano.trim(),
+              status: 'disponivel',
+            }))
+          );
+        }
+      }
+
+      setFrotaStep('convite');
+      toast.success('Frota cadastrada com sucesso!');
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao cadastrar');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ─── Vehicle helpers ───
+  const addVeiculo = () => setVeiculos(prev => [...prev, { id: Date.now().toString(), placa: '', modelo: '', ano: '' }]);
+  const removeVeiculo = (id: string) => setVeiculos(prev => prev.filter(v => v.id !== id));
+  const updateVeiculo = (id: string, field: keyof VeiculoForm, value: string) =>
+    setVeiculos(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+
+  // ─── Progress calc ───
+  const getProgress = () => {
+    if (userType === 'oficina') {
+      const idx = OFICINA_STEPS.findIndex(s => s.key === oficinaStep);
+      return ((idx + 1) / OFICINA_STEPS.length) * 100;
+    }
+    if (userType === 'frota') {
+      const idx = FROTA_STEPS.findIndex(s => s.key === frotaStep);
+      return ((idx + 1) / FROTA_STEPS.length) * 100;
+    }
+    return 0;
+  };
+
+  const steps = userType === 'oficina' ? OFICINA_STEPS : userType === 'frota' ? FROTA_STEPS : [];
+  const currentStepKey = userType === 'oficina' ? oficinaStep : frotaStep;
+  const currentStepIdx = steps.findIndex(s => s.key === currentStepKey);
+
+  // ─── Type Selection ───
+  if (!userType) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-lg space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold text-foreground">Bem-vindo à NovaLink</h1>
+            <p className="text-muted-foreground">Como você quer usar a plataforma?</p>
+          </div>
+          <div className="grid gap-4">
+            <button
+              onClick={() => setUserType('oficina')}
+              className="group relative flex items-center gap-4 p-6 rounded-xl border-2 border-border bg-card hover:border-primary transition-all text-left"
+            >
+              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Wrench className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-lg">Sou Oficina</h3>
+                <p className="text-sm text-muted-foreground">Quero receber chamados e atender frotas</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
+            </button>
+            <button
+              onClick={() => setUserType('frota')}
+              className="group relative flex items-center gap-4 p-6 rounded-xl border-2 border-border bg-card hover:border-primary transition-all text-left"
+            >
+              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Truck className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground text-lg">Sou Gestor de Frota</h3>
+                <p className="text-sm text-muted-foreground">Quero gerenciar meus veículos e manutenções</p>
+              </div>
+              <ArrowRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ─── Step Indicator ───
+  const StepBar = () => (
+    <div className="w-full space-y-3">
+      <Progress value={getProgress()} className="h-1.5" />
+      <div className="flex justify-between">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex flex-col items-center gap-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
+              i < currentStepIdx ? 'bg-primary border-primary text-primary-foreground' :
+              i === currentStepIdx ? 'border-primary text-primary bg-primary/10' :
+              'border-muted text-muted-foreground'
+            }`}>
+              {i < currentStepIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
+            </div>
+            <span className={`text-[10px] font-medium hidden sm:block ${i <= currentStepIdx ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {s.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // ─── Layout wrapper ───
+  const StepLayout = ({ title, subtitle, children, onNext, onBack, nextLabel, nextDisabled }: {
+    title: string; subtitle: string; children: React.ReactNode;
+    onNext?: () => void; onBack?: () => void; nextLabel?: string; nextDisabled?: boolean;
+  }) => (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
+        <div className="max-w-lg mx-auto">
+          <StepBar />
+        </div>
+      </div>
+      <div className="flex-1 flex items-start justify-center p-4 pt-8">
+        <div className="w-full max-w-lg space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">{title}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+          </div>
+          <div className="space-y-4">{children}</div>
+          <div className="flex gap-3 pt-4">
+            {onBack && (
+              <Button variant="outline" onClick={onBack} className="gap-2">
+                <ArrowLeft className="w-4 h-4" /> Voltar
+              </Button>
+            )}
+            {onNext && (
+              <Button onClick={onNext} disabled={nextDisabled || loading} className="flex-1 gap-2">
+                {nextLabel || 'Continuar'} <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ────────────────────────────
+  // OFICINA FLOW
+  // ────────────────────────────
+  if (userType === 'oficina') {
+    if (oficinaStep === 'cnpj') {
+      return (
+        <StepLayout
+          title="Dados da Oficina"
+          subtitle="Informe o CNPJ e preenchemos automaticamente"
+          onBack={() => setUserType(null)}
+          onNext={() => setOficinaStep('servicos')}
+          nextDisabled={!oficinaCnpj || !oficinaNome}
+        >
+          <div className="space-y-1.5">
+            <Label>CNPJ</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="00.000.000/0000-00"
+                value={oficinaCnpj}
+                onChange={e => setOficinaCnpj(e.target.value)}
+              />
+              <Button variant="outline" size="icon" onClick={() => buscarCnpj(oficinaCnpj, 'oficina')} disabled={loading}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Razão Social</Label>
+            <Input value={oficinaRazao} onChange={e => setOficinaRazao(e.target.value)} placeholder="Preenchido automaticamente" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nome Fantasia</Label>
+            <Input value={oficinaNome} onChange={e => setOficinaNome(e.target.value)} placeholder="Nome da oficina" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Endereço</Label>
+            <Input value={oficinaEndereco} onChange={e => setOficinaEndereco(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Cidade</Label>
+              <Input value={oficinaCidade} onChange={e => setOficinaCidade(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Estado</Label>
+              <Input value={oficinaEstado} onChange={e => setOficinaEstado(e.target.value)} maxLength={2} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Telefone</Label>
+              <Input value={oficinaTelefone} onChange={e => setOficinaTelefone(e.target.value)} placeholder="(99) 99999-9999" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>E-mail</Label>
+              <Input type="email" value={oficinaEmail} onChange={e => setOficinaEmail(e.target.value)} />
+            </div>
+          </div>
+        </StepLayout>
+      );
+    }
+
+    if (oficinaStep === 'servicos') {
+      return (
+        <StepLayout
+          title="Serviços e Valores"
+          subtitle="Defina o valor da hora técnica e as categorias que você atende"
+          onBack={() => setOficinaStep('cnpj')}
+          onNext={() => setOficinaStep('banco')}
+          nextDisabled={!valorHora || categorias.length === 0}
+        >
+          <div className="space-y-1.5">
+            <Label>Valor da Hora Técnica (R$)</Label>
+            <Input
+              type="number"
+              placeholder="150.00"
+              value={valorHora}
+              onChange={e => setValorHora(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Este valor será usado como referência nos orçamentos</p>
+          </div>
+          <Separator />
+          <div className="space-y-3">
+            <Label>Categorias Atendidas</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {CATEGORIAS.map(cat => (
+                <label key={cat} className="flex items-center gap-2 p-3 rounded-lg border border-border hover:bg-muted/50 cursor-pointer transition-colors">
+                  <Checkbox
+                    checked={categorias.includes(cat)}
+                    onCheckedChange={(checked) => {
+                      if (checked) setCategorias(prev => [...prev, cat]);
+                      else setCategorias(prev => prev.filter(c => c !== cat));
+                    }}
+                  />
+                  <span className="text-sm">{cat}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        </StepLayout>
+      );
+    }
+
+    if (oficinaStep === 'banco') {
+      return (
+        <StepLayout
+          title="Dados Bancários"
+          subtitle="Onde você receberá os 85% dos serviços realizados"
+          onBack={() => setOficinaStep('servicos')}
+          onNext={() => setOficinaStep('documentos')}
+          nextDisabled={!bancoNome || !bancoConta}
+        >
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+            <Banknote className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-foreground">
+              A NovaLink retém <strong>15%</strong> como taxa de intermediação. Você recebe <strong>85%</strong> do valor bruto dos serviços via depósito automático D+1.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Banco</Label>
+            <Input placeholder="Ex: Banco do Brasil" value={bancoNome} onChange={e => setBancoNome(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Agência</Label>
+              <Input placeholder="0001" value={bancoAgencia} onChange={e => setBancoAgencia(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Conta</Label>
+              <Input placeholder="12345-6" value={bancoConta} onChange={e => setBancoConta(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Tipo</Label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={bancoTipo}
+                onChange={e => setBancoTipo(e.target.value)}
+              >
+                <option value="corrente">Corrente</option>
+                <option value="poupanca">Poupança</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>CPF/CNPJ do Titular</Label>
+              <Input value={bancoCpfCnpj} onChange={e => setBancoCpfCnpj(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nome do Titular</Label>
+            <Input value={bancoTitular} onChange={e => setBancoTitular(e.target.value)} />
+          </div>
+          <Separator />
+          <div className="space-y-1.5">
+            <Label>Chave PIX (opcional)</Label>
+            <Input placeholder="CPF, e-mail, telefone ou chave aleatória" value={pixChave} onChange={e => setPixChave(e.target.value)} />
+          </div>
+        </StepLayout>
+      );
+    }
+
+    if (oficinaStep === 'documentos') {
+      return (
+        <StepLayout
+          title="Documentos"
+          subtitle="Envie uma foto do alvará ou da fachada para validação"
+          onBack={() => setOficinaStep('banco')}
+          onNext={submitOficina}
+          nextLabel="Enviar Cadastro"
+          nextDisabled={!alvaraFile && !fachadaFile}
+        >
+          <div className="bg-muted/30 border border-border rounded-lg p-3 flex items-start gap-2">
+            <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Sua oficina será validada manualmente pela equipe NovaLink antes de aparecer para as frotas. Isso garante segurança para todos.
+            </p>
+          </div>
+          <FileUploadBox
+            label="Alvará de Funcionamento"
+            file={alvaraFile}
+            onFile={setAlvaraFile}
+            accept="image/*,.pdf"
+          />
+          <FileUploadBox
+            label="Foto da Fachada"
+            file={fachadaFile}
+            onFile={setFachadaFile}
+            accept="image/*"
+          />
+        </StepLayout>
+      );
+    }
+
+    if (oficinaStep === 'finalizado') {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="w-full max-w-md text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Check className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Cadastro Enviado!</h2>
+              <p className="text-muted-foreground mt-2">
+                Sua oficina está em análise. Você receberá uma notificação assim que for aprovada e começará a receber chamados das frotas da região.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas')} className="w-full">
+              Ir para o Painel
+            </Button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // ────────────────────────────
+  // FROTA FLOW
+  // ────────────────────────────
+  if (userType === 'frota') {
+    if (frotaStep === 'cnpj') {
+      return (
+        <StepLayout
+          title="Dados da Empresa"
+          subtitle="Informe o CNPJ da sua empresa de transporte"
+          onBack={() => setUserType(null)}
+          onNext={() => setFrotaStep('frota')}
+          nextDisabled={!frotaCnpj || !frotaNome}
+        >
+          <div className="space-y-1.5">
+            <Label>CNPJ</Label>
+            <div className="flex gap-2">
+              <Input placeholder="00.000.000/0000-00" value={frotaCnpj} onChange={e => setFrotaCnpj(e.target.value)} />
+              <Button variant="outline" size="icon" onClick={() => buscarCnpj(frotaCnpj, 'frota')} disabled={loading}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Razão Social</Label>
+            <Input value={frotaRazao} onChange={e => setFrotaRazao(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nome Fantasia</Label>
+            <Input value={frotaNome} onChange={e => setFrotaNome(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Endereço</Label>
+            <Input value={frotaEndereco} onChange={e => setFrotaEndereco(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Cidade</Label>
+              <Input value={frotaCidade} onChange={e => setFrotaCidade(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Estado</Label>
+              <Input value={frotaEstado} onChange={e => setFrotaEstado(e.target.value)} maxLength={2} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Telefone</Label>
+              <Input value={frotaTelefone} onChange={e => setFrotaTelefone(e.target.value)} placeholder="(99) 99999-9999" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>E-mail</Label>
+              <Input type="email" value={frotaEmail} onChange={e => setFrotaEmail(e.target.value)} />
+            </div>
+          </div>
+        </StepLayout>
+      );
+    }
+
+    if (frotaStep === 'frota') {
+      return (
+        <StepLayout
+          title="Tamanho da Frota"
+          subtitle="Quantos veículos sua empresa possui?"
+          onBack={() => setFrotaStep('cnpj')}
+          onNext={() => setFrotaStep('veiculos')}
+          nextDisabled={!tamanhoFrota}
+        >
+          <div className="space-y-1.5">
+            <Label>Número de Veículos</Label>
+            <Input
+              type="number"
+              placeholder="Ex: 25"
+              value={tamanhoFrota}
+              onChange={e => setTamanhoFrota(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Você poderá cadastrar os veículos no próximo passo
+            </p>
+          </div>
+        </StepLayout>
+      );
+    }
+
+    if (frotaStep === 'veiculos') {
+      return (
+        <StepLayout
+          title="Cadastrar Veículos"
+          subtitle="Adicione seus veículos um por um ou importe via planilha"
+          onBack={() => setFrotaStep('frota')}
+          onNext={submitFrota}
+          nextLabel="Salvar e Continuar"
+          nextDisabled={!veiculos.some(v => v.placa.trim())}
+        >
+          <div className="space-y-3">
+            {veiculos.map((v, i) => (
+              <div key={v.id} className="flex items-end gap-2">
+                <div className="flex-1 grid grid-cols-3 gap-2">
+                  <div className="space-y-1">
+                    {i === 0 && <Label className="text-xs">Placa</Label>}
+                    <Input
+                      placeholder="ABC-1D23"
+                      value={v.placa}
+                      onChange={e => updateVeiculo(v.id, 'placa', e.target.value)}
+                      className="uppercase"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    {i === 0 && <Label className="text-xs">Modelo</Label>}
+                    <Input
+                      placeholder="Scania R450"
+                      value={v.modelo}
+                      onChange={e => updateVeiculo(v.id, 'modelo', e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    {i === 0 && <Label className="text-xs">Ano</Label>}
+                    <Input
+                      placeholder="2024"
+                      value={v.ano}
+                      onChange={e => updateVeiculo(v.id, 'ano', e.target.value)}
+                      maxLength={4}
+                    />
+                  </div>
+                </div>
+                {veiculos.length > 1 && (
+                  <Button variant="ghost" size="icon" onClick={() => removeVeiculo(v.id)}>
+                    <Trash2 className="w-4 h-4 text-muted-foreground" />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={addVeiculo} className="gap-2 text-sm">
+              <Plus className="w-4 h-4" /> Adicionar veículo
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Você pode cadastrar mais veículos depois pelo painel principal.
+          </p>
+        </StepLayout>
+      );
+    }
+
+    if (frotaStep === 'convite') {
+      return (
+        <StepLayout
+          title="Convidar Motoristas"
+          subtitle="Compartilhe este link para seus motoristas terem acesso ao app"
+          onNext={() => setFrotaStep('finalizado')}
+          nextLabel="Concluir Cadastro"
+        >
+          {inviteLink ? (
+            <div className="space-y-3">
+              <div className="flex gap-2">
+                <Input value={inviteLink} readOnly className="text-xs" />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(inviteLink);
+                    toast.success('Link copiado!');
+                  }}
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => {
+                  const text = encodeURIComponent(`Acesse o app NovaLink para check-in dos veículos: ${inviteLink}`);
+                  window.open(`https://wa.me/?text=${text}`, '_blank');
+                }}
+              >
+                <Share2 className="w-4 h-4" /> Enviar via WhatsApp
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Os motoristas poderão fazer check-in e acompanhar o status dos veículos
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Gerando link de convite...</p>
+          )}
+        </StepLayout>
+      );
+    }
+
+    if (frotaStep === 'finalizado') {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="w-full max-w-md text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Check className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Tudo Pronto!</h2>
+              <p className="text-muted-foreground mt-2">
+                Sua frota está cadastrada. Agora você pode abrir chamados de manutenção e acompanhar tudo pelo painel.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas')} className="w-full">
+              Abrir Painel de Frotas
+            </Button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  return null;
+}
+
+// ─── File Upload Component ───
+function FileUploadBox({ label, file, onFile, accept }: {
+  label: string; file: File | null; onFile: (f: File | null) => void; accept?: string;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <label className="flex flex-col items-center justify-center h-28 rounded-lg border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 cursor-pointer transition-colors">
+        {file ? (
+          <div className="flex items-center gap-2 text-sm text-foreground">
+            <Check className="w-4 h-4 text-primary" />
+            <span className="truncate max-w-[200px]">{file.name}</span>
+            <button onClick={(e) => { e.preventDefault(); onFile(null); }} className="text-muted-foreground hover:text-destructive">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <>
+            <Upload className="w-6 h-6 text-muted-foreground mb-1" />
+            <span className="text-xs text-muted-foreground">Clique para enviar</span>
+          </>
+        )}
+        <input
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={e => { if (e.target.files?.[0]) onFile(e.target.files[0]); }}
+        />
+      </label>
+    </div>
+  );
+}

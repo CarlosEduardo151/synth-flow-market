@@ -1100,6 +1100,50 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_driver_invites: {
+        Row: {
+          accepted_at: string | null
+          accepted_by: string | null
+          created_at: string
+          id: string
+          invite_code: string
+          motorista_nome: string | null
+          motorista_telefone: string | null
+          operator_id: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          id?: string
+          invite_code?: string
+          motorista_nome?: string | null
+          motorista_telefone?: string | null
+          operator_id: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_by?: string | null
+          created_at?: string
+          id?: string
+          invite_code?: string
+          motorista_nome?: string | null
+          motorista_telefone?: string | null
+          operator_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_driver_invites_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_operators"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_messages: {
         Row: {
           attachment_url: string | null
@@ -1138,6 +1182,172 @@ export type Database = {
           sender_role?: string
         }
         Relationships: []
+      }
+      fleet_operators: {
+        Row: {
+          cidade: string | null
+          cnpj: string
+          created_at: string
+          customer_product_id: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          id: string
+          nome_fantasia: string | null
+          razao_social: string | null
+          status: string
+          tamanho_frota: number | null
+          telefone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cidade?: string | null
+          cnpj: string
+          created_at?: string
+          customer_product_id?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          status?: string
+          tamanho_frota?: number | null
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cidade?: string | null
+          cnpj?: string
+          created_at?: string
+          customer_product_id?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          razao_social?: string | null
+          status?: string
+          tamanho_frota?: number | null
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_operators_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_partner_workshops: {
+        Row: {
+          alvara_url: string | null
+          aprovado_em: string | null
+          aprovado_por: string | null
+          banco_agencia: string | null
+          banco_conta: string | null
+          banco_cpf_cnpj: string | null
+          banco_nome: string | null
+          banco_tipo_conta: string | null
+          banco_titular: string | null
+          categorias: string[] | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string
+          created_at: string
+          customer_product_id: string | null
+          email: string | null
+          endereco: string | null
+          estado: string | null
+          fachada_url: string | null
+          id: string
+          nome_fantasia: string | null
+          observacoes_admin: string | null
+          pix_chave: string | null
+          razao_social: string | null
+          status: string
+          telefone: string | null
+          updated_at: string
+          user_id: string
+          valor_hora_tecnica: number | null
+        }
+        Insert: {
+          alvara_url?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          banco_agencia?: string | null
+          banco_conta?: string | null
+          banco_cpf_cnpj?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          banco_titular?: string | null
+          categorias?: string[] | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj: string
+          created_at?: string
+          customer_product_id?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          fachada_url?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          observacoes_admin?: string | null
+          pix_chave?: string | null
+          razao_social?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          user_id: string
+          valor_hora_tecnica?: number | null
+        }
+        Update: {
+          alvara_url?: string | null
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          banco_agencia?: string | null
+          banco_conta?: string | null
+          banco_cpf_cnpj?: string | null
+          banco_nome?: string | null
+          banco_tipo_conta?: string | null
+          banco_titular?: string | null
+          categorias?: string[] | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string
+          created_at?: string
+          customer_product_id?: string | null
+          email?: string | null
+          endereco?: string | null
+          estado?: string | null
+          fachada_url?: string | null
+          id?: string
+          nome_fantasia?: string | null
+          observacoes_admin?: string | null
+          pix_chave?: string | null
+          razao_social?: string | null
+          status?: string
+          telefone?: string | null
+          updated_at?: string
+          user_id?: string
+          valor_hora_tecnica?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_partner_workshops_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fleet_service_orders: {
         Row: {

@@ -64,6 +64,7 @@ import InvoiceAutomationSystem from "./pages/systems/InvoiceAutomationSystem";
 import AgenteRHSystem from "./pages/systems/AgenteRHSystem";
 import AgenteRHConfigSystem from "./pages/systems/AgenteRHConfigSystem";
 import GestaoFrotasOficinasSystem from "./pages/systems/GestaoFrotasOficinasSystem";
+import FleetOnboardingPage from "./pages/systems/FleetOnboardingPage";
 import AdminTicketsPage from "./pages/admin/AdminTicketsPage";
 import AdminAgentConfigPage from "./pages/admin/AdminAgentConfigPage";
 import AdminFinancialPage from "./pages/admin/AdminFinancialPage";
@@ -145,6 +146,7 @@ const App = () => (
               <Route path="/sistemas/sniper-hft" element={<SystemThemeWrapper><SniperHFTSystem /></SystemThemeWrapper>} />
               <Route path="/systems/SniperHFTSystem" element={<SystemThemeWrapper><SniperHFTSystem /></SystemThemeWrapper>} />
               <Route path="/sistema/gestao-frotas-oficinas" element={<SystemThemeWrapper><GestaoFrotasOficinasSystem /></SystemThemeWrapper>} />
+              <Route path="/sistema/gestao-frotas-oficinas/onboarding" element={<SystemThemeWrapper><FleetOnboardingPage /></SystemThemeWrapper>} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />
