@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -179,40 +180,83 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const handleSubmit = async () => {
     setSaving(true);
     try {
-      // Build description with full budget details
+      const cpId = (serviceOrder as any).customer_product_id;
+
+      // 1. Create budget header
+      const { data: budget, error: budgetErr } = await supabase
+        .from('fleet_budgets')
+        .insert({
+          service_order_id: serviceOrder.id,
+          customer_product_id: cpId,
+          laudo_tecnico: [laudoTecnico, esclarecimento, condicaoGeral].filter(Boolean).join('\n\n---\n\n'),
+          urgencia,
+          status: 'pendente',
+          total_pecas: totalPecas,
+          total_mao_de_obra: totalMaoObra,
+          total_bruto: totalBruto,
+          comissao_pct: 15,
+          total_liquido: totalLiquido,
+        })
+        .select()
+        .single();
+
+      if (budgetErr) throw budgetErr;
+
+      // 2. Insert budget items (parts + labor)
+      const items: any[] = [];
+      parts.forEach((p, i) => items.push({
+        budget_id: (budget as any).id,
+        tipo: 'peca',
+        codigo: p.codigo || null,
+        descricao: p.descricao,
+        marca: p.marca || null,
+        tipo_peca: p.tipo,
+        quantidade: p.quantidade,
+        valor_unitario: p.valorUnitario,
+        valor_total: p.valorUnitario * p.quantidade,
+        sort_order: i,
+      }));
+      labors.forEach((l, i) => items.push({
+        budget_id: (budget as any).id,
+        tipo: 'mao_de_obra',
+        descricao: l.descricao,
+        quantidade: 1,
+        valor_unitario: l.valorHora * l.horas,
+        valor_total: l.valorHora * l.horas,
+        horas: l.horas,
+        valor_hora: l.valorHora,
+        sort_order: parts.length + i,
+      }));
+
+      if (items.length > 0) {
+        const { error: itemsErr } = await supabase
+          .from('fleet_budget_items')
+          .insert(items);
+        if (itemsErr) throw itemsErr;
+      }
+
+      // 3. Build description + update stage
       const descricao = [
-        `## LAUDO TÉCNICO`,
-        laudoTecnico,
-        '',
-        `## ESCLARECIMENTO TÉCNICO`,
-        esclarecimento,
-        '',
-        `## CONDIÇÃO GERAL DO VEÍCULO`,
-        condicaoGeral,
-        '',
-        `**Urgência:** ${urgencia === 'critico' ? '🔴 Crítico' : urgencia === 'urgente' ? '🟡 Urgente' : '🟢 Normal'}`,
-        '',
+        `## LAUDO TÉCNICO`, laudoTecnico, '',
+        esclarecimento ? `## ESCLARECIMENTO TÉCNICO\n${esclarecimento}\n` : '',
+        condicaoGeral ? `## CONDIÇÃO GERAL\n${condicaoGeral}\n` : '',
+        `**Urgência:** ${urgencia === 'critico' ? '🔴 Crítico' : urgencia === 'urgente' ? '🟡 Urgente' : '🟢 Normal'}`, '',
         `## PEÇAS (${parts.length} itens)`,
-        ...parts.map(p => `• [${p.codigo || 'S/C'}] ${p.descricao} — ${p.marca} (${p.tipo}) — ${p.quantidade}x ${fmt(p.valorUnitario)} = ${fmt(p.valorUnitario * p.quantidade)}`),
-        '',
+        ...parts.map(p => `• [${p.codigo || 'S/C'}] ${p.descricao} — ${p.marca} (${p.tipo}) — ${p.quantidade}x ${fmt(p.valorUnitario)} = ${fmt(p.valorUnitario * p.quantidade)}`), '',
         `## MÃO DE OBRA (${labors.length} serviços)`,
-        ...labors.map(l => `• ${l.descricao} — ${l.horas}h × ${fmt(l.valorHora)} = ${fmt(l.valorHora * l.horas)}`),
-        '',
+        ...labors.map(l => `• ${l.descricao} — ${l.horas}h × ${fmt(l.valorHora)} = ${fmt(l.valorHora * l.horas)}`), '',
         `---`,
         `**Total Peças:** ${fmt(totalPecas)}`,
         `**Total Mão de Obra:** ${fmt(totalMaoObra)}`,
         `**TOTAL BRUTO:** ${fmt(totalBruto)}`,
-      ].join('\n');
+      ].filter(Boolean).join('\n');
 
       await fleet.updateStage(
         serviceOrder.id,
         'orcamento_enviado',
         'oficina',
         'Orçamento detalhado enviado para aprovação',
-        {
-          descricao_servico: descricao,
-          valor_orcamento: totalBruto,
-        }
+        { descricao_servico: descricao, valor_orcamento: totalBruto }
       );
       onSuccess();
     } catch (err) {

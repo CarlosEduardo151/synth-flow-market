@@ -943,6 +943,124 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_budget_items: {
+        Row: {
+          budget_id: string
+          codigo: string | null
+          created_at: string
+          descricao: string
+          horas: number | null
+          id: string
+          marca: string | null
+          quantidade: number
+          sort_order: number
+          tipo: string
+          tipo_peca: string | null
+          valor_hora: number | null
+          valor_total: number
+          valor_unitario: number
+        }
+        Insert: {
+          budget_id: string
+          codigo?: string | null
+          created_at?: string
+          descricao: string
+          horas?: number | null
+          id?: string
+          marca?: string | null
+          quantidade?: number
+          sort_order?: number
+          tipo?: string
+          tipo_peca?: string | null
+          valor_hora?: number | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Update: {
+          budget_id?: string
+          codigo?: string | null
+          created_at?: string
+          descricao?: string
+          horas?: number | null
+          id?: string
+          marca?: string | null
+          quantidade?: number
+          sort_order?: number
+          tipo?: string
+          tipo_peca?: string | null
+          valor_hora?: number | null
+          valor_total?: number
+          valor_unitario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_budget_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_budgets: {
+        Row: {
+          comissao_pct: number
+          created_at: string
+          customer_product_id: string
+          id: string
+          laudo_tecnico: string | null
+          observacoes: string | null
+          service_order_id: string
+          status: string
+          total_bruto: number
+          total_liquido: number
+          total_mao_de_obra: number
+          total_pecas: number
+          updated_at: string
+          urgencia: string
+        }
+        Insert: {
+          comissao_pct?: number
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          laudo_tecnico?: string | null
+          observacoes?: string | null
+          service_order_id: string
+          status?: string
+          total_bruto?: number
+          total_liquido?: number
+          total_mao_de_obra?: number
+          total_pecas?: number
+          updated_at?: string
+          urgencia?: string
+        }
+        Update: {
+          comissao_pct?: number
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          laudo_tecnico?: string | null
+          observacoes?: string | null
+          service_order_id?: string
+          status?: string
+          total_bruto?: number
+          total_liquido?: number
+          total_mao_de_obra?: number
+          total_pecas?: number
+          updated_at?: string
+          urgencia?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_budgets_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_calls: {
         Row: {
           caller_name: string
