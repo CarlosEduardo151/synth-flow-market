@@ -1634,7 +1634,7 @@ const GestaoFrotasOficinasSystem = () => {
   }
 
   // ─── OFICINA PORTAL ───
-  return <OficinaPortal onSwitchRole={() => setRole('select')} />;
+  return <OficinaPortal onSwitchRole={() => setRole('select')} fleet={fleet} customerProductId={customerProductId} />;
 };
 
 export default GestaoFrotasOficinasSystem;
