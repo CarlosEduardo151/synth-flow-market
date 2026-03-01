@@ -107,10 +107,11 @@ const GestaoFrotasOficinasSystem = () => {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-2">
                 <Zap className="w-8 h-8 text-primary" />
               </div>
-              <h1 className="text-3xl font-bold text-foreground">Bem-vindo à NovaLink</h1>
+              <h1 className="text-3xl font-bold text-foreground">Bem-vindo à Auditt</h1>
               <p className="text-muted-foreground text-lg max-w-md mx-auto">
-                Selecione seu perfil para acessar o painel correto
+                A inteligência que audita sua frota e acelera seu caixa.
               </p>
+              <p className="text-sm text-muted-foreground">Selecione seu perfil para acessar o painel correto</p>
             </div>
             <div className="grid md:grid-cols-2 gap-6">
               <button onClick={() => setRole('frota')} className="group relative p-8 rounded-2xl border-2 border-border bg-card hover:border-primary/50 hover:shadow-lg transition-all duration-300 text-left">
@@ -1092,8 +1093,8 @@ const GestaoFrotasOficinasSystem = () => {
               <Truck className="w-4.5 h-4.5 text-primary" />
             </div>
             <div>
-              <p className="font-semibold text-foreground text-sm leading-none">NovaLink</p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Gestor de Frota</p>
+              <p className="font-semibold text-foreground text-sm leading-none">Auditt</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Gestão de Frotas</p>
             </div>
           </div>
         </div>

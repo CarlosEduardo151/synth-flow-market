@@ -393,8 +393,9 @@ export default function FleetOnboardingPage() {
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-lg space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Bem-vindo à NovaLink</h1>
-            <p className="text-muted-foreground">Como você quer usar a plataforma?</p>
+            <h1 className="text-3xl font-bold text-foreground">Bem-vindo à Auditt</h1>
+            <p className="text-muted-foreground">A inteligência que audita sua frota e acelera seu caixa.</p>
+            <p className="text-sm text-muted-foreground">Como você quer usar a plataforma?</p>
           </div>
           <div className="grid gap-4">
             <button
@@ -550,7 +551,7 @@ export default function FleetOnboardingPage() {
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
             <Banknote className="w-4 h-4 text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-foreground">
-              A NovaLink retém <strong>15%</strong> como taxa de intermediação. Você recebe <strong>85%</strong> do valor bruto dos serviços via depósito automático D+1.
+              A Auditt retém <strong>15%</strong> como taxa de intermediação. Você recebe <strong>85%</strong> do valor bruto dos serviços via depósito automático D+1.
             </p>
           </div>
           <div className="space-y-1.5">
@@ -611,7 +612,7 @@ export default function FleetOnboardingPage() {
           <div className="bg-muted/30 border border-border rounded-lg p-3 flex items-start gap-2">
             <Shield className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground">
-              Sua oficina será validada manualmente pela equipe NovaLink antes de aparecer para as frotas. Isso garante segurança para todos.
+              Sua oficina será validada manualmente pela equipe Auditt antes de aparecer para as frotas. Isso garante segurança para todos.
             </p>
           </div>
           <FileUploadBox
@@ -912,7 +913,7 @@ export default function FleetOnboardingPage() {
                 variant="outline"
                 className="w-full gap-2"
                 onClick={() => {
-                  const text = encodeURIComponent(`Acesse o app NovaLink para check-in dos veículos: ${inviteLink}`);
+                  const text = encodeURIComponent(`Acesse o app Auditt para check-in dos veículos: ${inviteLink}`);
                   window.open(`https://wa.me/?text=${text}`, '_blank');
                 }}
               >
