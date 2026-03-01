@@ -173,6 +173,14 @@ const AdminDashboard = () => {
       link: '/admin/engines',
       color: 'bg-cyan-600',
       stats: 'Engines'
+    },
+    {
+      title: 'Oficinas Parceiras',
+      description: 'Analisar, aprovar ou rejeitar cadastros',
+      icon: Settings,
+      link: '/admin/workshop-review',
+      color: 'bg-orange-500',
+      stats: 'Análise'
     }
   ];
 
