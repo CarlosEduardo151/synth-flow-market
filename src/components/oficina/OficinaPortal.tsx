@@ -21,7 +21,7 @@ import {
   Activity, Target, ArrowUpRight, ArrowDownRight, Menu,
   LayoutDashboard, ClipboardList, UserCheck, ShieldCheck,
   ChevronDown, Eye, MoreHorizontal, Download, Filter,
-  MessageCircle, Phone, Truck
+  MessageCircle, Phone, Truck, Sun, Moon
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -305,10 +305,12 @@ function TableRow({ cols, header }: { cols: React.ReactNode[]; header?: boolean 
   );
 }
 
-export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: { 
+export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLight, toggleFleetTheme }: { 
   onSwitchRole: () => void;
   fleet?: ReturnType<typeof useFleetData>;
   customerProductId?: string | null;
+  fleetLight?: boolean;
+  toggleFleetTheme?: () => void;
 }) {
   const [view, setView] = useState<OficinaView>('home');
   const [placaInput, setPlacaInput] = useState('');
@@ -407,7 +409,7 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
             <Wrench className="w-4.5 h-4.5 text-primary" />
           </div>
           <div>
-            <p className="font-semibold text-foreground text-sm leading-none">NovaLink</p>
+            <p className="font-semibold text-foreground text-sm leading-none">Auditt</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">Portal da Oficina</p>
           </div>
         </div>
@@ -784,7 +786,7 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
                 {orcamentoItems.length > 0 && (
                   <div className="pt-3 border-t border-border/40 space-y-2">
                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total bruto</span><span className="font-semibold text-foreground">{fmt(totalOrcamento)}</span></div>
-                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Comissão NovaLink (15%)</span><span className="text-red-500 font-medium">-{fmt(totalOrcamento * 0.15)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-muted-foreground">Comissão Auditt (15%)</span><span className="text-red-500 font-medium">-{fmt(totalOrcamento * 0.15)}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-muted-foreground">Valor líquido</span><span className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">{fmt(totalOrcamento * 0.85)}</span></div>
                     <Button className="w-full h-11 mt-2 gap-2"><Send className="w-4 h-4" /> Enviar para Aprovação</Button>
                   </div>
@@ -1345,8 +1347,10 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
   }
 
   // ══════════════ LAYOUT ══════════════
+  const fleetThemeClass = fleetLight ? 'fleet-theme-light' : 'fleet-theme';
+
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className={`min-h-screen bg-background flex ${fleetThemeClass}`}>
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
         <SidebarNav />
@@ -1367,6 +1371,11 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId }: {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {toggleFleetTheme && (
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={toggleFleetTheme} title={fleetLight ? 'Modo escuro' : 'Modo claro'}>
+                {fleetLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><Bell className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><Download className="w-4 h-4" /></Button>
           </div>
