@@ -2,8 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ScanLine, Lock, Eye, EyeOff, Server, Fingerprint } from 'lucide-react';
+import { Shield, ScanLine, Lock, Eye, EyeOff, Server, Fingerprint, ChevronLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
 
 // ─── Helpers ──────────────────────────────────────────────
 function formatCNPJ(v: string) {
@@ -32,51 +36,6 @@ function generateSessionId() {
     .slice(0, -1);
 }
 
-// ─── Mesh Gradient Background ─────────────────────────────
-function MeshBackground() {
-  return (
-    <div className="fixed inset-0 overflow-hidden" style={{ background: '#00203F' }}>
-      {/* Animated radial blobs */}
-      <div
-        className="absolute w-[800px] h-[800px] rounded-full opacity-30"
-        style={{
-          background: 'radial-gradient(circle, #004E92 0%, transparent 70%)',
-          top: '-10%',
-          right: '-10%',
-          animation: 'meshFloat1 18s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-[600px] h-[600px] rounded-full opacity-20"
-        style={{
-          background: 'radial-gradient(circle, #004E92 0%, transparent 70%)',
-          bottom: '-15%',
-          left: '-5%',
-          animation: 'meshFloat2 22s ease-in-out infinite',
-        }}
-      />
-      <div
-        className="absolute w-[500px] h-[500px] rounded-full opacity-15"
-        style={{
-          background: 'radial-gradient(circle, #D4AF37 0%, transparent 70%)',
-          top: '40%',
-          left: '50%',
-          animation: 'meshFloat3 25s ease-in-out infinite',
-        }}
-      />
-      {/* Grid overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            'linear-gradient(rgba(212,175,55,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(212,175,55,0.3) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }}
-      />
-    </div>
-  );
-}
-
 // ─── Scanning Animation ───────────────────────────────────
 function ScanningOverlay({ label }: { label: string }) {
   return (
@@ -84,44 +43,31 @@ function ScanningOverlay({ label }: { label: string }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-4"
-      style={{
-        background: 'rgba(0, 32, 63, 0.92)',
-        backdropFilter: 'blur(20px)',
-        borderRadius: 'inherit',
-      }}
+      className="flex flex-col items-center justify-center gap-6 py-12"
     >
-      {/* Scan line */}
-      <div className="relative w-32 h-32">
-        <div
-          className="absolute inset-0 border-2 rounded-lg"
-          style={{ borderColor: '#D4AF37' }}
-        />
+      <div className="relative w-24 h-24">
+        <div className="absolute inset-0 border-2 border-primary rounded-xl" />
         <motion.div
-          className="absolute left-0 right-0 h-0.5"
-          style={{ background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)' }}
+          className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
           animate={{ top: ['0%', '100%', '0%'] }}
           transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
         />
-        <ScanLine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12" style={{ color: '#D4AF37' }} />
+        <ScanLine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 text-primary" />
       </div>
       <motion.p
-        className="text-sm font-light tracking-[0.3em] uppercase"
-        style={{ color: '#D4AF37' }}
+        className="text-sm font-light tracking-[0.2em] uppercase text-primary"
         animate={{ opacity: [0.5, 1, 0.5] }}
         transition={{ duration: 1.5, repeat: Infinity }}
       >
         {label}
       </motion.p>
-      {/* Progress dots */}
-      <div className="flex gap-2">
+      <div className="flex gap-1.5">
         {[0, 1, 2, 3, 4].map(i => (
           <motion.div
             key={i}
-            className="w-2 h-2 rounded-full"
-            style={{ background: '#D4AF37' }}
+            className="w-2 h-2 rounded-full bg-primary"
             animate={{ opacity: [0.2, 1, 0.2] }}
-            transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+            transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
           />
         ))}
       </div>
@@ -143,8 +89,6 @@ export default function AudittAccessPortal() {
   const [email, setEmail] = useState('');
 
   const sessionId = useMemo(generateSessionId, []);
-
-  // Redirect only after a successful login from this portal
   const [justLoggedIn, setJustLoggedIn] = useState(false);
 
   useEffect(() => {
@@ -162,7 +106,6 @@ export default function AudittAccessPortal() {
       });
       return;
     }
-    // Start scanning animation
     setStep('scanning');
     setTimeout(() => setStep('password'), 2800);
   };
@@ -182,393 +125,242 @@ export default function AudittAccessPortal() {
     setLoading(false);
   };
 
-  // ── Asymmetric card style ────────────────────
-  const cardStyle: React.CSSProperties = {
-    borderRadius: '40px 12px 40px 12px',
-    background: 'rgba(0, 32, 63, 0.55)',
-    backdropFilter: 'blur(24px)',
-    WebkitBackdropFilter: 'blur(24px)',
-    border: '1px solid rgba(212, 175, 55, 0.15)',
-    boxShadow: '0 30px 80px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.05)',
-  };
-
-  const inputStyle: React.CSSProperties = {
-    borderRadius: '16px 6px 16px 6px',
-    background: 'rgba(0, 78, 146, 0.15)',
-    border: '1px solid rgba(212, 175, 55, 0.2)',
-    color: '#fff',
-    padding: '14px 16px',
-    fontSize: '15px',
-    fontWeight: 300,
-    letterSpacing: '0.05em',
-    outline: 'none',
-    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-    width: '100%',
-  };
-
   return (
-    <>
-      <style>{`
-        @keyframes meshFloat1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-60px, 40px) scale(1.1); }
-          66% { transform: translate(30px, -50px) scale(0.95); }
-        }
-        @keyframes meshFloat2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(50px, -30px) scale(1.08); }
-          66% { transform: translate(-40px, 60px) scale(0.92); }
-        }
-        @keyframes meshFloat3 {
-          0%, 100% { transform: translate(-50%, 0) scale(1); }
-          50% { transform: translate(-50%, -40px) scale(1.15); }
-        }
-        @keyframes borderRun {
-          0% { background-position: 0% 50%; }
-          100% { background-position: 200% 50%; }
-        }
-        .auditt-input:focus {
-          border-color: #D4AF37 !important;
-          box-shadow: 0 0 20px rgba(212, 175, 55, 0.25), inset 0 0 20px rgba(212, 175, 55, 0.05) !important;
-        }
-        .auditt-input::placeholder {
-          color: rgba(255, 255, 255, 0.3);
-          font-weight: 300;
-        }
-        .auditt-btn-auth {
-          position: relative;
-          overflow: hidden;
-          border: none;
-          padding: 14px 32px;
-          font-size: 15px;
-          font-weight: 700;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          color: #00203F;
-          background: linear-gradient(135deg, #D4AF37, #FFD700, #D4AF37);
-          border-radius: 16px 6px 16px 6px;
-          cursor: pointer;
-          transition: all 0.3s ease;
-          width: 100%;
-        }
-        .auditt-btn-auth::before {
-          content: '';
-          position: absolute;
-          top: -2px; left: -2px; right: -2px; bottom: -2px;
-          background: linear-gradient(90deg, transparent, rgba(255,215,0,0.8), transparent, rgba(212,175,55,0.6), transparent);
-          background-size: 200% 100%;
-          border-radius: inherit;
-          z-index: -1;
-          animation: borderRun 2s linear infinite;
-        }
-        .auditt-btn-auth:hover {
-          transform: translateY(-2px);
-          box-shadow: 0 8px 30px rgba(212, 175, 55, 0.4);
-        }
-        .auditt-btn-auth:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-          transform: none;
-        }
-        .doc-toggle {
-          padding: 8px 20px;
-          font-size: 12px;
-          font-weight: 600;
-          letter-spacing: 0.15em;
-          text-transform: uppercase;
-          border: 1px solid rgba(212, 175, 55, 0.3);
-          background: transparent;
-          color: rgba(255, 255, 255, 0.5);
-          cursor: pointer;
-          transition: all 0.3s ease;
-        }
-        .doc-toggle.active {
-          background: rgba(212, 175, 55, 0.15);
-          color: #D4AF37;
-          border-color: #D4AF37;
-        }
-        .doc-toggle:first-child { border-radius: 12px 4px 4px 12px; }
-        .doc-toggle:last-child { border-radius: 4px 12px 12px 4px; }
-      `}</style>
-
-      <MeshBackground />
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Animated background */}
+      <div className="absolute inset-0 bg-tech-lines opacity-30" />
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-primary/5 blur-[120px]" />
+      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-accent/5 blur-[100px]" />
 
       <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-4 py-8">
-        {/* ── Header ─────────────────────────────── */}
+        {/* Header */}
         <motion.div
-          className="text-center mb-8"
-          initial={{ opacity: 0, y: -30, filter: 'blur(10px)' }}
-          animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="text-center mb-10"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
         >
-          <h1
-            className="text-5xl md:text-6xl tracking-[0.2em] mb-2"
-            style={{ color: '#fff', fontWeight: 800 }}
-          >
-            AUDITT
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight mb-2">
+            <span className="gradient-text">AUDITT</span>
           </h1>
-          <p
-            className="text-sm tracking-[0.35em] uppercase"
-            style={{ color: '#D4AF37', fontWeight: 300 }}
-          >
+          <p className="text-sm tracking-[0.25em] uppercase text-muted-foreground font-light">
             Intelligence Logistics
           </p>
         </motion.div>
 
-        {/* ── Card ────────────────────────────────── */}
+        {/* Card */}
         <motion.div
-          className="w-full max-w-md relative"
-          style={cardStyle}
-          initial={{ opacity: 0, scale: 0.95, filter: 'blur(12px)' }}
-          animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
-          transition={{ duration: 0.9, delay: 0.2, ease: 'easeOut' }}
+          className="w-full max-w-md"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
         >
-          <div className="p-8 md:p-10">
-            {/* Shield icon */}
-            <div className="flex justify-center mb-6">
-              <div
-                className="w-16 h-16 flex items-center justify-center"
-                style={{
-                  borderRadius: '20px 8px 20px 8px',
-                  background: 'rgba(212, 175, 55, 0.1)',
-                  border: '1px solid rgba(212, 175, 55, 0.25)',
-                }}
-              >
-                <Shield className="w-8 h-8" style={{ color: '#D4AF37' }} />
+          <Card className="glass border-border/30 shadow-[var(--shadow-card)]">
+            <CardContent className="p-8">
+              {/* Shield icon */}
+              <div className="flex justify-center mb-6">
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  <Shield className="w-7 h-7 text-primary" />
+                </div>
               </div>
-            </div>
 
-            <h2
-              className="text-center text-lg tracking-[0.15em] uppercase mb-1"
-              style={{ color: '#fff', fontWeight: 600 }}
-            >
-              Acesso Blindado
-            </h2>
-            <p
-              className="text-center text-xs tracking-wider mb-8"
-              style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 300 }}
-            >
-              {step === 'credential'
-                ? 'Identifique-se para iniciar o escaneamento'
-                : step === 'scanning'
-                ? 'Processando credenciais...'
-                : 'Credencial verificada. Insira sua senha.'}
-            </p>
+              <h2 className="text-center text-lg font-semibold tracking-wide mb-1 text-foreground">
+                Acesso Blindado
+              </h2>
+              <p className="text-center text-sm text-muted-foreground mb-8">
+                {step === 'credential'
+                  ? 'Identifique-se para iniciar o escaneamento'
+                  : step === 'scanning'
+                  ? 'Processando credenciais...'
+                  : 'Credencial verificada. Insira sua senha.'}
+              </p>
 
-            <AnimatePresence mode="wait">
-              {/* ── Step 1: Document input ──── */}
-              {step === 'credential' && (
-                <motion.div
-                  key="credential"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: 20 }}
-                  transition={{ duration: 0.4 }}
-                  className="space-y-5"
-                >
-                  {/* Toggle CNPJ / CPF */}
-                  <div className="flex justify-center gap-0">
-                    <button
-                      className={`doc-toggle ${docType === 'cnpj' ? 'active' : ''}`}
-                      onClick={() => { setDocType('cnpj'); setDocValue(''); }}
-                    >
-                      Oficina (CNPJ)
-                    </button>
-                    <button
-                      className={`doc-toggle ${docType === 'cpf' ? 'active' : ''}`}
-                      onClick={() => { setDocType('cpf'); setDocValue(''); }}
-                    >
-                      Gestor (CPF)
-                    </button>
-                  </div>
-
-                  <div>
-                    <label
-                      className="block text-xs tracking-[0.2em] uppercase mb-2"
-                      style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}
-                    >
-                      {docType === 'cnpj' ? 'CNPJ da Oficina' : 'CPF do Gestor'}
-                    </label>
-                    <div className="relative">
-                      <Fingerprint
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
-                        style={{ color: 'rgba(212, 175, 55, 0.5)' }}
-                      />
-                      <input
-                        className="auditt-input pl-11"
-                        style={inputStyle}
-                        placeholder={docType === 'cnpj' ? '00.000.000/0000-00' : '000.000.000-00'}
-                        value={docValue}
-                        onChange={e => {
-                          const formatted = docType === 'cnpj' ? formatCNPJ(e.target.value) : formatCPF(e.target.value);
-                          setDocValue(formatted);
-                        }}
-                        onKeyDown={e => e.key === 'Enter' && handleDocSubmit()}
-                      />
-                    </div>
-                  </div>
-
-                  <button className="auditt-btn-auth" onClick={handleDocSubmit}>
-                    <span className="flex items-center justify-center gap-2">
-                      <ScanLine className="w-4 h-4" />
-                      Escanear Credenciais
-                    </span>
-                  </button>
-                </motion.div>
-              )}
-
-              {/* ── Step 2: Scanning ────────── */}
-              {step === 'scanning' && (
-                <ScanningOverlay
-                  key="scanning"
-                  label="Verificando na base Auditt"
-                />
-              )}
-
-              {/* ── Step 3: Password ─────────── */}
-              {step === 'password' && (
-                <motion.form
-                  key="password"
-                  onSubmit={handleLogin}
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ duration: 0.4 }}
-                  className="space-y-5"
-                >
-                  {/* Verified badge */}
-                  <div
-                    className="flex items-center gap-3 p-3"
-                    style={{
-                      borderRadius: '12px 4px 12px 4px',
-                      background: 'rgba(212, 175, 55, 0.08)',
-                      border: '1px solid rgba(212, 175, 55, 0.2)',
-                    }}
+              <AnimatePresence mode="wait">
+                {/* Step 1: Document input */}
+                {step === 'credential' && (
+                  <motion.div
+                    key="credential"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-5"
                   >
-                    <Shield className="w-5 h-5 flex-shrink-0" style={{ color: '#D4AF37' }} />
-                    <div>
-                      <p className="text-xs font-semibold" style={{ color: '#D4AF37' }}>
-                        {docType === 'cnpj' ? 'CNPJ' : 'CPF'} Verificado
-                      </p>
-                      <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                        {docValue}
-                      </p>
+                    {/* Toggle CNPJ / CPF */}
+                    <div className="flex justify-center">
+                      <div className="inline-flex rounded-lg border border-border overflow-hidden">
+                        <button
+                          type="button"
+                          className={`px-5 py-2 text-xs font-semibold tracking-wider uppercase transition-colors ${
+                            docType === 'cnpj'
+                              ? 'bg-primary/15 text-primary border-r border-border'
+                              : 'bg-transparent text-muted-foreground border-r border-border hover:bg-muted/50'
+                          }`}
+                          onClick={() => { setDocType('cnpj'); setDocValue(''); }}
+                        >
+                          Oficina (CNPJ)
+                        </button>
+                        <button
+                          type="button"
+                          className={`px-5 py-2 text-xs font-semibold tracking-wider uppercase transition-colors ${
+                            docType === 'cpf'
+                              ? 'bg-primary/15 text-primary'
+                              : 'bg-transparent text-muted-foreground hover:bg-muted/50'
+                          }`}
+                          onClick={() => { setDocType('cpf'); setDocValue(''); }}
+                        >
+                          Gestor (CPF)
+                        </button>
+                      </div>
                     </div>
-                  </div>
 
-                  <div>
-                    <label
-                      className="block text-xs tracking-[0.2em] uppercase mb-2"
-                      style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}
-                    >
-                      E-mail de acesso
-                    </label>
-                    <input
-                      className="auditt-input"
-                      style={inputStyle}
-                      type="email"
-                      placeholder="operador@oficina.com"
-                      value={email}
-                      onChange={e => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs tracking-wider uppercase text-muted-foreground">
+                        {docType === 'cnpj' ? 'CNPJ da Oficina' : 'CPF do Gestor'}
+                      </Label>
+                      <div className="relative">
+                        <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          className="pl-10"
+                          placeholder={docType === 'cnpj' ? '00.000.000/0000-00' : '000.000.000-00'}
+                          value={docValue}
+                          onChange={e => {
+                            const formatted = docType === 'cnpj' ? formatCNPJ(e.target.value) : formatCPF(e.target.value);
+                            setDocValue(formatted);
+                          }}
+                          onKeyDown={e => e.key === 'Enter' && handleDocSubmit()}
+                        />
+                      </div>
+                    </div>
 
-                  <div>
-                    <label
-                      className="block text-xs tracking-[0.2em] uppercase mb-2"
-                      style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}
-                    >
-                      Senha Segura
-                    </label>
-                    <div className="relative">
-                      <Lock
-                        className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4"
-                        style={{ color: 'rgba(212, 175, 55, 0.5)' }}
-                      />
-                      <input
-                        className="auditt-input pl-11 pr-11"
-                        style={inputStyle}
-                        type={showPassword ? 'text' : 'password'}
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
+                    <Button className="w-full" onClick={handleDocSubmit}>
+                      <ScanLine className="w-4 h-4 mr-2" />
+                      Escanear Credenciais
+                    </Button>
+                  </motion.div>
+                )}
+
+                {/* Step 2: Scanning */}
+                {step === 'scanning' && (
+                  <ScanningOverlay
+                    key="scanning"
+                    label="Verificando na base Auditt"
+                  />
+                )}
+
+                {/* Step 3: Password */}
+                {step === 'password' && (
+                  <motion.form
+                    key="password"
+                    onSubmit={handleLogin}
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-5"
+                  >
+                    {/* Verified badge */}
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/15">
+                      <Shield className="w-5 h-5 flex-shrink-0 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold text-primary">
+                          {docType === 'cnpj' ? 'CNPJ' : 'CPF'} Verificado
+                        </p>
+                        <p className="text-xs text-muted-foreground">{docValue}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs tracking-wider uppercase text-muted-foreground">
+                        E-mail de acesso
+                      </Label>
+                      <Input
+                        type="email"
+                        placeholder="operador@oficina.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
                         required
                       />
-                      <button
-                        type="button"
-                        className="absolute right-4 top-1/2 -translate-y-1/2"
-                        onClick={() => setShowPassword(!showPassword)}
-                        style={{ color: 'rgba(212, 175, 55, 0.5)' }}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
                     </div>
-                  </div>
 
-                  <button className="auditt-btn-auth" type="submit" disabled={loading}>
-                    {loading ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <motion.div
-                          className="w-4 h-4 border-2 rounded-full"
-                          style={{ borderColor: '#00203F', borderTopColor: 'transparent' }}
-                          animate={{ rotate: 360 }}
-                          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    <div className="space-y-2">
+                      <Label className="text-xs tracking-wider uppercase text-muted-foreground">
+                        Senha Segura
+                      </Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          className="pl-10 pr-10"
+                          type={showPassword ? 'text' : 'password'}
+                          placeholder="••••••••"
+                          value={password}
+                          onChange={e => setPassword(e.target.value)}
+                          required
                         />
-                        Autenticando...
-                      </span>
-                    ) : (
-                      <span className="flex items-center justify-center gap-2">
-                        <Lock className="w-4 h-4" />
-                        Autenticar
-                      </span>
-                    )}
-                  </button>
+                        <button
+                          type="button"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
 
-                  <button
-                    type="button"
-                    className="w-full text-xs text-center mt-2"
-                    style={{ color: 'rgba(255,255,255,0.3)', cursor: 'pointer', background: 'none', border: 'none' }}
-                    onClick={() => { setStep('credential'); setPassword(''); setEmail(''); }}
-                  >
-                    ← Voltar ao escaneamento
-                  </button>
-                </motion.form>
-              )}
-            </AnimatePresence>
-          </div>
+                    <Button className="w-full" type="submit" disabled={loading}>
+                      {loading ? (
+                        <>
+                          <motion.div
+                            className="w-4 h-4 border-2 border-primary-foreground border-t-transparent rounded-full mr-2"
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                          />
+                          Autenticando...
+                        </>
+                      ) : (
+                        <>
+                          <Lock className="w-4 h-4 mr-2" />
+                          Autenticar
+                        </>
+                      )}
+                    </Button>
+
+                    <button
+                      type="button"
+                      className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer"
+                      onClick={() => { setStep('credential'); setPassword(''); setEmail(''); }}
+                    >
+                      <ChevronLeft className="w-3 h-3" />
+                      Voltar ao escaneamento
+                    </button>
+                  </motion.form>
+                )}
+              </AnimatePresence>
+            </CardContent>
+          </Card>
         </motion.div>
 
-        {/* ── Footer de Segurança ──────────────── */}
+        {/* Footer */}
         <motion.div
           className="mt-8 text-center space-y-2"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 1, duration: 0.8 }}
+          transition={{ delay: 0.8, duration: 0.6 }}
         >
           <div className="flex items-center justify-center gap-2">
-            <Server className="w-3 h-3" style={{ color: '#4ade80' }} />
-            <span
-              className="text-xs tracking-wider"
-              style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 300 }}
-            >
-              Imperatriz-MA — <span style={{ color: '#4ade80' }}>Operational</span>
+            <Server className="w-3 h-3 text-green-500" />
+            <span className="text-xs tracking-wider text-muted-foreground">
+              Imperatriz-MA — <span className="text-green-500">Operational</span>
             </span>
           </div>
-          <p
-            className="text-[10px] tracking-wider"
-            style={{ color: 'rgba(255,255,255,0.2)', fontWeight: 300 }}
-          >
+          <p className="text-[10px] tracking-wider text-muted-foreground/60 font-mono">
             SESSION {sessionId}
           </p>
-          <p
-            className="text-[10px] tracking-wider"
-            style={{ color: 'rgba(255,255,255,0.15)', fontWeight: 300 }}
-          >
+          <p className="text-[10px] tracking-wider text-muted-foreground/40">
             © 2026 Auditt Tecnologia e Logística LTDA.
           </p>
         </motion.div>
       </div>
-    </>
+    </div>
   );
 }
