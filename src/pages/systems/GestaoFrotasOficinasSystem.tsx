@@ -1198,7 +1198,7 @@ const GestaoFrotasOficinasSystem = () => {
   }
 
   // ─── OFICINA PORTAL ───
-  return <OficinaPortal onSwitchRole={() => setRole('select')} fleet={fleet} customerProductId={customerProductId} />;
+  return <OficinaPortal onSwitchRole={() => setRole('select')} fleet={fleet} customerProductId={customerProductId} fleetLight={fleetLight} toggleFleetTheme={toggleFleetTheme} />;
 };
 
 export default GestaoFrotasOficinasSystem;
