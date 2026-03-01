@@ -318,6 +318,42 @@
   --shadow-button: 0 3px 12px hsl(210 80% 55% / 0.3);
 }
 
+.fleet-theme-light {
+  --background: 210 25% 97%;
+  --foreground: 220 20% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 220 20% 12%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 220 20% 12%;
+  --primary: 210 80% 50%;
+  --primary-foreground: 0 0% 100%;
+  --primary-glow: 210 80% 60%;
+  --secondary: 210 20% 93%;
+  --secondary-foreground: 220 20% 20%;
+  --muted: 210 15% 94%;
+  --muted-foreground: 215 12% 45%;
+  --accent: 175 60% 40%;
+  --accent-foreground: 0 0% 100%;
+  --success: 150 60% 38%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 90% 50%;
+  --warning-foreground: 220 20% 10%;
+  --destructive: 0 70% 50%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 214 25% 88%;
+  --input: 214 25% 90%;
+  --ring: 210 80% 50%;
+  --gradient-primary: linear-gradient(135deg, hsl(210 80% 50%), hsl(175 60% 40%));
+  --gradient-background: linear-gradient(180deg, hsl(210 25% 97%), hsl(210 20% 94%));
+  --gradient-card: linear-gradient(135deg, hsl(0 0% 100% / 0.9), hsl(210 20% 96% / 0.8));
+  --gradient-hero: linear-gradient(135deg, hsl(210 80% 50% / 0.1), hsl(175 60% 40% / 0.06));
+  --shadow-glow: 0 0 30px hsl(210 80% 50% / 0.12);
+  --shadow-card: 0 6px 24px hsl(220 30% 50% / 0.08);
+  --shadow-button: 0 3px 12px hsl(210 80% 50% / 0.2);
+  color: hsl(220 20% 12%);
+  background: hsl(210 25% 97%);
+}
+
 /* Estilos específicos por dispositivo */
 [data-device="mobile"] {
   font-size: 14px;
