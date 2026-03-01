@@ -140,6 +140,13 @@ const GestaoFrotasOficinasSystem = () => {
                 </div>
               </button>
             </div>
+            <div className="text-center pt-4">
+              <p className="text-muted-foreground text-sm mb-2">Primeiro acesso?</p>
+              <Button variant="outline" size="lg" onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding')} className="gap-2">
+                <UserCheck className="w-4 h-4" />
+                Cadastre-se aqui
+              </Button>
+            </div>
           </div>
         </div>
         <Footer />
