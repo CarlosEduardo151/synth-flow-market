@@ -13,8 +13,9 @@ import { toast } from '@/components/ui/sonner';
 import {
   Wrench, Truck, ArrowLeft, ArrowRight, Check, Upload, Building2,
   Banknote, Camera, Shield, Search, Plus, Trash2, Copy, Share2,
-  FileSpreadsheet
+  FileSpreadsheet, ScanLine, Brain, Image
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // ─── Types ───
 type UserType = null | 'oficina' | 'frota';
@@ -160,6 +161,8 @@ export default function FleetOnboardingPage() {
     { id: '1', placa: '', modelo: '', ano: '' }
   ]);
   const [inviteLink, setInviteLink] = useState('');
+  const [veroScanning, setVeroScanning] = useState(false);
+  const [veroFile, setVeroFile] = useState<File | null>(null);
 
   // ─── CNPJ Lookup (BrasilAPI) ───
   const buscarCnpj = async (cnpj: string, type: 'oficina' | 'frota') => {
@@ -326,6 +329,46 @@ export default function FleetOnboardingPage() {
   const removeVeiculo = (id: string) => setVeiculos(prev => prev.filter(v => v.id !== id));
   const updateVeiculo = (id: string, field: keyof VeiculoForm, value: string) =>
     setVeiculos(prev => prev.map(v => v.id === id ? { ...v, [field]: value } : v));
+
+  // ─── VERO 1.0 Scan ───
+  const handleVeroScan = async (file: File) => {
+    setVeroScanning(true);
+    try {
+      const reader = new FileReader();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('vero-scan', {
+        body: { image: base64, mode: 'vehicle_rear' },
+      });
+      if (error) throw error;
+
+      if (data?.placa) {
+        const newV: VeiculoForm = {
+          id: Date.now().toString(),
+          placa: data.placa || '',
+          modelo: data.modelo ? `${data.marca || ''} ${data.modelo}`.trim() : '',
+          ano: data.ano_modelo || data.ano || '',
+        };
+        setVeiculos(prev => {
+          const empty = prev.length === 1 && !prev[0].placa;
+          return empty ? [newV] : [...prev, newV];
+        });
+        toast.success(`VERO 1.0 identificou: ${data.placa}`);
+      } else {
+        toast.error('VERO não conseguiu identificar o veículo. Tente outra foto.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Erro no escaneamento VERO 1.0');
+    } finally {
+      setVeroScanning(false);
+      setVeroFile(null);
+    }
+  };
 
   // ─── Progress calc ───
   const getProgress = () => {
@@ -699,58 +742,143 @@ export default function FleetOnboardingPage() {
         <StepLayout
           {...stepLayoutProps}
           title="Cadastrar Veículos"
-          subtitle="Adicione seus veículos um por um ou importe via planilha"
+          subtitle="Use o VERO 1.0 para escanear ou cadastre manualmente"
           onBack={() => setFrotaStep('frota')}
           onNext={submitFrota}
           nextLabel="Salvar e Continuar"
           nextDisabled={!veiculos.some(v => v.placa.trim())}
         >
-          <div className="space-y-3">
-            {veiculos.map((v, i) => (
-              <div key={v.id} className="flex items-end gap-2">
-                <div className="flex-1 grid grid-cols-3 gap-2">
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs">Placa</Label>}
-                    <Input
-                      placeholder="ABC-1D23"
-                      value={v.placa}
-                      onChange={e => updateVeiculo(v.id, 'placa', e.target.value)}
-                      className="uppercase"
-                    />
+          <Tabs defaultValue="vero" className="w-full">
+            <TabsList className="w-full grid grid-cols-2">
+              <TabsTrigger value="vero" className="gap-2">
+                <Brain className="w-4 h-4" /> VERO 1.0
+              </TabsTrigger>
+              <TabsTrigger value="manual" className="gap-2">
+                <Plus className="w-4 h-4" /> Manual
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="vero" className="space-y-4 mt-4">
+              <Card className="border-primary/20 bg-primary/5">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Brain className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-foreground text-sm">IA VERO 1.0</p>
+                      <p className="text-xs text-muted-foreground">Tire uma foto da traseira do veículo</p>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs">Modelo</Label>}
-                    <Input
-                      placeholder="Scania R450"
-                      value={v.modelo}
-                      onChange={e => updateVeiculo(v.id, 'modelo', e.target.value)}
+
+                  <label className={`flex flex-col items-center justify-center h-32 rounded-lg border-2 border-dashed transition-colors cursor-pointer ${
+                    veroScanning ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 bg-muted/20'
+                  }`}>
+                    {veroScanning ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <ScanLine className="w-8 h-8 text-primary animate-pulse" />
+                        <span className="text-sm font-medium text-primary">VERO analisando...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <Camera className="w-8 h-8 text-muted-foreground mb-1" />
+                        <span className="text-xs text-muted-foreground">Clique para tirar foto ou enviar imagem</span>
+                        <span className="text-[10px] text-muted-foreground mt-1">Placa, modelo e ano serão preenchidos automaticamente</span>
+                      </>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      disabled={veroScanning}
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) {
+                          setVeroFile(f);
+                          handleVeroScan(f);
+                        }
+                      }}
                     />
+                  </label>
+
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <ScanLine className="w-3 h-3" />
+                    <span>Escaneie quantos veículos quiser — eles aparecem na lista abaixo</span>
                   </div>
-                  <div className="space-y-1">
-                    {i === 0 && <Label className="text-xs">Ano</Label>}
-                    <Input
-                      placeholder="2024"
-                      value={v.ano}
-                      onChange={e => updateVeiculo(v.id, 'ano', e.target.value)}
-                      maxLength={4}
-                    />
-                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Vehicle list from scans */}
+              {veiculos.some(v => v.placa) && (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Veículos identificados ({veiculos.filter(v => v.placa).length})</p>
+                  {veiculos.filter(v => v.placa).map((v) => (
+                    <div key={v.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border">
+                      <div className="flex-1 grid grid-cols-3 gap-2 text-sm">
+                        <Input value={v.placa} onChange={e => updateVeiculo(v.id, 'placa', e.target.value)} className="uppercase h-8 text-xs" />
+                        <Input value={v.modelo} onChange={e => updateVeiculo(v.id, 'modelo', e.target.value)} className="h-8 text-xs" />
+                        <Input value={v.ano} onChange={e => updateVeiculo(v.id, 'ano', e.target.value)} className="h-8 text-xs" maxLength={4} />
+                      </div>
+                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeVeiculo(v.id)}>
+                        <Trash2 className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-                {veiculos.length > 1 && (
-                  <Button variant="ghost" size="icon" onClick={() => removeVeiculo(v.id)}>
-                    <Trash2 className="w-4 h-4 text-muted-foreground" />
-                  </Button>
-                )}
+              )}
+            </TabsContent>
+
+            <TabsContent value="manual" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                {veiculos.map((v, i) => (
+                  <div key={v.id} className="flex items-end gap-2">
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        {i === 0 && <Label className="text-xs">Placa</Label>}
+                        <Input
+                          placeholder="ABC-1D23"
+                          value={v.placa}
+                          onChange={e => updateVeiculo(v.id, 'placa', e.target.value)}
+                          className="uppercase"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {i === 0 && <Label className="text-xs">Modelo</Label>}
+                        <Input
+                          placeholder="Scania R450"
+                          value={v.modelo}
+                          onChange={e => updateVeiculo(v.id, 'modelo', e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        {i === 0 && <Label className="text-xs">Ano</Label>}
+                        <Input
+                          placeholder="2024"
+                          value={v.ano}
+                          onChange={e => updateVeiculo(v.id, 'ano', e.target.value)}
+                          maxLength={4}
+                        />
+                      </div>
+                    </div>
+                    {veiculos.length > 1 && (
+                      <Button variant="ghost" size="icon" onClick={() => removeVeiculo(v.id)}>
+                        <Trash2 className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={addVeiculo} className="gap-2 text-sm">
-              <Plus className="w-4 h-4" /> Adicionar veículo
-            </Button>
-          </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={addVeiculo} className="gap-2 text-sm">
+                  <Plus className="w-4 h-4" /> Adicionar veículo
+                </Button>
+              </div>
+            </TabsContent>
+          </Tabs>
+
           <p className="text-xs text-muted-foreground">
-            Você pode cadastrar mais veículos depois pelo painel principal.
+            Você pode cadastrar mais veículos depois pelo painel principal com VERO 1.0.
           </p>
         </StepLayout>
       );
