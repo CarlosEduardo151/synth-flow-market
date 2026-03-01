@@ -26,7 +26,7 @@ import {
   Car, Building2, Zap, BarChart3,
   Download, MessageCircle, Wallet,
   X, Check,
-  Bell,
+  Bell, Sun, Moon,
   ChevronDown,
   CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck,
   Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles, Edit
@@ -64,6 +64,7 @@ const GestaoFrotasOficinasSystem = () => {
   const [searchVeiculos, setSearchVeiculos] = useState('');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<FleetVehicle | null>(null);
+  const [fleetLight, setFleetLight] = useState(() => localStorage.getItem('fleet-theme-mode') === 'light');
   const isMobile = useIsMobile();
 
   // Product access & fleet data
@@ -78,6 +79,15 @@ const GestaoFrotasOficinasSystem = () => {
   const [cadastroMode, setCadastroMode] = useState<'traseira' | 'documento' | 'manual'>('traseira');
   const [cadastroForm, setCadastroForm] = useState({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
 
+  const fleetThemeClass = fleetLight ? 'fleet-theme-light' : 'fleet-theme';
+  const toggleFleetTheme = () => {
+    setFleetLight(prev => {
+      const next = !prev;
+      localStorage.setItem('fleet-theme-mode', next ? 'light' : 'dark');
+      return next;
+    });
+  };
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -89,7 +99,7 @@ const GestaoFrotasOficinasSystem = () => {
   // ─── Role Selection Screen ───
   if (role === 'select') {
     return (
-      <div className="min-h-screen bg-background fleet-theme">
+      <div className={`min-h-screen bg-background ${fleetThemeClass}`}>
         <Header />
         <div className="min-h-[80vh] flex items-center justify-center p-4">
           <div className="max-w-3xl w-full space-y-8">
@@ -1121,7 +1131,7 @@ const GestaoFrotasOficinasSystem = () => {
     );
 
     return (
-      <div className="min-h-screen bg-background flex fleet-theme">
+      <div className={`min-h-screen bg-background flex ${fleetThemeClass}`}>
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
           <FrotaSidebarNav />
@@ -1140,10 +1150,13 @@ const GestaoFrotasOficinasSystem = () => {
                 <p className="text-[11px] text-muted-foreground mt-0.5">{activeTabData?.desc}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={toggleFleetTheme}>
+                {fleetLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+              </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground relative">
                 <Bell className="w-4 h-4" />
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">{orcamentosPendentes}</span>
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive rounded-full text-[9px] text-destructive-foreground flex items-center justify-center font-bold">{orcamentosPendentes}</span>
               </Button>
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><Download className="w-4 h-4" /></Button>
             </div>
