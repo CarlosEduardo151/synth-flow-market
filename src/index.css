@@ -283,6 +283,41 @@
   --normal-border: transparent !important;
 }
 
+/* ══════ Tema Gestão de Frotas (dark automotivo) ══════ */
+.fleet-theme {
+  --background: 220 20% 7%;
+  --foreground: 210 20% 92%;
+  --card: 220 18% 11%;
+  --card-foreground: 210 20% 92%;
+  --popover: 220 18% 11%;
+  --popover-foreground: 210 20% 92%;
+  --primary: 210 80% 55%;
+  --primary-foreground: 220 20% 7%;
+  --primary-glow: 210 80% 65%;
+  --secondary: 220 15% 16%;
+  --secondary-foreground: 210 20% 85%;
+  --muted: 220 12% 14%;
+  --muted-foreground: 215 12% 55%;
+  --accent: 175 60% 50%;
+  --accent-foreground: 220 20% 7%;
+  --success: 150 60% 45%;
+  --success-foreground: 220 20% 7%;
+  --warning: 38 90% 55%;
+  --warning-foreground: 220 20% 7%;
+  --destructive: 0 70% 55%;
+  --destructive-foreground: 210 20% 95%;
+  --border: 220 15% 18%;
+  --input: 220 15% 14%;
+  --ring: 210 80% 55%;
+  --gradient-primary: linear-gradient(135deg, hsl(210 80% 55%), hsl(175 60% 50%));
+  --gradient-background: linear-gradient(180deg, hsl(220 20% 7%), hsl(220 25% 5%));
+  --gradient-card: linear-gradient(135deg, hsl(220 18% 11% / 0.9), hsl(220 20% 14% / 0.7));
+  --gradient-hero: linear-gradient(135deg, hsl(210 80% 55% / 0.15), hsl(175 60% 50% / 0.08));
+  --shadow-glow: 0 0 30px hsl(210 80% 55% / 0.2);
+  --shadow-card: 0 6px 24px hsl(220 30% 3% / 0.5);
+  --shadow-button: 0 3px 12px hsl(210 80% 55% / 0.3);
+}
+
 /* Estilos específicos por dispositivo */
 [data-device="mobile"] {
   font-size: 14px;

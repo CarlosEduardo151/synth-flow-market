@@ -89,7 +89,7 @@ const GestaoFrotasOficinasSystem = () => {
   // ─── Role Selection Screen ───
   if (role === 'select') {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background fleet-theme">
         <Header />
         <div className="min-h-[80vh] flex items-center justify-center p-4">
           <div className="max-w-3xl w-full space-y-8">
@@ -1121,7 +1121,7 @@ const GestaoFrotasOficinasSystem = () => {
     );
 
     return (
-      <div className="min-h-screen bg-background flex">
+      <div className="min-h-screen bg-background flex fleet-theme">
         {/* Desktop Sidebar */}
         <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
           <FrotaSidebarNav />

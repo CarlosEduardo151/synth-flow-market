@@ -86,7 +86,7 @@ function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, next
   loading?: boolean; steps: { key: string; label: string }[]; currentStepIdx: number; progress: number;
 }) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col fleet-theme">
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-lg mx-auto">
           <StepBar steps={steps} currentStepIdx={currentStepIdx} progress={progress} />
