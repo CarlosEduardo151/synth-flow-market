@@ -16,6 +16,7 @@ import Index from "./pages/Index";
 import CategoryPage from "./pages/CategoryPage";
 import ProductPage from "./pages/ProductPage";
 import AuthPage from "./pages/AuthPage";
+import AudittAccessPortal from "./pages/AudittAccessPortal";
 import CartPage from "./pages/CartPage";
 import CheckoutPage from "./pages/CheckoutPage";
 import PixPaymentPage from "./pages/PixPaymentPage";
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="/c/:slug" element={<CategoryPage />} />
               <Route path="/p/:slug" element={<ProductPage />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/auditt" element={<AudittAccessPortal />} />
               <Route path="/carrinho" element={<CartPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/pix-payment/:orderId" element={<PixPaymentPage />} />
