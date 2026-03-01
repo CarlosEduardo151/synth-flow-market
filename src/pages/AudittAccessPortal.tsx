@@ -144,9 +144,12 @@ export default function AudittAccessPortal() {
 
   const sessionId = useMemo(generateSessionId, []);
 
+  // Redirect only after a successful login from this portal
+  const [justLoggedIn, setJustLoggedIn] = useState(false);
+
   useEffect(() => {
-    if (user) navigate('/sistema/gestao-frotas-oficinas');
-  }, [user, navigate]);
+    if (user && justLoggedIn) navigate('/sistema/gestao-frotas-oficinas');
+  }, [user, justLoggedIn, navigate]);
 
   const handleDocSubmit = () => {
     const raw = docValue.replace(/\D/g, '');
@@ -171,6 +174,7 @@ export default function AudittAccessPortal() {
       return;
     }
     setLoading(true);
+    setJustLoggedIn(true);
     const { error } = await signIn(email, password);
     if (error) {
       toast({ title: 'Falha na autenticação', description: error.message, variant: 'destructive' });
