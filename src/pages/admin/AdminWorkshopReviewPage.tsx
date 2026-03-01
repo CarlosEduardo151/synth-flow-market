@@ -76,6 +76,7 @@ const AdminWorkshopReviewPage = () => {
   const [detailOpen, setDetailOpen] = useState(false);
   const [adminNotes, setAdminNotes] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
+  const [signedUrls, setSignedUrls] = useState<{ alvara?: string; fachada?: string }>({});
 
   useEffect(() => {
     if (!authLoading && !adminLoading) {
@@ -133,10 +134,23 @@ const AdminWorkshopReviewPage = () => {
     }
   };
 
-  const openDetail = (w: Workshop) => {
+  const openDetail = async (w: Workshop) => {
     setSelectedWorkshop(w);
     setAdminNotes(w.observacoes_admin || '');
+    setSignedUrls({});
     setDetailOpen(true);
+
+    // Generate signed URLs for private bucket files
+    const urls: { alvara?: string; fachada?: string } = {};
+    if (w.alvara_url) {
+      const { data } = await supabase.storage.from('fleet_docs').createSignedUrl(w.alvara_url, 3600);
+      if (data?.signedUrl) urls.alvara = data.signedUrl;
+    }
+    if (w.fachada_url) {
+      const { data } = await supabase.storage.from('fleet_docs').createSignedUrl(w.fachada_url, 3600);
+      if (data?.signedUrl) urls.fachada = data.signedUrl;
+    }
+    setSignedUrls(urls);
   };
 
   const filtered = workshops.filter(w => {
@@ -403,16 +417,24 @@ const AdminWorkshopReviewPage = () => {
                       </h3>
                       <div className="flex gap-4">
                         {w.alvara_url ? (
-                          <a href={w.alvara_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                            <ShieldCheck className="h-4 w-4" /> Ver Alvará
-                          </a>
+                          signedUrls.alvara ? (
+                            <a href={signedUrls.alvara} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                              <ShieldCheck className="h-4 w-4" /> Ver Alvará
+                            </a>
+                          ) : (
+                            <span className="text-sm text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3 animate-spin" /> Carregando...</span>
+                          )
                         ) : (
                           <span className="text-sm text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Alvará não enviado</span>
                         )}
                         {w.fachada_url ? (
-                          <a href={w.fachada_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
-                            <Eye className="h-4 w-4" /> Ver Fachada
-                          </a>
+                          signedUrls.fachada ? (
+                            <a href={signedUrls.fachada} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-primary hover:underline">
+                              <Eye className="h-4 w-4" /> Ver Fachada
+                            </a>
+                          ) : (
+                            <span className="text-sm text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3 animate-spin" /> Carregando...</span>
+                          )
                         ) : (
                           <span className="text-sm text-muted-foreground flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Fachada não enviada</span>
                         )}
