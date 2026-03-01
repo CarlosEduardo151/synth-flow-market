@@ -49,6 +49,73 @@ const CATEGORIAS = [
   'Motor Diesel', 'Câmbio', 'Ar Condicionado', 'Funilaria',
 ];
 
+// ─── Step Indicator (outside component to avoid remounts) ───
+function StepBar({ steps, currentStepIdx, progress }: {
+  steps: { key: string; label: string }[];
+  currentStepIdx: number;
+  progress: number;
+}) {
+  return (
+    <div className="w-full space-y-3">
+      <Progress value={progress} className="h-1.5" />
+      <div className="flex justify-between">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex flex-col items-center gap-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
+              i < currentStepIdx ? 'bg-primary border-primary text-primary-foreground' :
+              i === currentStepIdx ? 'border-primary text-primary bg-primary/10' :
+              'border-muted text-muted-foreground'
+            }`}>
+              {i < currentStepIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
+            </div>
+            <span className={`text-[10px] font-medium hidden sm:block ${i <= currentStepIdx ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {s.label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Layout wrapper (outside component to avoid remounts) ───
+function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, nextDisabled, loading, steps, currentStepIdx, progress }: {
+  title: string; subtitle: string; children: React.ReactNode;
+  onNext?: () => void; onBack?: () => void; nextLabel?: string; nextDisabled?: boolean;
+  loading?: boolean; steps: { key: string; label: string }[]; currentStepIdx: number; progress: number;
+}) {
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
+        <div className="max-w-lg mx-auto">
+          <StepBar steps={steps} currentStepIdx={currentStepIdx} progress={progress} />
+        </div>
+      </div>
+      <div className="flex-1 flex items-start justify-center p-4 pt-8">
+        <div className="w-full max-w-lg space-y-6">
+          <div>
+            <h2 className="text-xl font-bold text-foreground">{title}</h2>
+            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+          </div>
+          <div className="space-y-4">{children}</div>
+          <div className="flex gap-3 pt-4">
+            {onBack && (
+              <Button variant="outline" onClick={onBack} className="gap-2">
+                <ArrowLeft className="w-4 h-4" /> Voltar
+              </Button>
+            )}
+            {onNext && (
+              <Button onClick={onNext} disabled={nextDisabled || loading} className="flex-1 gap-2">
+                {nextLabel || 'Continuar'} <ArrowRight className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function FleetOnboardingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -319,63 +386,8 @@ export default function FleetOnboardingPage() {
     );
   }
 
-  // ─── Step Indicator ───
-  const StepBar = () => (
-    <div className="w-full space-y-3">
-      <Progress value={getProgress()} className="h-1.5" />
-      <div className="flex justify-between">
-        {steps.map((s, i) => (
-          <div key={s.key} className="flex flex-col items-center gap-1">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-all ${
-              i < currentStepIdx ? 'bg-primary border-primary text-primary-foreground' :
-              i === currentStepIdx ? 'border-primary text-primary bg-primary/10' :
-              'border-muted text-muted-foreground'
-            }`}>
-              {i < currentStepIdx ? <Check className="w-3.5 h-3.5" /> : i + 1}
-            </div>
-            <span className={`text-[10px] font-medium hidden sm:block ${i <= currentStepIdx ? 'text-foreground' : 'text-muted-foreground'}`}>
-              {s.label}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-
-  // ─── Layout wrapper ───
-  const StepLayout = ({ title, subtitle, children, onNext, onBack, nextLabel, nextDisabled }: {
-    title: string; subtitle: string; children: React.ReactNode;
-    onNext?: () => void; onBack?: () => void; nextLabel?: string; nextDisabled?: boolean;
-  }) => (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
-        <div className="max-w-lg mx-auto">
-          <StepBar />
-        </div>
-      </div>
-      <div className="flex-1 flex items-start justify-center p-4 pt-8">
-        <div className="w-full max-w-lg space-y-6">
-          <div>
-            <h2 className="text-xl font-bold text-foreground">{title}</h2>
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-          </div>
-          <div className="space-y-4">{children}</div>
-          <div className="flex gap-3 pt-4">
-            {onBack && (
-              <Button variant="outline" onClick={onBack} className="gap-2">
-                <ArrowLeft className="w-4 h-4" /> Voltar
-              </Button>
-            )}
-            {onNext && (
-              <Button onClick={onNext} disabled={nextDisabled || loading} className="flex-1 gap-2">
-                {nextLabel || 'Continuar'} <ArrowRight className="w-4 h-4" />
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  // stepLayoutProps shared across all steps
+  const stepLayoutProps = { steps, currentStepIdx, progress: getProgress(), loading };
 
   // ────────────────────────────
   // OFICINA FLOW
@@ -384,6 +396,7 @@ export default function FleetOnboardingPage() {
     if (oficinaStep === 'cnpj') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Dados da Oficina"
           subtitle="Informe o CNPJ e preenchemos automaticamente"
           onBack={() => setUserType(null)}
@@ -442,6 +455,7 @@ export default function FleetOnboardingPage() {
     if (oficinaStep === 'servicos') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Serviços e Valores"
           subtitle="Defina o valor da hora técnica e as categorias que você atende"
           onBack={() => setOficinaStep('cnpj')}
@@ -483,6 +497,7 @@ export default function FleetOnboardingPage() {
     if (oficinaStep === 'banco') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Dados Bancários"
           subtitle="Onde você receberá os 85% dos serviços realizados"
           onBack={() => setOficinaStep('servicos')}
@@ -542,6 +557,7 @@ export default function FleetOnboardingPage() {
     if (oficinaStep === 'documentos') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Documentos"
           subtitle="Envie uma foto do alvará ou da fachada para validação"
           onBack={() => setOficinaStep('banco')}
@@ -600,6 +616,7 @@ export default function FleetOnboardingPage() {
     if (frotaStep === 'cnpj') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Dados da Empresa"
           subtitle="Informe o CNPJ da sua empresa de transporte"
           onBack={() => setUserType(null)}
@@ -654,6 +671,7 @@ export default function FleetOnboardingPage() {
     if (frotaStep === 'frota') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Tamanho da Frota"
           subtitle="Quantos veículos sua empresa possui?"
           onBack={() => setFrotaStep('cnpj')}
@@ -679,6 +697,7 @@ export default function FleetOnboardingPage() {
     if (frotaStep === 'veiculos') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Cadastrar Veículos"
           subtitle="Adicione seus veículos um por um ou importe via planilha"
           onBack={() => setFrotaStep('frota')}
@@ -740,6 +759,7 @@ export default function FleetOnboardingPage() {
     if (frotaStep === 'convite') {
       return (
         <StepLayout
+          {...stepLayoutProps}
           title="Convidar Motoristas"
           subtitle="Compartilhe este link para seus motoristas terem acesso ao app"
           onNext={() => setFrotaStep('finalizado')}
