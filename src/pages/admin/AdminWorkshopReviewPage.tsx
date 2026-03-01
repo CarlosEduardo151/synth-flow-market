@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { supabase } from '@/integrations/supabase/client';
+import { generateAudittCertificate } from '@/lib/generateAudittCertificate';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -124,6 +125,12 @@ const AdminWorkshopReviewPage = () => {
         .eq('id', selectedWorkshop.id);
       if (error) throw error;
       toast.success(`Oficina ${action === 'aprovado' ? 'aprovada' : action === 'rejeitado' ? 'rejeitada' : 'suspensa'} com sucesso`);
+      
+      if (action === 'aprovado') {
+        generateAudittCertificate(selectedWorkshop);
+        toast.success('Certificado Auditt gerado e baixado!');
+      }
+      
       setDetailOpen(false);
       fetchWorkshops();
     } catch (err) {
