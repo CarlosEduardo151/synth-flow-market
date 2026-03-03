@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ScanLine, Lock, Eye, EyeOff, Fingerprint, ChevronLeft, UserPlus, LogIn, CheckCircle2, ArrowRight } from 'lucide-react';
+import { Shield, ScanLine, Lock, Eye, EyeOff, Fingerprint, ChevronLeft, UserPlus, LogIn, CheckCircle2, ArrowRight, Building2, User, Phone, Mail } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +33,23 @@ function generateSessionId() {
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
     .toUpperCase();
+}
+
+// ─── Password Strength ───────────────────────────────────
+function getPasswordStrength(pw: string): { level: number; label: string; color: string } {
+  if (!pw) return { level: 0, label: '', color: '' };
+  let score = 0;
+  if (pw.length >= 6) score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+
+  if (score <= 1) return { level: 1, label: 'Fraca', color: 'bg-red-500' };
+  if (score <= 2) return { level: 2, label: 'Razoável', color: 'bg-orange-500' };
+  if (score <= 3) return { level: 3, label: 'Boa', color: 'bg-yellow-500' };
+  if (score <= 4) return { level: 4, label: 'Forte', color: 'bg-emerald-500' };
+  return { level: 5, label: 'Muito forte', color: 'bg-emerald-400' };
 }
 
 // ─── Scanning Animation ───────────────────────────────────
@@ -95,8 +112,12 @@ export default function AudittAccessPortal() {
   const [signupName, setSignupName] = useState('');
   const [signupEmail, setSignupEmail] = useState('');
   const [signupPhone, setSignupPhone] = useState('');
+  const [signupCnpj, setSignupCnpj] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+
+  const passwordStrength = getPasswordStrength(signupPassword);
 
   const sessionId = useMemo(generateSessionId, []);
   const [justLoggedIn, setJustLoggedIn] = useState(false);
@@ -128,7 +149,15 @@ export default function AudittAccessPortal() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!signupName || !signupEmail || !signupPhone || !signupPassword) { toast({ title: 'Preencha todos os campos', variant: 'destructive' }); return; }
+    if (!signupName || !signupEmail || !signupPhone || !signupCnpj || !signupPassword) {
+      toast({ title: 'Preencha todos os campos', variant: 'destructive' }); return;
+    }
+    if (signupPassword !== signupConfirmPassword) {
+      toast({ title: 'As senhas não coincidem', variant: 'destructive' }); return;
+    }
+    if (passwordStrength.level < 2) {
+      toast({ title: 'Senha muito fraca', description: 'Use letras maiúsculas, números e caracteres especiais.', variant: 'destructive' }); return;
+    }
     setLoading(true);
     const { error } = await signUp(signupEmail, signupPassword, signupName, signupPhone);
     if (error) { toast({ title: 'Erro no cadastro', description: error.message, variant: 'destructive' }); }
@@ -399,31 +428,53 @@ export default function AudittAccessPortal() {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-6"
+                  className="space-y-5"
                 >
                   <div>
                     <h3 className="text-2xl font-bold text-foreground tracking-tight">Criar conta</h3>
                     <p className="text-sm text-muted-foreground mt-1.5">Cadastre sua oficina na rede Auditt</p>
                   </div>
 
-                  <div className="space-y-2.5">
-                    <Label className="text-sm font-medium">Nome completo</Label>
-                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="João Silva" value={signupName} onChange={e => setSignupName(e.target.value)} required />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Nome completo</Label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="João Silva" value={signupName} onChange={e => setSignupName(e.target.value)} required />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">CNPJ</Label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="00.000.000/0000-00" value={signupCnpj} onChange={e => setSignupCnpj(formatCNPJ(e.target.value))} required />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2.5">
-                    <Label className="text-sm font-medium">E-mail</Label>
-                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="email" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">E-mail</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="email" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">WhatsApp</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="tel" placeholder="(00) 00000-0000" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} required />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2.5">
-                    <Label className="text-sm font-medium">Telefone / WhatsApp</Label>
-                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="tel" placeholder="(00) 00000-0000" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} required />
-                  </div>
-                  <div className="space-y-2.5">
+
+                  <div className="space-y-2">
                     <Label className="text-sm font-medium">Senha</Label>
                     <div className="relative">
                       <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        className="pl-11 pr-11 h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
+                        className="pl-11 pr-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
                         type={showSignupPassword ? 'text' : 'password'}
                         placeholder="Crie uma senha forte"
                         value={signupPassword}
@@ -434,6 +485,52 @@ export default function AudittAccessPortal() {
                         {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
+                    {/* Strength indicator */}
+                    {signupPassword && (
+                      <div className="space-y-1.5 pt-1">
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4, 5].map(i => (
+                            <div
+                              key={i}
+                              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
+                                i <= passwordStrength.level ? passwordStrength.color : 'bg-muted'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <p className={`text-[11px] font-medium ${
+                          passwordStrength.level <= 1 ? 'text-red-500' :
+                          passwordStrength.level <= 2 ? 'text-orange-500' :
+                          passwordStrength.level <= 3 ? 'text-yellow-500' :
+                          'text-emerald-500'
+                        }`}>
+                          {passwordStrength.label}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Confirmar senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        className={`pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors ${
+                          signupConfirmPassword && signupConfirmPassword !== signupPassword ? 'border-red-500/50' : ''
+                        }`}
+                        type="password"
+                        placeholder="Repita a senha"
+                        value={signupConfirmPassword}
+                        onChange={e => setSignupConfirmPassword(e.target.value)}
+                        required
+                      />
+                      {signupConfirmPassword && signupConfirmPassword === signupPassword && (
+                        <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
+                      )}
+                    </div>
+                    {signupConfirmPassword && signupConfirmPassword !== signupPassword && (
+                      <p className="text-[11px] text-red-500">As senhas não coincidem</p>
+                    )}
                   </div>
 
                   <Button className="w-full h-12 text-sm font-semibold" type="submit" disabled={loading}>
