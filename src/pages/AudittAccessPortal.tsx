@@ -138,16 +138,15 @@ export default function AudittAccessPortal() {
   ];
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 md:p-8">
+    <div className="min-h-screen bg-background">
       <motion.div
-        className="w-full max-w-[1080px] grid lg:grid-cols-[1fr_1.1fr] rounded-2xl overflow-hidden border border-border/40 shadow-[var(--shadow-card)]"
-        style={{ minHeight: '640px' }}
-        initial={{ opacity: 0, scale: 0.98 }}
-        animate={{ opacity: 1, scale: 1 }}
+        className="w-full min-h-screen grid lg:grid-cols-[1fr_1fr] overflow-hidden"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
         transition={{ duration: 0.5 }}
       >
         {/* ══ LEFT — Image + Branding ══ */}
-        <div className="hidden lg:flex relative">
+        <div className="hidden lg:flex relative min-h-screen">
           <img
             src={audittWorkshopImg}
             alt="Profissionais utilizando a plataforma Auditt em oficina"
