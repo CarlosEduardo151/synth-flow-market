@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, ScanLine, Lock, Eye, EyeOff, Fingerprint, ChevronLeft, UserPlus, LogIn, CheckCircle2 } from 'lucide-react';
+import { Shield, ScanLine, Lock, Eye, EyeOff, Fingerprint, ChevronLeft, UserPlus, LogIn, CheckCircle2, ArrowRight } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,31 +42,37 @@ function ScanningOverlay({ label }: { label: string }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="flex flex-col items-center justify-center gap-5 py-16"
+      className="flex flex-col items-center justify-center gap-6 py-20"
     >
-      <div className="relative w-20 h-20">
+      <div className="relative w-16 h-16">
         <motion.div
-          className="absolute inset-0 rounded-2xl border-2 border-primary/40"
-          animate={{ scale: [1, 1.08, 1], opacity: [0.4, 0.8, 0.4] }}
+          className="absolute inset-0 rounded-full border border-primary/30"
+          animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}
         />
-        <div className="absolute inset-0 rounded-2xl border border-primary/20" />
         <motion.div
-          className="absolute left-1 right-1 h-px bg-primary/60"
-          animate={{ top: ['10%', '90%', '10%'] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute inset-0 rounded-full border border-primary/20"
+          animate={{ scale: [1, 1.6, 1], opacity: [0.2, 0, 0.2] }}
+          transition={{ duration: 2, repeat: Infinity, delay: 0.3 }}
         />
-        <ScanLine className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-primary/70" />
+        <div className="absolute inset-0 flex items-center justify-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          >
+            <ScanLine className="w-6 h-6 text-primary" />
+          </motion.div>
+        </div>
       </div>
-      <div className="text-center space-y-1">
+      <div className="text-center space-y-1.5">
         <motion.p
-          className="text-sm font-medium text-foreground"
-          animate={{ opacity: [0.6, 1, 0.6] }}
+          className="text-sm font-medium text-foreground tracking-wide"
+          animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.5, repeat: Infinity }}
         >
           {label}
         </motion.p>
-        <p className="text-xs text-muted-foreground">Aguarde um momento...</p>
+        <p className="text-xs text-muted-foreground">Processando verificação segura...</p>
       </div>
     </motion.div>
   );
@@ -130,100 +136,129 @@ export default function AudittAccessPortal() {
     setLoading(false);
   };
 
-  const benefits = [
-    'Pagamentos D+1 garantidos',
-    'Auditoria por IA em tempo real',
-    'Monitoramento 24/7 da operação',
-    'Acesso à maior rede automotiva',
+  const stats = [
+    { value: 'D+1', label: 'Pagamentos' },
+    { value: '100%', label: 'Auditoria IA' },
+    { value: '24/7', label: 'Monitoramento' },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      <motion.div
-        className="w-full min-h-screen grid lg:grid-cols-[1fr_1fr] overflow-hidden"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* ══ LEFT — Image + Branding ══ */}
-        <div className="hidden lg:flex relative min-h-screen">
-          <img
-            src={audittWorkshopImg}
-            alt="Profissionais utilizando a plataforma Auditt em oficina"
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/30" />
+    <div className="min-h-screen grid lg:grid-cols-2">
+      {/* ══ LEFT — Hero Image ══ */}
+      <div className="hidden lg:block relative overflow-hidden bg-black">
+        <img
+          src={audittWorkshopImg}
+          alt="Profissionais utilizando a plataforma Auditt"
+          className="absolute inset-0 w-full h-full object-cover opacity-60"
+        />
+        
+        {/* Gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
 
-          <div className="relative z-10 flex flex-col justify-between p-10 w-full">
-            {/* Logo */}
-            <div>
-              <h2 className="text-2xl font-extrabold tracking-tight text-white">AUDITT</h2>
-              <p className="text-[11px] tracking-[0.2em] uppercase text-white/50 mt-0.5">Intelligence Logistics</p>
+        <div className="relative z-10 flex flex-col justify-between h-full p-12 xl:p-16">
+          {/* Top — Logo */}
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight text-white">AUDITT</h2>
+                <p className="text-[10px] tracking-[0.25em] uppercase text-white/40 -mt-0.5">Intelligence Logistics</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom — Content */}
+          <div className="space-y-8">
+            {/* Stats row */}
+            <div className="flex gap-8">
+              {stats.map((s) => (
+                <div key={s.label}>
+                  <p className="text-2xl xl:text-3xl font-bold text-white">{s.value}</p>
+                  <p className="text-xs text-white/50 mt-0.5">{s.label}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Bottom content */}
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-xl font-semibold text-white leading-snug">
-                  A inteligência que<br />blinda o seu lucro.
-                </h3>
-                <p className="text-sm text-white/60 mt-2 leading-relaxed max-w-xs">
-                  Controle total da operação automotiva com auditoria e pagamentos inteligentes.
-                </p>
-              </div>
+            {/* Headline */}
+            <div>
+              <h1 className="text-3xl xl:text-4xl font-bold text-white leading-tight">
+                A inteligência que
+                <br />
+                <span className="text-primary">blinda o seu lucro.</span>
+              </h1>
+              <p className="text-sm text-white/50 mt-3 max-w-md leading-relaxed">
+                Controle total da operação automotiva com auditoria por IA, 
+                gestão de frotas e pagamentos inteligentes D+1.
+              </p>
+            </div>
 
-              <ul className="space-y-2.5">
-                {benefits.map((b, i) => (
-                  <motion.li
-                    key={b}
-                    className="flex items-center gap-2.5 text-sm text-white/80"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + i * 0.1 }}
-                  >
-                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
-                    {b}
-                  </motion.li>
-                ))}
-              </ul>
+            {/* Benefits */}
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                'Pagamentos D+1 garantidos',
+                'Auditoria por IA em tempo real',
+                'Monitoramento 24/7',
+                'Maior rede automotiva',
+              ].map((b, i) => (
+                <motion.div
+                  key={b}
+                  className="flex items-center gap-2"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + i * 0.08 }}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span className="text-xs text-white/70">{b}</span>
+                </motion.div>
+              ))}
+            </div>
 
-              {/* Testimonial */}
-              <div className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/10">
-                <p className="text-sm text-white/70 italic leading-relaxed">
-                  "A transparência e velocidade dos pagamentos transformaram nossa operação."
-                </p>
-                <div className="mt-3 flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
-                    TC
-                  </div>
-                  <div>
-                    <p className="text-xs font-medium text-white/90">ThermoCar</p>
-                    <p className="text-[10px] text-white/40">Imperatriz-MA</p>
-                  </div>
+            {/* Testimonial */}
+            <div className="bg-white/[0.04] backdrop-blur-sm rounded-xl p-5 border border-white/[0.06]">
+              <p className="text-sm text-white/60 italic leading-relaxed">
+                "A transparência e velocidade dos pagamentos transformaram completamente nossa operação."
+              </p>
+              <div className="mt-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-xs font-semibold text-primary">
+                  TC
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-white/80">ThermoCar</p>
+                  <p className="text-[11px] text-white/30">Imperatriz — MA</p>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* ══ RIGHT — Auth Forms ══ */}
-        <div className="flex flex-col bg-card">
-          {/* Mobile logo */}
-          <div className="lg:hidden text-center pt-8 pb-2">
-            <h2 className="text-2xl font-extrabold tracking-tight gradient-text">AUDITT</h2>
-            <p className="text-[10px] tracking-[0.2em] uppercase text-muted-foreground">Intelligence Logistics</p>
+      {/* ══ RIGHT — Auth Forms ══ */}
+      <div className="flex flex-col bg-background min-h-screen">
+        {/* Mobile header */}
+        <div className="lg:hidden flex items-center gap-2.5 px-6 pt-8 pb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Shield className="w-4 h-4 text-primary" />
           </div>
+          <div>
+            <h2 className="text-lg font-bold tracking-tight text-foreground">AUDITT</h2>
+            <p className="text-[9px] tracking-[0.2em] uppercase text-muted-foreground -mt-0.5">Intelligence Logistics</p>
+          </div>
+        </div>
 
-          <div className="flex-1 flex flex-col justify-center px-8 md:px-12 py-10">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-sm mx-auto">
-              <TabsList className="grid w-full grid-cols-2 mb-8">
-                <TabsTrigger value="signin" className="gap-1.5 text-xs">
-                  <LogIn className="w-3.5 h-3.5" />
+        {/* Auth container */}
+        <div className="flex-1 flex flex-col justify-center px-6 sm:px-10 md:px-16 lg:px-12 xl:px-20">
+          <div className="w-full max-w-[420px] mx-auto">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-10 h-11 bg-muted/50">
+                <TabsTrigger value="signin" className="gap-2 text-sm font-medium data-[state=active]:shadow-sm">
+                  <LogIn className="w-4 h-4" />
                   Entrar
                 </TabsTrigger>
-                <TabsTrigger value="signup" className="gap-1.5 text-xs">
-                  <UserPlus className="w-3.5 h-3.5" />
+                <TabsTrigger value="signup" className="gap-2 text-sm font-medium data-[state=active]:shadow-sm">
+                  <UserPlus className="w-4 h-4" />
                   Cadastrar
                 </TabsTrigger>
               </TabsList>
@@ -234,25 +269,26 @@ export default function AudittAccessPortal() {
                   {step === 'credential' && (
                     <motion.div
                       key="cred"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-6"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-7"
                     >
                       <div>
-                        <h3 className="text-xl font-semibold text-foreground">Acesso seguro</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Identifique sua empresa para continuar</p>
+                        <h3 className="text-2xl font-bold text-foreground tracking-tight">Acesso seguro</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5">Identifique sua empresa para continuar</p>
                       </div>
 
-                      <div className="flex rounded-lg border border-border overflow-hidden">
+                      <div className="grid grid-cols-2 gap-2">
                         {(['cnpj', 'cpf'] as const).map(t => (
                           <button
                             key={t}
                             type="button"
-                            className={`flex-1 py-2.5 text-xs font-medium tracking-wide uppercase transition-colors ${
+                            className={`py-3 rounded-lg text-sm font-medium transition-all duration-200 border ${
                               docType === t
-                                ? 'bg-primary/10 text-primary'
-                                : 'text-muted-foreground hover:bg-muted/40'
+                                ? 'bg-primary/10 text-primary border-primary/20'
+                                : 'bg-transparent text-muted-foreground border-border hover:bg-muted/50 hover:text-foreground'
                             }`}
                             onClick={() => { setDocType(t); setDocValue(''); }}
                           >
@@ -261,12 +297,12 @@ export default function AudittAccessPortal() {
                         ))}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>{docType === 'cnpj' ? 'CNPJ da Oficina' : 'CPF do Gestor'}</Label>
+                      <div className="space-y-2.5">
+                        <Label className="text-sm font-medium">{docType === 'cnpj' ? 'CNPJ da Oficina' : 'CPF do Gestor'}</Label>
                         <div className="relative">
-                          <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Fingerprint className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                           <Input
-                            className="pl-10"
+                            className="pl-11 h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
                             placeholder={docType === 'cnpj' ? '00.000.000/0000-00' : '000.000.000-00'}
                             value={docValue}
                             onChange={e => setDocValue(docType === 'cnpj' ? formatCNPJ(e.target.value) : formatCPF(e.target.value))}
@@ -275,9 +311,9 @@ export default function AudittAccessPortal() {
                         </div>
                       </div>
 
-                      <Button className="w-full" size="lg" onClick={handleDocSubmit}>
-                        <ScanLine className="w-4 h-4 mr-2" />
+                      <Button className="w-full h-12 text-sm font-semibold" onClick={handleDocSubmit}>
                         Verificar credenciais
+                        <ArrowRight className="w-4 h-4 ml-2" />
                       </Button>
                     </motion.div>
                   )}
@@ -290,51 +326,66 @@ export default function AudittAccessPortal() {
                     <motion.form
                       key="pass"
                       onSubmit={handleLogin}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="space-y-5"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-6"
                     >
                       <div>
-                        <h3 className="text-xl font-semibold text-foreground">Autenticar</h3>
-                        <p className="text-sm text-muted-foreground mt-1">Credencial verificada com sucesso</p>
+                        <h3 className="text-2xl font-bold text-foreground tracking-tight">Autenticar</h3>
+                        <p className="text-sm text-muted-foreground mt-1.5">Credencial verificada com sucesso</p>
                       </div>
 
-                      <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/10">
+                      <div className="flex items-center gap-3 p-3.5 rounded-lg bg-primary/5 border border-primary/10">
                         <Shield className="w-4 h-4 text-primary flex-shrink-0" />
                         <div className="min-w-0">
-                          <p className="text-xs font-medium text-primary">{docType.toUpperCase()} verificado</p>
+                          <p className="text-xs font-semibold text-primary">{docType.toUpperCase()} verificado</p>
                           <p className="text-xs text-muted-foreground truncate">{docValue}</p>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>E-mail</Label>
-                        <Input type="email" placeholder="operador@oficina.com" value={email} onChange={e => setEmail(e.target.value)} required />
+                      <div className="space-y-2.5">
+                        <Label className="text-sm font-medium">E-mail</Label>
+                        <Input
+                          className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
+                          type="email"
+                          placeholder="operador@oficina.com"
+                          value={email}
+                          onChange={e => setEmail(e.target.value)}
+                          required
+                        />
                       </div>
 
-                      <div className="space-y-2">
-                        <Label>Senha</Label>
+                      <div className="space-y-2.5">
+                        <Label className="text-sm font-medium">Senha</Label>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input className="pl-10 pr-10" type={showPassword ? 'text' : 'password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
-                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowPassword(!showPassword)}>
+                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                          <Input
+                            className="pl-11 pr-11 h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
+                            type={showPassword ? 'text' : 'password'}
+                            placeholder="••••••••"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                          />
+                          <button type="button" className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowPassword(!showPassword)}>
                             {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                           </button>
                         </div>
                       </div>
 
-                      <Button className="w-full" size="lg" type="submit" disabled={loading}>
+                      <Button className="w-full h-12 text-sm font-semibold" type="submit" disabled={loading}>
                         {loading ? 'Autenticando...' : 'Entrar'}
                       </Button>
 
                       <button
                         type="button"
-                        className="w-full flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer pt-1"
+                        className="w-full flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors bg-transparent border-none cursor-pointer pt-1"
                         onClick={() => { setStep('credential'); setPassword(''); setEmail(''); }}
                       >
-                        <ChevronLeft className="w-3 h-3" />
-                        Voltar
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        Voltar à verificação
                       </button>
                     </motion.form>
                   )}
@@ -345,57 +396,68 @@ export default function AudittAccessPortal() {
               <TabsContent value="signup" className="mt-0">
                 <motion.form
                   onSubmit={handleSignUp}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="space-y-5"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="space-y-6"
                 >
                   <div>
-                    <h3 className="text-xl font-semibold text-foreground">Criar conta</h3>
-                    <p className="text-sm text-muted-foreground mt-1">Cadastre sua oficina na rede Auditt</p>
+                    <h3 className="text-2xl font-bold text-foreground tracking-tight">Criar conta</h3>
+                    <p className="text-sm text-muted-foreground mt-1.5">Cadastre sua oficina na rede Auditt</p>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label>Nome completo</Label>
-                    <Input placeholder="João Silva" value={signupName} onChange={e => setSignupName(e.target.value)} required />
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium">Nome completo</Label>
+                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="João Silva" value={signupName} onChange={e => setSignupName(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
-                    <Label>E-mail</Label>
-                    <Input type="email" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium">E-mail</Label>
+                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="email" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Telefone / WhatsApp</Label>
-                    <Input type="tel" placeholder="(00) 00000-0000" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} required />
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium">Telefone / WhatsApp</Label>
+                    <Input className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="tel" placeholder="(00) 00000-0000" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} required />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Senha</Label>
+                  <div className="space-y-2.5">
+                    <Label className="text-sm font-medium">Senha</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input className="pl-10 pr-10" type={showSignupPassword ? 'text' : 'password'} placeholder="Crie uma senha forte" value={signupPassword} onChange={e => setSignupPassword(e.target.value)} required />
-                      <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowSignupPassword(v => !v)}>
+                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        className="pl-11 pr-11 h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
+                        type={showSignupPassword ? 'text' : 'password'}
+                        placeholder="Crie uma senha forte"
+                        value={signupPassword}
+                        onChange={e => setSignupPassword(e.target.value)}
+                        required
+                      />
+                      <button type="button" className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowSignupPassword(v => !v)}>
                         {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
 
-                  <Button className="w-full" size="lg" type="submit" disabled={loading}>
+                  <Button className="w-full h-12 text-sm font-semibold" type="submit" disabled={loading}>
                     {loading ? 'Criando conta...' : 'Criar conta'}
+                    {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
                   </Button>
                 </motion.form>
               </TabsContent>
             </Tabs>
           </div>
+        </div>
 
-          {/* Footer */}
-          <div className="px-8 md:px-12 pb-6 text-center space-y-1">
-            <p className="text-[10px] text-muted-foreground/50 font-mono tracking-wider">
+        {/* Footer */}
+        <div className="px-6 sm:px-10 md:px-16 lg:px-12 xl:px-20 pb-8 pt-4">
+          <div className="w-full max-w-[420px] mx-auto flex items-center justify-between">
+            <p className="text-[10px] text-muted-foreground/40 font-mono tracking-wider">
               SESSION {sessionId}
             </p>
-            <p className="text-[10px] text-muted-foreground/40">
-              © 2026 Auditt Tecnologia e Logística LTDA.
+            <p className="text-[10px] text-muted-foreground/30">
+              © 2026 Auditt Tecnologia
             </p>
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }
