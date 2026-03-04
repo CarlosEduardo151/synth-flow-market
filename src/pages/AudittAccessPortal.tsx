@@ -136,31 +136,15 @@ export default function AudittAccessPortal() {
     }
     setStep('scanning');
 
-    // Look up email from CNPJ/CPF in the database
+    // Look up email from CNPJ/CPF via secure DB function
     try {
-      if (docType === 'cnpj') {
-        const { data } = await supabase
-          .from('fleet_partner_workshops')
-          .select('user_id')
-          .eq('cnpj', raw)
-          .limit(1)
-          .maybeSingle();
-
-        if (data?.user_id) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('user_id', data.user_id)
-            .maybeSingle();
-          if (profile?.email) setEmail(profile.email);
-        }
-      } else {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('email')
-          .eq('cpf', raw)
-          .maybeSingle();
-        if (profile?.email) setEmail(profile.email);
+      const raw = docValue.replace(/\D/g, '');
+      const { data, error } = await supabase.rpc('get_email_by_document', {
+        doc_type: docType,
+        doc_value: raw,
+      });
+      if (!error && data) {
+        setEmail(data as string);
       }
     } catch (_) { /* continue even if lookup fails */ }
 
@@ -169,7 +153,8 @@ export default function AudittAccessPortal() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { toast({ title: 'Preencha a senha', variant: 'destructive' }); return; }
+    if (!email) { toast({ title: 'Documento não encontrado', description: 'Nenhuma conta associada a esse CNPJ/CPF foi encontrada.', variant: 'destructive' }); return; }
+    if (!password) { toast({ title: 'Preencha a senha', variant: 'destructive' }); return; }
     setLoading(true);
     setJustLoggedIn(true);
     const { error } = await signIn(email, password);
