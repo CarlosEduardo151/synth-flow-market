@@ -389,47 +389,10 @@ export default function FleetOnboardingPage() {
   const currentStepKey = userType === 'oficina' ? oficinaStep : frotaStep;
   const currentStepIdx = steps.findIndex(s => s.key === currentStepKey);
 
-  // ─── Type Selection ───
+  // If no type selected (direct URL access without param), redirect to /auditt
   if (!userType) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-lg space-y-6">
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold text-foreground">Bem-vindo à Auditt</h1>
-            <p className="text-muted-foreground">A inteligência que audita sua frota e acelera seu caixa.</p>
-            <p className="text-sm text-muted-foreground">Como você quer usar a plataforma?</p>
-          </div>
-          <div className="grid gap-4">
-            <button
-              onClick={() => setUserType('oficina')}
-              className="group relative flex items-center gap-4 p-6 rounded-xl border-2 border-border bg-card hover:border-primary transition-all text-left"
-            >
-              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Wrench className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-lg">Sou Oficina</h3>
-                <p className="text-sm text-muted-foreground">Quero receber chamados e atender frotas</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
-            </button>
-            <button
-              onClick={() => setUserType('frota')}
-              className="group relative flex items-center gap-4 p-6 rounded-xl border-2 border-border bg-card hover:border-primary transition-all text-left"
-            >
-              <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Truck className="w-6 h-6 text-primary" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-foreground text-lg">Sou Gestor de Frota</h3>
-                <p className="text-sm text-muted-foreground">Quero gerenciar meus veículos e manutenções</p>
-              </div>
-              <ArrowRight className="w-5 h-5 text-muted-foreground ml-auto group-hover:text-primary transition-colors" />
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    navigate('/auditt');
+    return null;
   }
 
   // stepLayoutProps shared across all steps
@@ -445,7 +408,7 @@ export default function FleetOnboardingPage() {
           {...stepLayoutProps}
           title="Dados da Oficina"
           subtitle="Informe o CNPJ e preenchemos automaticamente"
-          onBack={() => setUserType(null)}
+          onBack={() => navigate('/auditt')}
           onNext={() => setOficinaStep('servicos')}
           nextDisabled={!oficinaCnpj || !oficinaNome}
         >
@@ -665,7 +628,7 @@ export default function FleetOnboardingPage() {
           {...stepLayoutProps}
           title="Dados da Empresa"
           subtitle="Informe o CNPJ da sua empresa de transporte"
-          onBack={() => setUserType(null)}
+          onBack={() => navigate('/auditt')}
           onNext={() => setFrotaStep('frota')}
           nextDisabled={!frotaCnpj || !frotaNome}
         >
