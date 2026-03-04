@@ -1,11 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OficinaPortal } from '@/components/oficina/OficinaPortal';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProductAccess } from '@/hooks/useProductAccess';
 import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
 import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
@@ -59,7 +59,10 @@ const frotaTabs: { value: FrotaTab; label: string; desc: string; icon: React.Com
 const GestaoFrotasOficinasSystem = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState<UserRole>('select');
+  const [searchParams] = useSearchParams();
+  const urlRole = searchParams.get('role') as UserRole | null;
+  const [role, setRole] = useState<UserRole>(urlRole === 'frota' || urlRole === 'oficina' ? urlRole : 'select');
+  const [roleLoading, setRoleLoading] = useState(role === 'select');
   const [activeTab, setActiveTab] = useState<FrotaTab>('overview');
   const [searchVeiculos, setSearchVeiculos] = useState('');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
@@ -79,6 +82,44 @@ const GestaoFrotasOficinasSystem = () => {
   const [cadastroMode, setCadastroMode] = useState<'traseira' | 'documento' | 'manual'>('traseira');
   const [cadastroForm, setCadastroForm] = useState({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
 
+  // Auto-detect role from DB when no URL param provided
+  useEffect(() => {
+    if (role !== 'select' || !user) {
+      setRoleLoading(false);
+      return;
+    }
+    const detectRole = async () => {
+      try {
+        // Check if user has a workshop record
+        const { data: workshop } = await (supabase.from('fleet_partner_workshops') as any)
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        if (workshop) {
+          setRole('oficina');
+          setRoleLoading(false);
+          return;
+        }
+        // Check if user has an operator record
+        const { data: operator } = await (supabase.from('fleet_operators') as any)
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        if (operator) {
+          setRole('frota');
+          setRoleLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.error('Role detection error:', e);
+      }
+      setRoleLoading(false);
+    };
+    detectRole();
+  }, [user, role]);
+
   const fleetThemeClass = fleetLight ? 'fleet-theme-light' : 'fleet-theme';
   const toggleFleetTheme = () => {
     setFleetLight(prev => {
@@ -88,10 +129,10 @@ const GestaoFrotasOficinasSystem = () => {
     });
   };
 
-  if (!user) {
+  if (!user || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p className="text-muted-foreground">Redirecionando...</p>
+        <p className="text-muted-foreground">Carregando...</p>
       </div>
     );
   }

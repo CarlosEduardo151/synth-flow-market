@@ -700,8 +700,8 @@ export default function FleetOnboardingPage() {
                 Sua oficina está em análise. Você receberá uma notificação assim que for aprovada e começará a receber chamados das frotas da região.
               </p>
             </div>
-            <Button onClick={() => navigate('/auditt')} className="w-full">
-              Voltar ao Portal
+            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas?role=oficina')} className="w-full">
+              Acessar Portal da Oficina
             </Button>
           </div>
         </div>
@@ -1060,8 +1060,8 @@ export default function FleetOnboardingPage() {
                 Sua frota está cadastrada. Agora você pode abrir chamados de manutenção e acompanhar tudo pelo painel.
               </p>
             </div>
-            <Button onClick={() => navigate('/auditt')} className="w-full">
-              Voltar ao Portal
+            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas?role=frota')} className="w-full">
+              Acessar Portal da Frota
             </Button>
           </div>
         </div>
