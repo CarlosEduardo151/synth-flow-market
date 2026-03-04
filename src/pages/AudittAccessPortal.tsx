@@ -423,121 +423,56 @@ export default function AudittAccessPortal() {
 
               {/* ── SIGNUP TAB ── */}
               <TabsContent value="signup" className="mt-0">
-                <motion.form
-                  onSubmit={handleSignUp}
+                <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="space-y-5"
+                  className="space-y-7"
                 >
                   <div>
                     <h3 className="text-2xl font-bold text-foreground tracking-tight">Criar conta</h3>
-                    <p className="text-sm text-muted-foreground mt-1.5">Cadastre sua oficina na rede Auditt</p>
+                    <p className="text-sm text-muted-foreground mt-1.5">Cadastre sua oficina ou frota na rede Auditt</p>
                   </div>
+
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Para criar sua conta, você será direcionado ao nosso processo de cadastro completo, onde poderá registrar sua <strong className="text-foreground">oficina</strong> ou <strong className="text-foreground">frota</strong> com segurança.
+                  </p>
 
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Nome completo</Label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="João Silva" value={signupName} onChange={e => setSignupName(e.target.value)} required />
+                    <button
+                      type="button"
+                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding')}
+                      className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group cursor-pointer bg-transparent"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <Building2 className="w-6 h-6 text-primary" />
                       </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">CNPJ</Label>
-                      <div className="relative">
-                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" placeholder="00.000.000/0000-00" value={signupCnpj} onChange={e => setSignupCnpj(formatCNPJ(e.target.value))} required />
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-foreground">Oficina</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Cadastrar minha oficina</p>
                       </div>
-                    </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding')}
+                      className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group cursor-pointer bg-transparent"
+                    >
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                        <User className="w-6 h-6 text-primary" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-foreground">Gestor de Frota</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">Cadastrar minha frota</p>
+                      </div>
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">E-mail</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="email" placeholder="seu@email.com" value={signupEmail} onChange={e => setSignupEmail(e.target.value)} required />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">WhatsApp</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input className="pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors" type="tel" placeholder="(00) 00000-0000" value={signupPhone} onChange={e => setSignupPhone(e.target.value)} required />
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-2 p-3.5 rounded-lg bg-primary/5 border border-primary/10">
+                    <Shield className="w-4 h-4 text-primary flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground">Processo seguro com verificação de documentos e aprovação administrativa.</p>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        className="pl-11 pr-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
-                        type={showSignupPassword ? 'text' : 'password'}
-                        placeholder="Crie uma senha forte"
-                        value={signupPassword}
-                        onChange={e => setSignupPassword(e.target.value)}
-                        required
-                      />
-                      <button type="button" className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" onClick={() => setShowSignupPassword(v => !v)}>
-                        {showSignupPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {/* Strength indicator */}
-                    {signupPassword && (
-                      <div className="space-y-1.5 pt-1">
-                        <div className="flex gap-1">
-                          {[1, 2, 3, 4, 5].map(i => (
-                            <div
-                              key={i}
-                              className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-                                i <= passwordStrength.level ? passwordStrength.color : 'bg-muted'
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <p className={`text-[11px] font-medium ${
-                          passwordStrength.level <= 1 ? 'text-red-500' :
-                          passwordStrength.level <= 2 ? 'text-orange-500' :
-                          passwordStrength.level <= 3 ? 'text-yellow-500' :
-                          'text-emerald-500'
-                        }`}>
-                          {passwordStrength.label}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Confirmar senha</Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        className={`pl-11 h-11 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors ${
-                          signupConfirmPassword && signupConfirmPassword !== signupPassword ? 'border-red-500/50' : ''
-                        }`}
-                        type="password"
-                        placeholder="Repita a senha"
-                        value={signupConfirmPassword}
-                        onChange={e => setSignupConfirmPassword(e.target.value)}
-                        required
-                      />
-                      {signupConfirmPassword && signupConfirmPassword === signupPassword && (
-                        <CheckCircle2 className="absolute right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
-                      )}
-                    </div>
-                    {signupConfirmPassword && signupConfirmPassword !== signupPassword && (
-                      <p className="text-[11px] text-red-500">As senhas não coincidem</p>
-                    )}
-                  </div>
-
-                  <Button className="w-full h-12 text-sm font-semibold" type="submit" disabled={loading}>
-                    {loading ? 'Criando conta...' : 'Criar conta'}
-                    {!loading && <ArrowRight className="w-4 h-4 ml-2" />}
-                  </Button>
-                </motion.form>
+                </motion.div>
               </TabsContent>
             </Tabs>
           </div>
