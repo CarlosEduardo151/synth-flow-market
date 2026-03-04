@@ -43,13 +43,26 @@ function formatCNPJ(cnpj: string): string {
   return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
 }
 
-export function generateAudittCertificate(workshop: WorkshopData) {
+async function generateVerificationHash(data: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(data);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', dataBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function generateAudittCertificate(workshop: WorkshopData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pw = 210;
   const ph = 297;
   const name = workshop.nome_fantasia || workshop.razao_social || 'Oficina Parceira';
   const docId = Date.now().toString(36).toUpperCase().slice(-8);
   const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+  // Generate SHA-256 verification hash
+  const hashInput = `${workshop.cnpj}|${docId}|${today}|${name}|AUDITT-CERT-2026`;
+  const verificationHash = await generateVerificationHash(hashInput);
+  const shortHash = verificationHash.slice(0, 16).toUpperCase();
 
   // ═══════════════════════════════════════════
   // BACKGROUND
@@ -237,10 +250,19 @@ export function generateAudittCertificate(workshop: WorkshopData) {
   // ═══════════════════════════════════════════
   // FOOTER
   // ═══════════════════════════════════════════
-  doc.setFont('courier', 'normal');
+  // Verification hash line
+  doc.setFont('courier', 'bold');
   doc.setFontSize(6);
+  doc.setTextColor(...GOLD);
+  doc.text(`🔒 HASH SHA-256: ${shortHash}`, pw / 2, ph - 16, { align: 'center' });
+
+  doc.setFont('courier', 'normal');
+  doc.setFontSize(5);
   doc.setTextColor(160, 160, 160);
-  doc.text(`Auditt Tecnologia e Logística LTDA • Verificação: ${docId} • IA-CORE V4.0`, pw / 2, ph - 10, { align: 'center' });
+  doc.text(`Chave completa: ${verificationHash}`, pw / 2, ph - 12, { align: 'center' });
+
+  doc.setFontSize(6);
+  doc.text(`Auditt Tecnologia e Logística LTDA • DOC: ${docId} • IA-CORE V4.0`, pw / 2, ph - 8, { align: 'center' });
 
   // ═══════════════════════════════════════════
   // DOWNLOAD

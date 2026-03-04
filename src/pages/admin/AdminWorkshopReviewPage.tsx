@@ -127,7 +127,7 @@ const AdminWorkshopReviewPage = () => {
       toast.success(`Oficina ${action === 'aprovado' ? 'aprovada' : action === 'rejeitado' ? 'rejeitada' : 'suspensa'} com sucesso`);
       
       if (action === 'aprovado') {
-        generateAudittCertificate(selectedWorkshop);
+        await generateAudittCertificate(selectedWorkshop);
         toast.success('Certificado Auditt gerado e baixado!');
       }
       
