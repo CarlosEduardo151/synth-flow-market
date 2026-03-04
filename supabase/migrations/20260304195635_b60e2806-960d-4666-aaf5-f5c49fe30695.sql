@@ -1,0 +1,1 @@
+DELETE FROM fleet_partner_workshops WHERE id IN ('77ddab96-e598-4e1d-81b1-a26760187823', '95c9d97d-3566-41f6-96ea-c0032a356b8e', '5a44de87-7d6d-4973-8614-dc1d54ba4391');
