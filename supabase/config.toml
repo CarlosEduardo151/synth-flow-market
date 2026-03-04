@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.vero-scan]
 verify_jwt = false
+
+[functions.auditt-onboard]
+verify_jwt = false
