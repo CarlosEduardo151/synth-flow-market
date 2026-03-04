@@ -195,7 +195,7 @@ export default function FleetOnboardingPage() {
 
   // ─── Create account if not logged in ───
   const ensureAccount = async (name: string, phone: string, cnpj: string): Promise<boolean> => {
-    if (user) return true; // Already logged in
+    // Auditt has its own auth system — always require password creation regardless of NovaLink login state
     if (!acctPassword) {
       toast.error('Preencha a senha de acesso ao painel.');
       return false;
@@ -674,14 +674,12 @@ export default function FleetOnboardingPage() {
           subtitle="Defina o e-mail e a senha para acessar o painel após aprovação"
           onBack={() => setOficinaStep('documentos')}
           onNext={async () => {
-            if (!user) {
-              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone, oficinaCnpj);
-              if (!ok) return;
-            }
+            const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone, oficinaCnpj);
+            if (!ok) return;
             await submitOficina();
           }}
           nextLabel="Enviar Cadastro"
-          nextDisabled={!user && (!acctPassword || !acctConfirmPassword)}
+          nextDisabled={!acctPassword || !acctConfirmPassword}
         >
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
             <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -690,59 +688,45 @@ export default function FleetOnboardingPage() {
             </p>
           </div>
 
-          {user ? (
-            <div className="bg-muted/30 border border-border rounded-lg p-4 flex items-center gap-3">
-              <Shield className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Você já está logado</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </div>
+          <div className="space-y-1.5">
+            <Label>Senha de acesso</Label>
+            <div className="relative">
+              <Input
+                type={showAcctPassword ? 'text' : 'password'}
+                placeholder="Mínimo 6 caracteres"
+                value={acctPassword}
+                onChange={e => setAcctPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAcctPassword(!showAcctPassword)}
+              >
+                {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-          ) : (
-            <>
-
-
-              <div className="space-y-1.5">
-                <Label>Senha de acesso</Label>
-                <div className="relative">
-                  <Input
-                    type={showAcctPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 6 caracteres"
-                    value={acctPassword}
-                    onChange={e => setAcctPassword(e.target.value)}
-                    className="pr-10"
+            {acctPassword && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${passwordStrength.color}`}
+                    style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
                   />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowAcctPassword(!showAcctPassword)}
-                  >
-                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
-                {acctPassword && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
-                  </div>
-                )}
+                <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
               </div>
-              <div className="space-y-1.5">
-                <Label>Confirmar senha</Label>
-                <Input
-                  type={showAcctPassword ? 'text' : 'password'}
-                  placeholder="Repita a senha"
-                  value={acctConfirmPassword}
-                  onChange={e => setAcctConfirmPassword(e.target.value)}
-                />
-              </div>
-            </>
-          )}
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirmar senha</Label>
+            <Input
+              type={showAcctPassword ? 'text' : 'password'}
+              placeholder="Repita a senha"
+              value={acctConfirmPassword}
+              onChange={e => setAcctConfirmPassword(e.target.value)}
+            />
+          </div>
         </StepLayout>
       );
     }
@@ -1054,14 +1038,12 @@ export default function FleetOnboardingPage() {
           subtitle="Defina o e-mail e a senha para acessar o painel"
           onBack={() => setFrotaStep('convite')}
           onNext={async () => {
-            if (!user) {
-              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone, frotaCnpj);
-              if (!ok) return;
-            }
+            const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone, frotaCnpj);
+            if (!ok) return;
             setFrotaStep('finalizado');
           }}
           nextLabel="Concluir Cadastro"
-          nextDisabled={!user && (!acctPassword || !acctConfirmPassword)}
+          nextDisabled={!acctPassword || !acctConfirmPassword}
         >
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
             <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
@@ -1070,59 +1052,45 @@ export default function FleetOnboardingPage() {
             </p>
           </div>
 
-          {user ? (
-            <div className="bg-muted/30 border border-border rounded-lg p-4 flex items-center gap-3">
-              <Shield className="w-5 h-5 text-primary shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-foreground">Você já está logado</p>
-                <p className="text-xs text-muted-foreground">{user.email}</p>
-              </div>
+          <div className="space-y-1.5">
+            <Label>Senha de acesso</Label>
+            <div className="relative">
+              <Input
+                type={showAcctPassword ? 'text' : 'password'}
+                placeholder="Mínimo 6 caracteres"
+                value={acctPassword}
+                onChange={e => setAcctPassword(e.target.value)}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowAcctPassword(!showAcctPassword)}
+              >
+                {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
-          ) : (
-            <>
-
-
-              <div className="space-y-1.5">
-                <Label>Senha de acesso</Label>
-                <div className="relative">
-                  <Input
-                    type={showAcctPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 6 caracteres"
-                    value={acctPassword}
-                    onChange={e => setAcctPassword(e.target.value)}
-                    className="pr-10"
+            {acctPassword && (
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${passwordStrength.color}`}
+                    style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
                   />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowAcctPassword(!showAcctPassword)}
-                  >
-                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
                 </div>
-                {acctPassword && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
-                  </div>
-                )}
+                <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
               </div>
-              <div className="space-y-1.5">
-                <Label>Confirmar senha</Label>
-                <Input
-                  type={showAcctPassword ? 'text' : 'password'}
-                  placeholder="Repita a senha"
-                  value={acctConfirmPassword}
-                  onChange={e => setAcctConfirmPassword(e.target.value)}
-                />
-              </div>
-            </>
-          )}
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Confirmar senha</Label>
+            <Input
+              type={showAcctPassword ? 'text' : 'password'}
+              placeholder="Repita a senha"
+              value={acctConfirmPassword}
+              onChange={e => setAcctConfirmPassword(e.target.value)}
+            />
+          </div>
         </StepLayout>
       );
     }
