@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -120,7 +120,9 @@ function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, next
 export default function FleetOnboardingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [userType, setUserType] = useState<UserType>(null);
+  const [searchParams] = useSearchParams();
+  const tipoParam = searchParams.get('tipo') as 'oficina' | 'frota' | null;
+  const [userType, setUserType] = useState<UserType>(tipoParam || null);
   const [loading, setLoading] = useState(false);
 
   // Oficina state

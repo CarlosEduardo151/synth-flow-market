@@ -441,7 +441,7 @@ export default function AudittAccessPortal() {
                   <div className="grid grid-cols-2 gap-4">
                     <button
                       type="button"
-                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding')}
+                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding?tipo=oficina')}
                       className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group cursor-pointer bg-transparent"
                     >
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
@@ -455,7 +455,7 @@ export default function AudittAccessPortal() {
 
                     <button
                       type="button"
-                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding')}
+                      onClick={() => navigate('/sistema/gestao-frotas-oficinas/onboarding?tipo=frota')}
                       className="flex flex-col items-center gap-3 p-6 rounded-xl border border-border hover:border-primary/30 hover:bg-primary/5 transition-all duration-200 group cursor-pointer bg-transparent"
                     >
                       <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
