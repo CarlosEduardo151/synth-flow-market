@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Send, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Send, Loader2, Search, FileText, ChevronDown } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 
 // ── Catalogs ──
@@ -82,12 +82,14 @@ const servicosCatalogo = [
   { code: 'CAM-002', nome: 'Revisão câmbio manual', horas: 12, taxa: 140 },
   { code: 'ELE-001', nome: 'Diagnóstico elétrico', horas: 2, taxa: 100 },
   { code: 'ELE-002', nome: 'Troca alternador/partida', horas: 2, taxa: 110 },
-  { code: 'TUR-001', nome: 'Troca de turbo', horas: 5, taxa: 140 },
+  { code: 'TUR-001S', nome: 'Troca de turbo', horas: 5, taxa: 140 },
   { code: 'ARR-001', nome: 'Reparo ar-condicionado', horas: 3, taxa: 120 },
   { code: 'DIR-001', nome: 'Reparo caixa de direção', horas: 4.5, taxa: 130 },
-  { code: 'DIF-001', nome: 'Revisão diferencial', horas: 8, taxa: 140 },
+  { code: 'DIF-001S', nome: 'Revisão diferencial', horas: 8, taxa: 140 },
   { code: 'INJ-003', nome: 'Diagnóstico eletrônico (scanner)', horas: 2, taxa: 120 },
 ];
+
+const disponibilidadeOpcoes = ['Em estoque', 'Terei que encomendar', 'Fornecedor entrega'];
 
 interface Props {
   serviceOrder: FleetServiceOrder;
@@ -103,8 +105,12 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [laudo, setLaudo] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const dataEntrada = serviceOrder.data_entrada
+    ? new Date(serviceOrder.data_entrada).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
   // Peças
-  const [pecas, setPecas] = useState<{ id: string; nome: string; code: string; qtd: number; valor: number; ref: number }[]>([]);
+  const [pecas, setPecas] = useState<{ id: string; nome: string; code: string; qtd: number; valor: number; ref: number; disponibilidade: string; prazo: number }[]>([]);
   const [buscaPeca, setBuscaPeca] = useState('');
   const [pecaAberta, setPecaAberta] = useState(false);
 
@@ -121,15 +127,15 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
 
   // Filtered
   const pecasFiltradas = buscaPeca.length >= 2
-    ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase())).slice(0, 6)
+    ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase()) || p.code.toLowerCase().includes(buscaPeca.toLowerCase())).slice(0, 8)
     : [];
   const servicosFiltrados = buscaServico.length >= 2
-    ? servicosCatalogo.filter(s => s.nome.toLowerCase().includes(buscaServico.toLowerCase())).slice(0, 6)
+    ? servicosCatalogo.filter(s => s.nome.toLowerCase().includes(buscaServico.toLowerCase()) || s.code.toLowerCase().includes(buscaServico.toLowerCase())).slice(0, 8)
     : [];
 
   const addPeca = (p: typeof pecasCatalogo[0]) => {
     if (pecas.find(x => x.code === p.code)) return;
-    setPecas(prev => [...prev, { id: Date.now().toString(), nome: p.nome, code: p.code, qtd: 1, valor: p.ref, ref: p.ref }]);
+    setPecas(prev => [...prev, { id: Date.now().toString(), nome: p.nome, code: p.code, qtd: 1, valor: p.ref, ref: p.ref, disponibilidade: 'Em estoque', prazo: 0 }]);
     setBuscaPeca(''); setPecaAberta(false);
   };
 
@@ -149,7 +155,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
       const { data: budget, error: budgetErr } = await supabase.from('fleet_budgets').insert({
         service_order_id: serviceOrder.id,
         customer_product_id: cpId,
-        laudo_tecnico: laudo || 'Orçamento gerado via NovaLink.',
+        laudo_tecnico: laudo || 'Orçamento gerado via Auditt.',
         urgencia: 'normal',
         status: 'pendente',
         total_pecas: totalPecas,
@@ -187,192 +193,297 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="sticky top-0 z-20 bg-card border-b border-border px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onClose}><ArrowLeft className="w-5 h-5" /></Button>
-        <div className="flex-1">
-          <h1 className="text-sm font-bold text-foreground">Novo Orçamento</h1>
-          <p className="text-[10px] text-muted-foreground">{vehicle.placa} · {vehicle.marca} {vehicle.modelo}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-lg font-bold font-mono text-foreground">{fmt(total)}</p>
-        </div>
-      </div>
+    <div className="min-h-screen bg-background text-foreground">
 
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
-
-        {/* KM + Previsão */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">KM Atual *</label>
-            <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))} className="h-10 font-mono border-border" />
-          </div>
-          <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Previsão de Entrega</label>
-            <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)} className="h-10 border-border" />
-          </div>
-        </div>
-
-        {/* ═══ PEÇAS ═══ */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs font-bold text-foreground uppercase">Peças</h2>
-            <span className="text-[10px] text-muted-foreground">{fmt(totalPecas)}</span>
-          </div>
-
-          {/* Busca */}
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar peça..."
-              value={buscaPeca}
-              onChange={e => { setBuscaPeca(e.target.value); setPecaAberta(true); }}
-              onFocus={() => setPecaAberta(true)}
-              className="pl-9 h-10 border-border"
-            />
-            {pecaAberta && pecasFiltradas.length > 0 && (
-              <div className="absolute z-30 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                {pecasFiltradas.map(p => (
-                  <button key={p.code} onClick={() => addPeca(p)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-muted/50 text-sm border-b border-border/30 last:border-0 flex justify-between">
-                    <span className="text-foreground">{p.nome}</span>
-                    <span className="text-muted-foreground font-mono">{fmt(p.ref)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Lista de peças */}
-          {pecas.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-3">Nenhuma peça adicionada</p>
-          ) : (
-            <div className="space-y-1.5">
-              {pecas.map(p => (
-                <div key={p.id} className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground truncate">{p.nome}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Input type="number" min={1} value={p.qtd}
-                      onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, qtd: Math.max(1, Number(e.target.value)) } : x))}
-                      className="w-12 h-7 text-xs text-center border-border" />
-                    <span className="text-muted-foreground text-[10px]">×</span>
-                    <Input type="number" value={p.valor}
-                      onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, valor: Number(e.target.value) } : x))}
-                      className="w-20 h-7 text-xs font-mono border-border" />
-                    <span className="text-xs font-mono font-bold text-foreground w-20 text-right">{fmt(p.valor * p.qtd)}</span>
-                    <button onClick={() => setPecas(prev => prev.filter(x => x.id !== p.id))} className="text-muted-foreground hover:text-destructive ml-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+      {/* ══ TOP BAR ══ */}
+      <div className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-sm">
+        <div className="flex items-center gap-3 px-4 py-2.5">
+          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[hsl(var(--accent))]" />
+              <h1 className="text-sm font-bold tracking-wide uppercase">Orçamento — {vehicle.placa}</h1>
             </div>
-          )}
-        </div>
-
-        {/* ═══ MÃO DE OBRA ═══ */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs font-bold text-foreground uppercase">Mão de Obra</h2>
-            <span className="text-[10px] text-muted-foreground">{fmt(totalServicos)}</span>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{vehicle.marca} {vehicle.modelo} {vehicle.ano || ''} · OS #{serviceOrder.id.slice(0, 8)}</p>
           </div>
-
-          {/* Busca */}
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar serviço..."
-              value={buscaServico}
-              onChange={e => { setBuscaServico(e.target.value); setServicoAberto(true); }}
-              onFocus={() => setServicoAberto(true)}
-              className="pl-9 h-10 border-border"
-            />
-            {servicoAberto && servicosFiltrados.length > 0 && (
-              <div className="absolute z-30 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-44 overflow-y-auto">
-                {servicosFiltrados.map(s => (
-                  <button key={s.code} onClick={() => addServico(s)}
-                    className="w-full text-left px-3 py-2.5 hover:bg-muted/50 text-sm border-b border-border/30 last:border-0 flex justify-between">
-                    <span className="text-foreground">{s.nome}</span>
-                    <span className="text-muted-foreground">{s.horas}h · {fmt(s.taxa)}/h</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Lista de serviços */}
-          {servicos.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-3">Nenhum serviço adicionado</p>
-          ) : (
-            <div className="space-y-1.5">
-              {servicos.map(s => (
-                <div key={s.id} className="bg-card border border-border rounded-lg px-3 py-2 flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-foreground truncate">{s.nome}</p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Input type="number" step={0.5} min={0.5} value={s.horas}
-                      onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, horas: Number(e.target.value) } : x))}
-                      className="w-14 h-7 text-xs text-center border-border" />
-                    <span className="text-muted-foreground text-[10px]">h</span>
-                    <Input type="number" value={s.valorHora}
-                      onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, valorHora: Number(e.target.value) } : x))}
-                      className="w-20 h-7 text-xs font-mono border-border" />
-                    <span className="text-muted-foreground text-[10px]">/h</span>
-                    <span className="text-xs font-mono font-bold text-foreground w-20 text-right">{fmt(s.horas * s.valorHora)}</span>
-                    <button onClick={() => setServicos(prev => prev.filter(x => x.id !== s.id))} className="text-muted-foreground hover:text-destructive ml-1">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ═══ LAUDO ═══ */}
-        <div>
-          <label className="text-[11px] text-muted-foreground mb-1 block">Observações / Laudo Técnico</label>
-          <Textarea
-            placeholder="Descreva o problema encontrado..."
-            value={laudo}
-            onChange={e => setLaudo(e.target.value)}
-            className="min-h-[80px] text-sm border-border resize-none"
-          />
-        </div>
-
-        {/* ═══ RESUMO + BOTÃO ═══ */}
-        <div className="bg-card border border-border rounded-lg p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Peças</span>
-            <span className="font-mono text-foreground">{fmt(totalPecas)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Mão de Obra</span>
-            <span className="font-mono text-foreground">{fmt(totalServicos)}</span>
-          </div>
-          <div className="h-px bg-border my-1" />
-          <div className="flex justify-between text-base font-bold">
-            <span className="text-foreground">Total</span>
-            <span className="font-mono text-foreground">{fmt(total)}</span>
-          </div>
-          <div className="flex justify-between text-[10px] text-muted-foreground">
-            <span>Comissão NovaLink (15%)</span>
-            <span className="font-mono">{fmt(total * 0.15)}</span>
-          </div>
-
           <Button onClick={handleSubmit} disabled={saving || (pecas.length + servicos.length) === 0 || km <= 0}
-            className="w-full mt-3 h-12 text-base gap-2">
-            {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            Enviar Orçamento
+            className="h-9 gap-2 bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold text-xs uppercase tracking-wider">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enviar
           </Button>
         </div>
       </div>
 
-      {/* Backdrop para fechar dropdowns */}
+      {/* ══ INFO STRIP (KM, Data Entrada, Previsão) ══ */}
+      <div className="border-b border-border bg-card/60">
+        <div className="max-w-[1400px] mx-auto px-4 py-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">KM de Entrada *</label>
+              <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
+                className="h-9 font-mono text-sm bg-background border-border" placeholder="0" />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Data de Entrada</label>
+              <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/30 text-sm text-muted-foreground font-mono">
+                {dataEntrada}
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Data de Prev. de Conclusão</label>
+              <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
+                className="h-9 text-sm bg-background border-border" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-5">
+
+        {/* ══════════════ PEÇAS — TABLE STYLE ══════════════ */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--accent))]">
+              Peças / Materiais
+            </h2>
+            <span className="text-xs font-mono text-muted-foreground">{fmt(totalPecas)}</span>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar peça por nome ou código..."
+              value={buscaPeca}
+              onChange={e => { setBuscaPeca(e.target.value); setPecaAberta(true); }}
+              onFocus={() => setPecaAberta(true)}
+              className="pl-9 h-8 text-xs bg-background border-border"
+            />
+            {pecaAberta && pecasFiltradas.length > 0 && (
+              <div className="absolute z-40 w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                {pecasFiltradas.map(p => (
+                  <button key={p.code} onClick={() => addPeca(p)}
+                    className="w-full text-left px-3 py-2 hover:bg-[hsl(var(--accent)/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
+                    <div>
+                      <span className="text-foreground font-medium">{p.nome}</span>
+                      <span className="text-muted-foreground ml-2">({p.code})</span>
+                    </div>
+                    <span className="text-muted-foreground font-mono shrink-0">{fmt(p.ref)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="border border-border rounded-lg overflow-hidden">
+            {/* Header */}
+            <div className="bg-muted/50 border-b border-border">
+              <div className="grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span>Peça (Descrição)</span>
+                <span>Disponibilidade</span>
+                <span className="text-center">Prazo (dias)</span>
+                <span className="text-center">Qtde</span>
+                <span className="text-right">Valor Unit.</span>
+                <span className="text-right">Total</span>
+                <span></span>
+              </div>
+            </div>
+
+            {/* Rows */}
+            {pecas.length === 0 ? (
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                Busque e adicione peças acima
+              </div>
+            ) : (
+              pecas.map((p, idx) => (
+                <div key={p.id} className={`grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 border-b border-border/40 last:border-0 ${idx % 2 === 0 ? 'bg-card/30' : 'bg-card/60'} hover:bg-[hsl(var(--accent)/.05)] transition-colors`}>
+                  {/* Nome */}
+                  <div className="min-w-0">
+                    <p className="text-xs text-foreground truncate font-medium">{p.nome}</p>
+                    <p className="text-[9px] text-muted-foreground">{p.code}</p>
+                  </div>
+                  {/* Disponibilidade */}
+                  <select
+                    value={p.disponibilidade}
+                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, disponibilidade: e.target.value } : x))}
+                    className="h-7 text-[10px] bg-background border border-border rounded px-1.5 text-foreground appearance-none cursor-pointer"
+                  >
+                    {disponibilidadeOpcoes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                  </select>
+                  {/* Prazo */}
+                  <Input type="number" min={0} value={p.prazo}
+                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, prazo: Math.max(0, Number(e.target.value)) } : x))}
+                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
+                  {/* Qtde */}
+                  <Input type="number" min={1} value={p.qtd}
+                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, qtd: Math.max(1, Number(e.target.value)) } : x))}
+                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
+                  {/* Valor Unit */}
+                  <Input type="number" step={0.01} value={p.valor}
+                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, valor: Number(e.target.value) } : x))}
+                    className="h-7 text-[10px] font-mono text-right bg-background border-border w-full" />
+                  {/* Total */}
+                  <span className="text-xs font-mono font-bold text-right text-[hsl(var(--accent))]">{fmt(p.valor * p.qtd)}</span>
+                  {/* Remove */}
+                  <button onClick={() => setPecas(prev => prev.filter(x => x.id !== p.id))} className="text-muted-foreground hover:text-destructive transition-colors flex justify-center">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+
+            {/* Subtotal row */}
+            {pecas.length > 0 && (
+              <div className="grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 bg-muted/30 border-t border-border">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">Subtotal Peças</span>
+                <span /><span /><span /><span />
+                <span className="text-xs font-mono font-bold text-right text-foreground">{fmt(totalPecas)}</span>
+                <span />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ══════════════ MÃO DE OBRA — TABLE STYLE ══════════════ */}
+        <section>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--accent))]">
+              Mão de Obra / Serviços
+            </h2>
+            <span className="text-xs font-mono text-muted-foreground">{fmt(totalServicos)}</span>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar serviço por nome ou código..."
+              value={buscaServico}
+              onChange={e => { setBuscaServico(e.target.value); setServicoAberto(true); }}
+              onFocus={() => setServicoAberto(true)}
+              className="pl-9 h-8 text-xs bg-background border-border"
+            />
+            {servicoAberto && servicosFiltrados.length > 0 && (
+              <div className="absolute z-40 w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                {servicosFiltrados.map(s => (
+                  <button key={s.code} onClick={() => addServico(s)}
+                    className="w-full text-left px-3 py-2 hover:bg-[hsl(var(--accent)/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
+                    <div>
+                      <span className="text-foreground font-medium">{s.nome}</span>
+                      <span className="text-muted-foreground ml-2">({s.code})</span>
+                    </div>
+                    <span className="text-muted-foreground shrink-0">{s.horas}h · {fmt(s.taxa)}/h</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Table */}
+          <div className="border border-border rounded-lg overflow-hidden">
+            {/* Header */}
+            <div className="bg-muted/50 border-b border-border">
+              <div className="grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <span>Serviço (Descrição)</span>
+                <span className="text-center">Horas</span>
+                <span className="text-right">Valor/Hora</span>
+                <span className="text-right">Total</span>
+                <span></span>
+              </div>
+            </div>
+
+            {/* Rows */}
+            {servicos.length === 0 ? (
+              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                Busque e adicione serviços acima
+              </div>
+            ) : (
+              servicos.map((s, idx) => (
+                <div key={s.id} className={`grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 border-b border-border/40 last:border-0 ${idx % 2 === 0 ? 'bg-card/30' : 'bg-card/60'} hover:bg-[hsl(var(--accent)/.05)] transition-colors`}>
+                  {/* Nome */}
+                  <div className="min-w-0">
+                    <p className="text-xs text-foreground truncate font-medium">{s.nome}</p>
+                    <p className="text-[9px] text-muted-foreground">{s.code}</p>
+                  </div>
+                  {/* Horas */}
+                  <Input type="number" step={0.5} min={0.5} value={s.horas}
+                    onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, horas: Number(e.target.value) } : x))}
+                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
+                  {/* Valor/Hora */}
+                  <Input type="number" step={1} value={s.valorHora}
+                    onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, valorHora: Number(e.target.value) } : x))}
+                    className="h-7 text-[10px] font-mono text-right bg-background border-border w-full" />
+                  {/* Total */}
+                  <span className="text-xs font-mono font-bold text-right text-[hsl(var(--accent))]">{fmt(s.horas * s.valorHora)}</span>
+                  {/* Remove */}
+                  <button onClick={() => setServicos(prev => prev.filter(x => x.id !== s.id))} className="text-muted-foreground hover:text-destructive transition-colors flex justify-center">
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))
+            )}
+
+            {/* Subtotal row */}
+            {servicos.length > 0 && (
+              <div className="grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 bg-muted/30 border-t border-border">
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">Subtotal M.O.</span>
+                <span /><span />
+                <span className="text-xs font-mono font-bold text-right text-foreground">{fmt(totalServicos)}</span>
+                <span />
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* ══ LAUDO ══ */}
+        <section>
+          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Observações / Laudo Técnico</label>
+          <Textarea
+            placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
+            value={laudo}
+            onChange={e => setLaudo(e.target.value)}
+            className="min-h-[80px] text-xs bg-background border-border resize-none"
+          />
+        </section>
+
+        {/* ══ RESUMO FINANCEIRO ══ */}
+        <section className="border border-border rounded-lg overflow-hidden">
+          <div className="bg-muted/50 px-4 py-2 border-b border-border">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resumo Financeiro</h2>
+          </div>
+          <div className="px-4 py-3 space-y-1.5 bg-card/40">
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total Peças</span>
+              <span className="font-mono text-foreground">{fmt(totalPecas)}</span>
+            </div>
+            <div className="flex justify-between text-xs">
+              <span className="text-muted-foreground">Total Mão de Obra</span>
+              <span className="font-mono text-foreground">{fmt(totalServicos)}</span>
+            </div>
+            <div className="h-px bg-border my-1" />
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-foreground">Total Bruto</span>
+              <span className="font-mono text-[hsl(var(--accent))]">{fmt(total)}</span>
+            </div>
+            <div className="flex justify-between text-[10px] text-muted-foreground">
+              <span>Comissão Auditt (15%)</span>
+              <span className="font-mono">{fmt(total * 0.15)}</span>
+            </div>
+            <div className="flex justify-between text-xs font-semibold">
+              <span className="text-muted-foreground">Líquido Oficina (85%)</span>
+              <span className="font-mono text-[hsl(120,100%,60%)]">{fmt(total * 0.85)}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Bottom spacer for mobile */}
+        <div className="h-4" />
+      </div>
+
+      {/* Backdrop for dropdowns */}
       {(pecaAberta || servicoAberto) && (
         <div className="fixed inset-0 z-20" onClick={() => { setPecaAberta(false); setServicoAberto(false); }} />
       )}
