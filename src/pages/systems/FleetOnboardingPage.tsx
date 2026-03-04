@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuth as useAuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +14,7 @@ import { toast } from '@/components/ui/sonner';
 import {
   Wrench, Truck, ArrowLeft, ArrowRight, Check, Upload, Building2,
   Banknote, Camera, Shield, Search, Plus, Trash2, Copy, Share2,
-  FileSpreadsheet, ScanLine, Brain, Image
+  FileSpreadsheet, ScanLine, Brain, Image, Eye, EyeOff, Lock
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -82,7 +83,7 @@ function StepBar({ steps, currentStepIdx, progress }: {
 // ─── Layout wrapper (outside component to avoid remounts) ───
 function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, nextDisabled, loading, steps, currentStepIdx, progress }: {
   title: string; subtitle: string; children: React.ReactNode;
-  onNext?: () => void; onBack?: () => void; nextLabel?: string; nextDisabled?: boolean;
+  onNext?: () => void | Promise<void>; onBack?: () => void; nextLabel?: string; nextDisabled?: boolean;
   loading?: boolean; steps: { key: string; label: string }[]; currentStepIdx: number; progress: number;
 }) {
   return (
@@ -119,11 +120,18 @@ function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, next
 
 export default function FleetOnboardingPage() {
   const { user } = useAuth();
+  const { signUp } = useAuthContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tipoParam = searchParams.get('tipo') as 'oficina' | 'frota' | null;
   const [userType, setUserType] = useState<UserType>(tipoParam || null);
   const [loading, setLoading] = useState(false);
+
+  // Account creation state (for users not logged in)
+  const [acctEmail, setAcctEmail] = useState('');
+  const [acctPassword, setAcctPassword] = useState('');
+  const [acctConfirmPassword, setAcctConfirmPassword] = useState('');
+  const [showAcctPassword, setShowAcctPassword] = useState(false);
 
   // Oficina state
   const [oficinaStep, setOficinaStep] = useState<OficinaStep>('cnpj');
@@ -165,6 +173,50 @@ export default function FleetOnboardingPage() {
   const [inviteLink, setInviteLink] = useState('');
   const [veroScanning, setVeroScanning] = useState(false);
   const [veroFile, setVeroFile] = useState<File | null>(null);
+
+  // ─── Password Strength ───
+  const getPasswordStrength = (pw: string) => {
+    if (!pw) return { level: 0, label: '', color: '' };
+    let score = 0;
+    if (pw.length >= 6) score++;
+    if (pw.length >= 10) score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    if (score <= 1) return { level: 1, label: 'Fraca', color: 'bg-destructive' };
+    if (score <= 2) return { level: 2, label: 'Razoável', color: 'bg-orange-500' };
+    if (score <= 3) return { level: 3, label: 'Boa', color: 'bg-yellow-500' };
+    return { level: Math.min(score, 5), label: score <= 4 ? 'Forte' : 'Muito forte', color: 'bg-emerald-500' };
+  };
+
+  const passwordStrength = getPasswordStrength(acctPassword);
+
+  // ─── Create account if not logged in ───
+  const ensureAccount = async (name: string, phone: string): Promise<boolean> => {
+    if (user) return true; // Already logged in
+    if (!acctEmail || !acctPassword) {
+      toast.error('Preencha o e-mail e a senha de acesso ao painel.');
+      return false;
+    }
+    if (acctPassword !== acctConfirmPassword) {
+      toast.error('As senhas não coincidem.');
+      return false;
+    }
+    if (passwordStrength.level < 2) {
+      toast.error('Senha muito fraca. Use letras maiúsculas, números e caracteres especiais.');
+      return false;
+    }
+    setLoading(true);
+    const { error } = await signUp(acctEmail, acctPassword, name, phone);
+    if (error) {
+      toast.error(error.message || 'Erro ao criar conta');
+      setLoading(false);
+      return false;
+    }
+    toast.success('Conta criada! Verifique seu e-mail para confirmar.');
+    setLoading(false);
+    return true;
+  };
 
   // ─── CNPJ Lookup (BrasilAPI) ───
   const buscarCnpj = async (cnpj: string, type: 'oficina' | 'frota') => {
@@ -407,10 +459,16 @@ export default function FleetOnboardingPage() {
         <StepLayout
           {...stepLayoutProps}
           title="Dados da Oficina"
-          subtitle="Informe o CNPJ e preenchemos automaticamente"
+          subtitle="Informe o CNPJ e crie sua senha de acesso"
           onBack={() => navigate('/auditt')}
-          onNext={() => setOficinaStep('servicos')}
-          nextDisabled={!oficinaCnpj || !oficinaNome}
+          onNext={async () => {
+            if (!user) {
+              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone);
+              if (!ok) return;
+            }
+            setOficinaStep('servicos');
+          }}
+          nextDisabled={!oficinaCnpj || !oficinaNome || (!user && (!acctEmail || !acctPassword || !acctConfirmPassword))}
         >
           <div className="space-y-1.5">
             <Label>CNPJ</Label>
@@ -457,6 +515,67 @@ export default function FleetOnboardingPage() {
               <Input type="email" value={oficinaEmail} onChange={e => setOficinaEmail(e.target.value)} />
             </div>
           </div>
+
+          {/* ── Senha de Acesso ao Painel ── */}
+          {!user && (
+            <>
+              <Separator />
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+                <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-foreground">
+                  Crie uma <strong>senha de acesso ao painel</strong>. Após a aprovação, você usará o e-mail e esta senha para entrar na plataforma Auditt.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>E-mail de acesso</Label>
+                <Input
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={acctEmail}
+                  onChange={e => setAcctEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Senha de acesso</Label>
+                <div className="relative">
+                  <Input
+                    type={showAcctPassword ? 'text' : 'password'}
+                    placeholder="Mínimo 6 caracteres"
+                    value={acctPassword}
+                    onChange={e => setAcctPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowAcctPassword(!showAcctPassword)}
+                  >
+                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {acctPassword && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
+                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Confirmar senha</Label>
+                <Input
+                  type={showAcctPassword ? 'text' : 'password'}
+                  placeholder="Repita a senha"
+                  value={acctConfirmPassword}
+                  onChange={e => setAcctConfirmPassword(e.target.value)}
+                />
+              </div>
+            </>
+          )}
         </StepLayout>
       );
     }
@@ -627,10 +746,16 @@ export default function FleetOnboardingPage() {
         <StepLayout
           {...stepLayoutProps}
           title="Dados da Empresa"
-          subtitle="Informe o CNPJ da sua empresa de transporte"
+          subtitle="Informe o CNPJ e crie sua senha de acesso"
           onBack={() => navigate('/auditt')}
-          onNext={() => setFrotaStep('frota')}
-          nextDisabled={!frotaCnpj || !frotaNome}
+          onNext={async () => {
+            if (!user) {
+              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone);
+              if (!ok) return;
+            }
+            setFrotaStep('frota');
+          }}
+          nextDisabled={!frotaCnpj || !frotaNome || (!user && (!acctEmail || !acctPassword || !acctConfirmPassword))}
         >
           <div className="space-y-1.5">
             <Label>CNPJ</Label>
@@ -673,6 +798,67 @@ export default function FleetOnboardingPage() {
               <Input type="email" value={frotaEmail} onChange={e => setFrotaEmail(e.target.value)} />
             </div>
           </div>
+
+          {/* ── Senha de Acesso ao Painel ── */}
+          {!user && (
+            <>
+              <Separator />
+              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+                <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                <p className="text-xs text-foreground">
+                  Crie uma <strong>senha de acesso ao painel</strong>. Após o cadastro, você usará o e-mail e esta senha para entrar na plataforma Auditt.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label>E-mail de acesso</Label>
+                <Input
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={acctEmail}
+                  onChange={e => setAcctEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Senha de acesso</Label>
+                <div className="relative">
+                  <Input
+                    type={showAcctPassword ? 'text' : 'password'}
+                    placeholder="Mínimo 6 caracteres"
+                    value={acctPassword}
+                    onChange={e => setAcctPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowAcctPassword(!showAcctPassword)}
+                  >
+                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {acctPassword && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
+                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Confirmar senha</Label>
+                <Input
+                  type={showAcctPassword ? 'text' : 'password'}
+                  placeholder="Repita a senha"
+                  value={acctConfirmPassword}
+                  onChange={e => setAcctConfirmPassword(e.target.value)}
+                />
+              </div>
+            </>
+          )}
         </StepLayout>
       );
     }
