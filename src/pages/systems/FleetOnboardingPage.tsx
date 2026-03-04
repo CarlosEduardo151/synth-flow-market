@@ -122,7 +122,7 @@ function StepLayout({ title, subtitle, children, onNext, onBack, nextLabel, next
 
 export default function FleetOnboardingPage() {
   const { user } = useAuth();
-  const { signUp } = useAuthContext();
+  const { signUp, signIn } = useAuthContext();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const tipoParam = searchParams.get('tipo') as 'oficina' | 'frota' | null;
@@ -194,10 +194,10 @@ export default function FleetOnboardingPage() {
   const passwordStrength = getPasswordStrength(acctPassword);
 
   // ─── Create account if not logged in ───
-  const ensureAccount = async (name: string, phone: string): Promise<boolean> => {
+  const ensureAccount = async (name: string, phone: string, cnpj: string): Promise<boolean> => {
     if (user) return true; // Already logged in
-    if (!acctEmail || !acctPassword) {
-      toast.error('Preencha o e-mail e a senha de acesso ao painel.');
+    if (!acctPassword) {
+      toast.error('Preencha a senha de acesso ao painel.');
       return false;
     }
     if (acctPassword !== acctConfirmPassword) {
@@ -208,14 +208,31 @@ export default function FleetOnboardingPage() {
       toast.error('Senha muito fraca. Use letras maiúsculas, números e caracteres especiais.');
       return false;
     }
+    // Use edge function to create auto-confirmed account with CNPJ-based email
+    const rawCnpj = cnpj.replace(/\D/g, '');
     setLoading(true);
-    const { error } = await signUp(acctEmail, acctPassword, name, phone);
-    if (error) {
-      toast.error(error.message || 'Erro ao criar conta');
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('auditt-signup', {
+        body: { cnpj: rawCnpj, password: acctPassword, full_name: name, phone },
+      });
+      if (fnError || data?.error) {
+        toast.error(data?.error || fnError?.message || 'Erro ao criar conta');
+        setLoading(false);
+        return false;
+      }
+      // Auto-login after account creation
+      const generatedEmail = `${rawCnpj}@auditt.app`;
+      const { error: loginError } = await signIn(generatedEmail, acctPassword);
+      if (loginError) {
+        toast.error('Conta criada, mas não foi possível fazer login automático.');
+      } else {
+        toast.success('Conta criada com sucesso!');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao criar conta');
       setLoading(false);
       return false;
     }
-    toast.success('Conta criada! Verifique seu e-mail para confirmar.');
     setLoading(false);
     return true;
   };
@@ -658,18 +675,18 @@ export default function FleetOnboardingPage() {
           onBack={() => setOficinaStep('documentos')}
           onNext={async () => {
             if (!user) {
-              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone);
+              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone, oficinaCnpj);
               if (!ok) return;
             }
             await submitOficina();
           }}
           nextLabel="Enviar Cadastro"
-          nextDisabled={!user && (!acctEmail || !acctPassword || !acctConfirmPassword)}
+          nextDisabled={!user && (!acctPassword || !acctConfirmPassword)}
         >
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
             <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-foreground">
-              Crie uma <strong>senha de acesso ao painel</strong>. Após a aprovação pela equipe Auditt, você usará o e-mail e esta senha para entrar na plataforma.
+              Crie uma <strong>senha de acesso ao painel</strong>. Após a aprovação pela equipe Auditt, você usará o CNPJ e esta senha para entrar na plataforma.
             </p>
           </div>
 
@@ -683,15 +700,8 @@ export default function FleetOnboardingPage() {
             </div>
           ) : (
             <>
-              <div className="space-y-1.5">
-                <Label>E-mail de acesso</Label>
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={acctEmail}
-                  onChange={e => setAcctEmail(e.target.value)}
-                />
-              </div>
+
+
               <div className="space-y-1.5">
                 <Label>Senha de acesso</Label>
                 <div className="relative">
@@ -1045,18 +1055,18 @@ export default function FleetOnboardingPage() {
           onBack={() => setFrotaStep('convite')}
           onNext={async () => {
             if (!user) {
-              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone);
+              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone, frotaCnpj);
               if (!ok) return;
             }
             setFrotaStep('finalizado');
           }}
           nextLabel="Concluir Cadastro"
-          nextDisabled={!user && (!acctEmail || !acctPassword || !acctConfirmPassword)}
+          nextDisabled={!user && (!acctPassword || !acctConfirmPassword)}
         >
           <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
             <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-foreground">
-              Crie uma <strong>senha de acesso ao painel</strong>. Você usará o e-mail e esta senha para entrar na plataforma Auditt.
+              Crie uma <strong>senha de acesso ao painel</strong>. Você usará o CNPJ e esta senha para entrar na plataforma Auditt.
             </p>
           </div>
 
@@ -1070,15 +1080,8 @@ export default function FleetOnboardingPage() {
             </div>
           ) : (
             <>
-              <div className="space-y-1.5">
-                <Label>E-mail de acesso</Label>
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={acctEmail}
-                  onChange={e => setAcctEmail(e.target.value)}
-                />
-              </div>
+
+
               <div className="space-y-1.5">
                 <Label>Senha de acesso</Label>
                 <div className="relative">
