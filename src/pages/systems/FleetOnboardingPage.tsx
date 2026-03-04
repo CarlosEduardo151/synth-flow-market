@@ -20,8 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // ─── Types ───
 type UserType = null | 'oficina' | 'frota';
-type OficinaStep = 'cnpj' | 'servicos' | 'banco' | 'documentos' | 'finalizado';
-type FrotaStep = 'cnpj' | 'frota' | 'veiculos' | 'convite' | 'finalizado';
+type OficinaStep = 'cnpj' | 'servicos' | 'banco' | 'documentos' | 'senha' | 'finalizado';
+type FrotaStep = 'cnpj' | 'frota' | 'veiculos' | 'convite' | 'senha' | 'finalizado';
 
 interface VeiculoForm {
   id: string;
@@ -35,6 +35,7 @@ const OFICINA_STEPS: { key: OficinaStep; label: string }[] = [
   { key: 'servicos', label: 'Serviços' },
   { key: 'banco', label: 'Banco' },
   { key: 'documentos', label: 'Documentos' },
+  { key: 'senha', label: 'Acesso' },
   { key: 'finalizado', label: 'Pronto' },
 ];
 
@@ -43,6 +44,7 @@ const FROTA_STEPS: { key: FrotaStep; label: string }[] = [
   { key: 'frota', label: 'Frota' },
   { key: 'veiculos', label: 'Veículos' },
   { key: 'convite', label: 'Motoristas' },
+  { key: 'senha', label: 'Acesso' },
   { key: 'finalizado', label: 'Pronto' },
 ];
 
@@ -459,16 +461,10 @@ export default function FleetOnboardingPage() {
         <StepLayout
           {...stepLayoutProps}
           title="Dados da Oficina"
-          subtitle="Informe o CNPJ e crie sua senha de acesso"
+          subtitle="Informe o CNPJ e preenchemos automaticamente"
           onBack={() => navigate('/auditt')}
-          onNext={async () => {
-            if (!user) {
-              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone);
-              if (!ok) return;
-            }
-            setOficinaStep('servicos');
-          }}
-          nextDisabled={!oficinaCnpj || !oficinaNome || (!user && (!acctEmail || !acctPassword || !acctConfirmPassword))}
+          onNext={() => setOficinaStep('servicos')}
+          nextDisabled={!oficinaCnpj || !oficinaNome}
         >
           <div className="space-y-1.5">
             <Label>CNPJ</Label>
@@ -515,67 +511,6 @@ export default function FleetOnboardingPage() {
               <Input type="email" value={oficinaEmail} onChange={e => setOficinaEmail(e.target.value)} />
             </div>
           </div>
-
-          {/* ── Senha de Acesso ao Painel ── */}
-          {!user && (
-            <>
-              <Separator />
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
-                <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <p className="text-xs text-foreground">
-                  Crie uma <strong>senha de acesso ao painel</strong>. Após a aprovação, você usará o e-mail e esta senha para entrar na plataforma Auditt.
-                </p>
-              </div>
-              <div className="space-y-1.5">
-                <Label>E-mail de acesso</Label>
-                <Input
-                  type="email"
-                  placeholder="seu@email.com"
-                  value={acctEmail}
-                  onChange={e => setAcctEmail(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Senha de acesso</Label>
-                <div className="relative">
-                  <Input
-                    type={showAcctPassword ? 'text' : 'password'}
-                    placeholder="Mínimo 6 caracteres"
-                    value={acctPassword}
-                    onChange={e => setAcctPassword(e.target.value)}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowAcctPassword(!showAcctPassword)}
-                  >
-                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {acctPassword && (
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
-                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
-                  </div>
-                )}
-              </div>
-              <div className="space-y-1.5">
-                <Label>Confirmar senha</Label>
-                <Input
-                  type={showAcctPassword ? 'text' : 'password'}
-                  placeholder="Repita a senha"
-                  value={acctConfirmPassword}
-                  onChange={e => setAcctConfirmPassword(e.target.value)}
-                />
-              </div>
-            </>
-          )}
         </StepLayout>
       );
     }
@@ -689,8 +624,7 @@ export default function FleetOnboardingPage() {
           title="Documentos"
           subtitle="Envie uma foto do alvará ou da fachada para validação"
           onBack={() => setOficinaStep('banco')}
-          onNext={submitOficina}
-          nextLabel="Enviar Cadastro"
+          onNext={() => setOficinaStep('senha')}
           nextDisabled={!alvaraFile && !fachadaFile}
         >
           <div className="bg-muted/30 border border-border rounded-lg p-3 flex items-start gap-2">
@@ -715,100 +649,40 @@ export default function FleetOnboardingPage() {
       );
     }
 
-    if (oficinaStep === 'finalizado') {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center p-4">
-          <div className="w-full max-w-md text-center space-y-6">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
-              <Check className="w-8 h-8 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-foreground">Cadastro Enviado!</h2>
-              <p className="text-muted-foreground mt-2">
-                Sua oficina está em análise. Você receberá uma notificação assim que for aprovada e começará a receber chamados das frotas da região.
-              </p>
-            </div>
-            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas')} className="w-full">
-              Ir para o Painel
-            </Button>
-          </div>
-        </div>
-      );
-    }
-  }
-
-  // ────────────────────────────
-  // FROTA FLOW
-  // ────────────────────────────
-  if (userType === 'frota') {
-    if (frotaStep === 'cnpj') {
+    if (oficinaStep === 'senha') {
       return (
         <StepLayout
           {...stepLayoutProps}
-          title="Dados da Empresa"
-          subtitle="Informe o CNPJ e crie sua senha de acesso"
-          onBack={() => navigate('/auditt')}
+          title="Senha de Acesso"
+          subtitle="Defina o e-mail e a senha para acessar o painel após aprovação"
+          onBack={() => setOficinaStep('documentos')}
           onNext={async () => {
             if (!user) {
-              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone);
+              const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone);
               if (!ok) return;
             }
-            setFrotaStep('frota');
+            await submitOficina();
           }}
-          nextDisabled={!frotaCnpj || !frotaNome || (!user && (!acctEmail || !acctPassword || !acctConfirmPassword))}
+          nextLabel="Enviar Cadastro"
+          nextDisabled={!user && (!acctEmail || !acctPassword || !acctConfirmPassword)}
         >
-          <div className="space-y-1.5">
-            <Label>CNPJ</Label>
-            <div className="flex gap-2">
-              <Input placeholder="00.000.000/0000-00" value={frotaCnpj} onChange={e => setFrotaCnpj(e.target.value)} />
-              <Button variant="outline" size="icon" onClick={() => buscarCnpj(frotaCnpj, 'frota')} disabled={loading}>
-                <Search className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Razão Social</Label>
-            <Input value={frotaRazao} onChange={e => setFrotaRazao(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Nome Fantasia</Label>
-            <Input value={frotaNome} onChange={e => setFrotaNome(e.target.value)} />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Endereço</Label>
-            <Input value={frotaEndereco} onChange={e => setFrotaEndereco(e.target.value)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Cidade</Label>
-              <Input value={frotaCidade} onChange={e => setFrotaCidade(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Estado</Label>
-              <Input value={frotaEstado} onChange={e => setFrotaEstado(e.target.value)} maxLength={2} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Telefone</Label>
-              <Input value={frotaTelefone} onChange={e => setFrotaTelefone(e.target.value)} placeholder="(99) 99999-9999" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>E-mail</Label>
-              <Input type="email" value={frotaEmail} onChange={e => setFrotaEmail(e.target.value)} />
-            </div>
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+            <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-foreground">
+              Crie uma <strong>senha de acesso ao painel</strong>. Após a aprovação pela equipe Auditt, você usará o e-mail e esta senha para entrar na plataforma.
+            </p>
           </div>
 
-          {/* ── Senha de Acesso ao Painel ── */}
-          {!user && (
-            <>
-              <Separator />
-              <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
-                <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                <p className="text-xs text-foreground">
-                  Crie uma <strong>senha de acesso ao painel</strong>. Após o cadastro, você usará o e-mail e esta senha para entrar na plataforma Auditt.
-                </p>
+          {user ? (
+            <div className="bg-muted/30 border border-border rounded-lg p-4 flex items-center gap-3">
+              <Shield className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Você já está logado</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
               </div>
+            </div>
+          ) : (
+            <>
               <div className="space-y-1.5">
                 <Label>E-mail de acesso</Label>
                 <Input
@@ -859,6 +733,87 @@ export default function FleetOnboardingPage() {
               </div>
             </>
           )}
+        </StepLayout>
+      );
+    }
+
+    if (oficinaStep === 'finalizado') {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="w-full max-w-md text-center space-y-6">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <Check className="w-8 h-8 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-foreground">Cadastro Enviado!</h2>
+              <p className="text-muted-foreground mt-2">
+                Sua oficina está em análise. Você receberá uma notificação assim que for aprovada e começará a receber chamados das frotas da região.
+              </p>
+            </div>
+            <Button onClick={() => navigate('/auditt')} className="w-full">
+              Voltar ao Portal
+            </Button>
+          </div>
+        </div>
+      );
+    }
+  }
+
+  // ────────────────────────────
+  // FROTA FLOW
+  // ────────────────────────────
+  if (userType === 'frota') {
+    if (frotaStep === 'cnpj') {
+      return (
+        <StepLayout
+          {...stepLayoutProps}
+          title="Dados da Empresa"
+          subtitle="Informe o CNPJ da sua empresa de transporte"
+          onBack={() => navigate('/auditt')}
+          onNext={() => setFrotaStep('frota')}
+          nextDisabled={!frotaCnpj || !frotaNome}
+        >
+          <div className="space-y-1.5">
+            <Label>CNPJ</Label>
+            <div className="flex gap-2">
+              <Input placeholder="00.000.000/0000-00" value={frotaCnpj} onChange={e => setFrotaCnpj(e.target.value)} />
+              <Button variant="outline" size="icon" onClick={() => buscarCnpj(frotaCnpj, 'frota')} disabled={loading}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Razão Social</Label>
+            <Input value={frotaRazao} onChange={e => setFrotaRazao(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Nome Fantasia</Label>
+            <Input value={frotaNome} onChange={e => setFrotaNome(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Endereço</Label>
+            <Input value={frotaEndereco} onChange={e => setFrotaEndereco(e.target.value)} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Cidade</Label>
+              <Input value={frotaCidade} onChange={e => setFrotaCidade(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Estado</Label>
+              <Input value={frotaEstado} onChange={e => setFrotaEstado(e.target.value)} maxLength={2} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label>Telefone</Label>
+              <Input value={frotaTelefone} onChange={e => setFrotaTelefone(e.target.value)} placeholder="(99) 99999-9999" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>E-mail</Label>
+              <Input type="email" value={frotaEmail} onChange={e => setFrotaEmail(e.target.value)} />
+            </div>
+          </div>
         </StepLayout>
       );
     }
@@ -1042,8 +997,8 @@ export default function FleetOnboardingPage() {
           {...stepLayoutProps}
           title="Convidar Motoristas"
           subtitle="Compartilhe este link para seus motoristas terem acesso ao app"
-          onNext={() => setFrotaStep('finalizado')}
-          nextLabel="Concluir Cadastro"
+          onNext={() => setFrotaStep('senha')}
+          nextLabel="Continuar"
         >
           {inviteLink ? (
             <div className="space-y-3">
@@ -1081,6 +1036,94 @@ export default function FleetOnboardingPage() {
       );
     }
 
+    if (frotaStep === 'senha') {
+      return (
+        <StepLayout
+          {...stepLayoutProps}
+          title="Senha de Acesso"
+          subtitle="Defina o e-mail e a senha para acessar o painel"
+          onBack={() => setFrotaStep('convite')}
+          onNext={async () => {
+            if (!user) {
+              const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone);
+              if (!ok) return;
+            }
+            setFrotaStep('finalizado');
+          }}
+          nextLabel="Concluir Cadastro"
+          nextDisabled={!user && (!acctEmail || !acctPassword || !acctConfirmPassword)}
+        >
+          <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+            <Lock className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-foreground">
+              Crie uma <strong>senha de acesso ao painel</strong>. Você usará o e-mail e esta senha para entrar na plataforma Auditt.
+            </p>
+          </div>
+
+          {user ? (
+            <div className="bg-muted/30 border border-border rounded-lg p-4 flex items-center gap-3">
+              <Shield className="w-5 h-5 text-primary shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-foreground">Você já está logado</p>
+                <p className="text-xs text-muted-foreground">{user.email}</p>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <Label>E-mail de acesso</Label>
+                <Input
+                  type="email"
+                  placeholder="seu@email.com"
+                  value={acctEmail}
+                  onChange={e => setAcctEmail(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Senha de acesso</Label>
+                <div className="relative">
+                  <Input
+                    type={showAcctPassword ? 'text' : 'password'}
+                    placeholder="Mínimo 6 caracteres"
+                    value={acctPassword}
+                    onChange={e => setAcctPassword(e.target.value)}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowAcctPassword(!showAcctPassword)}
+                  >
+                    {showAcctPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {acctPassword && (
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${passwordStrength.color}`}
+                        style={{ width: `${(passwordStrength.level / 5) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-muted-foreground">{passwordStrength.label}</span>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label>Confirmar senha</Label>
+                <Input
+                  type={showAcctPassword ? 'text' : 'password'}
+                  placeholder="Repita a senha"
+                  value={acctConfirmPassword}
+                  onChange={e => setAcctConfirmPassword(e.target.value)}
+                />
+              </div>
+            </>
+          )}
+        </StepLayout>
+      );
+    }
+
     if (frotaStep === 'finalizado') {
       return (
         <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -1094,8 +1137,8 @@ export default function FleetOnboardingPage() {
                 Sua frota está cadastrada. Agora você pode abrir chamados de manutenção e acompanhar tudo pelo painel.
               </p>
             </div>
-            <Button onClick={() => navigate('/sistema/gestao-frotas-oficinas')} className="w-full">
-              Abrir Painel de Frotas
+            <Button onClick={() => navigate('/auditt')} className="w-full">
+              Voltar ao Portal
             </Button>
           </div>
         </div>
