@@ -43,8 +43,8 @@ const FROTA_STEPS: { key: FrotaStep; label: string }[] = [
   { key: 'cnpj', label: 'Empresa' },
   { key: 'frota', label: 'Frota' },
   { key: 'veiculos', label: 'Veículos' },
-  { key: 'convite', label: 'Motoristas' },
   { key: 'senha', label: 'Acesso' },
+  { key: 'convite', label: 'Motoristas' },
   { key: 'finalizado', label: 'Pronto' },
 ];
 
@@ -193,20 +193,23 @@ export default function FleetOnboardingPage() {
 
   const passwordStrength = getPasswordStrength(acctPassword);
 
+  // Store the Auditt user ID after account creation (separate from NovaLink user)
+  const [audittUserId, setAudittUserId] = useState<string | null>(null);
+
   // ─── Create account if not logged in ───
-  const ensureAccount = async (name: string, phone: string, cnpj: string): Promise<boolean> => {
+  const ensureAccount = async (name: string, phone: string, cnpj: string): Promise<string | null> => {
     // Auditt has its own auth system — always require password creation regardless of NovaLink login state
     if (!acctPassword) {
       toast.error('Preencha a senha de acesso ao painel.');
-      return false;
+      return null;
     }
     if (acctPassword !== acctConfirmPassword) {
       toast.error('As senhas não coincidem.');
-      return false;
+      return null;
     }
     if (passwordStrength.level < 2) {
       toast.error('Senha muito fraca. Use letras maiúsculas, números e caracteres especiais.');
-      return false;
+      return null;
     }
     // Use edge function to create auto-confirmed account with CNPJ-based email
     const rawCnpj = cnpj.replace(/\D/g, '');
@@ -218,8 +221,10 @@ export default function FleetOnboardingPage() {
       if (fnError || data?.error) {
         toast.error(data?.error || fnError?.message || 'Erro ao criar conta');
         setLoading(false);
-        return false;
+        return null;
       }
+      const newUserId = data?.user_id as string;
+      
       // Auto-login after account creation
       const generatedEmail = `${rawCnpj}@auditt.app`;
       const { error: loginError } = await signIn(generatedEmail, acctPassword);
@@ -228,13 +233,14 @@ export default function FleetOnboardingPage() {
       } else {
         toast.success('Conta criada com sucesso!');
       }
+      setAudittUserId(newUserId);
+      setLoading(false);
+      return newUserId;
     } catch (err: any) {
       toast.error(err.message || 'Erro ao criar conta');
       setLoading(false);
-      return false;
+      return null;
     }
-    setLoading(false);
-    return true;
   };
 
   // ─── CNPJ Lookup (BrasilAPI) ───
@@ -272,27 +278,29 @@ export default function FleetOnboardingPage() {
   };
 
   // ─── Upload file to storage ───
-  const uploadDoc = async (file: File, folder: string): Promise<string | null> => {
-    if (!user) return null;
+  const uploadDoc = async (file: File, folder: string, overrideUserId?: string): Promise<string | null> => {
+    const uid = overrideUserId || audittUserId || user?.id;
+    if (!uid) return null;
     const ext = file.name.split('.').pop();
-    const path = `${user.id}/${folder}-${Date.now()}.${ext}`;
+    const path = `${uid}/${folder}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage.from('fleet_docs').upload(path, file);
     if (error) { toast.error('Erro ao enviar arquivo'); return null; }
     return path;
   };
 
   // ─── Submit Oficina ───
-  const submitOficina = async () => {
-    if (!user) { toast.error('Faça login primeiro'); return; }
+  const submitOficina = async (overrideUserId?: string) => {
+    const uid = overrideUserId || audittUserId || user?.id;
+    if (!uid) { toast.error('Erro: usuário não identificado'); return; }
     setLoading(true);
     try {
       let alvaraUrl: string | null = null;
       let fachadaUrl: string | null = null;
-      if (alvaraFile) alvaraUrl = await uploadDoc(alvaraFile, 'alvara');
-      if (fachadaFile) fachadaUrl = await uploadDoc(fachadaFile, 'fachada');
+      if (alvaraFile) alvaraUrl = await uploadDoc(alvaraFile, 'alvara', uid);
+      if (fachadaFile) fachadaUrl = await uploadDoc(fachadaFile, 'fachada', uid);
 
       const { error } = await (supabase.from('fleet_partner_workshops') as any).insert({
-        user_id: user.id,
+        user_id: uid,
         cnpj: oficinaCnpj.replace(/\D/g, ''),
         razao_social: oficinaRazao,
         nome_fantasia: oficinaNome,
@@ -326,14 +334,15 @@ export default function FleetOnboardingPage() {
   };
 
   // ─── Submit Frota ───
-  const submitFrota = async () => {
-    if (!user) { toast.error('Faça login primeiro'); return; }
+  const submitFrota = async (overrideUserId?: string) => {
+    const uid = overrideUserId || audittUserId || user?.id;
+    if (!uid) { toast.error('Erro: usuário não identificado'); return; }
     setLoading(true);
     try {
       // Create operator
       const { data: op, error: opErr } = await (supabase.from('fleet_operators') as any)
         .insert({
-          user_id: user.id,
+          user_id: uid,
           cnpj: frotaCnpj.replace(/\D/g, ''),
           razao_social: frotaRazao,
           nome_fantasia: frotaNome,
@@ -358,7 +367,7 @@ export default function FleetOnboardingPage() {
 
       // Create customer_product if not exists
       await (supabase.from('customer_products') as any).upsert({
-        user_id: user.id,
+        user_id: uid,
         product_slug: 'gestao-frotas-oficinas',
         product_title: 'Gestão de Frotas & Oficinas',
         acquisition_type: 'purchase',
@@ -369,7 +378,7 @@ export default function FleetOnboardingPage() {
       // Insert vehicles with the customer_product_id
       const { data: cp } = await (supabase.from('customer_products') as any)
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', uid)
         .eq('product_slug', 'gestao-frotas-oficinas')
         .single();
 
@@ -674,9 +683,9 @@ export default function FleetOnboardingPage() {
           subtitle="Defina o e-mail e a senha para acessar o painel após aprovação"
           onBack={() => setOficinaStep('documentos')}
           onNext={async () => {
-            const ok = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone, oficinaCnpj);
-            if (!ok) return;
-            await submitOficina();
+            const newUserId = await ensureAccount(oficinaNome || oficinaRazao, oficinaTelefone, oficinaCnpj);
+            if (!newUserId) return;
+            await submitOficina(newUserId);
           }}
           nextLabel="Enviar Cadastro"
           nextDisabled={!acctPassword || !acctConfirmPassword}
@@ -845,8 +854,8 @@ export default function FleetOnboardingPage() {
           title="Cadastrar Veículos"
           subtitle="Use o VERO 1.0 para escanear ou cadastre manualmente"
           onBack={() => setFrotaStep('frota')}
-          onNext={submitFrota}
-          nextLabel="Salvar e Continuar"
+          onNext={() => setFrotaStep('senha')}
+          nextLabel="Continuar"
           nextDisabled={!veiculos.some(v => v.placa.trim())}
         >
           <Tabs defaultValue="vero" className="w-full">
@@ -991,8 +1000,8 @@ export default function FleetOnboardingPage() {
           {...stepLayoutProps}
           title="Convidar Motoristas"
           subtitle="Compartilhe este link para seus motoristas terem acesso ao app"
-          onNext={() => setFrotaStep('senha')}
-          nextLabel="Continuar"
+          onNext={() => setFrotaStep('finalizado')}
+          nextLabel="Concluir"
         >
           {inviteLink ? (
             <div className="space-y-3">
@@ -1036,11 +1045,12 @@ export default function FleetOnboardingPage() {
           {...stepLayoutProps}
           title="Senha de Acesso"
           subtitle="Defina o e-mail e a senha para acessar o painel"
-          onBack={() => setFrotaStep('convite')}
+          onBack={() => setFrotaStep('veiculos')}
           onNext={async () => {
-            const ok = await ensureAccount(frotaNome || frotaRazao, frotaTelefone, frotaCnpj);
-            if (!ok) return;
-            setFrotaStep('finalizado');
+            const newUserId = await ensureAccount(frotaNome || frotaRazao, frotaTelefone, frotaCnpj);
+            if (!newUserId) return;
+            await submitFrota(newUserId);
+            setFrotaStep('convite');
           }}
           nextLabel="Concluir Cadastro"
           nextDisabled={!acctPassword || !acctConfirmPassword}
