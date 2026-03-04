@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -126,7 +127,7 @@ export default function AudittAccessPortal() {
     if (user && justLoggedIn) navigate('/sistema/gestao-frotas-oficinas');
   }, [user, justLoggedIn, navigate]);
 
-  const handleDocSubmit = () => {
+  const handleDocSubmit = async () => {
     const raw = docValue.replace(/\D/g, '');
     const valid = docType === 'cnpj' ? raw.length === 14 : raw.length === 11;
     if (!valid) {
@@ -134,12 +135,41 @@ export default function AudittAccessPortal() {
       return;
     }
     setStep('scanning');
+
+    // Look up email from CNPJ/CPF in the database
+    try {
+      if (docType === 'cnpj') {
+        const { data } = await supabase
+          .from('fleet_partner_workshops')
+          .select('user_id')
+          .eq('cnpj', raw)
+          .limit(1)
+          .maybeSingle();
+
+        if (data?.user_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('user_id', data.user_id)
+            .maybeSingle();
+          if (profile?.email) setEmail(profile.email);
+        }
+      } else {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('cpf', raw)
+          .maybeSingle();
+        if (profile?.email) setEmail(profile.email);
+      }
+    } catch (_) { /* continue even if lookup fails */ }
+
     setTimeout(() => setStep('password'), 2400);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { toast({ title: 'Preencha todos os campos', variant: 'destructive' }); return; }
+    if (!email || !password) { toast({ title: 'Preencha a senha', variant: 'destructive' }); return; }
     setLoading(true);
     setJustLoggedIn(true);
     const { error } = await signIn(email, password);
@@ -374,17 +404,8 @@ export default function AudittAccessPortal() {
                         </div>
                       </div>
 
-                      <div className="space-y-2.5">
-                        <Label className="text-sm font-medium">E-mail</Label>
-                        <Input
-                          className="h-12 text-sm bg-muted/30 border-border/60 focus:bg-background transition-colors"
-                          type="email"
-                          placeholder="operador@oficina.com"
-                          value={email}
-                          onChange={e => setEmail(e.target.value)}
-                          required
-                        />
-                      </div>
+
+
 
                       <div className="space-y-2.5">
                         <Label className="text-sm font-medium">Senha</Label>
