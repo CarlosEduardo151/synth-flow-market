@@ -2666,6 +2666,10 @@ export type Database = {
         Args: { order_id_param: string }
         Returns: Json
       }
+      get_email_by_document: {
+        Args: { doc_type: string; doc_value: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
