@@ -33,6 +33,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           toast.success(`Bem-vindo(a), ${userName}! 👋`, {
             description: 'Login realizado com sucesso',
           });
+
+          // Log authentication event
+          supabase.from('audit_logs' as any).insert({
+            user_id: session.user.id,
+            event_type: 'login',
+            user_agent: navigator.userAgent,
+            metadata: { email: session.user.email, provider: session.user.app_metadata?.provider || 'email' },
+          }).then(() => {});
         }
       }
     );
