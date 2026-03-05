@@ -735,18 +735,21 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLig
   if (budgetServiceOrder && fleet) {
     const budgetVehicle = fleet.vehicles.find(v => v.id === budgetServiceOrder.vehicle_id);
     if (budgetVehicle) {
+      const themeClass = fleetLight ? 'fleet-theme-light' : 'fleet-theme';
       return (
-        <BudgetCreationForm
-          serviceOrder={budgetServiceOrder}
-          vehicle={budgetVehicle}
-          fleet={fleet}
-          onClose={() => setBudgetServiceOrder(null)}
-          onSuccess={() => {
-            setBudgetServiceOrder(null);
-            setView('patio');
-            loadBudgets();
-          }}
-        />
+        <div className={`${themeClass} min-h-screen bg-background`}>
+          <BudgetCreationForm
+            serviceOrder={budgetServiceOrder}
+            vehicle={budgetVehicle}
+            fleet={fleet}
+            onClose={() => setBudgetServiceOrder(null)}
+            onSuccess={() => {
+              setBudgetServiceOrder(null);
+              setView('patio');
+              loadBudgets();
+            }}
+          />
+        </div>
       );
     }
   }
