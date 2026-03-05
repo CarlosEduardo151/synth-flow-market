@@ -159,14 +159,14 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     if (searchType === 'PEÇAS') {
       setItems(prev => [...prev, {
         id: crypto.randomUUID(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
-        observacao: '', qtd: 1, valorUnitario: entry.ref, desconto: 0,
+        observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
         refPrice: entry.ref,
       }]);
     } else {
       setItems(prev => [...prev, {
         id: crypto.randomUUID(), tipo: 'MECÂNICA', descricao: entry.nome, code: entry.code,
         observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
-        horas: entry.horas, valorHora: entry.taxa,
+        horas: entry.horas, valorHora: 0,
         refHora: entry.taxa,
       }]);
     }
@@ -178,7 +178,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
       id: crypto.randomUUID(), tipo: searchType,
       descricao: '', code: `CUSTOM-${Date.now().toString(36).toUpperCase()}`,
       observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
-      ...(searchType === 'MECÂNICA' ? { horas: 1, valorHora: 100 } : {}),
+      ...(searchType === 'MECÂNICA' ? { horas: 1, valorHora: 0 } : {}),
     }]);
   };
 
@@ -456,12 +456,13 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                           <div className="relative">
                             <input type="number" step={0.01} min={0} value={item.valorUnitario || ''}
                               onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
-                              className={`w-full text-right bg-transparent text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 py-0.5 rounded border border-transparent hover:border-[hsl(210,80%,75%)] focus:border-[hsl(210,80%,55%)] focus:bg-white ${
-                                item.refPrice && item.valorUnitario !== item.refPrice
+                              placeholder="0,00"
+                              className={`w-full text-right text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1.5 py-1 rounded border-2 border-dashed border-[hsl(210,80%,70%)] bg-[hsl(210,80%,97%)] hover:border-[hsl(210,80%,55%)] focus:border-solid focus:border-[hsl(210,80%,55%)] focus:bg-white focus:shadow-[0_0_0_2px_hsl(210,80%,55%,0.2)] transition-all ${
+                                item.refPrice && item.valorUnitario !== item.refPrice && item.valorUnitario > 0
                                   ? item.valorUnitario > item.refPrice
                                     ? 'text-[hsl(35,80%,40%)] font-bold'
                                     : 'text-[hsl(145,50%,35%)] font-bold'
-                                  : 'text-[hsl(215,25%,20%)]'
+                                  : item.valorUnitario === 0 ? 'text-[hsl(0,60%,50%)]' : 'text-[hsl(215,25%,20%)]'
                               }`} />
                             {item.refPrice != null && (
                               <span className={`absolute -bottom-3.5 right-0 text-[8px] font-mono ${
@@ -479,12 +480,13 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                           <div className="relative">
                             <input type="number" step={1} min={0} value={item.valorHora ?? ''}
                               onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
-                              className={`w-full text-right bg-transparent text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 py-0.5 rounded border border-transparent hover:border-[hsl(210,80%,75%)] focus:border-[hsl(210,80%,55%)] focus:bg-white ${
-                                item.refHora && item.valorHora !== item.refHora
+                              placeholder="0,00"
+                              className={`w-full text-right text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1.5 py-1 rounded border-2 border-dashed border-[hsl(210,80%,70%)] bg-[hsl(210,80%,97%)] hover:border-[hsl(210,80%,55%)] focus:border-solid focus:border-[hsl(210,80%,55%)] focus:bg-white focus:shadow-[0_0_0_2px_hsl(210,80%,55%,0.2)] transition-all ${
+                                item.refHora && item.valorHora !== item.refHora && item.valorHora! > 0
                                   ? item.valorHora! > item.refHora
                                     ? 'text-[hsl(35,80%,40%)] font-bold'
                                     : 'text-[hsl(145,50%,35%)] font-bold'
-                                  : 'text-[hsl(215,25%,20%)]'
+                                  : item.valorHora === 0 ? 'text-[hsl(0,60%,50%)]' : 'text-[hsl(215,25%,20%)]'
                               }`} />
                             {item.refHora != null && (
                               <span className={`absolute -bottom-3.5 right-0 text-[8px] font-mono ${
