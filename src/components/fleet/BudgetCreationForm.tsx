@@ -441,8 +441,8 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                         {/* Observação */}
                         <input value={item.observacao}
                           onChange={e => updateItem(item.id, { observacao: e.target.value })}
-                          placeholder="—"
-                          className="w-full bg-transparent text-xs text-[hsl(215,15%,45%)] placeholder:text-[hsl(215,10%,80%)] outline-none truncate" />
+                          placeholder="Obs..."
+                          className="w-full text-xs text-[hsl(215,15%,45%)] placeholder:text-[hsl(215,10%,80%)] outline-none truncate px-1.5 py-1 rounded border-2 border-dashed border-[hsl(210,80%,70%)] bg-[hsl(210,80%,97%)] hover:border-[hsl(210,80%,55%)] focus:border-solid focus:border-[hsl(210,80%,55%)] focus:bg-white focus:shadow-[0_0_0_2px_hsl(210,80%,55%,0.2)] transition-all" />
                         {/* Qtd/Hrs */}
                         <input type="number" min={isMec ? 0 : 1} step={isMec ? 0.5 : 1}
                           value={isMec ? (item.horas ?? '') : item.qtd}
@@ -450,7 +450,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                             const v = Number(e.target.value);
                             isMec ? updateItem(item.id, { horas: Math.max(0, v) }) : updateItem(item.id, { qtd: Math.max(1, v) });
                           }}
-                          className="w-full text-center bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          className="w-full text-center text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 py-1 rounded border-2 border-dashed border-[hsl(210,80%,70%)] bg-[hsl(210,80%,97%)] hover:border-[hsl(210,80%,55%)] focus:border-solid focus:border-[hsl(210,80%,55%)] focus:bg-white focus:shadow-[0_0_0_2px_hsl(210,80%,55%,0.2)] transition-all" />
                         {/* Valor Unit */}
                         {!isMec ? (
                           <div className="relative">
