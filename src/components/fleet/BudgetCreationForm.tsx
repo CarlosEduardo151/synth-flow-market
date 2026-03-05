@@ -3,11 +3,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
 import {
   ArrowLeft, Plus, Trash2, Send, Loader2, Save,
-  Wrench, Package, Search, X, ChevronDown, Car, Calendar, Gauge
+  Wrench, Package, Search, X, Car, FileText
 } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 import { toast } from 'sonner';
@@ -136,13 +134,13 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchType, setSearchType] = useState<ItemTipo>('PEÇAS');
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const dataEntrada = serviceOrder.data_entrada
     ? new Date(serviceOrder.data_entrada).toLocaleDateString('pt-BR')
     : new Date().toLocaleDateString('pt-BR');
 
   const veiculoDesc = [vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' · ');
+  const osNumber = `${vehicle.placa}/${serviceOrder.id.slice(0, 4).toUpperCase()}`;
 
   const totalBruto = items.reduce((s, i) => s + getValorFinal(i), 0);
   const totalPecas = items.filter(i => i.tipo === 'PEÇAS').reduce((s, i) => s + getValorFinal(i), 0);
@@ -150,8 +148,8 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
 
   const searchResults = searchQuery.length >= 2
     ? searchType === 'PEÇAS'
-      ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6)
-      : servicosCatalogo.filter(s => s.nome.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6)
+      ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+      : servicosCatalogo.filter(s => s.nome.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
     : [];
 
   const addFromCatalog = (entry: any) => {
@@ -179,7 +177,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     setItems(prev => [...prev, {
       id: crypto.randomUUID(),
       tipo: searchType,
-      descricao: searchType === 'PEÇAS' ? 'Peça personalizada' : 'Serviço personalizado',
+      descricao: '',
       code: `CUSTOM-${Date.now().toString(36).toUpperCase()}`,
       observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
       ...(searchType === 'MECÂNICA' ? { horas: 1, valorHora: 100 } : {}),
@@ -195,14 +193,8 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   };
 
   const handleSubmit = async () => {
-    if (items.length === 0) {
-      toast.error('Adicione pelo menos um item ao orçamento.');
-      return;
-    }
-    if (km <= 0) {
-      toast.error('Informe o KM de entrada do veículo.');
-      return;
-    }
+    if (items.length === 0) { toast.error('Adicione itens ao orçamento.'); return; }
+    if (km <= 0) { toast.error('Informe o KM de entrada.'); return; }
     setSaving(true);
     try {
       const cpId = serviceOrder.customer_product_id;
@@ -254,399 +246,321 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     }
   };
 
-  const pecasItems = items.filter(i => i.tipo === 'PEÇAS');
-  const mecanicaItems = items.filter(i => i.tipo === 'MECÂNICA');
-
   return (
-    <div className="min-h-screen bg-background text-foreground pb-32">
+    <div className="h-screen flex flex-col bg-[hsl(220,20%,7%)] text-foreground overflow-hidden">
 
-      {/* ══ HEADER ══ */}
-      <div className="sticky top-0 z-30 bg-card border-b-2 border-primary">
-        <div className="flex items-center gap-3 px-4 py-3">
-          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
+      {/* ══════════ TOP BAR ══════════ */}
+      <div className="shrink-0 flex items-center justify-between px-4 h-12 bg-[hsl(220,20%,10%)] border-b border-[hsl(175,60%,50%/0.3)]">
+        <div className="flex items-center gap-3">
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-5 h-5" />
+          </button>
+          <div className="h-5 w-px bg-border" />
+          <FileText className="w-4 h-4 text-[hsl(175,60%,50%)]" />
+          <span className="text-sm font-bold">Orçamento</span>
+          <span className="text-xs text-muted-foreground font-mono">OS {osNumber}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
+            className="h-8 text-xs gap-1.5 border-[hsl(175,60%,50%/0.4)] text-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,50%/0.1)]">
+            <Save className="w-3.5 h-3.5" /> Salvar Rascunho
           </Button>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-sm font-bold truncate">Orçamento — {vehicle.placa}</h1>
-            <p className="text-[11px] text-muted-foreground truncate">{veiculoDesc}</p>
-          </div>
-          <Button
-            size="sm"
-            onClick={handleSubmit}
-            disabled={saving || items.length === 0}
-            className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shrink-0"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enviar
+          <Button size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
+            className="h-8 text-xs gap-1.5 bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+            Enviar Orçamento
           </Button>
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+      {/* ══════════ CONTENT AREA (sidebar + main) ══════════ */}
+      <div className="flex-1 flex overflow-hidden">
 
-        {/* ══ INFO DO VEÍCULO ══ */}
-        <Card className="p-4 bg-card border-border">
-          <div className="flex items-center gap-2 mb-3">
-            <Car className="w-4 h-4 text-primary" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados do Veículo</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">Placa</label>
-              <div className="h-9 px-3 flex items-center rounded-md bg-muted/30 border border-border text-sm font-mono font-bold">
-                {vehicle.placa}
+        {/* ── LEFT SIDEBAR: Vehicle + Summary ── */}
+        <div className="shrink-0 w-[280px] bg-[hsl(220,20%,9%)] border-r border-border overflow-y-auto">
+
+          {/* Vehicle Card */}
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Car className="w-4 h-4 text-[hsl(175,60%,50%)]" />
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Veículo</span>
+            </div>
+            <div className="bg-[hsl(220,20%,12%)] rounded-lg p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-black font-mono tracking-wider text-[hsl(175,60%,50%)]">{vehicle.placa}</span>
               </div>
+              <p className="text-[11px] text-muted-foreground">{veiculoDesc || '—'}</p>
+            </div>
+          </div>
+
+          {/* Meta Fields */}
+          <div className="p-4 space-y-3 border-b border-border">
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">KM de Entrada *</label>
+              <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
+                placeholder="Ex: 85000"
+                className="h-8 font-mono text-xs bg-[hsl(220,20%,12%)] border-border" />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">Entrada</label>
-              <div className="h-9 px-3 flex items-center rounded-md bg-muted/30 border border-border text-sm font-mono">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Data de Entrada</label>
+              <div className="h-8 px-3 flex items-center rounded-md bg-[hsl(220,20%,12%)] border border-border text-xs font-mono">
                 {dataEntrada}
               </div>
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">KM Entrada *</label>
-              <Input
-                type="number"
-                value={km || ''}
-                onChange={e => setKm(Number(e.target.value))}
-                placeholder="Ex: 85000"
-                className="h-9 font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground block mb-1">Prev. Conclusão</label>
-              <Input
-                type="date"
-                value={previsao}
-                onChange={e => setPrevisao(e.target.value)}
-                className="h-9"
-              />
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Prev. Conclusão</label>
+              <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
+                className="h-8 text-xs bg-[hsl(220,20%,12%)] border-border" />
             </div>
           </div>
-        </Card>
 
-        {/* ══ BUSCA + ADICIONAR ITENS ══ */}
-        <Card className="p-4 bg-card border-border">
-          <div className="flex items-center gap-2 mb-3">
-            <Search className="w-4 h-4 text-primary" />
-            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Adicionar Itens</h2>
-          </div>
-
-          {/* Type toggle */}
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => { setSearchType('PEÇAS'); setSearchQuery(''); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                searchType === 'PEÇAS'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
-              }`}
-            >
-              <Package className="w-3.5 h-3.5" />
-              Peças
-            </button>
-            <button
-              onClick={() => { setSearchType('MECÂNICA'); setSearchQuery(''); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                searchType === 'MECÂNICA'
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
-              }`}
-            >
-              <Wrench className="w-3.5 h-3.5" />
-              Serviços
-            </button>
-          </div>
-
-          {/* Search input */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <Input
-              ref={searchRef}
-              placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço por nome ou código...'}
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-              onFocus={() => setSearchOpen(true)}
-              className="h-10 pl-9 pr-10"
+          {/* Laudo */}
+          <div className="p-4 border-b border-border">
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Laudo / Observações</label>
+            <Textarea
+              placeholder="Condições do veículo, problemas encontrados..."
+              value={laudo} onChange={e => setLaudo(e.target.value)}
+              className="min-h-[80px] text-xs bg-[hsl(220,20%,12%)] border-border resize-none"
             />
-            {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                <X className="w-4 h-4" />
-              </button>
-            )}
+          </div>
 
-            {/* Dropdown results */}
-            {searchOpen && searchResults.length > 0 && (
-              <div className="absolute z-40 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                {searchResults.map((entry: any) => (
-                  <button
-                    key={entry.code}
-                    onClick={() => addFromCatalog(entry)}
-                    className="w-full text-left px-4 py-3 hover:bg-accent/50 border-b border-border/30 last:border-0 transition-colors"
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{entry.nome}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{entry.code}</p>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-primary shrink-0">
-                        {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h × ${fmt(entry.taxa)}`}
-                      </span>
-                    </div>
-                  </button>
-                ))}
+          {/* Financial Summary */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resumo</span>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1"><Package className="w-3 h-3" /> Peças</span>
+                <span className="font-mono">{fmt(totalPecas)}</span>
               </div>
-            )}
-          </div>
-
-          {/* Manual add button */}
-          <button
-            onClick={addManualItem}
-            className="mt-2 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Adicionar {searchType === 'PEÇAS' ? 'peça' : 'serviço'} manualmente
-          </button>
-        </Card>
-
-        {/* ══ SEÇÃO PEÇAS ══ */}
-        {pecasItems.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Package className="w-4 h-4 text-blue-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Peças ({pecasItems.length})
-              </h3>
-              <span className="ml-auto text-xs font-mono font-bold text-primary">{fmt(totalPecas)}</span>
-            </div>
-            <div className="space-y-2">
-              {pecasItems.map(item => (
-                <ItemCard key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ══ SEÇÃO SERVIÇOS ══ */}
-        {mecanicaItems.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Wrench className="w-4 h-4 text-amber-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Mão de Obra ({mecanicaItems.length})
-              </h3>
-              <span className="ml-auto text-xs font-mono font-bold text-primary">{fmt(totalMO)}</span>
-            </div>
-            <div className="space-y-2">
-              {mecanicaItems.map(item => (
-                <ItemCard key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {items.length === 0 && (
-          <Card className="p-8 bg-card border-border border-dashed flex flex-col items-center justify-center gap-2">
-            <Package className="w-8 h-8 text-muted-foreground/40" />
-            <p className="text-sm text-muted-foreground">Nenhum item adicionado</p>
-            <p className="text-[11px] text-muted-foreground/60">Use a busca acima para adicionar peças e serviços</p>
-          </Card>
-        )}
-
-        {/* ══ OBSERVAÇÕES ══ */}
-        <Card className="p-4 bg-card border-border">
-          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
-            Observações / Laudo Técnico
-          </label>
-          <Textarea
-            placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
-            value={laudo}
-            onChange={e => setLaudo(e.target.value)}
-            className="min-h-[80px] text-sm resize-none"
-          />
-        </Card>
-
-        {/* ══ RESUMO FINANCEIRO ══ */}
-        {items.length > 0 && (
-          <Card className="overflow-hidden border-primary/30">
-            <div className="bg-primary/10 px-4 py-2.5 border-b border-primary/20">
-              <h2 className="text-xs font-bold uppercase tracking-widest text-primary">Resumo Financeiro</h2>
-            </div>
-            <div className="px-4 py-3 space-y-2 bg-card">
-              {totalPecas > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Package className="w-3.5 h-3.5" /> Peças
-                  </span>
-                  <span className="font-mono">{fmt(totalPecas)}</span>
-                </div>
-              )}
-              {totalMO > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground flex items-center gap-1.5">
-                    <Wrench className="w-3.5 h-3.5" /> Mão de Obra
-                  </span>
-                  <span className="font-mono">{fmt(totalMO)}</span>
-                </div>
-              )}
-              <div className="h-px bg-border" />
-              <div className="flex justify-between text-base font-bold">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground flex items-center gap-1"><Wrench className="w-3 h-3" /> Mão de Obra</span>
+                <span className="font-mono">{fmt(totalMO)}</span>
+              </div>
+              <div className="h-px bg-border my-1" />
+              <div className="flex justify-between text-sm font-bold">
                 <span>Total</span>
-                <span className="font-mono text-primary">{fmt(totalBruto)}</span>
+                <span className="font-mono text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
               </div>
-              <div className="flex justify-between text-[11px] text-muted-foreground">
-                <span>Comissão Auditt (15%)</span>
+              <div className="flex justify-between text-[10px] text-muted-foreground">
+                <span>Auditt (15%)</span>
                 <span className="font-mono">{fmt(totalBruto * 0.15)}</span>
               </div>
-              <div className="flex justify-between text-sm font-semibold">
-                <span className="text-muted-foreground">Repasse Oficina (85%)</span>
-                <span className="font-mono text-green-500">{fmt(totalBruto * 0.85)}</span>
+              <div className="flex justify-between text-xs font-semibold">
+                <span className="text-muted-foreground">Repasse (85%)</span>
+                <span className="font-mono text-[hsl(145,60%,50%)]">{fmt(totalBruto * 0.85)}</span>
               </div>
             </div>
-          </Card>
-        )}
-      </div>
-
-      {/* ══ BOTTOM BAR MOBILE ══ */}
-      {items.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] text-muted-foreground uppercase">Total do Orçamento</p>
-            <p className="text-lg font-bold font-mono text-primary">{fmt(totalBruto)}</p>
           </div>
-          <Button
-            onClick={handleSubmit}
-            disabled={saving || km <= 0}
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
-          >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enviar Orçamento
-          </Button>
         </div>
-      )}
+
+        {/* ── MAIN: Items Table ── */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* Search Bar */}
+          <div className="shrink-0 px-4 py-3 bg-[hsl(220,20%,9%)] border-b border-border flex items-center gap-2">
+            {/* Type toggle */}
+            <div className="flex shrink-0">
+              <button
+                onClick={() => { setSearchType('PEÇAS'); setSearchQuery(''); }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-l-md text-[11px] font-bold uppercase transition-colors border border-r-0 ${
+                  searchType === 'PEÇAS'
+                    ? 'bg-[hsl(175,60%,50%)] text-[hsl(220,20%,7%)] border-[hsl(175,60%,50%)]'
+                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" /> Peças
+              </button>
+              <button
+                onClick={() => { setSearchType('MECÂNICA'); setSearchQuery(''); }}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-r-md text-[11px] font-bold uppercase transition-colors border ${
+                  searchType === 'MECÂNICA'
+                    ? 'bg-[hsl(175,60%,50%)] text-[hsl(220,20%,7%)] border-[hsl(175,60%,50%)]'
+                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
+                }`}
+              >
+                <Wrench className="w-3.5 h-3.5" /> Serviços
+              </button>
+            </div>
+
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+              <input
+                placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço por nome ou código...'}
+                value={searchQuery}
+                onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                onFocus={() => setSearchOpen(true)}
+                className="w-full h-9 pl-9 pr-10 rounded-md bg-[hsl(220,20%,12%)] border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[hsl(175,60%,50%/0.5)]"
+              />
+              {searchQuery && (
+                <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+              {searchOpen && searchResults.length > 0 && (
+                <div className="absolute z-50 w-full mt-1 bg-[hsl(220,20%,12%)] border border-border rounded-lg shadow-2xl max-h-64 overflow-y-auto">
+                  {searchResults.map((entry: any) => (
+                    <button key={entry.code} onClick={() => addFromCatalog(entry)}
+                      className="w-full text-left px-4 py-2.5 hover:bg-[hsl(175,60%,50%/0.08)] border-b border-border/30 last:border-0 transition-colors flex justify-between items-center gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm text-foreground truncate">{entry.nome}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{entry.code}</p>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-[hsl(175,60%,50%)] shrink-0">
+                        {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h × ${fmt(entry.taxa)}`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Manual add */}
+            <Button variant="outline" size="sm" onClick={addManualItem}
+              className="shrink-0 h-9 text-xs gap-1 border-border text-muted-foreground hover:text-foreground hover:border-[hsl(175,60%,50%/0.4)]">
+              <Plus className="w-3.5 h-3.5" /> Manual
+            </Button>
+          </div>
+
+          {/* ── TABLE HEADER ── */}
+          <div className="shrink-0 bg-[hsl(145,55%,28%)] px-4">
+            <div className="grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center h-9 gap-2 text-[10px] font-bold uppercase tracking-wider text-white/90">
+              <span className="text-center">#</span>
+              <span>Descrição</span>
+              <span>Observação</span>
+              <span className="text-center">Qtde/Hrs</span>
+              <span className="text-right">Valor Unit.</span>
+              <span className="text-right">Valor/Hora</span>
+              <span className="text-center">Desc %</span>
+              <span className="text-right">Total</span>
+              <span></span>
+            </div>
+          </div>
+
+          {/* ── TABLE BODY ── */}
+          <div className="flex-1 overflow-y-auto">
+            {items.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground/50 gap-3">
+                <Package className="w-12 h-12" />
+                <p className="text-sm">Nenhum item adicionado ao orçamento</p>
+                <p className="text-xs">Use a busca acima para adicionar peças e serviços</p>
+              </div>
+            ) : (
+              items.map((item, idx) => {
+                const valor = getValorFinal(item);
+                const isMec = item.tipo === 'MECÂNICA';
+                return (
+                  <div key={item.id}
+                    className={`grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center px-4 gap-2 h-12 border-b border-border/20 transition-colors group ${
+                      idx % 2 === 0 ? 'bg-[hsl(220,20%,8%)]' : 'bg-[hsl(220,20%,9%)]'
+                    } hover:bg-[hsl(175,60%,50%/0.04)]`}>
+                    {/* # */}
+                    <span className="text-center text-[10px] text-muted-foreground font-mono">{idx + 1}</span>
+                    {/* Descrição */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`shrink-0 w-1.5 h-6 rounded-full ${isMec ? 'bg-amber-500' : 'bg-blue-500'}`} />
+                      <input
+                        value={item.descricao}
+                        onChange={e => updateItem(item.id, { descricao: e.target.value })}
+                        placeholder={isMec ? 'Nome do serviço...' : 'Nome da peça...'}
+                        className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none truncate"
+                      />
+                    </div>
+                    {/* Observação */}
+                    <input
+                      value={item.observacao}
+                      onChange={e => updateItem(item.id, { observacao: e.target.value })}
+                      placeholder="—"
+                      className="w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/30 outline-none"
+                    />
+                    {/* Qtde/Horas */}
+                    <input
+                      type="number"
+                      min={isMec ? 0 : 1}
+                      step={isMec ? 0.5 : 1}
+                      value={isMec ? (item.horas || '') : item.qtd}
+                      onChange={e => {
+                        const v = Number(e.target.value);
+                        isMec ? updateItem(item.id, { horas: Math.max(0, v) }) : updateItem(item.id, { qtd: Math.max(1, v) });
+                      }}
+                      className="w-full text-center bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    {/* Valor Unit. */}
+                    {!isMec ? (
+                      <input
+                        type="number"
+                        step={0.01}
+                        min={0}
+                        value={item.valorUnitario || ''}
+                        onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
+                        className="w-full text-right bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    ) : (
+                      <span className="text-right text-xs font-mono text-muted-foreground/50">—</span>
+                    )}
+                    {/* Valor/Hora */}
+                    {isMec ? (
+                      <input
+                        type="number"
+                        step={1}
+                        min={0}
+                        value={item.valorHora || ''}
+                        onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
+                        className="w-full text-right bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    ) : (
+                      <span className="text-right text-xs font-mono text-muted-foreground/50">—</span>
+                    )}
+                    {/* Desc % */}
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={item.desconto || ''}
+                      onChange={e => updateItem(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                      className="w-full text-center bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    {/* Total */}
+                    <span className="text-right text-xs font-mono font-bold text-[hsl(175,60%,50%)]">
+                      {fmt(valor)}
+                    </span>
+                    {/* Remove */}
+                    <button onClick={() => removeItem(item.id)}
+                      className="opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive transition-all flex justify-center">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* ── TABLE FOOTER ── */}
+          {items.length > 0 && (
+            <div className="shrink-0 bg-[hsl(220,20%,10%)] border-t border-[hsl(175,60%,50%/0.2)] px-4">
+              <div className="grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center h-11 gap-2">
+                <span></span>
+                <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'item' : 'itens'}</span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span></span>
+                <span className="text-right text-sm font-mono font-black text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
+                <span></span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* Backdrop */}
       {searchOpen && searchResults.length > 0 && (
-        <div className="fixed inset-0 z-20" onClick={() => setSearchOpen(false)} />
+        <div className="fixed inset-0 z-40" onClick={() => setSearchOpen(false)} />
       )}
     </div>
-  );
-}
-
-/* ══════════════════════════════════════════
-   ITEM CARD — Cada peça ou serviço
-   ══════════════════════════════════════════ */
-
-function ItemCard({
-  item,
-  onUpdate,
-  onRemove,
-}: {
-  item: BudgetItem;
-  onUpdate: (id: string, patch: Partial<BudgetItem>) => void;
-  onRemove: (id: string) => void;
-}) {
-  const valor = getValorFinal(item);
-  const isMecanica = item.tipo === 'MECÂNICA';
-
-  return (
-    <Card className="p-3 bg-card border-border hover:border-primary/20 transition-colors group">
-      {/* Row 1: Name + Remove + Value */}
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <div className="min-w-0 flex-1">
-          <Input
-            value={item.descricao}
-            onChange={e => onUpdate(item.id, { descricao: e.target.value })}
-            className="h-7 text-sm font-medium border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:border-b focus-visible:border-primary rounded-none"
-          />
-          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{item.code}</p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="text-sm font-bold font-mono text-primary">{fmt(valor)}</span>
-          <button
-            onClick={() => onRemove(item.id)}
-            className="opacity-0 group-hover:opacity-100 text-destructive/60 hover:text-destructive transition-all p-1"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Row 2: Fields */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-        {isMecanica ? (
-          <>
-            <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Horas</label>
-              <Input
-                type="number"
-                step={0.5}
-                min={0}
-                value={item.horas || ''}
-                onChange={e => onUpdate(item.id, { horas: Math.max(0, Number(e.target.value)) })}
-                className="h-8 text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Valor/hora (R$)</label>
-              <Input
-                type="number"
-                step={1}
-                min={0}
-                value={item.valorHora || ''}
-                onChange={e => onUpdate(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
-                className="h-8 text-xs font-mono"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Qtde</label>
-              <Input
-                type="number"
-                min={1}
-                value={item.qtd}
-                onChange={e => onUpdate(item.id, { qtd: Math.max(1, Number(e.target.value)) })}
-                className="h-8 text-xs font-mono"
-              />
-            </div>
-            <div>
-              <label className="text-[9px] text-muted-foreground block mb-0.5">Valor Unit. (R$)</label>
-              <Input
-                type="number"
-                step={0.01}
-                min={0}
-                value={item.valorUnitario || ''}
-                onChange={e => onUpdate(item.id, { valorUnitario: Number(e.target.value) })}
-                className="h-8 text-xs font-mono"
-              />
-            </div>
-          </>
-        )}
-        <div>
-          <label className="text-[9px] text-muted-foreground block mb-0.5">Desconto %</label>
-          <Input
-            type="number"
-            min={0}
-            max={100}
-            value={item.desconto || ''}
-            onChange={e => onUpdate(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
-            className="h-8 text-xs font-mono"
-          />
-        </div>
-        <div>
-          <label className="text-[9px] text-muted-foreground block mb-0.5">Observação</label>
-          <Input
-            value={item.observacao}
-            onChange={e => onUpdate(item.id, { observacao: e.target.value })}
-            placeholder="Obs..."
-            className="h-8 text-xs"
-          />
-        </div>
-      </div>
-    </Card>
   );
 }
