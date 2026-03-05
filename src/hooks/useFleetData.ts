@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAdminCheck } from '@/hooks/useAuth';
 import type { ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 
 export interface FleetVehicle {
@@ -84,52 +85,69 @@ export function useFleetData(customerProductId: string | null) {
   const [serviceOrders, setServiceOrders] = useState<FleetServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { isAdmin, loading: adminLoading } = useAdminCheck();
 
   // ── LOAD VEHICLES ──
   const loadVehicles = useCallback(async () => {
-    if (!customerProductId) return;
+    if (adminLoading) return;
+    if (!customerProductId && !isAdmin) return;
+
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('fleet_vehicles')
-        .select('*')
-        .eq('customer_product_id', customerProductId)
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      if (!isAdmin && customerProductId) {
+        query = query.eq('customer_product_id', customerProductId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
       setVehicles((data as FleetVehicle[]) || []);
     } catch (err: any) {
       console.error('Error loading vehicles:', err);
     }
-  }, [customerProductId]);
+  }, [customerProductId, isAdmin, adminLoading]);
 
   // ── LOAD SERVICE ORDERS ──
   const loadServiceOrders = useCallback(async () => {
-    if (!customerProductId) return;
+    if (adminLoading) return;
+    if (!customerProductId && !isAdmin) return;
+
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('fleet_service_orders')
-        .select('*')
-        .eq('customer_product_id', customerProductId)
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      if (!isAdmin && customerProductId) {
+        query = query.eq('customer_product_id', customerProductId);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
       if (error) throw error;
       setServiceOrders((data as FleetServiceOrder[]) || []);
     } catch (err: any) {
       console.error('Error loading service orders:', err);
     }
-  }, [customerProductId]);
+  }, [customerProductId, isAdmin, adminLoading]);
 
   // ── INITIAL LOAD ──
   useEffect(() => {
-    if (!customerProductId) {
+    if (adminLoading) return;
+
+    if (!customerProductId && !isAdmin) {
       setLoading(false);
       return;
     }
+
     const load = async () => {
       setLoading(true);
       await Promise.all([loadVehicles(), loadServiceOrders()]);
       setLoading(false);
     };
+
     load();
-  }, [customerProductId, loadVehicles, loadServiceOrders]);
+  }, [customerProductId, isAdmin, adminLoading, loadVehicles, loadServiceOrders]);
 
   // ── ADD VEHICLE ──
   const addVehicle = useCallback(async (data: NewVehicleData): Promise<FleetVehicle | null> => {
@@ -316,21 +334,25 @@ export function useFleetData(customerProductId: string | null) {
 
   // ── SEARCH VEHICLE BY PLACA ──
   const searchVehicleByPlaca = useCallback(async (placa: string): Promise<FleetVehicle | null> => {
-    if (!customerProductId) return null;
+    if (!customerProductId && !isAdmin) return null;
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('fleet_vehicles')
         .select('*')
-        .eq('customer_product_id', customerProductId)
-        .eq('placa', placa.toUpperCase().trim())
-        .maybeSingle();
+        .eq('placa', placa.toUpperCase().trim());
+
+      if (!isAdmin && customerProductId) {
+        query = query.eq('customer_product_id', customerProductId);
+      }
+
+      const { data, error } = await query.maybeSingle();
       if (error) throw error;
       return data as FleetVehicle | null;
     } catch (err) {
       console.error('Error searching vehicle:', err);
       return null;
     }
-  }, [customerProductId]);
+  }, [customerProductId, isAdmin]);
 
   // ── GET ACTIVE SERVICE ORDER FOR VEHICLE ──
   const getActiveServiceOrder = useCallback((vehicleId: string): FleetServiceOrder | undefined => {
