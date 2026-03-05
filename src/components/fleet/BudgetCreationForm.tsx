@@ -395,8 +395,14 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                     className="h-7 text-[10px] text-center bg-background border-border" />
                   {/* Valor Unitário */}
                   {item.tipo === 'MECÂNICA' ? (
-                    <div className="text-[10px] font-mono text-right text-muted-foreground pr-1">
-                      {item.horas}h × {fmt(item.valorHora || 0)}
+                    <div className="flex items-center gap-0.5">
+                      <Input type="number" step={0.5} min={0} value={item.horas || 0}
+                        onChange={e => updateItem(item.id, { horas: Math.max(0, Number(e.target.value)) })}
+                        className="h-7 text-[10px] font-mono text-center bg-background border-border w-12" title="Horas" />
+                      <span className="text-[9px] text-muted-foreground">h×</span>
+                      <Input type="number" step={1} min={0} value={item.valorHora || 0}
+                        onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
+                        className="h-7 text-[10px] font-mono text-right bg-background border-border flex-1" title="Valor/hora" />
                     </div>
                   ) : (
                     <Input type="number" step={0.01} value={item.valorUnitario}
