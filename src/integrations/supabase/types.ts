@@ -1103,6 +1103,7 @@ export type Database = {
           recipient_name: string
           started_at: string | null
           status: string
+          workshop_id: string | null
         }
         Insert: {
           caller_name: string
@@ -1115,6 +1116,7 @@ export type Database = {
           recipient_name: string
           started_at?: string | null
           status?: string
+          workshop_id?: string | null
         }
         Update: {
           caller_name?: string
@@ -1127,8 +1129,17 @@ export type Database = {
           recipient_name?: string
           started_at?: string | null
           status?: string
+          workshop_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fleet_calls_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_partner_workshops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fleet_driver_invites: {
         Row: {
@@ -1186,6 +1197,7 @@ export type Database = {
           recipient_name: string
           sender_name: string
           sender_role: string
+          workshop_id: string | null
         }
         Insert: {
           attachment_url?: string | null
@@ -1198,6 +1210,7 @@ export type Database = {
           recipient_name: string
           sender_name: string
           sender_role: string
+          workshop_id?: string | null
         }
         Update: {
           attachment_url?: string | null
@@ -1210,8 +1223,17 @@ export type Database = {
           recipient_name?: string
           sender_name?: string
           sender_role?: string
+          workshop_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fleet_messages_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_partner_workshops"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fleet_operators: {
         Row: {

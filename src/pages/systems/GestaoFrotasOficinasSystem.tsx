@@ -82,6 +82,9 @@ const GestaoFrotasOficinasSystem = () => {
   const [cadastroMode, setCadastroMode] = useState<'traseira' | 'documento' | 'manual'>('traseira');
   const [cadastroForm, setCadastroForm] = useState({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
 
+  // Workshop ID for oficina users
+  const [workshopId, setWorkshopId] = useState<string | null>(null);
+
   // Auto-detect role from DB when no URL param provided
   useEffect(() => {
     if (role !== 'select' || !user) {
@@ -98,6 +101,7 @@ const GestaoFrotasOficinasSystem = () => {
           .maybeSingle();
         if (workshop) {
           setRole('oficina');
+          setWorkshopId(workshop.id);
           setRoleLoading(false);
           return;
         }
@@ -119,6 +123,20 @@ const GestaoFrotasOficinasSystem = () => {
     };
     detectRole();
   }, [user, role]);
+
+  // For oficina role set via URL param, fetch workshop ID
+  useEffect(() => {
+    if (role !== 'oficina' || !user || workshopId) return;
+    const fetchWorkshopId = async () => {
+      const { data } = await (supabase.from('fleet_partner_workshops') as any)
+        .select('id')
+        .eq('user_id', user.id)
+        .limit(1)
+        .maybeSingle();
+      if (data) setWorkshopId(data.id);
+    };
+    fetchWorkshopId();
+  }, [role, user, workshopId]);
 
   const fleetThemeClass = fleetLight ? 'fleet-theme-light' : 'fleet-theme';
   const toggleFleetTheme = () => {
@@ -1239,7 +1257,7 @@ const GestaoFrotasOficinasSystem = () => {
   }
 
   // ─── OFICINA PORTAL ───
-  return <OficinaPortal onSwitchRole={() => setRole('select')} fleet={fleet} customerProductId={customerProductId} fleetLight={fleetLight} toggleFleetTheme={toggleFleetTheme} />;
+  return <OficinaPortal onSwitchRole={() => setRole('select')} fleet={fleet} customerProductId={customerProductId} fleetLight={fleetLight} toggleFleetTheme={toggleFleetTheme} workshopId={workshopId} />;
 };
 
 export default GestaoFrotasOficinasSystem;
