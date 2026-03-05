@@ -1,11 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   ArrowLeft, Plus, Trash2, Send, Loader2, Save,
-  Wrench, Package, Search, X, Car, FileText
+  Wrench, Package, Search, X, FileText, Printer
 } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 import { toast } from 'sonner';
@@ -139,7 +139,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     ? new Date(serviceOrder.data_entrada).toLocaleDateString('pt-BR')
     : new Date().toLocaleDateString('pt-BR');
 
-  const veiculoDesc = [vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' · ');
+  const veiculoDesc = [vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' ');
   const osNumber = `${vehicle.placa}/${serviceOrder.id.slice(0, 4).toUpperCase()}`;
 
   const totalBruto = items.reduce((s, i) => s + getValorFinal(i), 0);
@@ -153,10 +153,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     : [];
 
   const addFromCatalog = (entry: any) => {
-    if (items.find(x => x.code === entry.code)) {
-      toast.info('Item já adicionado');
-      return;
-    }
+    if (items.find(x => x.code === entry.code)) { toast.info('Item já adicionado'); return; }
     if (searchType === 'PEÇAS') {
       setItems(prev => [...prev, {
         id: crypto.randomUUID(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
@@ -169,16 +166,13 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         horas: entry.horas, valorHora: entry.taxa,
       }]);
     }
-    setSearchQuery('');
-    setSearchOpen(false);
+    setSearchQuery(''); setSearchOpen(false);
   };
 
   const addManualItem = () => {
     setItems(prev => [...prev, {
-      id: crypto.randomUUID(),
-      tipo: searchType,
-      descricao: '',
-      code: `CUSTOM-${Date.now().toString(36).toUpperCase()}`,
+      id: crypto.randomUUID(), tipo: searchType,
+      descricao: '', code: `CUSTOM-${Date.now().toString(36).toUpperCase()}`,
       observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
       ...(searchType === 'MECÂNICA' ? { horas: 1, valorHora: 100 } : {}),
     }]);
@@ -188,9 +182,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
   };
 
-  const removeItem = (id: string) => {
-    setItems(prev => prev.filter(i => i.id !== id));
-  };
+  const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
 
   const handleSubmit = async () => {
     if (items.length === 0) { toast.error('Adicione itens ao orçamento.'); return; }
@@ -199,361 +191,372 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
     try {
       const cpId = serviceOrder.customer_product_id;
       await supabase.from('fleet_vehicles').update({ km_atual: km }).eq('id', vehicle.id);
-
       const { data: budget, error: budgetErr } = await supabase.from('fleet_budgets').insert({
-        service_order_id: serviceOrder.id,
-        customer_product_id: cpId,
+        service_order_id: serviceOrder.id, customer_product_id: cpId,
         laudo_tecnico: laudo || 'Orçamento gerado via Auditt.',
-        urgencia: 'normal',
-        status: 'pendente',
-        total_pecas: totalPecas,
-        total_mao_de_obra: totalMO,
-        total_bruto: totalBruto,
-        comissao_pct: 15,
-        total_liquido: totalBruto * 0.85,
+        urgencia: 'normal', status: 'pendente',
+        total_pecas: totalPecas, total_mao_de_obra: totalMO, total_bruto: totalBruto,
+        comissao_pct: 15, total_liquido: totalBruto * 0.85,
       }).select().single();
       if (budgetErr) throw budgetErr;
-
       const dbItems = items.map((item, i) => ({
         budget_id: (budget as any).id,
         tipo: item.tipo === 'MECÂNICA' ? 'mao_de_obra' : 'peca',
-        codigo: item.code,
-        descricao: item.descricao,
-        quantidade: item.qtd,
+        codigo: item.code, descricao: item.descricao, quantidade: item.qtd,
         valor_unitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
         valor_total: getValorFinal(item),
-        horas: item.horas || null,
-        valor_hora: item.valorHora || null,
-        sort_order: i,
+        horas: item.horas || null, valor_hora: item.valorHora || null, sort_order: i,
       }));
-
       if (dbItems.length > 0) {
         const { error } = await supabase.from('fleet_budget_items').insert(dbItems);
         if (error) throw error;
       }
-
       await fleet.updateStage(serviceOrder.id, 'orcamento_enviado', 'oficina',
         'Orçamento enviado para aprovação',
         { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalMO)} | Total: ${fmt(totalBruto)}`, valor_orcamento: totalBruto }
       );
       toast.success('Orçamento enviado com sucesso!');
       onSuccess();
-    } catch (err) {
-      console.error(err);
-      toast.error('Erro ao salvar orçamento.');
-    } finally {
-      setSaving(false);
-    }
+    } catch (err) { console.error(err); toast.error('Erro ao salvar orçamento.'); }
+    finally { setSaving(false); }
   };
 
-  return (
-    <div className="h-screen flex flex-col bg-[hsl(220,20%,7%)] text-foreground overflow-hidden">
+  // ─────────────────────────────────────────────
+  // Style constants for GestãoClick-like ERP look
+  // ─────────────────────────────────────────────
+  const fieldLabel = "block text-[11px] font-semibold text-[hsl(215,15%,45%)] mb-1 uppercase tracking-wide";
+  const fieldInput = "h-9 text-sm bg-white border border-[hsl(215,20%,88%)] rounded text-[hsl(215,25%,20%)] placeholder:text-[hsl(215,10%,70%)] focus:border-[hsl(210,80%,55%)] focus:ring-1 focus:ring-[hsl(210,80%,55%/0.3)]";
+  const fieldReadonly = "h-9 px-3 flex items-center rounded bg-[hsl(210,20%,96%)] border border-[hsl(215,20%,88%)] text-sm text-[hsl(215,25%,30%)] font-medium";
 
-      {/* ══════════ TOP BAR ══════════ */}
-      <div className="shrink-0 flex items-center justify-between px-4 h-12 bg-[hsl(220,20%,10%)] border-b border-[hsl(175,60%,50%/0.3)]">
+  return (
+    <div className="h-screen flex flex-col bg-[hsl(210,20%,97%)] overflow-hidden">
+
+      {/* ══════════════════════════════════════════
+          TOP BAR — azul escuro estilo GestãoClick
+         ══════════════════════════════════════════ */}
+      <div className="shrink-0 h-12 bg-[hsl(215,45%,18%)] flex items-center justify-between px-5">
         <div className="flex items-center gap-3">
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+          <button onClick={onClose} className="text-white/70 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <div className="h-5 w-px bg-border" />
-          <FileText className="w-4 h-4 text-[hsl(175,60%,50%)]" />
-          <span className="text-sm font-bold">Orçamento</span>
-          <span className="text-xs text-muted-foreground font-mono">OS {osNumber}</span>
+          <div className="h-5 w-px bg-white/20" />
+          <FileText className="w-4 h-4 text-[hsl(210,80%,65%)]" />
+          <span className="text-sm font-semibold text-white">Novo Orçamento</span>
+          <span className="text-xs text-white/50 font-mono ml-1">OS {osNumber}</span>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
-            className="h-8 text-xs gap-1.5 border-[hsl(175,60%,50%/0.4)] text-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,50%/0.1)]">
-            <Save className="w-3.5 h-3.5" /> Salvar Rascunho
+          <Button variant="ghost" size="sm"
+            className="h-8 text-xs gap-1.5 text-white/70 hover:text-white hover:bg-white/10">
+            <Printer className="w-3.5 h-3.5" /> Imprimir
           </Button>
-          <Button size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
-            className="h-8 text-xs gap-1.5 bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold">
+          <Button variant="outline" size="sm" onClick={handleSubmit}
+            disabled={saving || items.length === 0 || km <= 0}
+            className="h-8 text-xs gap-1.5 border-white/30 text-white hover:bg-white/10 bg-transparent">
+            <Save className="w-3.5 h-3.5" /> Salvar
+          </Button>
+          <Button size="sm" onClick={handleSubmit}
+            disabled={saving || items.length === 0 || km <= 0}
+            className="h-8 text-xs gap-1.5 bg-[hsl(145,60%,40%)] hover:bg-[hsl(145,60%,35%)] text-white font-bold border-0">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
             Enviar Orçamento
           </Button>
         </div>
       </div>
 
-      {/* ══════════ CONTENT AREA (sidebar + main) ══════════ */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* ══════════════════════════════════════════
+          SCROLLABLE CONTENT
+         ══════════════════════════════════════════ */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="w-full">
 
-        {/* ── LEFT SIDEBAR: Vehicle + Summary ── */}
-        <div className="shrink-0 w-[280px] bg-[hsl(220,20%,9%)] border-r border-border overflow-y-auto">
-
-          {/* Vehicle Card */}
-          <div className="p-4 border-b border-border">
-            <div className="flex items-center gap-2 mb-3">
-              <Car className="w-4 h-4 text-[hsl(175,60%,50%)]" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Veículo</span>
-            </div>
-            <div className="bg-[hsl(220,20%,12%)] rounded-lg p-3 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-lg font-black font-mono tracking-wider text-[hsl(175,60%,50%)]">{vehicle.placa}</span>
-              </div>
-              <p className="text-[11px] text-muted-foreground">{veiculoDesc || '—'}</p>
-            </div>
-          </div>
-
-          {/* Meta Fields */}
-          <div className="p-4 space-y-3 border-b border-border">
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">KM de Entrada *</label>
-              <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
-                placeholder="Ex: 85000"
-                className="h-8 font-mono text-xs bg-[hsl(220,20%,12%)] border-border" />
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Data de Entrada</label>
-              <div className="h-8 px-3 flex items-center rounded-md bg-[hsl(220,20%,12%)] border border-border text-xs font-mono">
-                {dataEntrada}
-              </div>
-            </div>
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Prev. Conclusão</label>
-              <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
-                className="h-8 text-xs bg-[hsl(220,20%,12%)] border-border" />
-            </div>
-          </div>
-
-          {/* Laudo */}
-          <div className="p-4 border-b border-border">
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-1">Laudo / Observações</label>
-            <Textarea
-              placeholder="Condições do veículo, problemas encontrados..."
-              value={laudo} onChange={e => setLaudo(e.target.value)}
-              className="min-h-[80px] text-xs bg-[hsl(220,20%,12%)] border-border resize-none"
-            />
-          </div>
-
-          {/* Financial Summary */}
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resumo</span>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1"><Package className="w-3 h-3" /> Peças</span>
-                <span className="font-mono">{fmt(totalPecas)}</span>
-              </div>
-              <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground flex items-center gap-1"><Wrench className="w-3 h-3" /> Mão de Obra</span>
-                <span className="font-mono">{fmt(totalMO)}</span>
-              </div>
-              <div className="h-px bg-border my-1" />
-              <div className="flex justify-between text-sm font-bold">
-                <span>Total</span>
-                <span className="font-mono text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
-              </div>
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>Auditt (15%)</span>
-                <span className="font-mono">{fmt(totalBruto * 0.15)}</span>
-              </div>
-              <div className="flex justify-between text-xs font-semibold">
-                <span className="text-muted-foreground">Repasse (85%)</span>
-                <span className="font-mono text-[hsl(145,60%,50%)]">{fmt(totalBruto * 0.85)}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── MAIN: Items Table ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-
-          {/* Search Bar */}
-          <div className="shrink-0 px-4 py-3 bg-[hsl(220,20%,9%)] border-b border-border flex items-center gap-2">
-            {/* Type toggle */}
-            <div className="flex shrink-0">
-              <button
-                onClick={() => { setSearchType('PEÇAS'); setSearchQuery(''); }}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-l-md text-[11px] font-bold uppercase transition-colors border border-r-0 ${
-                  searchType === 'PEÇAS'
-                    ? 'bg-[hsl(175,60%,50%)] text-[hsl(220,20%,7%)] border-[hsl(175,60%,50%)]'
-                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
-                }`}
-              >
-                <Package className="w-3.5 h-3.5" /> Peças
-              </button>
-              <button
-                onClick={() => { setSearchType('MECÂNICA'); setSearchQuery(''); }}
-                className={`flex items-center gap-1 px-3 py-1.5 rounded-r-md text-[11px] font-bold uppercase transition-colors border ${
-                  searchType === 'MECÂNICA'
-                    ? 'bg-[hsl(175,60%,50%)] text-[hsl(220,20%,7%)] border-[hsl(175,60%,50%)]'
-                    : 'bg-transparent text-muted-foreground border-border hover:text-foreground'
-                }`}
-              >
-                <Wrench className="w-3.5 h-3.5" /> Serviços
-              </button>
-            </div>
-
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-              <input
-                placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço por nome ou código...'}
-                value={searchQuery}
-                onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
-                onFocus={() => setSearchOpen(true)}
-                className="w-full h-9 pl-9 pr-10 rounded-md bg-[hsl(220,20%,12%)] border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-[hsl(175,60%,50%/0.5)]"
-              />
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-              {searchOpen && searchResults.length > 0 && (
-                <div className="absolute z-50 w-full mt-1 bg-[hsl(220,20%,12%)] border border-border rounded-lg shadow-2xl max-h-64 overflow-y-auto">
-                  {searchResults.map((entry: any) => (
-                    <button key={entry.code} onClick={() => addFromCatalog(entry)}
-                      className="w-full text-left px-4 py-2.5 hover:bg-[hsl(175,60%,50%/0.08)] border-b border-border/30 last:border-0 transition-colors flex justify-between items-center gap-3">
-                      <div className="min-w-0">
-                        <p className="text-sm text-foreground truncate">{entry.nome}</p>
-                        <p className="text-[10px] text-muted-foreground font-mono">{entry.code}</p>
-                      </div>
-                      <span className="text-xs font-mono font-bold text-[hsl(175,60%,50%)] shrink-0">
-                        {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h × ${fmt(entry.taxa)}`}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Manual add */}
-            <Button variant="outline" size="sm" onClick={addManualItem}
-              className="shrink-0 h-9 text-xs gap-1 border-border text-muted-foreground hover:text-foreground hover:border-[hsl(175,60%,50%/0.4)]">
-              <Plus className="w-3.5 h-3.5" /> Manual
-            </Button>
-          </div>
-
-          {/* ── TABLE HEADER ── */}
-          <div className="shrink-0 bg-[hsl(145,55%,28%)] px-4">
-            <div className="grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center h-9 gap-2 text-[10px] font-bold uppercase tracking-wider text-white/90">
-              <span className="text-center">#</span>
-              <span>Descrição</span>
-              <span>Observação</span>
-              <span className="text-center">Qtde/Hrs</span>
-              <span className="text-right">Valor Unit.</span>
-              <span className="text-right">Valor/Hora</span>
-              <span className="text-center">Desc %</span>
-              <span className="text-right">Total</span>
-              <span></span>
-            </div>
-          </div>
-
-          {/* ── TABLE BODY ── */}
-          <div className="flex-1 overflow-y-auto">
-            {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground/50 gap-3">
-                <Package className="w-12 h-12" />
-                <p className="text-sm">Nenhum item adicionado ao orçamento</p>
-                <p className="text-xs">Use a busca acima para adicionar peças e serviços</p>
-              </div>
-            ) : (
-              items.map((item, idx) => {
-                const valor = getValorFinal(item);
-                const isMec = item.tipo === 'MECÂNICA';
-                return (
-                  <div key={item.id}
-                    className={`grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center px-4 gap-2 h-12 border-b border-border/20 transition-colors group ${
-                      idx % 2 === 0 ? 'bg-[hsl(220,20%,8%)]' : 'bg-[hsl(220,20%,9%)]'
-                    } hover:bg-[hsl(175,60%,50%/0.04)]`}>
-                    {/* # */}
-                    <span className="text-center text-[10px] text-muted-foreground font-mono">{idx + 1}</span>
-                    {/* Descrição */}
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`shrink-0 w-1.5 h-6 rounded-full ${isMec ? 'bg-amber-500' : 'bg-blue-500'}`} />
-                      <input
-                        value={item.descricao}
-                        onChange={e => updateItem(item.id, { descricao: e.target.value })}
-                        placeholder={isMec ? 'Nome do serviço...' : 'Nome da peça...'}
-                        className="w-full bg-transparent text-sm text-foreground placeholder:text-muted-foreground/40 outline-none truncate"
-                      />
-                    </div>
-                    {/* Observação */}
-                    <input
-                      value={item.observacao}
-                      onChange={e => updateItem(item.id, { observacao: e.target.value })}
-                      placeholder="—"
-                      className="w-full bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/30 outline-none"
-                    />
-                    {/* Qtde/Horas */}
-                    <input
-                      type="number"
-                      min={isMec ? 0 : 1}
-                      step={isMec ? 0.5 : 1}
-                      value={isMec ? (item.horas || '') : item.qtd}
-                      onChange={e => {
-                        const v = Number(e.target.value);
-                        isMec ? updateItem(item.id, { horas: Math.max(0, v) }) : updateItem(item.id, { qtd: Math.max(1, v) });
-                      }}
-                      className="w-full text-center bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {/* Valor Unit. */}
-                    {!isMec ? (
-                      <input
-                        type="number"
-                        step={0.01}
-                        min={0}
-                        value={item.valorUnitario || ''}
-                        onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
-                        className="w-full text-right bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    ) : (
-                      <span className="text-right text-xs font-mono text-muted-foreground/50">—</span>
-                    )}
-                    {/* Valor/Hora */}
-                    {isMec ? (
-                      <input
-                        type="number"
-                        step={1}
-                        min={0}
-                        value={item.valorHora || ''}
-                        onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
-                        className="w-full text-right bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    ) : (
-                      <span className="text-right text-xs font-mono text-muted-foreground/50">—</span>
-                    )}
-                    {/* Desc % */}
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      value={item.desconto || ''}
-                      onChange={e => updateItem(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                      className="w-full text-center bg-transparent text-xs font-mono text-foreground outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {/* Total */}
-                    <span className="text-right text-xs font-mono font-bold text-[hsl(175,60%,50%)]">
-                      {fmt(valor)}
-                    </span>
-                    {/* Remove */}
-                    <button onClick={() => removeItem(item.id)}
-                      className="opacity-0 group-hover:opacity-100 text-destructive/50 hover:text-destructive transition-all flex justify-center">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+          {/* ── SECTION: Dados da OS ── */}
+          <div className="bg-white border-b border-[hsl(215,20%,90%)]">
+            <div className="px-5 py-4">
+              <h2 className="text-xs font-bold text-[hsl(215,45%,18%)] uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 bg-[hsl(210,80%,55%)] rounded-full" />
+                Dados da Ordem de Serviço
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                <div>
+                  <label className={fieldLabel}>Placa</label>
+                  <div className={fieldReadonly}>
+                    <span className="font-mono font-bold tracking-wider">{vehicle.placa}</span>
                   </div>
-                );
-              })
-            )}
+                </div>
+                <div>
+                  <label className={fieldLabel}>Veículo</label>
+                  <div className={fieldReadonly}>
+                    <span className="truncate">{veiculoDesc || '—'}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className={fieldLabel}>Data Entrada</label>
+                  <div className={fieldReadonly}>
+                    <span className="font-mono">{dataEntrada}</span>
+                  </div>
+                </div>
+                <div>
+                  <label className={fieldLabel}>KM de Entrada *</label>
+                  <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
+                    placeholder="Ex: 85000" className={fieldInput + ' font-mono'} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Prev. Conclusão</label>
+                  <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
+                    className={fieldInput} />
+                </div>
+                <div>
+                  <label className={fieldLabel}>Situação</label>
+                  <div className="h-9 px-3 flex items-center rounded bg-[hsl(45,90%,92%)] border border-[hsl(45,70%,70%)] text-sm text-[hsl(35,80%,30%)] font-semibold">
+                    Pendente
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* ── TABLE FOOTER ── */}
+          {/* ── SECTION: Itens do Orçamento ── */}
+          <div className="bg-white border-b border-[hsl(215,20%,90%)] mt-px">
+            <div className="px-5 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-xs font-bold text-[hsl(215,45%,18%)] uppercase tracking-widest flex items-center gap-2">
+                  <span className="w-1 h-4 bg-[hsl(145,60%,40%)] rounded-full" />
+                  Itens do Orçamento
+                </h2>
+                <span className="text-xs text-[hsl(215,15%,55%)]">{items.length} {items.length === 1 ? 'item' : 'itens'}</span>
+              </div>
+
+              {/* Search toolbar */}
+              <div className="flex items-center gap-2 mb-3">
+                <div className="flex border border-[hsl(215,20%,88%)] rounded overflow-hidden shrink-0">
+                  <button onClick={() => { setSearchType('PEÇAS'); setSearchQuery(''); }}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold transition-colors ${
+                      searchType === 'PEÇAS'
+                        ? 'bg-[hsl(210,80%,55%)] text-white'
+                        : 'bg-white text-[hsl(215,15%,50%)] hover:bg-[hsl(210,20%,96%)]'
+                    }`}>
+                    <Package className="w-3 h-3" /> Peças
+                  </button>
+                  <button onClick={() => { setSearchType('MECÂNICA'); setSearchQuery(''); }}
+                    className={`flex items-center gap-1 px-3 py-1.5 text-[11px] font-bold transition-colors border-l border-[hsl(215,20%,88%)] ${
+                      searchType === 'MECÂNICA'
+                        ? 'bg-[hsl(210,80%,55%)] text-white'
+                        : 'bg-white text-[hsl(215,15%,50%)] hover:bg-[hsl(210,20%,96%)]'
+                    }`}>
+                    <Wrench className="w-3 h-3" /> Serviços
+                  </button>
+                </div>
+
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(215,15%,60%)] pointer-events-none" />
+                  <input
+                    placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço...'}
+                    value={searchQuery}
+                    onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+                    onFocus={() => setSearchOpen(true)}
+                    className="w-full h-9 pl-9 pr-9 rounded border border-[hsl(215,20%,88%)] bg-white text-sm text-[hsl(215,25%,20%)] placeholder:text-[hsl(215,10%,70%)] focus:outline-none focus:border-[hsl(210,80%,55%)] focus:ring-1 focus:ring-[hsl(210,80%,55%/0.3)]"
+                  />
+                  {searchQuery && (
+                    <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(215,15%,60%)] hover:text-[hsl(215,25%,30%)]">
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {searchOpen && searchResults.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-[hsl(215,20%,88%)] rounded-lg shadow-xl max-h-64 overflow-y-auto">
+                      {searchResults.map((entry: any) => (
+                        <button key={entry.code} onClick={() => addFromCatalog(entry)}
+                          className="w-full text-left px-4 py-2.5 hover:bg-[hsl(210,60%,97%)] border-b border-[hsl(215,20%,94%)] last:border-0 transition-colors flex justify-between items-center gap-3">
+                          <div className="min-w-0">
+                            <p className="text-sm text-[hsl(215,25%,20%)] truncate">{entry.nome}</p>
+                            <p className="text-[10px] text-[hsl(215,10%,60%)] font-mono">{entry.code}</p>
+                          </div>
+                          <span className="text-xs font-mono font-bold text-[hsl(210,80%,45%)] shrink-0">
+                            {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h × ${fmt(entry.taxa)}`}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <button onClick={addManualItem}
+                  className="shrink-0 h-9 px-3 flex items-center gap-1 rounded border border-[hsl(215,20%,88%)] bg-white text-xs font-semibold text-[hsl(215,15%,45%)] hover:bg-[hsl(210,20%,96%)] transition-colors">
+                  <Plus className="w-3.5 h-3.5" /> Adicionar
+                </button>
+              </div>
+
+              {/* ── TABLE ── */}
+              <div className="border border-[hsl(215,20%,88%)] rounded-lg overflow-hidden">
+                {/* Header */}
+                <div className="bg-[hsl(215,30%,22%)] text-white">
+                  <div className="grid grid-cols-[36px_60px_1fr_120px_70px_90px_90px_70px_90px_36px] items-center h-10 px-3 gap-1 text-[10px] font-bold uppercase tracking-wider">
+                    <span className="text-center">#</span>
+                    <span>Tipo</span>
+                    <span>Descrição</span>
+                    <span>Observação</span>
+                    <span className="text-center">Qtd/Hrs</span>
+                    <span className="text-right">Vlr. Unit.</span>
+                    <span className="text-right">Vlr/Hora</span>
+                    <span className="text-center">Desc%</span>
+                    <span className="text-right">Total</span>
+                    <span></span>
+                  </div>
+                </div>
+
+                {/* Body */}
+                {items.length === 0 ? (
+                  <div className="py-12 text-center bg-white">
+                    <Package className="w-10 h-10 mx-auto text-[hsl(215,15%,80%)] mb-2" />
+                    <p className="text-sm text-[hsl(215,15%,55%)]">Nenhum item adicionado</p>
+                    <p className="text-xs text-[hsl(215,10%,70%)] mt-1">Use a busca acima para adicionar peças e serviços</p>
+                  </div>
+                ) : (
+                  items.map((item, idx) => {
+                    const valor = getValorFinal(item);
+                    const isMec = item.tipo === 'MECÂNICA';
+                    return (
+                      <div key={item.id}
+                        className={`grid grid-cols-[36px_60px_1fr_120px_70px_90px_90px_70px_90px_36px] items-center px-3 gap-1 h-11 border-b border-[hsl(215,20%,93%)] last:border-0 group transition-colors ${
+                          idx % 2 === 0 ? 'bg-white' : 'bg-[hsl(210,20%,98%)]'
+                        } hover:bg-[hsl(210,60%,97%)]`}>
+                        <span className="text-center text-[11px] text-[hsl(215,10%,60%)] font-mono">{idx + 1}</span>
+                        {/* Tipo badge */}
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded text-center ${
+                          isMec
+                            ? 'bg-[hsl(35,80%,92%)] text-[hsl(35,70%,35%)]'
+                            : 'bg-[hsl(210,60%,93%)] text-[hsl(210,60%,35%)]'
+                        }`}>
+                          {isMec ? 'M.O.' : 'Peça'}
+                        </span>
+                        {/* Descrição */}
+                        <input value={item.descricao}
+                          onChange={e => updateItem(item.id, { descricao: e.target.value })}
+                          placeholder={isMec ? 'Nome do serviço...' : 'Nome da peça...'}
+                          className="w-full bg-transparent text-sm text-[hsl(215,25%,20%)] placeholder:text-[hsl(215,10%,75%)] outline-none truncate" />
+                        {/* Observação */}
+                        <input value={item.observacao}
+                          onChange={e => updateItem(item.id, { observacao: e.target.value })}
+                          placeholder="—"
+                          className="w-full bg-transparent text-xs text-[hsl(215,15%,45%)] placeholder:text-[hsl(215,10%,80%)] outline-none truncate" />
+                        {/* Qtd/Hrs */}
+                        <input type="number" min={isMec ? 0 : 1} step={isMec ? 0.5 : 1}
+                          value={isMec ? (item.horas ?? '') : item.qtd}
+                          onChange={e => {
+                            const v = Number(e.target.value);
+                            isMec ? updateItem(item.id, { horas: Math.max(0, v) }) : updateItem(item.id, { qtd: Math.max(1, v) });
+                          }}
+                          className="w-full text-center bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        {/* Valor Unit */}
+                        {!isMec ? (
+                          <input type="number" step={0.01} min={0} value={item.valorUnitario || ''}
+                            onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
+                            className="w-full text-right bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        ) : (
+                          <span className="text-right text-xs text-[hsl(215,10%,80%)]">—</span>
+                        )}
+                        {/* Valor/Hora */}
+                        {isMec ? (
+                          <input type="number" step={1} min={0} value={item.valorHora ?? ''}
+                            onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
+                            className="w-full text-right bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        ) : (
+                          <span className="text-right text-xs text-[hsl(215,10%,80%)]">—</span>
+                        )}
+                        {/* Desconto */}
+                        <input type="number" min={0} max={100} value={item.desconto || ''}
+                          onChange={e => updateItem(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                          className="w-full text-center bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                        {/* Total */}
+                        <span className="text-right text-xs font-mono font-bold text-[hsl(145,50%,35%)]">
+                          {fmt(valor)}
+                        </span>
+                        {/* Delete */}
+                        <button onClick={() => removeItem(item.id)}
+                          className="opacity-0 group-hover:opacity-100 text-[hsl(0,60%,60%)] hover:text-[hsl(0,70%,45%)] transition-all flex justify-center">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+
+                {/* Footer / Totals */}
+                {items.length > 0 && (
+                  <div className="bg-[hsl(210,20%,96%)] border-t border-[hsl(215,20%,88%)]">
+                    <div className="grid grid-cols-[36px_60px_1fr_120px_70px_90px_90px_70px_90px_36px] items-center px-3 gap-1 h-10">
+                      <span></span>
+                      <span></span>
+                      <div className="flex items-center gap-4 text-xs text-[hsl(215,15%,50%)]">
+                        <span>Peças: <b className="text-[hsl(215,25%,25%)]">{fmt(totalPecas)}</b></span>
+                        <span>M.O.: <b className="text-[hsl(215,25%,25%)]">{fmt(totalMO)}</b></span>
+                      </div>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                      <span className="text-center text-[10px] font-bold text-[hsl(215,15%,45%)] uppercase">Total</span>
+                      <span className="text-right text-sm font-mono font-black text-[hsl(215,45%,18%)]">{fmt(totalBruto)}</span>
+                      <span></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ── SECTION: Observações ── */}
+          <div className="bg-white border-b border-[hsl(215,20%,90%)] mt-px">
+            <div className="px-5 py-4">
+              <h2 className="text-xs font-bold text-[hsl(215,45%,18%)] uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="w-1 h-4 bg-[hsl(35,80%,55%)] rounded-full" />
+                Observações / Laudo Técnico
+              </h2>
+              <textarea
+                placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
+                value={laudo} onChange={e => setLaudo(e.target.value)}
+                rows={3}
+                className="w-full px-3 py-2 rounded border border-[hsl(215,20%,88%)] bg-white text-sm text-[hsl(215,25%,20%)] placeholder:text-[hsl(215,10%,70%)] resize-none focus:outline-none focus:border-[hsl(210,80%,55%)] focus:ring-1 focus:ring-[hsl(210,80%,55%/0.3)]"
+              />
+            </div>
+          </div>
+
+          {/* ── SECTION: Resumo Financeiro ── */}
           {items.length > 0 && (
-            <div className="shrink-0 bg-[hsl(220,20%,10%)] border-t border-[hsl(175,60%,50%/0.2)] px-4">
-              <div className="grid grid-cols-[40px_1fr_140px_80px_90px_90px_70px_100px_36px] items-center h-11 gap-2">
-                <span></span>
-                <span className="text-xs text-muted-foreground">{items.length} {items.length === 1 ? 'item' : 'itens'}</span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span></span>
-                <span className="text-right text-sm font-mono font-black text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
-                <span></span>
+            <div className="bg-white mt-px">
+              <div className="px-5 py-4">
+                <h2 className="text-xs font-bold text-[hsl(215,45%,18%)] uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <span className="w-1 h-4 bg-[hsl(145,60%,40%)] rounded-full" />
+                  Resumo Financeiro
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="bg-[hsl(210,20%,97%)] rounded-lg p-3 border border-[hsl(215,20%,90%)]">
+                    <p className="text-[10px] text-[hsl(215,15%,55%)] uppercase font-semibold mb-1">Total Peças</p>
+                    <p className="text-lg font-bold font-mono text-[hsl(210,60%,40%)]">{fmt(totalPecas)}</p>
+                  </div>
+                  <div className="bg-[hsl(210,20%,97%)] rounded-lg p-3 border border-[hsl(215,20%,90%)]">
+                    <p className="text-[10px] text-[hsl(215,15%,55%)] uppercase font-semibold mb-1">Total M.O.</p>
+                    <p className="text-lg font-bold font-mono text-[hsl(35,70%,40%)]">{fmt(totalMO)}</p>
+                  </div>
+                  <div className="bg-[hsl(215,40%,15%)] rounded-lg p-3 border border-[hsl(215,30%,25%)]">
+                    <p className="text-[10px] text-white/60 uppercase font-semibold mb-1">Total Bruto</p>
+                    <p className="text-lg font-bold font-mono text-white">{fmt(totalBruto)}</p>
+                  </div>
+                  <div className="bg-[hsl(210,20%,97%)] rounded-lg p-3 border border-[hsl(215,20%,90%)]">
+                    <p className="text-[10px] text-[hsl(215,15%,55%)] uppercase font-semibold mb-1">Auditt (15%)</p>
+                    <p className="text-lg font-bold font-mono text-[hsl(215,25%,30%)]">{fmt(totalBruto * 0.15)}</p>
+                  </div>
+                  <div className="bg-[hsl(145,40%,95%)] rounded-lg p-3 border border-[hsl(145,40%,80%)]">
+                    <p className="text-[10px] text-[hsl(145,40%,30%)] uppercase font-semibold mb-1">Repasse Oficina</p>
+                    <p className="text-lg font-bold font-mono text-[hsl(145,50%,35%)]">{fmt(totalBruto * 0.85)}</p>
+                  </div>
+                </div>
               </div>
             </div>
           )}
+
+          {/* Bottom spacer */}
+          <div className="h-6" />
         </div>
       </div>
 
