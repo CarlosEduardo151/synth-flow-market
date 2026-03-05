@@ -94,12 +94,13 @@ function EmptyState({ icon: Icon, title, desc }: { icon: any; title: string; des
   );
 }
 
-export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLight, toggleFleetTheme }: { 
+export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLight, toggleFleetTheme, workshopId }: { 
   onSwitchRole: () => void;
   fleet?: ReturnType<typeof useFleetData>;
   customerProductId?: string | null;
   fleetLight?: boolean;
   toggleFleetTheme?: () => void;
+  workshopId?: string | null;
 }) {
   const [view, setView] = useState<OficinaView>('home');
   const [placaInput, setPlacaInput] = useState('');
@@ -724,6 +725,7 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLig
           customerProductId={customerProductId || ''}
           currentRole="oficina"
           currentName="Oficina"
+          workshopId={workshopId}
         />
       );
     }

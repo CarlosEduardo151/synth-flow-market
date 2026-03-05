@@ -21,6 +21,7 @@ interface FleetMessage {
   message_type: string;
   is_read: boolean;
   created_at: string;
+  workshop_id: string | null;
 }
 
 interface FleetCall {
@@ -33,24 +34,38 @@ interface FleetCall {
   ended_at: string | null;
   duration_seconds: number | null;
   created_at: string;
+  workshop_id: string | null;
+}
+
+interface Workshop {
+  id: string;
+  nome_fantasia: string | null;
+  razao_social: string | null;
+  cnpj: string;
+  status: string;
 }
 
 interface FleetChatProps {
   customerProductId: string;
   currentRole: 'frota' | 'oficina';
   currentName: string;
+  /** For oficina: their own workshop ID. For frota: optional pre-selected workshop */
+  workshopId?: string | null;
 }
 
-export function FleetChat({ customerProductId, currentRole, currentName }: FleetChatProps) {
+export function FleetChat({ customerProductId, currentRole, currentName, workshopId }: FleetChatProps) {
   const [messages, setMessages] = useState<FleetMessage[]>([]);
   const [calls, setCalls] = useState<FleetCall[]>([]);
   const [input, setInput] = useState('');
   const [searchOficina, setSearchOficina] = useState('');
-  const [selectedContact, setSelectedContact] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Workshops list (for frota role)
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
+  const [selectedWorkshopId, setSelectedWorkshopId] = useState<string | null>(workshopId || null);
 
   // Call state
   const [activeCall, setActiveCall] = useState<FleetCall | null>(null);
@@ -64,13 +79,36 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Fetch messages
+  // For oficina, workshopId is fixed; for frota, user selects
+  const activeWorkshopId = currentRole === 'oficina' ? workshopId : selectedWorkshopId;
+
+  // Fetch approved workshops (frota only)
+  useEffect(() => {
+    if (currentRole !== 'frota') return;
+    const fetchWorkshops = async () => {
+      const { data } = await (supabase
+        .from('fleet_partner_workshops' as any)
+        .select('id, nome_fantasia, razao_social, cnpj, status')
+        .eq('status', 'aprovado')
+        .order('nome_fantasia', { ascending: true }) as any);
+      setWorkshops(data || []);
+    };
+    fetchWorkshops();
+  }, [currentRole]);
+
+  // Fetch messages scoped by workshop
   const fetchMessages = useCallback(async () => {
+    if (!activeWorkshopId) {
+      setMessages([]);
+      setLoading(false);
+      return;
+    }
     try {
       const { data, error } = await (supabase
         .from('fleet_messages' as any)
         .select('*')
         .eq('customer_product_id', customerProductId)
+        .eq('workshop_id', activeWorkshopId)
         .order('created_at', { ascending: true }) as any);
 
       if (error) throw error;
@@ -80,15 +118,20 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     } finally {
       setLoading(false);
     }
-  }, [customerProductId]);
+  }, [customerProductId, activeWorkshopId]);
 
-  // Fetch calls
+  // Fetch calls scoped by workshop
   const fetchCalls = useCallback(async () => {
+    if (!activeWorkshopId) {
+      setCalls([]);
+      return;
+    }
     try {
       const { data, error } = await (supabase
         .from('fleet_calls' as any)
         .select('*')
         .eq('customer_product_id', customerProductId)
+        .eq('workshop_id', activeWorkshopId)
         .order('created_at', { ascending: false })
         .limit(20) as any);
 
@@ -97,24 +140,26 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     } catch (err) {
       console.error('Error fetching calls:', err);
     }
-  }, [customerProductId]);
+  }, [customerProductId, activeWorkshopId]);
 
   useEffect(() => {
+    setLoading(true);
     fetchMessages();
     fetchCalls();
   }, [fetchMessages, fetchCalls]);
 
-  // Realtime subscription
+  // Realtime subscription scoped to workshop
   useEffect(() => {
+    if (!activeWorkshopId) return;
     const channel = supabase
-      .channel('fleet_messages_realtime' as any)
+      .channel(`fleet_msgs_${activeWorkshopId}` as any)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'fleet_messages',
-          filter: `customer_product_id=eq.${customerProductId}`,
+          filter: `workshop_id=eq.${activeWorkshopId}`,
         },
         (payload: any) => {
           const newMsg = payload.new as FleetMessage;
@@ -129,7 +174,7 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [customerProductId]);
+  }, [activeWorkshopId]);
 
   useEffect(() => {
     scrollToBottom();
@@ -137,12 +182,14 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
 
   // Send message
   const handleSend = async () => {
-    if (!input.trim() || sending) return;
+    if (!input.trim() || sending || !activeWorkshopId) return;
     const text = input.trim();
     setInput('');
     setSending(true);
 
-    const recipientName = selectedContact === 'all' ? 'Todas' : selectedContact;
+    const recipientName = currentRole === 'frota'
+      ? getWorkshopDisplayName(activeWorkshopId)
+      : 'Gestor de Frota';
 
     try {
       const { error } = await (supabase
@@ -154,6 +201,7 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
           recipient_name: recipientName,
           message_text: text,
           message_type: 'text',
+          workshop_id: activeWorkshopId,
         } as any) as any);
 
       if (error) throw error;
@@ -166,13 +214,18 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     }
   };
 
+  const getWorkshopDisplayName = (wsId: string) => {
+    const ws = workshops.find(w => w.id === wsId);
+    return ws?.nome_fantasia || ws?.razao_social || 'Oficina';
+  };
+
   // Browser call
   const startCall = async (recipientName: string) => {
+    if (!activeWorkshopId) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       localStreamRef.current = stream;
 
-      // Create call record
       const { data, error } = await (supabase
         .from('fleet_calls' as any)
         .insert({
@@ -182,6 +235,7 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
           recipient_name: recipientName,
           status: 'active',
           started_at: new Date().toISOString(),
+          workshop_id: activeWorkshopId,
         } as any)
         .select()
         .single() as any);
@@ -194,7 +248,6 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
         setCallDuration(prev => prev + 1);
       }, 1000);
 
-      // Insert system message
       await (supabase
         .from('fleet_messages' as any)
         .insert({
@@ -204,6 +257,7 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
           recipient_name: recipientName,
           message_text: `📞 Chamada de voz iniciada`,
           message_type: 'call_started',
+          workshop_id: activeWorkshopId,
         } as any) as any);
 
       toast({ title: 'Chamada iniciada', description: `Ligando para ${recipientName}...` });
@@ -211,8 +265,8 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
       console.error('Error starting call:', err);
       toast({
         title: 'Erro na chamada',
-        description: err?.message?.includes('Permission') 
-          ? 'Permita o acesso ao microfone nas configurações do navegador.' 
+        description: err?.message?.includes('Permission')
+          ? 'Permita o acesso ao microfone nas configurações do navegador.'
           : 'Não foi possível iniciar a chamada.',
         variant: 'destructive',
       });
@@ -253,6 +307,7 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
           recipient_name: activeCall.recipient_name,
           message_text: `📞 Chamada encerrada — ${mins}:${secs.toString().padStart(2, '0')}`,
           message_type: 'call_ended',
+          workshop_id: activeWorkshopId,
         } as any) as any);
     } catch (err) {
       console.error('Error ending call:', err);
@@ -275,24 +330,32 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
     return `${m}:${sec.toString().padStart(2, '0')}`;
   };
 
-  // Derive contacts from messages
-  const contacts = [...new Set(messages.flatMap(m => [m.sender_name, m.recipient_name]))].filter(n => n !== currentName && n !== 'Todas');
-
-  const filteredMessages = selectedContact === 'all'
-    ? messages
-    : messages.filter(m => m.sender_name === selectedContact || m.recipient_name === selectedContact || m.recipient_name === 'Todas');
-
   const formatTime = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
+
+  // Get unread count per workshop (for frota sidebar)
+  const getUnreadCountForWorkshop = (wsId: string) => {
+    // We'd need all messages loaded — for now just show if selected
+    return 0;
+  };
+
+  // ─── Contact name for chat header ───
+  const chatPartnerName = currentRole === 'frota'
+    ? (activeWorkshopId ? getWorkshopDisplayName(activeWorkshopId) : 'Selecione uma oficina')
+    : 'Gestor de Frota';
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Canal de Comunicação</h2>
-          <p className="text-sm text-muted-foreground">Converse em tempo real com as oficinas parceiras</p>
+          <p className="text-sm text-muted-foreground">
+            {currentRole === 'frota'
+              ? 'Selecione uma oficina para iniciar a conversa'
+              : 'Canal exclusivo com o gestor de frota'}
+          </p>
         </div>
       </div>
 
@@ -325,68 +388,80 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
       )}
 
       <div className="grid lg:grid-cols-[280px_1fr] gap-4 h-[600px]">
-        {/* Sidebar — Contacts */}
+        {/* Sidebar — Workshop Contacts (frota) / Single channel info (oficina) */}
         <Card className="border border-border/50 shadow-sm overflow-hidden flex flex-col">
           <div className="p-3 border-b border-border/30">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Contatos</h3>
-            <Input
-              value={searchOficina}
-              onChange={e => setSearchOficina(e.target.value)}
-              placeholder="Buscar..."
-              className="h-8 text-xs"
-            />
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+              {currentRole === 'frota' ? 'Oficinas Parceiras' : 'Canal'}
+            </h3>
+            {currentRole === 'frota' && (
+              <Input
+                value={searchOficina}
+                onChange={e => setSearchOficina(e.target.value)}
+                placeholder="Buscar oficina..."
+                className="h-8 text-xs"
+              />
+            )}
           </div>
           <div className="flex-1 overflow-y-auto">
-            <button
-              onClick={() => setSelectedContact('all')}
-              className={cn(
-                'w-full text-left px-3 py-3 border-b border-border/20 hover:bg-muted/30 transition-colors flex items-center gap-3',
-                selectedContact === 'all' && 'bg-primary/5 border-l-2 border-l-primary'
-              )}
-            >
-              <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Users className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">Todos</p>
-                <p className="text-[10px] text-muted-foreground">{messages.length} mensagens</p>
-              </div>
-            </button>
-            {contacts
-              .filter(c => !searchOficina || c.toLowerCase().includes(searchOficina.toLowerCase()))
-              .map(contact => {
-                const contactMsgs = messages.filter(m => m.sender_name === contact || m.recipient_name === contact);
-                const lastMsg = contactMsgs[contactMsgs.length - 1];
-                const unread = contactMsgs.filter(m => m.sender_role !== currentRole && !m.is_read).length;
-                return (
-                  <button
-                    key={contact}
-                    onClick={() => setSelectedContact(contact)}
-                    className={cn(
-                      'w-full text-left px-3 py-3 border-b border-border/20 hover:bg-muted/30 transition-colors flex items-center gap-3',
-                      selectedContact === contact && 'bg-primary/5 border-l-2 border-l-primary'
-                    )}
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
-                      <Wrench className="w-4 h-4 text-emerald-500" />
+            {currentRole === 'frota' ? (
+              <>
+                {workshops
+                  .filter(ws => {
+                    if (!searchOficina) return true;
+                    const name = (ws.nome_fantasia || ws.razao_social || '').toLowerCase();
+                    return name.includes(searchOficina.toLowerCase());
+                  })
+                  .map(ws => {
+                    const displayName = ws.nome_fantasia || ws.razao_social || ws.cnpj;
+                    const isSelected = selectedWorkshopId === ws.id;
+                    return (
+                      <button
+                        key={ws.id}
+                        onClick={() => setSelectedWorkshopId(ws.id)}
+                        className={cn(
+                          'w-full text-left px-3 py-3 border-b border-border/20 hover:bg-muted/30 transition-colors flex items-center gap-3',
+                          isSelected && 'bg-primary/5 border-l-2 border-l-primary'
+                        )}
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                          <Wrench className="w-4 h-4 text-emerald-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 border-emerald-500/30 text-emerald-600">Aprovada</Badge>
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                {workshops.length === 0 && (
+                  <div className="p-6 text-center">
+                    <Wrench className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                    <p className="text-xs text-muted-foreground">Nenhuma oficina aprovada</p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Oficinas aparecerão aqui após aprovação</p>
+                  </div>
+                )}
+              </>
+            ) : (
+              /* Oficina side: single channel */
+              <div className="px-3 py-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Users className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Gestor de Frota</p>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] text-muted-foreground">Canal exclusivo</span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium text-foreground truncate">{contact}</p>
-                        {lastMsg && <span className="text-[10px] text-muted-foreground">{formatTime(lastMsg.created_at)}</span>}
-                      </div>
-                      {lastMsg && <p className="text-[11px] text-muted-foreground truncate">{lastMsg.message_text}</p>}
-                    </div>
-                    {unread > 0 && (
-                      <span className="w-5 h-5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center shrink-0">{unread}</span>
-                    )}
-                  </button>
-                );
-              })}
-            {contacts.length === 0 && !loading && (
-              <div className="p-6 text-center">
-                <p className="text-xs text-muted-foreground">Nenhum contato ainda</p>
-                <p className="text-[10px] text-muted-foreground/60 mt-1">Envie a primeira mensagem</p>
+                  </div>
+                </div>
+                <p className="text-[10px] text-muted-foreground text-center mt-3">
+                  Este é o seu canal direto e exclusivo com o gestor de frota.
+                </p>
               </div>
             )}
           </div>
@@ -398,25 +473,23 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
           <div className="p-4 border-b border-border/30 flex items-center justify-between bg-muted/20">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-                <Wrench className="w-5 h-5 text-emerald-500" />
+                {currentRole === 'frota' ? <Wrench className="w-5 h-5 text-emerald-500" /> : <Users className="w-5 h-5 text-primary" />}
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">
-                  {selectedContact === 'all' ? 'Todos os Contatos' : selectedContact}
-                </h3>
+                <h3 className="text-sm font-semibold text-foreground">{chatPartnerName}</h3>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-[10px] text-muted-foreground">Tempo real via Supabase</span>
+                  <span className="text-[10px] text-muted-foreground">Canal exclusivo via Supabase</span>
                 </div>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {selectedContact !== 'all' && !activeCall && (
+              {activeWorkshopId && !activeCall && (
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-8 w-8 hover:text-emerald-500"
-                  onClick={() => startCall(selectedContact)}
+                  onClick={() => startCall(chatPartnerName)}
                   title="Iniciar chamada de voz"
                 >
                   <Phone className="w-4 h-4" />
@@ -429,18 +502,24 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {loading ? (
+            {!activeWorkshopId ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <MessageCircle className="w-12 h-12 text-muted-foreground/20 mb-3" />
+                <p className="text-sm text-muted-foreground">Selecione uma oficina</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Escolha uma oficina parceira ao lado para abrir o canal de comunicação</p>
+              </div>
+            ) : loading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-sm text-muted-foreground animate-pulse">Carregando mensagens...</p>
               </div>
-            ) : filteredMessages.length === 0 ? (
+            ) : messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
                 <MessageCircle className="w-12 h-12 text-muted-foreground/20 mb-3" />
                 <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda</p>
                 <p className="text-xs text-muted-foreground/60 mt-1">Envie uma mensagem para iniciar a conversa</p>
               </div>
             ) : (
-              filteredMessages.map(msg => {
+              messages.map(msg => {
                 const isMe = msg.sender_role === currentRole;
                 const isSystem = msg.message_type === 'call_started' || msg.message_type === 'call_ended';
 
@@ -464,11 +543,9 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
                         ? 'bg-primary text-primary-foreground rounded-br-md'
                         : 'bg-muted/50 border border-border/50 text-foreground rounded-bl-md'
                     )}>
-                      {selectedContact === 'all' && (
-                        <p className={cn('text-[10px] font-semibold mb-0.5', isMe ? 'text-primary-foreground/70' : 'text-emerald-500')}>
-                          {isMe ? 'Você' : msg.sender_name}
-                        </p>
-                      )}
+                      <p className={cn('text-[10px] font-semibold mb-0.5', isMe ? 'text-primary-foreground/70' : 'text-emerald-500')}>
+                        {isMe ? 'Você' : msg.sender_name}
+                      </p>
                       <p className="text-sm leading-relaxed">{msg.message_text}</p>
                       <p className={cn('text-[10px] mt-1 text-right', isMe ? 'text-primary-foreground/50' : 'text-muted-foreground')}>
                         {formatTime(msg.created_at)} {isMe && '✓✓'}
@@ -489,13 +566,13 @@ export function FleetChat({ customerProductId, currentRole, currentName }: Fleet
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder={`Mensagem para ${selectedContact === 'all' ? 'todos' : selectedContact}...`}
+                placeholder={activeWorkshopId ? `Mensagem para ${chatPartnerName}...` : 'Selecione uma oficina...'}
                 className="h-9 text-sm flex-1"
-                disabled={sending}
+                disabled={sending || !activeWorkshopId}
               />
               <Button
                 onClick={handleSend}
-                disabled={!input.trim() || sending}
+                disabled={!input.trim() || sending || !activeWorkshopId}
                 size="sm"
                 className="h-9 px-4 gap-1.5"
               >
