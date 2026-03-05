@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Send, Loader2, Search, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Send, Loader2, Save, Camera, FileText } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 
 // ── Catalogs ──
@@ -89,7 +89,24 @@ const servicosCatalogo = [
   { code: 'INJ-003', nome: 'Diagnóstico eletrônico (scanner)', horas: 2, taxa: 120 },
 ];
 
-const disponibilidadeOpcoes = ['Em estoque', 'Terei que encomendar', 'Fornecedor entrega'];
+const disponibilidadeOpcoes = ['Selecione', 'Em estoque', 'Terei que encomendar', 'Fornecedor entrega'];
+
+type ItemTipo = 'MECÂNICA' | 'PEÇAS';
+
+interface BudgetItem {
+  id: string;
+  tipo: ItemTipo;
+  descricao: string;
+  code: string;
+  detalhes: string;
+  disponibilidade: string;
+  prazo: number;
+  qtd: number;
+  valorUnitario: number;
+  desconto: number;
+  horas?: number;
+  valorHora?: number;
+}
 
 interface Props {
   serviceOrder: FleetServiceOrder;
@@ -104,49 +121,69 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [previsao, setPrevisao] = useState('');
   const [laudo, setLaudo] = useState('');
   const [saving, setSaving] = useState(false);
+  const [items, setItems] = useState<BudgetItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchType, setSearchType] = useState<ItemTipo>('PEÇAS');
 
   const dataEntrada = serviceOrder.data_entrada
     ? new Date(serviceOrder.data_entrada).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
     : new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
-  // Peças
-  const [pecas, setPecas] = useState<{ id: string; nome: string; code: string; qtd: number; valor: number; ref: number; disponibilidade: string; prazo: number }[]>([]);
-  const [buscaPeca, setBuscaPeca] = useState('');
-  const [pecaAberta, setPecaAberta] = useState(false);
-
-  // Serviços
-  const [servicos, setServicos] = useState<{ id: string; nome: string; code: string; horas: number; valorHora: number }[]>([]);
-  const [buscaServico, setBuscaServico] = useState('');
-  const [servicoAberto, setServicoAberto] = useState(false);
+  const osNumber = `SS ${vehicle.placa}/${serviceOrder.id.slice(0, 4).toUpperCase()}`;
+  const veiculoDesc = `${vehicle.marca || ''} - ${vehicle.modelo || ''} ${vehicle.ano || ''}`.trim();
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-  const totalPecas = pecas.reduce((s, p) => s + p.valor * p.qtd, 0);
-  const totalServicos = servicos.reduce((s, l) => s + l.horas * l.valorHora, 0);
-  const total = totalPecas + totalServicos;
-
-  // Filtered
-  const pecasFiltradas = buscaPeca.length >= 2
-    ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(buscaPeca.toLowerCase()) || p.code.toLowerCase().includes(buscaPeca.toLowerCase())).slice(0, 8)
-    : [];
-  const servicosFiltrados = buscaServico.length >= 2
-    ? servicosCatalogo.filter(s => s.nome.toLowerCase().includes(buscaServico.toLowerCase()) || s.code.toLowerCase().includes(buscaServico.toLowerCase())).slice(0, 8)
-    : [];
-
-  const addPeca = (p: typeof pecasCatalogo[0]) => {
-    if (pecas.find(x => x.code === p.code)) return;
-    setPecas(prev => [...prev, { id: Date.now().toString(), nome: p.nome, code: p.code, qtd: 1, valor: p.ref, ref: p.ref, disponibilidade: 'Em estoque', prazo: 0 }]);
-    setBuscaPeca(''); setPecaAberta(false);
+  const getValorFinal = (item: BudgetItem) => {
+    if (item.tipo === 'MECÂNICA') {
+      const base = (item.horas || 0) * (item.valorHora || 0);
+      return base - (base * (item.desconto / 100));
+    }
+    const base = item.valorUnitario * item.qtd;
+    return base - (base * (item.desconto / 100));
   };
 
-  const addServico = (s: typeof servicosCatalogo[0]) => {
-    if (servicos.find(x => x.code === s.code)) return;
-    setServicos(prev => [...prev, { id: Date.now().toString(), nome: s.nome, code: s.code, horas: s.horas, valorHora: s.taxa }]);
-    setBuscaServico(''); setServicoAberto(false);
+  const totalBruto = items.reduce((s, i) => s + getValorFinal(i), 0);
+  const totalPecas = items.filter(i => i.tipo === 'PEÇAS').reduce((s, i) => s + getValorFinal(i), 0);
+  const totalMO = items.filter(i => i.tipo === 'MECÂNICA').reduce((s, i) => s + getValorFinal(i), 0);
+
+  // Search results
+  const searchResults = searchQuery.length >= 2
+    ? searchType === 'PEÇAS'
+      ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+      : servicosCatalogo.filter(s => s.nome.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+    : [];
+
+  const addFromCatalog = (entry: any) => {
+    const exists = items.find(x => x.code === entry.code);
+    if (exists) return;
+    if (searchType === 'PEÇAS') {
+      setItems(prev => [...prev, {
+        id: Date.now().toString(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
+        detalhes: '', disponibilidade: 'Selecione', prazo: 0, qtd: 1,
+        valorUnitario: entry.ref, desconto: 0,
+      }]);
+    } else {
+      setItems(prev => [...prev, {
+        id: Date.now().toString(), tipo: 'MECÂNICA', descricao: entry.nome, code: entry.code,
+        detalhes: '', disponibilidade: '', prazo: 0, qtd: 1,
+        valorUnitario: 0, desconto: 0, horas: entry.horas, valorHora: entry.taxa,
+      }]);
+    }
+    setSearchQuery(''); setSearchOpen(false);
+  };
+
+  const updateItem = (id: string, patch: Partial<BudgetItem>) => {
+    setItems(prev => prev.map(i => i.id === id ? { ...i, ...patch } : i));
+  };
+
+  const removeItem = (id: string) => {
+    setItems(prev => prev.filter(i => i.id !== id));
   };
 
   const handleSubmit = async () => {
-    if ((pecas.length + servicos.length) === 0 || km <= 0) return;
+    if (items.length === 0 || km <= 0) return;
     setSaving(true);
     try {
       const cpId = (serviceOrder as any).customer_product_id;
@@ -159,34 +196,34 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         urgencia: 'normal',
         status: 'pendente',
         total_pecas: totalPecas,
-        total_mao_de_obra: totalServicos,
-        total_bruto: total,
+        total_mao_de_obra: totalMO,
+        total_bruto: totalBruto,
         comissao_pct: 15,
-        total_liquido: total * 0.85,
+        total_liquido: totalBruto * 0.85,
       }).select().single();
       if (budgetErr) throw budgetErr;
 
-      const items: any[] = [];
-      pecas.forEach((p, i) => items.push({
-        budget_id: (budget as any).id, tipo: 'peca', codigo: p.code,
-        descricao: p.nome, quantidade: p.qtd, valor_unitario: p.valor,
-        valor_total: p.valor * p.qtd, sort_order: i,
-      }));
-      servicos.forEach((s, i) => items.push({
-        budget_id: (budget as any).id, tipo: 'mao_de_obra',
-        descricao: s.nome, quantidade: 1, valor_unitario: s.horas * s.valorHora,
-        valor_total: s.horas * s.valorHora, horas: s.horas, valor_hora: s.valorHora,
-        sort_order: pecas.length + i,
+      const dbItems: any[] = items.map((item, i) => ({
+        budget_id: (budget as any).id,
+        tipo: item.tipo === 'MECÂNICA' ? 'mao_de_obra' : 'peca',
+        codigo: item.code,
+        descricao: item.descricao,
+        quantidade: item.qtd,
+        valor_unitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
+        valor_total: getValorFinal(item),
+        horas: item.horas || null,
+        valor_hora: item.valorHora || null,
+        sort_order: i,
       }));
 
-      if (items.length > 0) {
-        const { error } = await supabase.from('fleet_budget_items').insert(items);
+      if (dbItems.length > 0) {
+        const { error } = await supabase.from('fleet_budget_items').insert(dbItems);
         if (error) throw error;
       }
 
       await fleet.updateStage(serviceOrder.id, 'orcamento_enviado', 'oficina',
         'Orçamento enviado para aprovação',
-        { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalServicos)} | Total: ${fmt(total)}`, valor_orcamento: total }
+        { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalMO)} | Total: ${fmt(totalBruto)}`, valor_orcamento: totalBruto }
       );
       onSuccess();
     } catch (err) { console.error(err); } finally { setSaving(false); }
@@ -195,264 +232,248 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   return (
     <div className="min-h-screen bg-background text-foreground">
 
-      {/* ══ TOP BAR ══ */}
-      <div className="sticky top-0 z-30 border-b border-border bg-card/95 backdrop-blur-sm">
-        <div className="flex items-center gap-3 px-4 py-2.5">
-          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="w-5 h-5" />
-          </Button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-[hsl(var(--accent))]" />
-              <h1 className="text-sm font-bold tracking-wide uppercase">Orçamento — {vehicle.placa}</h1>
+      {/* ══ HEADER BAR ══ */}
+      <div className="sticky top-0 z-30 border-b-2 border-[hsl(175,60%,50%)] bg-[hsl(220,20%,12%)]">
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-sm font-bold text-foreground">Operacional - Envio de Orçamento</h1>
+              <p className="text-[10px] text-muted-foreground">CNPJ selecionado · {vehicle.placa} - {veiculoDesc}</p>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">{vehicle.marca} {vehicle.modelo} {vehicle.ano || ''} · OS #{serviceOrder.id.slice(0, 8)}</p>
           </div>
-          <Button onClick={handleSubmit} disabled={saving || (pecas.length + servicos.length) === 0 || km <= 0}
-            className="h-9 gap-2 bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold text-xs uppercase tracking-wider">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            Enviar
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-[hsl(175,60%,50%)] text-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,50%/.1)]">
+              <Camera className="w-3.5 h-3.5" /> ENVIAR FOTOS
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
+              className="h-8 gap-1.5 text-xs border-[hsl(120,60%,40%)] text-[hsl(120,60%,40%)] hover:bg-[hsl(120,60%,40%/.1)]">
+              <Save className="w-3.5 h-3.5" /> SALVAR
+            </Button>
+            <Button size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
+              className="h-8 gap-1.5 text-xs bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold">
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+              SALVAR E ENVIAR
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* ══ INFO STRIP (KM, Data Entrada, Previsão) ══ */}
-      <div className="border-b border-border bg-card/60">
-        <div className="max-w-[1400px] mx-auto px-4 py-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      {/* ══ CADASTRO HEADER ══ */}
+      <div className="bg-[hsl(220,20%,10%)] border-b border-border px-4 py-3">
+        <h2 className="text-base font-bold text-foreground mb-2">Cadastro de Orçamento</h2>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div>
+            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Número SS / Sequencial</label>
+            <div className="flex gap-1">
+              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono text-foreground min-w-[100px]">
+                {vehicle.placa}
+              </div>
+              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono text-foreground min-w-[50px]">
+                {serviceOrder.id.slice(0, 4).toUpperCase()}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ══ VEHICLE INFO + METADATA STRIP ══ */}
+      <div className="bg-[hsl(220,20%,9%)] border-b border-border px-4 py-3">
+        <div className="flex items-start gap-6 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <p className="text-sm font-bold text-foreground">{osNumber}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">{veiculoDesc}</p>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[10px] text-muted-foreground">Valor Total Digitado</span>
+              <span className="text-sm font-bold text-[hsl(175,60%,50%)] font-mono">{fmt(totalBruto)}</span>
+            </div>
+          </div>
+          <div className="flex gap-4 flex-wrap">
             <div>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">KM de Entrada *</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">KM de Entrada</label>
               <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
-                className="h-9 font-mono text-sm bg-background border-border" placeholder="0" />
+                className="h-8 w-28 font-mono text-xs bg-background border-border" placeholder="0" />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Data de Entrada</label>
-              <div className="h-9 flex items-center px-3 rounded-md border border-border bg-muted/30 text-sm text-muted-foreground font-mono">
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Data de Entrada</label>
+              <div className="h-8 px-3 flex items-center rounded border border-border bg-[hsl(50,70%,85%)] text-xs text-[hsl(220,20%,15%)] font-mono min-w-[140px]">
                 {dataEntrada}
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Data de Prev. de Conclusão</label>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Data de Prev. de Conclusão</label>
               <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
-                className="h-9 text-sm bg-background border-border" />
+                className="h-8 w-36 text-xs bg-background border-border" />
+            </div>
+            <div>
+              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Valor Total Orçamento</label>
+              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono font-bold text-foreground min-w-[120px]">
+                R$ {totalBruto.toFixed(2).replace('.', ',')}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1400px] mx-auto px-4 py-4 space-y-5">
-
-        {/* ══════════════ PEÇAS — TABLE STYLE ══════════════ */}
-        <section>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--accent))]">
-              Peças / Materiais
-            </h2>
-            <span className="text-xs font-mono text-muted-foreground">{fmt(totalPecas)}</span>
+      {/* ══ TABLE: PEÇAS E MÃO DE OBRA ══ */}
+      <div className="px-4 py-3">
+        {/* Green section header */}
+        <div className="flex items-center justify-between bg-[hsl(145,60%,30%)] rounded-t-md px-3 py-2">
+          <div className="flex items-center gap-2">
+            <span className="text-white text-xs font-bold uppercase tracking-wider">⚙ PEÇAS E MÃO DE OBRA</span>
           </div>
-
-          {/* Search bar */}
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar peça por nome ou código..."
-              value={buscaPeca}
-              onChange={e => { setBuscaPeca(e.target.value); setPecaAberta(true); }}
-              onFocus={() => setPecaAberta(true)}
-              className="pl-9 h-8 text-xs bg-background border-border"
-            />
-            {pecaAberta && pecasFiltradas.length > 0 && (
-              <div className="absolute z-40 w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
-                {pecasFiltradas.map(p => (
-                  <button key={p.code} onClick={() => addPeca(p)}
-                    className="w-full text-left px-3 py-2 hover:bg-[hsl(var(--accent)/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
-                    <div>
-                      <span className="text-foreground font-medium">{p.nome}</span>
-                      <span className="text-muted-foreground ml-2">({p.code})</span>
-                    </div>
-                    <span className="text-muted-foreground font-mono shrink-0">{fmt(p.ref)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex items-center gap-4">
+            <span className="text-white/80 text-[10px] uppercase font-semibold">VALOR</span>
+            <span className="text-white/80 text-[10px] uppercase font-semibold">DESCONTO</span>
           </div>
+        </div>
 
-          {/* Table */}
-          <div className="border border-border rounded-lg overflow-hidden">
-            {/* Header */}
-            <div className="bg-muted/50 border-b border-border">
-              <div className="grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <span>Peça (Descrição)</span>
-                <span>Disponibilidade</span>
-                <span className="text-center">Prazo (dias)</span>
-                <span className="text-center">Qtde</span>
-                <span className="text-right">Valor Unit.</span>
-                <span className="text-right">Total</span>
-                <span></span>
-              </div>
+        {/* Table */}
+        <div className="border border-border border-t-0 rounded-b-md overflow-hidden">
+          {/* Column Headers */}
+          <div className="bg-muted/40 border-b border-border overflow-x-auto">
+            <div className="grid grid-cols-[30px_110px_1fr_140px_140px_80px_60px_100px_70px_100px_36px] items-center px-2 py-2 gap-1 min-w-[1000px]">
+              <span className="text-[9px] font-bold text-muted-foreground text-center">☐</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">TIPO</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">PEÇA (DESCRIÇÃO)</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">DETALHES TÉCNICOS</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase">POSSUO O ITEM?</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">PREVISÃO<br/>EM DIAS ÚTEIS</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">QTDE</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase text-right">VALOR UNITÁRIO</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">DESC %</span>
+              <span className="text-[9px] font-bold text-muted-foreground uppercase text-right">VALOR FINAL</span>
+              <span></span>
             </div>
+          </div>
 
-            {/* Rows */}
-            {pecas.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                Busque e adicione peças acima
-              </div>
-            ) : (
-              pecas.map((p, idx) => (
-                <div key={p.id} className={`grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 border-b border-border/40 last:border-0 ${idx % 2 === 0 ? 'bg-card/30' : 'bg-card/60'} hover:bg-[hsl(var(--accent)/.05)] transition-colors`}>
-                  {/* Nome */}
-                  <div className="min-w-0">
-                    <p className="text-xs text-foreground truncate font-medium">{p.nome}</p>
-                    <p className="text-[9px] text-muted-foreground">{p.code}</p>
+          {/* Rows */}
+          {items.length === 0 ? (
+            <div className="px-4 py-8 text-center text-xs text-muted-foreground">
+              Adicione itens usando a barra de busca abaixo
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {items.map((item, idx) => (
+                <div key={item.id}
+                  className={`grid grid-cols-[30px_110px_1fr_140px_140px_80px_60px_100px_70px_100px_36px] items-center px-2 py-1.5 gap-1 border-b border-border/30 last:border-0 min-w-[1000px] ${idx % 2 === 0 ? 'bg-card/20' : 'bg-card/40'} hover:bg-[hsl(175,60%,50%/.05)] transition-colors`}>
+                  {/* Checkbox */}
+                  <div className="flex justify-center">
+                    <input type="checkbox" className="w-3.5 h-3.5 accent-[hsl(175,60%,50%)]" />
                   </div>
+                  {/* Tipo */}
+                  <select value={item.tipo}
+                    onChange={e => updateItem(item.id, { tipo: e.target.value as ItemTipo })}
+                    className="h-7 text-[10px] bg-background border border-border rounded px-1 text-foreground cursor-pointer">
+                    <option value="MECÂNICA">MECÂNICA</option>
+                    <option value="PEÇAS">PEÇAS</option>
+                  </select>
+                  {/* Descrição */}
+                  <div className="min-w-0">
+                    <p className="text-[11px] text-foreground truncate font-medium">{item.descricao}</p>
+                    <p className="text-[9px] text-muted-foreground">{item.code}</p>
+                  </div>
+                  {/* Detalhes Técnicos */}
+                  <Input value={item.detalhes} placeholder="Obs"
+                    onChange={e => updateItem(item.id, { detalhes: e.target.value })}
+                    className="h-7 text-[10px] bg-background border-border" />
                   {/* Disponibilidade */}
-                  <select
-                    value={p.disponibilidade}
-                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, disponibilidade: e.target.value } : x))}
-                    className="h-7 text-[10px] bg-background border border-border rounded px-1.5 text-foreground appearance-none cursor-pointer"
-                  >
+                  <select value={item.disponibilidade}
+                    onChange={e => updateItem(item.id, { disponibilidade: e.target.value })}
+                    className="h-7 text-[10px] bg-background border border-border rounded px-1 text-foreground cursor-pointer">
                     {disponibilidadeOpcoes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
                   </select>
                   {/* Prazo */}
-                  <Input type="number" min={0} value={p.prazo}
-                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, prazo: Math.max(0, Number(e.target.value)) } : x))}
-                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
+                  <Input type="number" min={0} value={item.prazo}
+                    onChange={e => updateItem(item.id, { prazo: Math.max(0, Number(e.target.value)) })}
+                    className="h-7 text-[10px] text-center bg-background border-border" />
                   {/* Qtde */}
-                  <Input type="number" min={1} value={p.qtd}
-                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, qtd: Math.max(1, Number(e.target.value)) } : x))}
-                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
-                  {/* Valor Unit */}
-                  <Input type="number" step={0.01} value={p.valor}
-                    onChange={e => setPecas(prev => prev.map(x => x.id === p.id ? { ...x, valor: Number(e.target.value) } : x))}
-                    className="h-7 text-[10px] font-mono text-right bg-background border-border w-full" />
-                  {/* Total */}
-                  <span className="text-xs font-mono font-bold text-right text-[hsl(var(--accent))]">{fmt(p.valor * p.qtd)}</span>
+                  <Input type="number" min={1} value={item.qtd}
+                    onChange={e => updateItem(item.id, { qtd: Math.max(1, Number(e.target.value)) })}
+                    className="h-7 text-[10px] text-center bg-background border-border" />
+                  {/* Valor Unitário */}
+                  {item.tipo === 'MECÂNICA' ? (
+                    <div className="text-[10px] font-mono text-right text-muted-foreground pr-1">
+                      {item.horas}h × {fmt(item.valorHora || 0)}
+                    </div>
+                  ) : (
+                    <Input type="number" step={0.01} value={item.valorUnitario}
+                      onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
+                      className="h-7 text-[10px] font-mono text-right bg-background border-border" />
+                  )}
+                  {/* Desconto % */}
+                  <div className="flex items-center gap-0.5">
+                    <Input type="number" min={0} max={100} value={item.desconto}
+                      onChange={e => updateItem(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
+                      className="h-7 text-[10px] text-center bg-background border-border w-full" />
+                    <span className="text-[10px] text-muted-foreground">%</span>
+                  </div>
+                  {/* Valor Final */}
+                  <span className="text-[11px] font-mono font-bold text-right text-[hsl(175,60%,50%)]">
+                    {fmt(getValorFinal(item))}
+                  </span>
                   {/* Remove */}
-                  <button onClick={() => setPecas(prev => prev.filter(x => x.id !== p.id))} className="text-muted-foreground hover:text-destructive transition-colors flex justify-center">
+                  <button onClick={() => removeItem(item.id)} className="text-destructive/60 hover:text-destructive transition-colors flex justify-center">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              ))
-            )}
+              ))}
+            </div>
+          )}
+        </div>
 
-            {/* Subtotal row */}
-            {pecas.length > 0 && (
-              <div className="grid grid-cols-[1fr_140px_80px_70px_100px_100px_36px] items-center px-3 py-2 gap-2 bg-muted/30 border-t border-border">
-                <span className="text-[10px] font-bold uppercase text-muted-foreground">Subtotal Peças</span>
-                <span /><span /><span /><span />
-                <span className="text-xs font-mono font-bold text-right text-foreground">{fmt(totalPecas)}</span>
-                <span />
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ══════════════ MÃO DE OBRA — TABLE STYLE ══════════════ */}
-        <section>
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-[hsl(var(--accent))]">
-              Mão de Obra / Serviços
-            </h2>
-            <span className="text-xs font-mono text-muted-foreground">{fmt(totalServicos)}</span>
-          </div>
-
-          {/* Search bar */}
-          <div className="relative mb-2">
-            <Search className="absolute left-2.5 top-2 w-4 h-4 text-muted-foreground" />
+        {/* ══ ADD ITEM SEARCH BAR ══ */}
+        <div className="mt-3 flex items-center gap-2">
+          <select value={searchType} onChange={e => { setSearchType(e.target.value as ItemTipo); setSearchQuery(''); }}
+            className="h-8 text-[11px] bg-background border border-border rounded px-2 text-foreground cursor-pointer w-32">
+            <option value="PEÇAS">+ Peça</option>
+            <option value="MECÂNICA">+ Serviço</option>
+          </select>
+          <div className="relative flex-1">
             <Input
-              placeholder="Buscar serviço por nome ou código..."
-              value={buscaServico}
-              onChange={e => { setBuscaServico(e.target.value); setServicoAberto(true); }}
-              onFocus={() => setServicoAberto(true)}
-              className="pl-9 h-8 text-xs bg-background border-border"
+              placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço por nome ou código...'}
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
+              onFocus={() => setSearchOpen(true)}
+              className="h-8 text-xs bg-background border-border"
             />
-            {servicoAberto && servicosFiltrados.length > 0 && (
+            {searchOpen && searchResults.length > 0 && (
               <div className="absolute z-40 w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
-                {servicosFiltrados.map(s => (
-                  <button key={s.code} onClick={() => addServico(s)}
-                    className="w-full text-left px-3 py-2 hover:bg-[hsl(var(--accent)/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
+                {searchResults.map((entry: any) => (
+                  <button key={entry.code} onClick={() => addFromCatalog(entry)}
+                    className="w-full text-left px-3 py-2 hover:bg-[hsl(175,60%,50%/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
                     <div>
-                      <span className="text-foreground font-medium">{s.nome}</span>
-                      <span className="text-muted-foreground ml-2">({s.code})</span>
+                      <span className="text-foreground font-medium">{entry.nome}</span>
+                      <span className="text-muted-foreground ml-2">({entry.code})</span>
                     </div>
-                    <span className="text-muted-foreground shrink-0">{s.horas}h · {fmt(s.taxa)}/h</span>
+                    <span className="text-muted-foreground font-mono shrink-0">
+                      {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h · ${fmt(entry.taxa)}/h`}
+                    </span>
                   </button>
                 ))}
               </div>
             )}
           </div>
+        </div>
+      </div>
 
-          {/* Table */}
-          <div className="border border-border rounded-lg overflow-hidden">
-            {/* Header */}
-            <div className="bg-muted/50 border-b border-border">
-              <div className="grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                <span>Serviço (Descrição)</span>
-                <span className="text-center">Horas</span>
-                <span className="text-right">Valor/Hora</span>
-                <span className="text-right">Total</span>
-                <span></span>
-              </div>
-            </div>
+      {/* ══ LAUDO ══ */}
+      <div className="px-4 pb-3">
+        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Observações / Laudo Técnico</label>
+        <Textarea
+          placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
+          value={laudo} onChange={e => setLaudo(e.target.value)}
+          className="min-h-[70px] text-xs bg-background border-border resize-none"
+        />
+      </div>
 
-            {/* Rows */}
-            {servicos.length === 0 ? (
-              <div className="px-3 py-6 text-center text-xs text-muted-foreground">
-                Busque e adicione serviços acima
-              </div>
-            ) : (
-              servicos.map((s, idx) => (
-                <div key={s.id} className={`grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 border-b border-border/40 last:border-0 ${idx % 2 === 0 ? 'bg-card/30' : 'bg-card/60'} hover:bg-[hsl(var(--accent)/.05)] transition-colors`}>
-                  {/* Nome */}
-                  <div className="min-w-0">
-                    <p className="text-xs text-foreground truncate font-medium">{s.nome}</p>
-                    <p className="text-[9px] text-muted-foreground">{s.code}</p>
-                  </div>
-                  {/* Horas */}
-                  <Input type="number" step={0.5} min={0.5} value={s.horas}
-                    onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, horas: Number(e.target.value) } : x))}
-                    className="h-7 text-[10px] text-center bg-background border-border w-full" />
-                  {/* Valor/Hora */}
-                  <Input type="number" step={1} value={s.valorHora}
-                    onChange={e => setServicos(prev => prev.map(x => x.id === s.id ? { ...x, valorHora: Number(e.target.value) } : x))}
-                    className="h-7 text-[10px] font-mono text-right bg-background border-border w-full" />
-                  {/* Total */}
-                  <span className="text-xs font-mono font-bold text-right text-[hsl(var(--accent))]">{fmt(s.horas * s.valorHora)}</span>
-                  {/* Remove */}
-                  <button onClick={() => setServicos(prev => prev.filter(x => x.id !== s.id))} className="text-muted-foreground hover:text-destructive transition-colors flex justify-center">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))
-            )}
-
-            {/* Subtotal row */}
-            {servicos.length > 0 && (
-              <div className="grid grid-cols-[1fr_90px_100px_100px_36px] items-center px-3 py-2 gap-2 bg-muted/30 border-t border-border">
-                <span className="text-[10px] font-bold uppercase text-muted-foreground">Subtotal M.O.</span>
-                <span /><span />
-                <span className="text-xs font-mono font-bold text-right text-foreground">{fmt(totalServicos)}</span>
-                <span />
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ══ LAUDO ══ */}
-        <section>
-          <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Observações / Laudo Técnico</label>
-          <Textarea
-            placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
-            value={laudo}
-            onChange={e => setLaudo(e.target.value)}
-            className="min-h-[80px] text-xs bg-background border-border resize-none"
-          />
-        </section>
-
-        {/* ══ RESUMO FINANCEIRO ══ */}
-        <section className="border border-border rounded-lg overflow-hidden">
-          <div className="bg-muted/50 px-4 py-2 border-b border-border">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Resumo Financeiro</h2>
+      {/* ══ RESUMO FINANCEIRO ══ */}
+      <div className="px-4 pb-6">
+        <div className="border border-border rounded-md overflow-hidden">
+          <div className="bg-[hsl(145,60%,30%)] px-4 py-2">
+            <h2 className="text-[10px] font-bold uppercase tracking-widest text-white">Resumo Financeiro</h2>
           </div>
           <div className="px-4 py-3 space-y-1.5 bg-card/40">
             <div className="flex justify-between text-xs">
@@ -461,31 +482,28 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
             </div>
             <div className="flex justify-between text-xs">
               <span className="text-muted-foreground">Total Mão de Obra</span>
-              <span className="font-mono text-foreground">{fmt(totalServicos)}</span>
+              <span className="font-mono text-foreground">{fmt(totalMO)}</span>
             </div>
             <div className="h-px bg-border my-1" />
             <div className="flex justify-between text-sm font-bold">
               <span className="text-foreground">Total Bruto</span>
-              <span className="font-mono text-[hsl(var(--accent))]">{fmt(total)}</span>
+              <span className="font-mono text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
             </div>
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>Comissão Auditt (15%)</span>
-              <span className="font-mono">{fmt(total * 0.15)}</span>
+              <span className="font-mono">{fmt(totalBruto * 0.15)}</span>
             </div>
             <div className="flex justify-between text-xs font-semibold">
               <span className="text-muted-foreground">Líquido Oficina (85%)</span>
-              <span className="font-mono text-[hsl(120,100%,60%)]">{fmt(total * 0.85)}</span>
+              <span className="font-mono text-[hsl(120,60%,50%)]">{fmt(totalBruto * 0.85)}</span>
             </div>
           </div>
-        </section>
-
-        {/* Bottom spacer for mobile */}
-        <div className="h-4" />
+        </div>
       </div>
 
-      {/* Backdrop for dropdowns */}
-      {(pecaAberta || servicoAberto) && (
-        <div className="fixed inset-0 z-20" onClick={() => { setPecaAberta(false); setServicoAberto(false); }} />
+      {/* Backdrop for dropdown */}
+      {searchOpen && (
+        <div className="fixed inset-0 z-20" onClick={() => setSearchOpen(false)} />
       )}
     </div>
   );
