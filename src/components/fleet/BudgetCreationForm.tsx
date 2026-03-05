@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Plus, Trash2, Send, Loader2, Save, Camera, FileText } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import {
+  ArrowLeft, Plus, Trash2, Send, Loader2, Save,
+  Wrench, Package, Search, X, ChevronDown, Car, Calendar, Gauge
+} from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
+import { toast } from 'sonner';
 
 // ── Catalogs ──
 const pecasCatalogo = [
@@ -89,8 +95,6 @@ const servicosCatalogo = [
   { code: 'INJ-003', nome: 'Diagnóstico eletrônico (scanner)', horas: 2, taxa: 120 },
 ];
 
-const disponibilidadeOpcoes = ['Selecione', 'Em estoque', 'Terei que encomendar', 'Fornecedor entrega'];
-
 type ItemTipo = 'MECÂNICA' | 'PEÇAS';
 
 interface BudgetItem {
@@ -98,9 +102,7 @@ interface BudgetItem {
   tipo: ItemTipo;
   descricao: string;
   code: string;
-  detalhes: string;
-  disponibilidade: string;
-  prazo: number;
+  observacao: string;
   qtd: number;
   valorUnitario: number;
   desconto: number;
@@ -116,6 +118,15 @@ interface Props {
   onSuccess: () => void;
 }
 
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+function getValorFinal(item: BudgetItem) {
+  const base = item.tipo === 'MECÂNICA'
+    ? (item.horas || 0) * (item.valorHora || 0)
+    : item.valorUnitario * item.qtd;
+  return base * (1 - item.desconto / 100);
+}
+
 export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSuccess }: Props) {
   const [km, setKm] = useState(vehicle.km_atual || 0);
   const [previsao, setPrevisao] = useState('');
@@ -125,53 +136,54 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchType, setSearchType] = useState<ItemTipo>('PEÇAS');
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const dataEntrada = serviceOrder.data_entrada
-    ? new Date(serviceOrder.data_entrada).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-    : new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    ? new Date(serviceOrder.data_entrada).toLocaleDateString('pt-BR')
+    : new Date().toLocaleDateString('pt-BR');
 
-  const osNumber = `SS ${vehicle.placa}/${serviceOrder.id.slice(0, 4).toUpperCase()}`;
-  const veiculoDesc = `${vehicle.marca || ''} - ${vehicle.modelo || ''} ${vehicle.ano || ''}`.trim();
-
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-  const getValorFinal = (item: BudgetItem) => {
-    if (item.tipo === 'MECÂNICA') {
-      const base = (item.horas || 0) * (item.valorHora || 0);
-      return base - (base * (item.desconto / 100));
-    }
-    const base = item.valorUnitario * item.qtd;
-    return base - (base * (item.desconto / 100));
-  };
+  const veiculoDesc = [vehicle.marca, vehicle.modelo, vehicle.ano].filter(Boolean).join(' · ');
 
   const totalBruto = items.reduce((s, i) => s + getValorFinal(i), 0);
   const totalPecas = items.filter(i => i.tipo === 'PEÇAS').reduce((s, i) => s + getValorFinal(i), 0);
   const totalMO = items.filter(i => i.tipo === 'MECÂNICA').reduce((s, i) => s + getValorFinal(i), 0);
 
-  // Search results
   const searchResults = searchQuery.length >= 2
     ? searchType === 'PEÇAS'
-      ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
-      : servicosCatalogo.filter(s => s.nome.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 8)
+      ? pecasCatalogo.filter(p => p.nome.toLowerCase().includes(searchQuery.toLowerCase()) || p.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6)
+      : servicosCatalogo.filter(s => s.nome.toLowerCase().includes(searchQuery.toLowerCase()) || s.code.toLowerCase().includes(searchQuery.toLowerCase())).slice(0, 6)
     : [];
 
   const addFromCatalog = (entry: any) => {
-    const exists = items.find(x => x.code === entry.code);
-    if (exists) return;
+    if (items.find(x => x.code === entry.code)) {
+      toast.info('Item já adicionado');
+      return;
+    }
     if (searchType === 'PEÇAS') {
       setItems(prev => [...prev, {
-        id: Date.now().toString(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
-        detalhes: '', disponibilidade: 'Selecione', prazo: 0, qtd: 1,
-        valorUnitario: entry.ref, desconto: 0,
+        id: crypto.randomUUID(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
+        observacao: '', qtd: 1, valorUnitario: entry.ref, desconto: 0,
       }]);
     } else {
       setItems(prev => [...prev, {
-        id: Date.now().toString(), tipo: 'MECÂNICA', descricao: entry.nome, code: entry.code,
-        detalhes: '', disponibilidade: '', prazo: 0, qtd: 1,
-        valorUnitario: 0, desconto: 0, horas: entry.horas, valorHora: entry.taxa,
+        id: crypto.randomUUID(), tipo: 'MECÂNICA', descricao: entry.nome, code: entry.code,
+        observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
+        horas: entry.horas, valorHora: entry.taxa,
       }]);
     }
-    setSearchQuery(''); setSearchOpen(false);
+    setSearchQuery('');
+    setSearchOpen(false);
+  };
+
+  const addManualItem = () => {
+    setItems(prev => [...prev, {
+      id: crypto.randomUUID(),
+      tipo: searchType,
+      descricao: searchType === 'PEÇAS' ? 'Peça personalizada' : 'Serviço personalizado',
+      code: `CUSTOM-${Date.now().toString(36).toUpperCase()}`,
+      observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
+      ...(searchType === 'MECÂNICA' ? { horas: 1, valorHora: 100 } : {}),
+    }]);
   };
 
   const updateItem = (id: string, patch: Partial<BudgetItem>) => {
@@ -183,10 +195,17 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   };
 
   const handleSubmit = async () => {
-    if (items.length === 0 || km <= 0) return;
+    if (items.length === 0) {
+      toast.error('Adicione pelo menos um item ao orçamento.');
+      return;
+    }
+    if (km <= 0) {
+      toast.error('Informe o KM de entrada do veículo.');
+      return;
+    }
     setSaving(true);
     try {
-      const cpId = (serviceOrder as any).customer_product_id;
+      const cpId = serviceOrder.customer_product_id;
       await supabase.from('fleet_vehicles').update({ km_atual: km }).eq('id', vehicle.id);
 
       const { data: budget, error: budgetErr } = await supabase.from('fleet_budgets').insert({
@@ -203,7 +222,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
       }).select().single();
       if (budgetErr) throw budgetErr;
 
-      const dbItems: any[] = items.map((item, i) => ({
+      const dbItems = items.map((item, i) => ({
         budget_id: (budget as any).id,
         tipo: item.tipo === 'MECÂNICA' ? 'mao_de_obra' : 'peca',
         codigo: item.code,
@@ -225,292 +244,409 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         'Orçamento enviado para aprovação',
         { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalMO)} | Total: ${fmt(totalBruto)}`, valor_orcamento: totalBruto }
       );
+      toast.success('Orçamento enviado com sucesso!');
       onSuccess();
-    } catch (err) { console.error(err); } finally { setSaving(false); }
+    } catch (err) {
+      console.error(err);
+      toast.error('Erro ao salvar orçamento.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground">
+  const pecasItems = items.filter(i => i.tipo === 'PEÇAS');
+  const mecanicaItems = items.filter(i => i.tipo === 'MECÂNICA');
 
-      {/* ══ HEADER BAR ══ */}
-      <div className="sticky top-0 z-30 border-b-2 border-[hsl(175,60%,50%)] bg-[hsl(220,20%,12%)]">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0 text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div>
-              <h1 className="text-sm font-bold text-foreground">Operacional - Envio de Orçamento</h1>
-              <p className="text-[10px] text-muted-foreground">CNPJ selecionado · {vehicle.placa} - {veiculoDesc}</p>
-            </div>
+  return (
+    <div className="min-h-screen bg-background text-foreground pb-32">
+
+      {/* ══ HEADER ══ */}
+      <div className="sticky top-0 z-30 bg-card border-b-2 border-primary">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <Button variant="ghost" size="icon" onClick={onClose} className="shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-sm font-bold truncate">Orçamento — {vehicle.placa}</h1>
+            <p className="text-[11px] text-muted-foreground truncate">{veiculoDesc}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-[hsl(175,60%,50%)] text-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,50%/.1)]">
-              <Camera className="w-3.5 h-3.5" /> ENVIAR FOTOS
-            </Button>
-            <Button variant="outline" size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
-              className="h-8 gap-1.5 text-xs border-[hsl(120,60%,40%)] text-[hsl(120,60%,40%)] hover:bg-[hsl(120,60%,40%/.1)]">
-              <Save className="w-3.5 h-3.5" /> SALVAR
-            </Button>
-            <Button size="sm" onClick={handleSubmit} disabled={saving || items.length === 0 || km <= 0}
-              className="h-8 gap-1.5 text-xs bg-[hsl(175,60%,50%)] hover:bg-[hsl(175,60%,45%)] text-[hsl(220,20%,7%)] font-bold">
-              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-              SALVAR E ENVIAR
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            onClick={handleSubmit}
+            disabled={saving || items.length === 0}
+            className="gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shrink-0"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enviar
+          </Button>
         </div>
       </div>
 
-      {/* ══ CADASTRO HEADER ══ */}
-      <div className="bg-[hsl(220,20%,10%)] border-b border-border px-4 py-3">
-        <h2 className="text-base font-bold text-foreground mb-2">Cadastro de Orçamento</h2>
-        <div className="flex items-center gap-4 flex-wrap">
-          <div>
-            <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Número SS / Sequencial</label>
-            <div className="flex gap-1">
-              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono text-foreground min-w-[100px]">
+      <div className="max-w-3xl mx-auto px-4 py-4 space-y-4">
+
+        {/* ══ INFO DO VEÍCULO ══ */}
+        <Card className="p-4 bg-card border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Car className="w-4 h-4 text-primary" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Dados do Veículo</h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div>
+              <label className="text-[10px] text-muted-foreground block mb-1">Placa</label>
+              <div className="h-9 px-3 flex items-center rounded-md bg-muted/30 border border-border text-sm font-mono font-bold">
                 {vehicle.placa}
               </div>
-              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono text-foreground min-w-[50px]">
-                {serviceOrder.id.slice(0, 4).toUpperCase()}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ══ VEHICLE INFO + METADATA STRIP ══ */}
-      <div className="bg-[hsl(220,20%,9%)] border-b border-border px-4 py-3">
-        <div className="flex items-start gap-6 flex-wrap">
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-sm font-bold text-foreground">{osNumber}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">{veiculoDesc}</p>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-muted-foreground">Valor Total Digitado</span>
-              <span className="text-sm font-bold text-[hsl(175,60%,50%)] font-mono">{fmt(totalBruto)}</span>
-            </div>
-          </div>
-          <div className="flex gap-4 flex-wrap">
-            <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">KM de Entrada</label>
-              <Input type="number" value={km || ''} onChange={e => setKm(Number(e.target.value))}
-                className="h-8 w-28 font-mono text-xs bg-background border-border" placeholder="0" />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Data de Entrada</label>
-              <div className="h-8 px-3 flex items-center rounded border border-border bg-[hsl(50,70%,85%)] text-xs text-[hsl(220,20%,15%)] font-mono min-w-[140px]">
+              <label className="text-[10px] text-muted-foreground block mb-1">Entrada</label>
+              <div className="h-9 px-3 flex items-center rounded-md bg-muted/30 border border-border text-sm font-mono">
                 {dataEntrada}
               </div>
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Data de Prev. de Conclusão</label>
-              <Input type="date" value={previsao} onChange={e => setPrevisao(e.target.value)}
-                className="h-8 w-36 text-xs bg-background border-border" />
+              <label className="text-[10px] text-muted-foreground block mb-1">KM Entrada *</label>
+              <Input
+                type="number"
+                value={km || ''}
+                onChange={e => setKm(Number(e.target.value))}
+                placeholder="Ex: 85000"
+                className="h-9 font-mono"
+              />
             </div>
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider block mb-0.5">Valor Total Orçamento</label>
-              <div className="h-8 px-3 flex items-center rounded border border-border bg-muted/20 text-xs font-mono font-bold text-foreground min-w-[120px]">
-                R$ {totalBruto.toFixed(2).replace('.', ',')}
-              </div>
+              <label className="text-[10px] text-muted-foreground block mb-1">Prev. Conclusão</label>
+              <Input
+                type="date"
+                value={previsao}
+                onChange={e => setPrevisao(e.target.value)}
+                className="h-9"
+              />
             </div>
           </div>
-        </div>
-      </div>
+        </Card>
 
-      {/* ══ TABLE: PEÇAS E MÃO DE OBRA ══ */}
-      <div className="px-4 py-3">
-        {/* Green section header */}
-        <div className="flex items-center justify-between bg-[hsl(145,60%,30%)] rounded-t-md px-3 py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-white text-xs font-bold uppercase tracking-wider">⚙ PEÇAS E MÃO DE OBRA</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-white/80 text-[10px] uppercase font-semibold">VALOR</span>
-            <span className="text-white/80 text-[10px] uppercase font-semibold">DESCONTO</span>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="border border-border border-t-0 rounded-b-md overflow-hidden">
-          {/* Column Headers */}
-          <div className="bg-muted/40 border-b border-border overflow-x-auto">
-            <div className="grid grid-cols-[30px_110px_1fr_140px_140px_80px_60px_100px_70px_100px_36px] items-center px-2 py-2 gap-1 min-w-[1000px]">
-              <span className="text-[9px] font-bold text-muted-foreground text-center">☐</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">TIPO</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">PEÇA (DESCRIÇÃO)</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">DETALHES TÉCNICOS</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">POSSUO O ITEM?</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">PREVISÃO<br/>EM DIAS ÚTEIS</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">QTDE</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase text-right">VALOR UNITÁRIO</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase text-center">DESC %</span>
-              <span className="text-[9px] font-bold text-muted-foreground uppercase text-right">VALOR FINAL</span>
-              <span></span>
-            </div>
+        {/* ══ BUSCA + ADICIONAR ITENS ══ */}
+        <Card className="p-4 bg-card border-border">
+          <div className="flex items-center gap-2 mb-3">
+            <Search className="w-4 h-4 text-primary" />
+            <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Adicionar Itens</h2>
           </div>
 
-          {/* Rows */}
-          {items.length === 0 ? (
-            <div className="px-4 py-8 text-center text-xs text-muted-foreground">
-              Adicione itens usando a barra de busca abaixo
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              {items.map((item, idx) => (
-                <div key={item.id}
-                  className={`grid grid-cols-[30px_110px_1fr_140px_140px_80px_60px_100px_70px_100px_36px] items-center px-2 py-1.5 gap-1 border-b border-border/30 last:border-0 min-w-[1000px] ${idx % 2 === 0 ? 'bg-card/20' : 'bg-card/40'} hover:bg-[hsl(175,60%,50%/.05)] transition-colors`}>
-                  {/* Checkbox */}
-                  <div className="flex justify-center">
-                    <input type="checkbox" className="w-3.5 h-3.5 accent-[hsl(175,60%,50%)]" />
-                  </div>
-                  {/* Tipo */}
-                  <select value={item.tipo}
-                    onChange={e => updateItem(item.id, { tipo: e.target.value as ItemTipo })}
-                    className="h-7 text-[10px] bg-background border border-border rounded px-1 text-foreground cursor-pointer">
-                    <option value="MECÂNICA">MECÂNICA</option>
-                    <option value="PEÇAS">PEÇAS</option>
-                  </select>
-                  {/* Descrição */}
-                  <div className="min-w-0">
-                    <p className="text-[11px] text-foreground truncate font-medium">{item.descricao}</p>
-                    <p className="text-[9px] text-muted-foreground">{item.code}</p>
-                  </div>
-                  {/* Detalhes Técnicos */}
-                  <Input value={item.detalhes} placeholder="Obs"
-                    onChange={e => updateItem(item.id, { detalhes: e.target.value })}
-                    className="h-7 text-[10px] bg-background border-border" />
-                  {/* Disponibilidade */}
-                  <select value={item.disponibilidade}
-                    onChange={e => updateItem(item.id, { disponibilidade: e.target.value })}
-                    className="h-7 text-[10px] bg-background border border-border rounded px-1 text-foreground cursor-pointer">
-                    {disponibilidadeOpcoes.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                  {/* Prazo */}
-                  <Input type="number" min={0} value={item.prazo}
-                    onChange={e => updateItem(item.id, { prazo: Math.max(0, Number(e.target.value)) })}
-                    className="h-7 text-[10px] text-center bg-background border-border" />
-                  {/* Qtde */}
-                  <Input type="number" min={1} value={item.qtd}
-                    onChange={e => updateItem(item.id, { qtd: Math.max(1, Number(e.target.value)) })}
-                    className="h-7 text-[10px] text-center bg-background border-border" />
-                  {/* Valor Unitário */}
-                  {item.tipo === 'MECÂNICA' ? (
-                    <div className="flex items-center gap-0.5">
-                      <Input type="number" step={0.5} min={0} value={item.horas || 0}
-                        onChange={e => updateItem(item.id, { horas: Math.max(0, Number(e.target.value)) })}
-                        className="h-7 text-[10px] font-mono text-center bg-background border-border w-12" title="Horas" />
-                      <span className="text-[9px] text-muted-foreground">h×</span>
-                      <Input type="number" step={1} min={0} value={item.valorHora || 0}
-                        onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
-                        className="h-7 text-[10px] font-mono text-right bg-background border-border flex-1" title="Valor/hora" />
-                    </div>
-                  ) : (
-                    <Input type="number" step={0.01} value={item.valorUnitario}
-                      onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
-                      className="h-7 text-[10px] font-mono text-right bg-background border-border" />
-                  )}
-                  {/* Desconto % */}
-                  <div className="flex items-center gap-0.5">
-                    <Input type="number" min={0} max={100} value={item.desconto}
-                      onChange={e => updateItem(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
-                      className="h-7 text-[10px] text-center bg-background border-border w-full" />
-                    <span className="text-[10px] text-muted-foreground">%</span>
-                  </div>
-                  {/* Valor Final */}
-                  <span className="text-[11px] font-mono font-bold text-right text-[hsl(175,60%,50%)]">
-                    {fmt(getValorFinal(item))}
-                  </span>
-                  {/* Remove */}
-                  <button onClick={() => removeItem(item.id)} className="text-destructive/60 hover:text-destructive transition-colors flex justify-center">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+          {/* Type toggle */}
+          <div className="flex gap-2 mb-3">
+            <button
+              onClick={() => { setSearchType('PEÇAS'); setSearchQuery(''); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                searchType === 'PEÇAS'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              <Package className="w-3.5 h-3.5" />
+              Peças
+            </button>
+            <button
+              onClick={() => { setSearchType('MECÂNICA'); setSearchQuery(''); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                searchType === 'MECÂNICA'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted/40 text-muted-foreground hover:bg-muted/60'
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5" />
+              Serviços
+            </button>
+          </div>
 
-        {/* ══ ADD ITEM SEARCH BAR ══ */}
-        <div className="mt-3 flex items-center gap-2">
-          <select value={searchType} onChange={e => { setSearchType(e.target.value as ItemTipo); setSearchQuery(''); }}
-            className="h-8 text-[11px] bg-background border border-border rounded px-2 text-foreground cursor-pointer w-32">
-            <option value="PEÇAS">+ Peça</option>
-            <option value="MECÂNICA">+ Serviço</option>
-          </select>
-          <div className="relative flex-1">
+          {/* Search input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
             <Input
+              ref={searchRef}
               placeholder={searchType === 'PEÇAS' ? 'Buscar peça por nome ou código...' : 'Buscar serviço por nome ou código...'}
               value={searchQuery}
               onChange={e => { setSearchQuery(e.target.value); setSearchOpen(true); }}
               onFocus={() => setSearchOpen(true)}
-              className="h-8 text-xs bg-background border-border"
+              className="h-10 pl-9 pr-10"
             />
+            {searchQuery && (
+              <button onClick={() => { setSearchQuery(''); setSearchOpen(false); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+
+            {/* Dropdown results */}
             {searchOpen && searchResults.length > 0 && (
-              <div className="absolute z-40 w-full mt-1 bg-card border border-border rounded-lg shadow-xl max-h-52 overflow-y-auto">
+              <div className="absolute z-40 w-full mt-1 bg-popover border border-border rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {searchResults.map((entry: any) => (
-                  <button key={entry.code} onClick={() => addFromCatalog(entry)}
-                    className="w-full text-left px-3 py-2 hover:bg-[hsl(175,60%,50%/.1)] text-xs border-b border-border/30 last:border-0 flex justify-between items-center gap-2 transition-colors">
-                    <div>
-                      <span className="text-foreground font-medium">{entry.nome}</span>
-                      <span className="text-muted-foreground ml-2">({entry.code})</span>
+                  <button
+                    key={entry.code}
+                    onClick={() => addFromCatalog(entry)}
+                    className="w-full text-left px-4 py-3 hover:bg-accent/50 border-b border-border/30 last:border-0 transition-colors"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{entry.nome}</p>
+                        <p className="text-[10px] text-muted-foreground font-mono">{entry.code}</p>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-primary shrink-0">
+                        {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h × ${fmt(entry.taxa)}`}
+                      </span>
                     </div>
-                    <span className="text-muted-foreground font-mono shrink-0">
-                      {searchType === 'PEÇAS' ? fmt(entry.ref) : `${entry.horas}h · ${fmt(entry.taxa)}/h`}
-                    </span>
                   </button>
                 ))}
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-      {/* ══ LAUDO ══ */}
-      <div className="px-4 pb-3">
-        <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1 block">Observações / Laudo Técnico</label>
-        <Textarea
-          placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
-          value={laudo} onChange={e => setLaudo(e.target.value)}
-          className="min-h-[70px] text-xs bg-background border-border resize-none"
-        />
-      </div>
+          {/* Manual add button */}
+          <button
+            onClick={addManualItem}
+            className="mt-2 flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Adicionar {searchType === 'PEÇAS' ? 'peça' : 'serviço'} manualmente
+          </button>
+        </Card>
 
-      {/* ══ RESUMO FINANCEIRO ══ */}
-      <div className="px-4 pb-6">
-        <div className="border border-border rounded-md overflow-hidden">
-          <div className="bg-[hsl(145,60%,30%)] px-4 py-2">
-            <h2 className="text-[10px] font-bold uppercase tracking-widest text-white">Resumo Financeiro</h2>
-          </div>
-          <div className="px-4 py-3 space-y-1.5 bg-card/40">
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Total Peças</span>
-              <span className="font-mono text-foreground">{fmt(totalPecas)}</span>
+        {/* ══ SEÇÃO PEÇAS ══ */}
+        {pecasItems.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Package className="w-4 h-4 text-blue-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Peças ({pecasItems.length})
+              </h3>
+              <span className="ml-auto text-xs font-mono font-bold text-primary">{fmt(totalPecas)}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-muted-foreground">Total Mão de Obra</span>
-              <span className="font-mono text-foreground">{fmt(totalMO)}</span>
-            </div>
-            <div className="h-px bg-border my-1" />
-            <div className="flex justify-between text-sm font-bold">
-              <span className="text-foreground">Total Bruto</span>
-              <span className="font-mono text-[hsl(175,60%,50%)]">{fmt(totalBruto)}</span>
-            </div>
-            <div className="flex justify-between text-[10px] text-muted-foreground">
-              <span>Comissão Auditt (15%)</span>
-              <span className="font-mono">{fmt(totalBruto * 0.15)}</span>
-            </div>
-            <div className="flex justify-between text-xs font-semibold">
-              <span className="text-muted-foreground">Líquido Oficina (85%)</span>
-              <span className="font-mono text-[hsl(120,60%,50%)]">{fmt(totalBruto * 0.85)}</span>
+            <div className="space-y-2">
+              {pecasItems.map(item => (
+                <ItemCard key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} />
+              ))}
             </div>
           </div>
-        </div>
+        )}
+
+        {/* ══ SEÇÃO SERVIÇOS ══ */}
+        {mecanicaItems.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <Wrench className="w-4 h-4 text-amber-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Mão de Obra ({mecanicaItems.length})
+              </h3>
+              <span className="ml-auto text-xs font-mono font-bold text-primary">{fmt(totalMO)}</span>
+            </div>
+            <div className="space-y-2">
+              {mecanicaItems.map(item => (
+                <ItemCard key={item.id} item={item} onUpdate={updateItem} onRemove={removeItem} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state */}
+        {items.length === 0 && (
+          <Card className="p-8 bg-card border-border border-dashed flex flex-col items-center justify-center gap-2">
+            <Package className="w-8 h-8 text-muted-foreground/40" />
+            <p className="text-sm text-muted-foreground">Nenhum item adicionado</p>
+            <p className="text-[11px] text-muted-foreground/60">Use a busca acima para adicionar peças e serviços</p>
+          </Card>
+        )}
+
+        {/* ══ OBSERVAÇÕES ══ */}
+        <Card className="p-4 bg-card border-border">
+          <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2 block">
+            Observações / Laudo Técnico
+          </label>
+          <Textarea
+            placeholder="Descreva o problema encontrado, condições do veículo, recomendações..."
+            value={laudo}
+            onChange={e => setLaudo(e.target.value)}
+            className="min-h-[80px] text-sm resize-none"
+          />
+        </Card>
+
+        {/* ══ RESUMO FINANCEIRO ══ */}
+        {items.length > 0 && (
+          <Card className="overflow-hidden border-primary/30">
+            <div className="bg-primary/10 px-4 py-2.5 border-b border-primary/20">
+              <h2 className="text-xs font-bold uppercase tracking-widest text-primary">Resumo Financeiro</h2>
+            </div>
+            <div className="px-4 py-3 space-y-2 bg-card">
+              {totalPecas > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5" /> Peças
+                  </span>
+                  <span className="font-mono">{fmt(totalPecas)}</span>
+                </div>
+              )}
+              {totalMO > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
+                    <Wrench className="w-3.5 h-3.5" /> Mão de Obra
+                  </span>
+                  <span className="font-mono">{fmt(totalMO)}</span>
+                </div>
+              )}
+              <div className="h-px bg-border" />
+              <div className="flex justify-between text-base font-bold">
+                <span>Total</span>
+                <span className="font-mono text-primary">{fmt(totalBruto)}</span>
+              </div>
+              <div className="flex justify-between text-[11px] text-muted-foreground">
+                <span>Comissão Auditt (15%)</span>
+                <span className="font-mono">{fmt(totalBruto * 0.15)}</span>
+              </div>
+              <div className="flex justify-between text-sm font-semibold">
+                <span className="text-muted-foreground">Repasse Oficina (85%)</span>
+                <span className="font-mono text-green-500">{fmt(totalBruto * 0.85)}</span>
+              </div>
+            </div>
+          </Card>
+        )}
       </div>
 
-      {/* Backdrop for dropdown */}
-      {searchOpen && (
+      {/* ══ BOTTOM BAR MOBILE ══ */}
+      {items.length > 0 && (
+        <div className="fixed bottom-0 left-0 right-0 z-30 bg-card border-t border-border px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] text-muted-foreground uppercase">Total do Orçamento</p>
+            <p className="text-lg font-bold font-mono text-primary">{fmt(totalBruto)}</p>
+          </div>
+          <Button
+            onClick={handleSubmit}
+            disabled={saving || km <= 0}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            Enviar Orçamento
+          </Button>
+        </div>
+      )}
+
+      {/* Backdrop */}
+      {searchOpen && searchResults.length > 0 && (
         <div className="fixed inset-0 z-20" onClick={() => setSearchOpen(false)} />
       )}
     </div>
+  );
+}
+
+/* ══════════════════════════════════════════
+   ITEM CARD — Cada peça ou serviço
+   ══════════════════════════════════════════ */
+
+function ItemCard({
+  item,
+  onUpdate,
+  onRemove,
+}: {
+  item: BudgetItem;
+  onUpdate: (id: string, patch: Partial<BudgetItem>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const valor = getValorFinal(item);
+  const isMecanica = item.tipo === 'MECÂNICA';
+
+  return (
+    <Card className="p-3 bg-card border-border hover:border-primary/20 transition-colors group">
+      {/* Row 1: Name + Remove + Value */}
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <div className="min-w-0 flex-1">
+          <Input
+            value={item.descricao}
+            onChange={e => onUpdate(item.id, { descricao: e.target.value })}
+            className="h-7 text-sm font-medium border-0 bg-transparent px-0 focus-visible:ring-0 focus-visible:border-b focus-visible:border-primary rounded-none"
+          />
+          <p className="text-[10px] text-muted-foreground font-mono mt-0.5">{item.code}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-sm font-bold font-mono text-primary">{fmt(valor)}</span>
+          <button
+            onClick={() => onRemove(item.id)}
+            className="opacity-0 group-hover:opacity-100 text-destructive/60 hover:text-destructive transition-all p-1"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Row 2: Fields */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {isMecanica ? (
+          <>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Horas</label>
+              <Input
+                type="number"
+                step={0.5}
+                min={0}
+                value={item.horas || ''}
+                onChange={e => onUpdate(item.id, { horas: Math.max(0, Number(e.target.value)) })}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Valor/hora (R$)</label>
+              <Input
+                type="number"
+                step={1}
+                min={0}
+                value={item.valorHora || ''}
+                onChange={e => onUpdate(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Qtde</label>
+              <Input
+                type="number"
+                min={1}
+                value={item.qtd}
+                onChange={e => onUpdate(item.id, { qtd: Math.max(1, Number(e.target.value)) })}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-[9px] text-muted-foreground block mb-0.5">Valor Unit. (R$)</label>
+              <Input
+                type="number"
+                step={0.01}
+                min={0}
+                value={item.valorUnitario || ''}
+                onChange={e => onUpdate(item.id, { valorUnitario: Number(e.target.value) })}
+                className="h-8 text-xs font-mono"
+              />
+            </div>
+          </>
+        )}
+        <div>
+          <label className="text-[9px] text-muted-foreground block mb-0.5">Desconto %</label>
+          <Input
+            type="number"
+            min={0}
+            max={100}
+            value={item.desconto || ''}
+            onChange={e => onUpdate(item.id, { desconto: Math.min(100, Math.max(0, Number(e.target.value))) })}
+            className="h-8 text-xs font-mono"
+          />
+        </div>
+        <div>
+          <label className="text-[9px] text-muted-foreground block mb-0.5">Observação</label>
+          <Input
+            value={item.observacao}
+            onChange={e => onUpdate(item.id, { observacao: e.target.value })}
+            placeholder="Obs..."
+            className="h-8 text-xs"
+          />
+        </div>
+      </div>
+    </Card>
   );
 }
