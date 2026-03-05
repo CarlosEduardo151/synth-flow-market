@@ -106,6 +106,8 @@ interface BudgetItem {
   desconto: number;
   horas?: number;
   valorHora?: number;
+  refPrice?: number; // preço referência catálogo
+  refHora?: number;  // taxa/hora referência catálogo
 }
 
 interface Props {
@@ -158,12 +160,14 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
       setItems(prev => [...prev, {
         id: crypto.randomUUID(), tipo: 'PEÇAS', descricao: entry.nome, code: entry.code,
         observacao: '', qtd: 1, valorUnitario: entry.ref, desconto: 0,
+        refPrice: entry.ref,
       }]);
     } else {
       setItems(prev => [...prev, {
         id: crypto.randomUUID(), tipo: 'MECÂNICA', descricao: entry.nome, code: entry.code,
         observacao: '', qtd: 1, valorUnitario: 0, desconto: 0,
         horas: entry.horas, valorHora: entry.taxa,
+        refHora: entry.taxa,
       }]);
     }
     setSearchQuery(''); setSearchOpen(false);
@@ -417,7 +421,7 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                     const isMec = item.tipo === 'MECÂNICA';
                     return (
                       <div key={item.id}
-                        className={`grid grid-cols-[36px_60px_1fr_120px_70px_90px_90px_70px_90px_36px] items-center px-3 gap-1 h-11 border-b border-[hsl(215,20%,93%)] last:border-0 group transition-colors ${
+                        className={`grid grid-cols-[36px_60px_1fr_120px_70px_90px_90px_70px_90px_36px] items-center px-3 gap-1 min-h-[52px] py-2 border-b border-[hsl(215,20%,93%)] last:border-0 group transition-colors ${
                           idx % 2 === 0 ? 'bg-white' : 'bg-[hsl(210,20%,98%)]'
                         } hover:bg-[hsl(210,60%,97%)]`}>
                         <span className="text-center text-[11px] text-[hsl(215,10%,60%)] font-mono">{idx + 1}</span>
@@ -449,17 +453,47 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
                           className="w-full text-center bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
                         {/* Valor Unit */}
                         {!isMec ? (
-                          <input type="number" step={0.01} min={0} value={item.valorUnitario || ''}
-                            onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
-                            className="w-full text-right bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          <div className="relative">
+                            <input type="number" step={0.01} min={0} value={item.valorUnitario || ''}
+                              onChange={e => updateItem(item.id, { valorUnitario: Number(e.target.value) })}
+                              className={`w-full text-right bg-transparent text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 py-0.5 rounded border border-transparent hover:border-[hsl(210,80%,75%)] focus:border-[hsl(210,80%,55%)] focus:bg-white ${
+                                item.refPrice && item.valorUnitario !== item.refPrice
+                                  ? item.valorUnitario > item.refPrice
+                                    ? 'text-[hsl(35,80%,40%)] font-bold'
+                                    : 'text-[hsl(145,50%,35%)] font-bold'
+                                  : 'text-[hsl(215,25%,20%)]'
+                              }`} />
+                            {item.refPrice != null && (
+                              <span className={`absolute -bottom-3.5 right-0 text-[8px] font-mono ${
+                                item.valorUnitario !== item.refPrice ? 'text-[hsl(35,70%,50%)]' : 'text-[hsl(215,10%,70%)]'
+                              }`}>
+                                ref: {fmt(item.refPrice)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-right text-xs text-[hsl(215,10%,80%)]">—</span>
                         )}
                         {/* Valor/Hora */}
                         {isMec ? (
-                          <input type="number" step={1} min={0} value={item.valorHora ?? ''}
-                            onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
-                            className="w-full text-right bg-transparent text-xs font-mono text-[hsl(215,25%,20%)] outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none" />
+                          <div className="relative">
+                            <input type="number" step={1} min={0} value={item.valorHora ?? ''}
+                              onChange={e => updateItem(item.id, { valorHora: Math.max(0, Number(e.target.value)) })}
+                              className={`w-full text-right bg-transparent text-xs font-mono outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none px-1 py-0.5 rounded border border-transparent hover:border-[hsl(210,80%,75%)] focus:border-[hsl(210,80%,55%)] focus:bg-white ${
+                                item.refHora && item.valorHora !== item.refHora
+                                  ? item.valorHora! > item.refHora
+                                    ? 'text-[hsl(35,80%,40%)] font-bold'
+                                    : 'text-[hsl(145,50%,35%)] font-bold'
+                                  : 'text-[hsl(215,25%,20%)]'
+                              }`} />
+                            {item.refHora != null && (
+                              <span className={`absolute -bottom-3.5 right-0 text-[8px] font-mono ${
+                                item.valorHora !== item.refHora ? 'text-[hsl(35,70%,50%)]' : 'text-[hsl(215,10%,70%)]'
+                              }`}>
+                                ref: {fmt(item.refHora)}
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-right text-xs text-[hsl(215,10%,80%)]">—</span>
                         )}
