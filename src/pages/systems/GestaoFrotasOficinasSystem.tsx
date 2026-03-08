@@ -485,6 +485,16 @@ const GestaoFrotasOficinasSystem = () => {
                             <div className="flex gap-2 w-full lg:w-auto">
                               <Button
                                 size="default"
+                                variant="outline"
+                                className="gap-2 flex-1 lg:flex-none"
+                                onClick={() => handleDownloadBudgetPDF(order.id)}
+                              >
+                                <FileDown className="w-4 h-4" /> Ver PDF
+                              </Button>
+                            </div>
+                            <div className="flex gap-2 w-full lg:w-auto">
+                              <Button
+                                size="default"
                                 className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white flex-1 lg:flex-none"
                                 disabled={fleet.saving}
                                 onClick={async () => {
