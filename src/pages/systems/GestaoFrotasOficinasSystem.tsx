@@ -74,7 +74,7 @@ const GestaoFrotasOficinasSystem = () => {
 
   // Product access & fleet data
   const { customerId: customerProductId, loading: accessLoading } = useProductAccess('gestao-frotas-oficinas');
-  const fleet = useFleetData(customerProductId);
+  const fleet = useFleetData(customerProductId, { workshopId: role === 'oficina' ? workshopId : null });
 
   // VERO 1.0 states
   const [veroStep, setVeroStep] = useState<'idle' | 'uploading' | 'analyzing' | 'result' | 'confirmed'>('idle');
