@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 import { toast } from 'sonner';
+import { BudgetAuditPanel, type AuditResult } from './BudgetAuditPanel';
 
 // ── Catalogs ──
 const pecasCatalogo = [
@@ -136,6 +137,9 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchType, setSearchType] = useState<ItemTipo>('PEÇAS');
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   const dataEntrada = serviceOrder.data_entrada
     ? new Date(serviceOrder.data_entrada).toLocaleDateString('pt-BR')
