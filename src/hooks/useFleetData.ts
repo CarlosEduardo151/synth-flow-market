@@ -79,6 +79,13 @@ interface NewServiceOrderData {
   oficina_nome?: string;
   descricao_servico?: string;
   valor_orcamento?: number;
+  /** Workshop performing the service — if set, the SO uses the vehicle owner's CP */
+  workshop_id?: string;
+}
+
+interface UseFleetDataOptions {
+  /** When set, the hook operates in workshop mode: loads SOs by workshop_id */
+  workshopId?: string | null;
 }
 
 export function useFleetData(customerProductId: string | null) {
