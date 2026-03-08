@@ -29,8 +29,10 @@ import {
   Bell, Sun, Moon,
   ChevronDown,
   CircleDollarSign, FileBarChart, AlertCircle, Menu, UserCheck,
-  Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles, Edit
+  Camera, ScanLine, Loader2, CheckCircle, Upload, Sparkles, Edit,
+  FileDown
 } from 'lucide-react';
+import { generateBudgetPDF, type BudgetPDFData } from '@/lib/generateBudgetPDF';
 
 type UserRole = 'select' | 'frota' | 'oficina';
 
