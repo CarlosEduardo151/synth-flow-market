@@ -30,6 +30,7 @@ export interface FleetServiceOrder {
   id: string;
   customer_product_id: string;
   vehicle_id: string;
+  workshop_id: string | null;
   stage: ServiceStage;
   oficina_nome: string | null;
   descricao_servico: string | null;
