@@ -7,219 +7,404 @@ const corsHeaders = {
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// BASE DE PREÇOS REGIONAIS — BR-010 / IMPERATRIZ-MA
-// Valores médios de mercado para peças de veículos pesados e leves
-// Fonte: levantamento regional + catálogos públicos (2024/2025)
-// ═══════════════════════════════════════════════════════════════════
-const PRICE_DATABASE: Record<string, {
-  minPrice: number;   // menor preço encontrado no mercado
-  avgPrice: number;   // preço médio de mercado
-  maxFair: number;    // teto considerado justo (com margem regional)
-  category: string;   // categoria para agrupamento
-}> = {
-  // ── FILTROS ──
-  "FLT-OL-001": { minPrice: 25, avgPrice: 45, maxFair: 65, category: "Filtros" },
-  "FLT-AR-001": { minPrice: 35, avgPrice: 65, maxFair: 95, category: "Filtros" },
-  "FLT-CB-001": { minPrice: 50, avgPrice: 85, maxFair: 125, category: "Filtros" },
-  "FLT-SEP-001": { minPrice: 70, avgPrice: 120, maxFair: 175, category: "Filtros" },
-
-  // ── ÓLEOS E FLUIDOS ──
-  "OLE-001": { minPrice: 18, avgPrice: 32, maxFair: 48, category: "Óleos" },
-  "OLE-002": { minPrice: 28, avgPrice: 48, maxFair: 72, category: "Óleos" },
-  "OLE-003": { minPrice: 12, avgPrice: 22, maxFair: 35, category: "Óleos" },
-
-  // ── FREIOS ──
-  "PAS-001": { minPrice: 95, avgPrice: 180, maxFair: 270, category: "Freios" },
-  "DIS-001": { minPrice: 170, avgPrice: 320, maxFair: 480, category: "Freios" },
-  "DIS-002": { minPrice: 150, avgPrice: 290, maxFair: 435, category: "Freios" },
-  "LON-001": { minPrice: 130, avgPrice: 250, maxFair: 375, category: "Freios" },
-  "TAM-001": { minPrice: 200, avgPrice: 380, maxFair: 570, category: "Freios" },
-
-  // ── SUSPENSÃO ──
-  "AMO-001": { minPrice: 240, avgPrice: 450, maxFair: 675, category: "Suspensão" },
-  "AMO-002": { minPrice: 200, avgPrice: 380, maxFair: 570, category: "Suspensão" },
-  "MOL-001": { minPrice: 500, avgPrice: 950, maxFair: 1425, category: "Suspensão" },
-  "PIV-001": { minPrice: 120, avgPrice: 220, maxFair: 330, category: "Suspensão" },
-  "TER-001": { minPrice: 95, avgPrice: 180, maxFair: 270, category: "Suspensão" },
-
-  // ── MOTOR — RETÍFICA ──
-  "KIT-RET-001": { minPrice: 2500, avgPrice: 4800, maxFair: 6500, category: "Motor" },
-  "PIS-001": { minPrice: 950, avgPrice: 1800, maxFair: 2700, category: "Motor" },
-  "ANE-001": { minPrice: 340, avgPrice: 650, maxFair: 975, category: "Motor" },
-  "BRZ-BIE-001": { minPrice: 200, avgPrice: 380, maxFair: 570, category: "Motor" },
-  "BRZ-MAN-001": { minPrice: 220, avgPrice: 420, maxFair: 630, category: "Motor" },
-  "VIR-001": { minPrice: 1800, avgPrice: 3500, maxFair: 5000, category: "Motor" },
-  "CAB-001": { minPrice: 2200, avgPrice: 4200, maxFair: 5800, category: "Motor" },
-  "JNT-CAB-001": { minPrice: 150, avgPrice: 280, maxFair: 420, category: "Motor" },
-  "JNT-KIT-001": { minPrice: 450, avgPrice: 850, maxFair: 1275, category: "Motor" },
-  "CMD-001": { minPrice: 950, avgPrice: 1800, maxFair: 2700, category: "Motor" },
-  "VOL-001": { minPrice: 650, avgPrice: 1200, maxFair: 1800, category: "Motor" },
-  "BOM-OLE-001": { minPrice: 280, avgPrice: 520, maxFair: 780, category: "Motor" },
-  "COR-001": { minPrice: 200, avgPrice: 380, maxFair: 570, category: "Motor" },
-
-  // ── ARREFECIMENTO ──
-  "RAD-001": { minPrice: 470, avgPrice: 890, maxFair: 1335, category: "Arrefecimento" },
-  "BOM-001": { minPrice: 150, avgPrice: 280, maxFair: 420, category: "Arrefecimento" },
-
-  // ── INJEÇÃO / TURBO ──
-  "BIC-001": { minPrice: 240, avgPrice: 450, maxFair: 675, category: "Injeção" },
-  "BOM-COMB-001": { minPrice: 2000, avgPrice: 3800, maxFair: 5200, category: "Injeção" },
-  "TUR-001": { minPrice: 1700, avgPrice: 3200, maxFair: 4500, category: "Turbo" },
-  "TUR-002": { minPrice: 3000, avgPrice: 5800, maxFair: 7800, category: "Turbo" },
-
-  // ── TRANSMISSÃO ──
-  "EMB-KIT": { minPrice: 650, avgPrice: 1200, maxFair: 1800, category: "Transmissão" },
-  "EMB-VOL": { minPrice: 1500, avgPrice: 2800, maxFair: 4000, category: "Transmissão" },
-  "DIF-001": { minPrice: 1200, avgPrice: 2200, maxFair: 3300, category: "Transmissão" },
-
-  // ── ELÉTRICA ──
-  "BAT-001": { minPrice: 360, avgPrice: 680, maxFair: 950, category: "Elétrica" },
-  "ALT-001": { minPrice: 350, avgPrice: 650, maxFair: 975, category: "Elétrica" },
-
-  // ── DIREÇÃO / AR ──
-  "CXD-001": { minPrice: 950, avgPrice: 1800, maxFair: 2700, category: "Direção" },
-  "CMP-001": { minPrice: 750, avgPrice: 1400, maxFair: 2100, category: "Ar-Cond" },
-
-  // ── PNEUS / EXTERIOR ──
-  "PNE-001": { minPrice: 950, avgPrice: 1800, maxFair: 2500, category: "Pneus" },
-  "ESC-001": { minPrice: 350, avgPrice: 650, maxFair: 975, category: "Escapamento" },
-  "PBR-001": { minPrice: 450, avgPrice: 850, maxFair: 1275, category: "Vidros" },
-};
-
-// ── Serviços: horas × taxa referência ──
-const SERVICE_DATABASE: Record<string, {
-  horasRef: number;
-  taxaMinima: number;
-  taxaMedia: number;
-  taxaMaxFair: number;
-}> = {
-  "MOT-001": { horasRef: 1, taxaMinima: 60, taxaMedia: 100, taxaMaxFair: 150 },
-  "MOT-002": { horasRef: 3.5, taxaMinima: 80, taxaMedia: 130, taxaMaxFair: 195 },
-  "MOT-003": { horasRef: 40, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 220 },
-  "MOT-004": { horasRef: 2.5, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-  "MOT-006": { horasRef: 3, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-  "MOT-010": { horasRef: 8, taxaMinima: 80, taxaMedia: 140, taxaMaxFair: 210 },
-  "MOT-011": { horasRef: 12, taxaMinima: 95, taxaMedia: 160, taxaMaxFair: 240 },
-  "MOT-012": { horasRef: 8, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 225 },
-  "MOT-013": { horasRef: 6, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 225 },
-  "MOT-014": { horasRef: 16, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 225 },
-  "MOT-015": { horasRef: 10, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "MOT-016": { horasRef: 8, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "MOT-017": { horasRef: 12, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 225 },
-  "MOT-026": { horasRef: 4, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-  "FRE-001": { horasRef: 1.5, taxaMinima: 65, taxaMedia: 110, taxaMaxFair: 165 },
-  "FRE-002": { horasRef: 2, taxaMinima: 65, taxaMedia: 110, taxaMaxFair: 165 },
-  "FRE-004": { horasRef: 2.5, taxaMinima: 65, taxaMedia: 110, taxaMaxFair: 165 },
-  "SUS-001": { horasRef: 2.5, taxaMinima: 65, taxaMedia: 110, taxaMaxFair: 165 },
-  "SUS-002": { horasRef: 1, taxaMinima: 50, taxaMedia: 80, taxaMaxFair: 120 },
-  "SUS-003": { horasRef: 4, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-  "EMB-001": { horasRef: 6, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "CAM-001": { horasRef: 8, taxaMinima: 90, taxaMedia: 150, taxaMaxFair: 225 },
-  "CAM-002": { horasRef: 12, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "ELE-001": { horasRef: 2, taxaMinima: 60, taxaMedia: 100, taxaMaxFair: 150 },
-  "ELE-002": { horasRef: 2, taxaMinima: 65, taxaMedia: 110, taxaMaxFair: 165 },
-  "TUR-001S": { horasRef: 5, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "ARR-001": { horasRef: 3, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-  "DIR-001": { horasRef: 4.5, taxaMinima: 80, taxaMedia: 130, taxaMaxFair: 195 },
-  "DIF-001S": { horasRef: 8, taxaMinima: 85, taxaMedia: 140, taxaMaxFair: 210 },
-  "INJ-003": { horasRef: 2, taxaMinima: 70, taxaMedia: 120, taxaMaxFair: 180 },
-};
-
-// ═══════════════════════════════════════════════════════════════════
 // CONFIGURAÇÃO REGIONAL — IMPERATRIZ-MA (BR-010)
 // ═══════════════════════════════════════════════════════════════════
 const REGIONAL = {
-  fretePercent: 12,         // frete estimado SP→Imperatriz
-  convenienciaPercent: 8,   // margem para pronta-entrega local
-  margemAtencao: 30,        // acima de 30% do teto justo → amarelo
-  margemSobrepreco: 50,     // acima de 50% do teto justo → vermelho
+  fretePercent: 12,
+  convenienciaPercent: 8,
+  margemAtencao: 30,
+  margemSobrepreco: 50,
+  cacheTTLHours: 168, // 7 dias — após isso re-scrape
+  region: "BR-010",
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// MOTOR DE SCRAPING — Múltiplas fontes com fallback
+// SEED DATABASE — Preços conhecidos iniciais (hardcoded bootstrap)
+// Após primeira execução, tudo vive no fleet_price_cache
 // ═══════════════════════════════════════════════════════════════════
+const SEED_PRICES: Record<string, { min: number; avg: number; max: number; cat: string }> = {
+  "FLT-OL-001": { min: 25, avg: 45, max: 65, cat: "Filtros" },
+  "FLT-AR-001": { min: 35, avg: 65, max: 95, cat: "Filtros" },
+  "FLT-CB-001": { min: 50, avg: 85, max: 125, cat: "Filtros" },
+  "FLT-SEP-001": { min: 70, avg: 120, max: 175, cat: "Filtros" },
+  "OLE-001": { min: 18, avg: 32, max: 48, cat: "Óleos" },
+  "OLE-002": { min: 28, avg: 48, max: 72, cat: "Óleos" },
+  "OLE-003": { min: 12, avg: 22, max: 35, cat: "Óleos" },
+  "PAS-001": { min: 95, avg: 180, max: 270, cat: "Freios" },
+  "DIS-001": { min: 170, avg: 320, max: 480, cat: "Freios" },
+  "DIS-002": { min: 150, avg: 290, max: 435, cat: "Freios" },
+  "LON-001": { min: 130, avg: 250, max: 375, cat: "Freios" },
+  "TAM-001": { min: 200, avg: 380, max: 570, cat: "Freios" },
+  "AMO-001": { min: 240, avg: 450, max: 675, cat: "Suspensão" },
+  "AMO-002": { min: 200, avg: 380, max: 570, cat: "Suspensão" },
+  "MOL-001": { min: 500, avg: 950, max: 1425, cat: "Suspensão" },
+  "PIV-001": { min: 120, avg: 220, max: 330, cat: "Suspensão" },
+  "TER-001": { min: 95, avg: 180, max: 270, cat: "Suspensão" },
+  "KIT-RET-001": { min: 2500, avg: 4800, max: 6500, cat: "Motor" },
+  "PIS-001": { min: 950, avg: 1800, max: 2700, cat: "Motor" },
+  "ANE-001": { min: 340, avg: 650, max: 975, cat: "Motor" },
+  "BRZ-BIE-001": { min: 200, avg: 380, max: 570, cat: "Motor" },
+  "BRZ-MAN-001": { min: 220, avg: 420, max: 630, cat: "Motor" },
+  "VIR-001": { min: 1800, avg: 3500, max: 5000, cat: "Motor" },
+  "CAB-001": { min: 2200, avg: 4200, max: 5800, cat: "Motor" },
+  "JNT-CAB-001": { min: 150, avg: 280, max: 420, cat: "Motor" },
+  "JNT-KIT-001": { min: 450, avg: 850, max: 1275, cat: "Motor" },
+  "CMD-001": { min: 950, avg: 1800, max: 2700, cat: "Motor" },
+  "VOL-001": { min: 650, avg: 1200, max: 1800, cat: "Motor" },
+  "BOM-OLE-001": { min: 280, avg: 520, max: 780, cat: "Motor" },
+  "COR-001": { min: 200, avg: 380, max: 570, cat: "Motor" },
+  "RAD-001": { min: 470, avg: 890, max: 1335, cat: "Arrefecimento" },
+  "BOM-001": { min: 150, avg: 280, max: 420, cat: "Arrefecimento" },
+  "BIC-001": { min: 240, avg: 450, max: 675, cat: "Injeção" },
+  "BOM-COMB-001": { min: 2000, avg: 3800, max: 5200, cat: "Injeção" },
+  "TUR-001": { min: 1700, avg: 3200, max: 4500, cat: "Turbo" },
+  "TUR-002": { min: 3000, avg: 5800, max: 7800, cat: "Turbo" },
+  "EMB-KIT": { min: 650, avg: 1200, max: 1800, cat: "Transmissão" },
+  "EMB-VOL": { min: 1500, avg: 2800, max: 4000, cat: "Transmissão" },
+  "DIF-001": { min: 1200, avg: 2200, max: 3300, cat: "Transmissão" },
+  "BAT-001": { min: 360, avg: 680, max: 950, cat: "Elétrica" },
+  "ALT-001": { min: 350, avg: 650, max: 975, cat: "Elétrica" },
+  "CXD-001": { min: 950, avg: 1800, max: 2700, cat: "Direção" },
+  "CMP-001": { min: 750, avg: 1400, max: 2100, cat: "Ar-Cond" },
+  "PNE-001": { min: 950, avg: 1800, max: 2500, cat: "Pneus" },
+  "ESC-001": { min: 350, avg: 650, max: 975, cat: "Escapamento" },
+  "PBR-001": { min: 450, avg: 850, max: 1275, cat: "Vidros" },
+};
 
+const SEED_SERVICES: Record<string, { hRef: number; tMin: number; tAvg: number; tMax: number }> = {
+  "MOT-001": { hRef: 1, tMin: 60, tAvg: 100, tMax: 150 },
+  "MOT-002": { hRef: 3.5, tMin: 80, tAvg: 130, tMax: 195 },
+  "MOT-003": { hRef: 40, tMin: 90, tAvg: 150, tMax: 220 },
+  "MOT-004": { hRef: 2.5, tMin: 70, tAvg: 120, tMax: 180 },
+  "MOT-006": { hRef: 3, tMin: 70, tAvg: 120, tMax: 180 },
+  "MOT-010": { hRef: 8, tMin: 80, tAvg: 140, tMax: 210 },
+  "MOT-011": { hRef: 12, tMin: 95, tAvg: 160, tMax: 240 },
+  "MOT-012": { hRef: 8, tMin: 90, tAvg: 150, tMax: 225 },
+  "MOT-013": { hRef: 6, tMin: 90, tAvg: 150, tMax: 225 },
+  "MOT-014": { hRef: 16, tMin: 90, tAvg: 150, tMax: 225 },
+  "MOT-015": { hRef: 10, tMin: 85, tAvg: 140, tMax: 210 },
+  "MOT-016": { hRef: 8, tMin: 85, tAvg: 140, tMax: 210 },
+  "MOT-017": { hRef: 12, tMin: 90, tAvg: 150, tMax: 225 },
+  "MOT-026": { hRef: 4, tMin: 70, tAvg: 120, tMax: 180 },
+  "FRE-001": { hRef: 1.5, tMin: 65, tAvg: 110, tMax: 165 },
+  "FRE-002": { hRef: 2, tMin: 65, tAvg: 110, tMax: 165 },
+  "FRE-004": { hRef: 2.5, tMin: 65, tAvg: 110, tMax: 165 },
+  "SUS-001": { hRef: 2.5, tMin: 65, tAvg: 110, tMax: 165 },
+  "SUS-002": { hRef: 1, tMin: 50, tAvg: 80, tMax: 120 },
+  "SUS-003": { hRef: 4, tMin: 70, tAvg: 120, tMax: 180 },
+  "EMB-001": { hRef: 6, tMin: 85, tAvg: 140, tMax: 210 },
+  "CAM-001": { hRef: 8, tMin: 90, tAvg: 150, tMax: 225 },
+  "CAM-002": { hRef: 12, tMin: 85, tAvg: 140, tMax: 210 },
+  "ELE-001": { hRef: 2, tMin: 60, tAvg: 100, tMax: 150 },
+  "ELE-002": { hRef: 2, tMin: 65, tAvg: 110, tMax: 165 },
+  "TUR-001S": { hRef: 5, tMin: 85, tAvg: 140, tMax: 210 },
+  "ARR-001": { hRef: 3, tMin: 70, tAvg: 120, tMax: 180 },
+  "DIR-001": { hRef: 4.5, tMin: 80, tAvg: 130, tMax: 195 },
+  "DIF-001S": { hRef: 8, tMin: 85, tAvg: 140, tMax: 210 },
+  "INJ-003": { hRef: 2, tMin: 70, tAvg: 120, tMax: 180 },
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// NORMALIZE — converte gírias de mecânico em termos de busca
+// ═══════════════════════════════════════════════════════════════════
+function normalizeSearchTerm(desc: string): string {
+  return desc
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/[()[\]{}"']/g, "")
+    .replace(/\b(pç|pc|peca|peça)\b/gi, "")
+    .replace(/\b(unid|un|und)\b/gi, "")
+    .replace(/\b(orig|original|genuino|genuína)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CACHE LAYER — Consulta cache DB, retorna hit ou null
+// ═══════════════════════════════════════════════════════════════════
+interface CacheHit {
+  min_price: number;
+  avg_price: number;
+  max_fair: number;
+  median_price: number;
+  source: string;
+  source_url: string;
+  hit_count: number;
+  is_fresh: boolean;
+}
+
+async function lookupCache(
+  service: any,
+  searchKey: string,
+): Promise<CacheHit | null> {
+  const { data, error } = await service
+    .from("fleet_price_cache")
+    .select("*")
+    .eq("search_key", searchKey)
+    .eq("region", REGIONAL.region)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  // Check freshness
+  const scrapedAt = new Date(data.scraped_at).getTime();
+  const now = Date.now();
+  const ageHours = (now - scrapedAt) / (1000 * 60 * 60);
+  const isFresh = ageHours < REGIONAL.cacheTTLHours;
+
+  // Increment hit count
+  await service
+    .from("fleet_price_cache")
+    .update({ hit_count: (data.hit_count || 0) + 1, last_hit_at: new Date().toISOString() })
+    .eq("id", data.id);
+
+  console.log(`[CACHE] ${isFresh ? "✅ HIT" : "⏰ STALE"} "${searchKey}" (${data.hit_count + 1} hits, age=${Math.round(ageHours)}h)`);
+
+  return {
+    min_price: data.min_price,
+    avg_price: data.avg_price,
+    max_fair: data.max_fair,
+    median_price: data.median_price,
+    source: data.source,
+    source_url: data.source_url || "",
+    hit_count: data.hit_count + 1,
+    is_fresh: isFresh,
+  };
+}
+
+async function persistToCache(
+  service: any,
+  searchKey: string,
+  descricao: string,
+  category: string,
+  prices: { min: number; avg: number; max: number; median: number },
+  source: string,
+  sourceUrl: string,
+  rawPrices: number[],
+): Promise<void> {
+  const record = {
+    search_key: searchKey,
+    descricao_original: descricao.substring(0, 200),
+    category,
+    min_price: prices.min,
+    avg_price: prices.avg,
+    max_fair: prices.max,
+    median_price: prices.median,
+    source,
+    source_url: sourceUrl,
+    raw_prices: rawPrices,
+    region: REGIONAL.region,
+    scraped_at: new Date().toISOString(),
+    last_hit_at: new Date().toISOString(),
+    hit_count: 1,
+  };
+
+  const { error } = await service
+    .from("fleet_price_cache")
+    .upsert(record, { onConflict: "search_key,region" });
+
+  if (error) {
+    console.error(`[CACHE] Failed to persist "${searchKey}":`, error.message);
+  } else {
+    console.log(`[CACHE] 💾 STORED "${searchKey}" → avg=${prices.avg} max=${prices.max}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SCRAPING ENGINE — Mercado Livre API
+// ═══════════════════════════════════════════════════════════════════
 interface ScrapeResult {
   found: boolean;
   source: string;
   prices: number[];
   lowestPrice: number;
   medianPrice: number;
+  avgPrice: number;
   url: string;
 }
 
 async function scrapeFromMercadoLivre(searchTerm: string): Promise<ScrapeResult> {
-  const url = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&category=MLB1747&sort=price_asc&limit=10`;
+  const empty: ScrapeResult = { found: false, source: "Mercado Livre", prices: [], lowestPrice: 0, medianPrice: 0, avgPrice: 0, url: "" };
+  const url = `https://api.mercadolibre.com/sites/MLB/search?q=${encodeURIComponent(searchTerm)}&category=MLB1747&sort=price_asc&limit=15`;
 
   try {
-    const resp = await fetch(url, {
-      headers: { "Accept": "application/json" },
-    });
-
-    if (!resp.ok) {
-      console.warn(`[ML-API] HTTP ${resp.status} for "${searchTerm}"`);
-      return { found: false, source: "Mercado Livre", prices: [], lowestPrice: 0, medianPrice: 0, url };
-    }
+    const resp = await fetch(url, { headers: { Accept: "application/json" } });
+    if (!resp.ok) return empty;
 
     const json = await resp.json();
     const results = json?.results || [];
+    if (results.length === 0) return empty;
 
-    if (results.length === 0) {
-      console.warn(`[ML-API] No results for "${searchTerm}"`);
-      return { found: false, source: "Mercado Livre", prices: [], lowestPrice: 0, medianPrice: 0, url };
-    }
-
-    // Extract prices, skip first result (often sponsored)
     const prices: number[] = [];
-    for (let i = 0; i < results.length; i++) {
-      const item = results[i];
-      // Skip items with "promotion" or sponsored tags
+    for (const item of results) {
       if (item?.tags?.includes?.("deal_of_the_day") || item?.official_store_id) continue;
       const price = item?.price;
       if (typeof price === "number" && price > 5 && price < 100000) {
         prices.push(price);
       }
     }
-
-    if (prices.length === 0) {
-      return { found: false, source: "Mercado Livre", prices: [], lowestPrice: 0, medianPrice: 0, url };
-    }
+    if (prices.length === 0) return empty;
 
     const sorted = [...prices].sort((a, b) => a - b);
     const median = sorted[Math.floor(sorted.length / 2)];
+    const avg = Math.round(sorted.reduce((a, b) => a + b, 0) / sorted.length);
     const webUrl = `https://lista.mercadolivre.com.br/${encodeURIComponent(searchTerm)}`;
 
-    console.log(`[ML-API] Found ${sorted.length} prices for "${searchTerm}": min=${sorted[0]}, median=${median}`);
+    console.log(`[SCRAPE] ML found ${sorted.length} prices for "${searchTerm}": min=${sorted[0]} med=${median} avg=${avg}`);
 
-    return {
-      found: true,
-      source: "Mercado Livre",
-      prices: sorted.slice(0, 5),
-      lowestPrice: sorted[0],
-      medianPrice: median,
-      url: webUrl,
-    };
+    return { found: true, source: "Mercado Livre", prices: sorted.slice(0, 8), lowestPrice: sorted[0], medianPrice: median, avgPrice: avg, url: webUrl };
   } catch (err) {
-    console.error(`[ML-API] Error for "${searchTerm}":`, err);
-    return { found: false, source: "Mercado Livre", prices: [], lowestPrice: 0, medianPrice: 0, url: "" };
+    console.error(`[SCRAPE] ML error for "${searchTerm}":`, err);
+    return empty;
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// MOTOR DE AUDITORIA — Compara orçamento vs mercado
+// PRICE RESOLUTION — Cache-first, scrape-on-miss, auto-persist
 // ═══════════════════════════════════════════════════════════════════
+interface ResolvedPrice {
+  minPrice: number;
+  avgPrice: number;
+  maxFair: number;
+  medianPrice: number;
+  source: string;
+  sourceUrl: string;
+  hitCount: number;
+  wasScraped: boolean;
+}
 
+async function resolvePrice(
+  service: any,
+  code: string,
+  descricao: string,
+  vehicleSuffix: string,
+): Promise<ResolvedPrice> {
+  const noRef: ResolvedPrice = { minPrice: 0, avgPrice: 0, maxFair: 0, medianPrice: 0, source: "", sourceUrl: "", hitCount: 0, wasScraped: false };
+
+  // ── STEP 1: Check hardcoded seed (bootstrap) ──
+  const seed = SEED_PRICES[code];
+
+  // ── STEP 2: Check DB cache by code ──
+  let cached = await lookupCache(service, code);
+
+  // ── STEP 3: If code not in cache, try normalized description ──
+  const searchKey = normalizeSearchTerm(descricao);
+  if (!cached && searchKey.length >= 4) {
+    cached = await lookupCache(service, searchKey);
+  }
+
+  // ── STEP 4: Cache HIT and FRESH → return immediately ──
+  if (cached && cached.is_fresh) {
+    return {
+      minPrice: cached.min_price,
+      avgPrice: cached.avg_price,
+      maxFair: cached.max_fair,
+      medianPrice: cached.median_price,
+      source: `Cache (${cached.source})`,
+      sourceUrl: cached.source_url,
+      hitCount: cached.hit_count,
+      wasScraped: false,
+    };
+  }
+
+  // ── STEP 5: Seed exists but no cache → persist seed to cache ──
+  if (seed && !cached) {
+    await persistToCache(service, code, descricao, seed.cat, {
+      min: seed.min, avg: seed.avg, max: seed.max, median: seed.avg,
+    }, "Base Regional BR-010 (seed)", "", []);
+
+    // Don't return yet — also try scraping to get live data
+  }
+
+  // ── STEP 6: SCRAPE — peça nunca vista OU cache expirado ──
+  if (searchKey.length >= 4) {
+    const fullSearch = vehicleSuffix ? `${searchKey} ${vehicleSuffix}` : searchKey;
+    const scraped = await scrapeFromMercadoLivre(fullSearch);
+
+    if (scraped.found && scraped.medianPrice > 0) {
+      // Calculate max_fair = median + 50% (generous ceiling)
+      const maxFair = Math.round(scraped.medianPrice * 1.5);
+      const minP = scraped.lowestPrice;
+
+      // Merge with seed if available for better accuracy
+      const finalAvg = seed ? Math.round((seed.avg + scraped.avgPrice) / 2) : scraped.avgPrice;
+      const finalMax = seed ? Math.max(seed.max, maxFair) : maxFair;
+      const finalMin = seed ? Math.min(seed.min, minP) : minP;
+
+      // Persist to cache (auto-index!)
+      await persistToCache(service, searchKey, descricao, seed?.cat || "auto", {
+        min: finalMin, avg: finalAvg, max: finalMax, median: scraped.medianPrice,
+      }, "Mercado Livre (ao vivo)", scraped.url, scraped.prices);
+
+      // Also persist by code for future direct lookups
+      if (code && code !== searchKey) {
+        await persistToCache(service, code, descricao, seed?.cat || "auto", {
+          min: finalMin, avg: finalAvg, max: finalMax, median: scraped.medianPrice,
+        }, "Mercado Livre (ao vivo)", scraped.url, scraped.prices);
+      }
+
+      return {
+        minPrice: finalMin,
+        avgPrice: finalAvg,
+        maxFair: finalMax,
+        medianPrice: scraped.medianPrice,
+        source: "Mercado Livre (ao vivo)",
+        sourceUrl: scraped.url,
+        hitCount: 1,
+        wasScraped: true,
+      };
+    }
+
+    // Scrape failed but stale cache exists → use stale
+    if (cached) {
+      console.log(`[RESOLVE] Using stale cache for "${code}" (scrape failed)`);
+      return {
+        minPrice: cached.min_price,
+        avgPrice: cached.avg_price,
+        maxFair: cached.max_fair,
+        medianPrice: cached.median_price,
+        source: `Cache expirado (${cached.source})`,
+        sourceUrl: cached.source_url,
+        hitCount: cached.hit_count,
+        wasScraped: false,
+      };
+    }
+
+    await new Promise(r => setTimeout(r, 250)); // rate limit
+  }
+
+  // ── STEP 7: Fallback to seed if nothing else worked ──
+  if (seed) {
+    return {
+      minPrice: seed.min,
+      avgPrice: seed.avg,
+      maxFair: seed.max,
+      medianPrice: seed.avg,
+      source: "Base Regional BR-010",
+      sourceUrl: "",
+      hitCount: 0,
+      wasScraped: false,
+    };
+  }
+
+  return noRef;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// AUDIT ITEM TYPES
+// ═══════════════════════════════════════════════════════════════════
 interface AuditItemInput {
   descricao: string;
-  tipo: string;           // "PEÇAS" or "MECÂNICA"
-  code: string;           // catalog code
-  valorUnitario: number;  // price per unit
-  valorTotal: number;     // total price (unit * qty)
+  tipo: string;
+  code: string;
+  valorUnitario: number;
+  valorTotal: number;
   qtd: number;
   horas?: number;
   valorHora?: number;
-  refPrice?: number;      // catalog reference price
-  refHora?: number;       // catalog reference hourly rate
+  refPrice?: number;
+  refHora?: number;
+  customer_product_id?: string;
 }
 
 interface AuditItemResult {
@@ -229,209 +414,67 @@ interface AuditItemResult {
   budgetPrice: number;
   budgetTotal: number;
   qtd: number;
-  // Reference prices
   dbMinPrice: number;
   dbAvgPrice: number;
   dbMaxFair: number;
   catalogRef: number;
-  // Scraped market price
   scrapedPrice: number;
   scrapedSource: string;
   scrapedUrl: string;
-  // Final comparison
-  marketPrice: number;    // best reference used for comparison
-  marketSource: string;   // where the market price came from
-  regionalPrice: number;  // market + frete + conveniência
-  // Verdict
+  marketPrice: number;
+  marketSource: string;
+  regionalPrice: number;
   status: "justo" | "atencao" | "sobrepreco" | "sem_ref";
   diffPercent: number;
   suggestedPrice: number;
-  savings: number;        // potential savings per unit
-  // For services
+  savings: number;
   horas?: number;
   valorHora?: number;
   horasRef?: number;
   taxaRef?: number;
+  cacheHits?: number;
 }
 
-function auditPartItem(item: AuditItemInput): AuditItemResult {
-  const code = item.code;
-  const budgetPrice = item.valorUnitario;
-
-  // 1. Lookup in our price DB
-  const dbEntry = PRICE_DATABASE[code];
-  const dbMinPrice = dbEntry?.minPrice || 0;
-  const dbAvgPrice = dbEntry?.avgPrice || 0;
-  const dbMaxFair = dbEntry?.maxFair || 0;
-  const catalogRef = item.refPrice || 0;
-
-  // 2. Determine market reference (priority: DB avg > catalog ref > 0)
-  let marketPrice = 0;
-  let marketSource = "";
-
-  if (dbAvgPrice > 0) {
-    marketPrice = dbAvgPrice;
-    marketSource = "Base Regional BR-010";
-  } else if (catalogRef > 0) {
-    marketPrice = catalogRef;
-    marketSource = "Catálogo Auditt";
+// ═══════════════════════════════════════════════════════════════════
+// CLASSIFY — aplica lógica de veredito
+// ═══════════════════════════════════════════════════════════════════
+function classify(budgetPrice: number, regionalPrice: number, maxFair: number): {
+  status: "justo" | "atencao" | "sobrepreco" | "sem_ref";
+  diffPercent: number;
+  suggestedPrice: number;
+  savings: number;
+} {
+  if (regionalPrice <= 0 || budgetPrice <= 0) {
+    return { status: "sem_ref", diffPercent: 0, suggestedPrice: budgetPrice, savings: 0 };
   }
 
-  // 3. Apply regional adjustment
-  const regionalPrice = marketPrice > 0
-    ? Math.round(marketPrice * (1 + REGIONAL.fretePercent / 100 + REGIONAL.convenienciaPercent / 100) * 100) / 100
-    : 0;
+  const diffPercent = Math.round(((budgetPrice - regionalPrice) / regionalPrice) * 100);
 
-  // 4. Classify
-  let status: "justo" | "atencao" | "sobrepreco" | "sem_ref" = "sem_ref";
-  let diffPercent = 0;
-  let suggestedPrice = budgetPrice;
-  let savings = 0;
-
-  if (regionalPrice > 0 && budgetPrice > 0) {
-    diffPercent = Math.round(((budgetPrice - regionalPrice) / regionalPrice) * 100);
-
-    if (dbMaxFair > 0 && budgetPrice > dbMaxFair) {
-      // Above the absolute max fair ceiling
-      const overMax = Math.round(((budgetPrice - dbMaxFair) / dbMaxFair) * 100);
-      if (overMax > 20) {
-        status = "sobrepreco";
-        suggestedPrice = regionalPrice;
-        savings = budgetPrice - regionalPrice;
-      } else {
-        status = "atencao";
-        suggestedPrice = regionalPrice;
-        savings = budgetPrice - regionalPrice;
-      }
-    } else if (diffPercent > REGIONAL.margemSobrepreco) {
-      status = "sobrepreco";
-      suggestedPrice = regionalPrice;
-      savings = budgetPrice - regionalPrice;
-    } else if (diffPercent > REGIONAL.margemAtencao) {
-      status = "atencao";
-      suggestedPrice = regionalPrice;
-      savings = budgetPrice - regionalPrice;
-    } else {
-      status = "justo";
-      savings = 0;
-    }
-  } else if (budgetPrice <= 0) {
-    status = "sem_ref"; // no price entered yet
+  // Check against absolute ceiling first
+  if (maxFair > 0 && budgetPrice > maxFair) {
+    const overMax = Math.round(((budgetPrice - maxFair) / maxFair) * 100);
+    return {
+      status: overMax > 20 ? "sobrepreco" : "atencao",
+      diffPercent,
+      suggestedPrice: regionalPrice,
+      savings: budgetPrice - regionalPrice,
+    };
   }
 
-  return {
-    descricao: item.descricao,
-    code,
-    category: "peca",
-    budgetPrice,
-    budgetTotal: item.valorTotal,
-    qtd: item.qtd,
-    dbMinPrice,
-    dbAvgPrice,
-    dbMaxFair,
-    catalogRef,
-    scrapedPrice: 0,
-    scrapedSource: "",
-    scrapedUrl: "",
-    marketPrice,
-    marketSource,
-    regionalPrice,
-    status,
-    diffPercent,
-    suggestedPrice,
-    savings: Math.max(0, savings),
-  };
-}
-
-function auditServiceItem(item: AuditItemInput): AuditItemResult {
-  const code = item.code;
-  const horas = item.horas || 0;
-  const valorHora = item.valorHora || 0;
-  const budgetPrice = horas * valorHora;
-
-  const svcEntry = SERVICE_DATABASE[code];
-  const horasRef = svcEntry?.horasRef || 0;
-  const taxaMedia = svcEntry?.taxaMedia || 0;
-  const taxaMaxFair = svcEntry?.taxaMaxFair || 0;
-  const taxaRef = item.refHora || 0;
-
-  // Use DB taxa or catalog ref
-  let refTaxa = 0;
-  let marketSource = "";
-  if (taxaMedia > 0) {
-    refTaxa = taxaMedia;
-    marketSource = "Base Regional BR-010";
-  } else if (taxaRef > 0) {
-    refTaxa = taxaRef;
-    marketSource = "Catálogo Auditt";
+  // Then check % margins
+  if (diffPercent > REGIONAL.margemSobrepreco) {
+    return { status: "sobrepreco", diffPercent, suggestedPrice: regionalPrice, savings: budgetPrice - regionalPrice };
+  }
+  if (diffPercent > REGIONAL.margemAtencao) {
+    return { status: "atencao", diffPercent, suggestedPrice: regionalPrice, savings: budgetPrice - regionalPrice };
   }
 
-  const marketPrice = refTaxa > 0 && horasRef > 0 ? refTaxa * horasRef : refTaxa * horas;
-  const regionalPrice = marketPrice; // services don't need freight adjustment
-
-  let status: "justo" | "atencao" | "sobrepreco" | "sem_ref" = "sem_ref";
-  let diffPercent = 0;
-  let suggestedPrice = budgetPrice;
-  let savings = 0;
-
-  if (regionalPrice > 0 && budgetPrice > 0) {
-    diffPercent = Math.round(((budgetPrice - regionalPrice) / regionalPrice) * 100);
-
-    // Check hourly rate specifically
-    if (taxaMaxFair > 0 && valorHora > taxaMaxFair) {
-      const overRate = Math.round(((valorHora - taxaMaxFair) / taxaMaxFair) * 100);
-      if (overRate > 20) {
-        status = "sobrepreco";
-      } else {
-        status = "atencao";
-      }
-      suggestedPrice = refTaxa * horas;
-      savings = budgetPrice - suggestedPrice;
-    } else if (diffPercent > REGIONAL.margemSobrepreco) {
-      status = "sobrepreco";
-      suggestedPrice = regionalPrice;
-      savings = budgetPrice - regionalPrice;
-    } else if (diffPercent > REGIONAL.margemAtencao) {
-      status = "atencao";
-      suggestedPrice = regionalPrice;
-      savings = budgetPrice - regionalPrice;
-    } else {
-      status = "justo";
-    }
-  }
-
-  return {
-    descricao: item.descricao,
-    code,
-    category: "servico",
-    budgetPrice,
-    budgetTotal: item.valorTotal,
-    qtd: item.qtd,
-    dbMinPrice: 0,
-    dbAvgPrice: taxaMedia * (horasRef || horas),
-    dbMaxFair: taxaMaxFair * (horasRef || horas),
-    catalogRef: taxaRef * horas,
-    scrapedPrice: 0,
-    scrapedSource: "",
-    scrapedUrl: "",
-    marketPrice,
-    marketSource,
-    regionalPrice,
-    status,
-    diffPercent,
-    suggestedPrice: Math.max(0, suggestedPrice),
-    savings: Math.max(0, savings),
-    horas,
-    valorHora,
-    horasRef,
-    taxaRef: refTaxa,
-  };
+  return { status: "justo", diffPercent, suggestedPrice: budgetPrice, savings: 0 };
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -451,9 +494,9 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const service = createClient(supabaseUrl, serviceKey);
 
-    console.log(`[auditt-audit] Starting audit for budget ${budgetId} with ${items.length} items`);
+    console.log(`[VERO] 🔍 Starting audit for budget ${budgetId} — ${items.length} items`);
 
-    // 1. Create/update audit record
+    // Create audit record
     const cpId = items[0]?.customer_product_id || "unknown";
     const { data: auditRecord, error: insertErr } = await service
       .from("fleet_budget_audit_results")
@@ -463,94 +506,129 @@ Deno.serve(async (req) => {
 
     if (insertErr) throw insertErr;
 
-    // 2. Audit each item
+    const vehicleSuffix = vehicleInfo?.marca ? vehicleInfo.marca.toLowerCase() : "";
     const auditResults: AuditItemResult[] = [];
     let totalOrcamento = 0;
     let totalMercado = 0;
     let economiaPotencial = 0;
-    const scrapeCache: Record<string, ScrapeResult> = {};
+    let cacheHits = 0;
+    let scrapeCount = 0;
 
     for (const item of items as AuditItemInput[]) {
       const isPeca = item.tipo === "PEÇAS" || item.tipo === "peca";
-      let result: AuditItemResult;
 
       if (isPeca) {
-        result = auditPartItem(item);
+        // ── PEÇA: Resolve price via cache-first architecture ──
+        const resolved = await resolvePrice(service, item.code, item.descricao, vehicleSuffix);
 
-        // 3. Try live scraping to enrich (only for parts without DB entry or to validate)
-        const searchTerm = item.descricao.toLowerCase()
-          .replace(/[()]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
+        if (resolved.wasScraped) scrapeCount++;
+        if (resolved.hitCount > 1) cacheHits++;
 
-        if (searchTerm.length >= 5 && !scrapeCache[searchTerm]) {
-          let vSuffix = "";
-          if (vehicleInfo?.marca) vSuffix = ` ${vehicleInfo.marca}`;
+        const budgetPrice = item.valorUnitario;
+        const marketPrice = resolved.avgPrice;
+        const regionalPrice = marketPrice > 0
+          ? Math.round(marketPrice * (1 + REGIONAL.fretePercent / 100 + REGIONAL.convenienciaPercent / 100) * 100) / 100
+          : 0;
 
-          const scraped = await scrapeFromMercadoLivre(searchTerm + vSuffix);
-          scrapeCache[searchTerm] = scraped;
+        const verdict = classify(budgetPrice, regionalPrice, resolved.maxFair);
 
-          if (scraped.found) {
-            result.scrapedPrice = scraped.medianPrice;
-            result.scrapedSource = scraped.source;
-            result.scrapedUrl = scraped.url;
+        const result: AuditItemResult = {
+          descricao: item.descricao,
+          code: item.code,
+          category: "peca",
+          budgetPrice,
+          budgetTotal: item.valorTotal,
+          qtd: item.qtd,
+          dbMinPrice: resolved.minPrice,
+          dbAvgPrice: resolved.avgPrice,
+          dbMaxFair: resolved.maxFair,
+          catalogRef: item.refPrice || 0,
+          scrapedPrice: resolved.wasScraped ? resolved.medianPrice : 0,
+          scrapedSource: resolved.wasScraped ? resolved.source : "",
+          scrapedUrl: resolved.sourceUrl,
+          marketPrice,
+          marketSource: resolved.source || "Sem referência",
+          regionalPrice,
+          ...verdict,
+          savings: Math.max(0, verdict.savings),
+          cacheHits: resolved.hitCount,
+        };
 
-            // If we got scraped data and it's better (lower) than DB, use it
-            if (result.marketPrice <= 0 || (scraped.medianPrice > 0 && scraped.medianPrice < result.marketPrice * 0.8)) {
-              result.marketPrice = scraped.medianPrice;
-              result.marketSource = `${scraped.source} (ao vivo)`;
-              // Recalculate regional
-              result.regionalPrice = Math.round(
-                scraped.medianPrice * (1 + REGIONAL.fretePercent / 100 + REGIONAL.convenienciaPercent / 100) * 100
-              ) / 100;
+        totalOrcamento += result.budgetTotal;
+        totalMercado += regionalPrice > 0 ? regionalPrice * result.qtd : result.budgetTotal;
+        economiaPotencial += Math.max(0, result.savings) * result.qtd;
+        auditResults.push(result);
 
-              // Re-classify
-              if (result.budgetPrice > 0 && result.regionalPrice > 0) {
-                result.diffPercent = Math.round(((result.budgetPrice - result.regionalPrice) / result.regionalPrice) * 100);
-                if (result.diffPercent > REGIONAL.margemSobrepreco) {
-                  result.status = "sobrepreco";
-                  result.suggestedPrice = result.regionalPrice;
-                  result.savings = result.budgetPrice - result.regionalPrice;
-                } else if (result.diffPercent > REGIONAL.margemAtencao) {
-                  result.status = "atencao";
-                  result.suggestedPrice = result.regionalPrice;
-                  result.savings = result.budgetPrice - result.regionalPrice;
-                } else {
-                  result.status = "justo";
-                  result.savings = 0;
-                }
-              }
-            }
-          }
-
-          // Respectful delay between scrapes
-          await new Promise(r => setTimeout(r, 300));
-        } else if (scrapeCache[searchTerm]?.found) {
-          const cached = scrapeCache[searchTerm];
-          result.scrapedPrice = cached.medianPrice;
-          result.scrapedSource = cached.source;
-          result.scrapedUrl = cached.url;
-        }
       } else {
-        result = auditServiceItem(item);
+        // ── SERVIÇO: Seed-based + cache ──
+        const horas = item.horas || 0;
+        const valorHora = item.valorHora || 0;
+        const budgetPrice = horas * valorHora;
+        const code = item.code;
+
+        const svc = SEED_SERVICES[code];
+        const horasRef = svc?.hRef || 0;
+        const taxaMedia = svc?.tAvg || 0;
+        const taxaMaxFair = svc?.tMax || 0;
+        const taxaRef = item.refHora || 0;
+
+        let refTaxa = taxaMedia > 0 ? taxaMedia : (taxaRef > 0 ? taxaRef : 0);
+        let marketSource = taxaMedia > 0 ? "Base Regional BR-010" : (taxaRef > 0 ? "Catálogo Auditt" : "");
+
+        const marketPrice = refTaxa > 0 && horasRef > 0 ? refTaxa * horasRef : refTaxa * horas;
+        const regionalPrice = marketPrice;
+
+        let verdict = classify(budgetPrice, regionalPrice, 0);
+
+        // Special check: hourly rate specifically
+        if (taxaMaxFair > 0 && valorHora > taxaMaxFair) {
+          const overRate = Math.round(((valorHora - taxaMaxFair) / taxaMaxFair) * 100);
+          verdict.status = overRate > 20 ? "sobrepreco" : "atencao";
+          verdict.suggestedPrice = refTaxa * horas;
+          verdict.savings = budgetPrice - verdict.suggestedPrice;
+        }
+
+        const result: AuditItemResult = {
+          descricao: item.descricao,
+          code,
+          category: "servico",
+          budgetPrice,
+          budgetTotal: item.valorTotal,
+          qtd: item.qtd,
+          dbMinPrice: 0,
+          dbAvgPrice: taxaMedia * (horasRef || horas),
+          dbMaxFair: taxaMaxFair * (horasRef || horas),
+          catalogRef: taxaRef * horas,
+          scrapedPrice: 0,
+          scrapedSource: "",
+          scrapedUrl: "",
+          marketPrice,
+          marketSource,
+          regionalPrice,
+          ...verdict,
+          savings: Math.max(0, verdict.savings),
+          horas,
+          valorHora,
+          horasRef,
+          taxaRef: refTaxa,
+        };
+
+        totalOrcamento += result.budgetTotal;
+        totalMercado += regionalPrice > 0 ? regionalPrice * result.qtd : result.budgetTotal;
+        economiaPotencial += Math.max(0, result.savings) * result.qtd;
+        auditResults.push(result);
       }
 
-      totalOrcamento += result.budgetTotal;
-      totalMercado += result.regionalPrice > 0
-        ? result.regionalPrice * result.qtd
-        : result.budgetTotal;
-      economiaPotencial += result.savings * result.qtd;
-
-      auditResults.push(result);
-
+      // Log each item
+      const r = auditResults[auditResults.length - 1];
       console.log(
-        `[auditt-audit] ${result.code} "${result.descricao.slice(0, 30)}" → ` +
-        `budget=${result.budgetPrice} market=${result.marketPrice} regional=${result.regionalPrice} ` +
-        `status=${result.status} diff=${result.diffPercent}%`
+        `[VERO] ${r.code} "${r.descricao.slice(0, 25)}" → ` +
+        `orç=${r.budgetPrice} mkt=${r.marketPrice} reg=${r.regionalPrice} ` +
+        `→ ${r.status} (${r.diffPercent}%)`
       );
     }
 
-    // 4. Persist results
+    // Persist final results
     const alertCount = auditResults.filter(r => r.status === "sobrepreco").length;
     const warningCount = auditResults.filter(r => r.status === "atencao").length;
 
@@ -569,6 +647,8 @@ Deno.serve(async (req) => {
           items_count: auditResults.length,
           alerts: alertCount,
           warnings: warningCount,
+          cache_hits: cacheHits,
+          scrape_count: scrapeCount,
           sources_used: [...new Set(auditResults.map(r => r.marketSource).filter(Boolean))],
         },
         updated_at: new Date().toISOString(),
@@ -576,9 +656,9 @@ Deno.serve(async (req) => {
       .eq("id", (auditRecord as any).id);
 
     console.log(
-      `[auditt-audit] ✅ Done. Orçamento: R$${totalOrcamento.toFixed(2)} | ` +
-      `Mercado: R$${totalMercado.toFixed(2)} | Economia: R$${economiaPotencial.toFixed(2)} | ` +
-      `🔴${alertCount} 🟡${warningCount}`
+      `[VERO] ✅ Done! Orç: R$${totalOrcamento.toFixed(2)} | Mkt: R$${totalMercado.toFixed(2)} | ` +
+      `Economia: R$${economiaPotencial.toFixed(2)} | 🔴${alertCount} 🟡${warningCount} | ` +
+      `Cache: ${cacheHits} hits, ${scrapeCount} scrapes`
     );
 
     return new Response(
@@ -592,11 +672,12 @@ Deno.serve(async (req) => {
         config: REGIONAL,
         alerts: alertCount,
         warnings: warningCount,
+        stats: { cacheHits, scrapeCount, totalItems: items.length },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
-    console.error("[auditt-audit] ERROR:", err);
+    console.error("[VERO] ERROR:", err);
     return new Response(
       JSON.stringify({ error: err.message || "unknown_error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
