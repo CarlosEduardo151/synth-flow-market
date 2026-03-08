@@ -1454,6 +1454,114 @@ export type Database = {
           },
         ]
       }
+      fleet_price_cache: {
+        Row: {
+          avg_price: number
+          category: string
+          created_at: string
+          descricao_original: string
+          hit_count: number
+          id: string
+          last_hit_at: string
+          max_fair: number
+          median_price: number
+          min_price: number
+          raw_prices: Json | null
+          region: string
+          scraped_at: string
+          search_key: string
+          source: string
+          source_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          avg_price?: number
+          category?: string
+          created_at?: string
+          descricao_original: string
+          hit_count?: number
+          id?: string
+          last_hit_at?: string
+          max_fair?: number
+          median_price?: number
+          min_price?: number
+          raw_prices?: Json | null
+          region?: string
+          scraped_at?: string
+          search_key: string
+          source?: string
+          source_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avg_price?: number
+          category?: string
+          created_at?: string
+          descricao_original?: string
+          hit_count?: number
+          id?: string
+          last_hit_at?: string
+          max_fair?: number
+          median_price?: number
+          min_price?: number
+          raw_prices?: Json | null
+          region?: string
+          scraped_at?: string
+          search_key?: string
+          source?: string
+          source_url?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_service_cache: {
+        Row: {
+          created_at: string
+          descricao_original: string
+          hit_count: number
+          horas_ref: number
+          id: string
+          last_hit_at: string
+          region: string
+          service_key: string
+          source: string
+          taxa_max_fair: number
+          taxa_media: number
+          taxa_minima: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao_original: string
+          hit_count?: number
+          horas_ref?: number
+          id?: string
+          last_hit_at?: string
+          region?: string
+          service_key: string
+          source?: string
+          taxa_max_fair?: number
+          taxa_media?: number
+          taxa_minima?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao_original?: string
+          hit_count?: number
+          horas_ref?: number
+          id?: string
+          last_hit_at?: string
+          region?: string
+          service_key?: string
+          source?: string
+          taxa_max_fair?: number
+          taxa_media?: number
+          taxa_minima?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fleet_service_orders: {
         Row: {
           created_at: string
