@@ -218,26 +218,50 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
 
   // ── CREATE SERVICE ORDER (CHECK-IN) ──
   const createServiceOrder = useCallback(async (data: NewServiceOrderData): Promise<FleetServiceOrder | null> => {
-    if (!customerProductId) return null;
     setSaving(true);
     try {
+      // Determine the correct customer_product_id:
+      // If workshop is doing check-in, use the VEHICLE OWNER's CP (fleet's CP)
+      let ownerCpId = customerProductId;
+      if (data.workshop_id || isWorkshopMode) {
+        // Fetch the vehicle's customer_product_id (belongs to the fleet owner)
+        const { data: vehicleData } = await supabase
+          .from('fleet_vehicles')
+          .select('customer_product_id')
+          .eq('id', data.vehicle_id)
+          .single();
+        if (vehicleData) {
+          ownerCpId = (vehicleData as any).customer_product_id;
+        }
+      }
+      if (!ownerCpId) {
+        toast.error('Não foi possível identificar a frota dona do veículo.');
+        return null;
+      }
+
       // Update vehicle status
       await supabase
         .from('fleet_vehicles')
         .update({ status: 'em_servico' })
         .eq('id', data.vehicle_id);
 
+      const insertData: any = {
+        customer_product_id: ownerCpId,
+        vehicle_id: data.vehicle_id,
+        stage: 'checkin',
+        oficina_nome: data.oficina_nome || null,
+        descricao_servico: data.descricao_servico || null,
+        valor_orcamento: data.valor_orcamento || null,
+        data_entrada: new Date().toISOString(),
+      };
+      // Set workshop_id if workshop is performing the check-in
+      if (data.workshop_id || workshopId) {
+        insertData.workshop_id = data.workshop_id || workshopId;
+      }
+
       const { data: created, error } = await supabase
         .from('fleet_service_orders')
-        .insert({
-          customer_product_id: customerProductId,
-          vehicle_id: data.vehicle_id,
-          stage: 'checkin',
-          oficina_nome: data.oficina_nome || null,
-          descricao_servico: data.descricao_servico || null,
-          valor_orcamento: data.valor_orcamento || null,
-          data_entrada: new Date().toISOString(),
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -248,7 +272,7 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
         service_order_id: (created as any).id,
         from_stage: null,
         to_stage: 'checkin',
-        changed_by: 'sistema',
+        changed_by: isWorkshopMode ? 'oficina' : 'sistema',
         notes: 'Check-in do veículo',
       });
 
@@ -262,7 +286,7 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
     } finally {
       setSaving(false);
     }
-  }, [customerProductId, loadVehicles, loadServiceOrders]);
+  }, [customerProductId, workshopId, isWorkshopMode, loadVehicles, loadServiceOrders]);
 
   // ── UPDATE STAGE ──
   const updateStage = useCallback(async (
