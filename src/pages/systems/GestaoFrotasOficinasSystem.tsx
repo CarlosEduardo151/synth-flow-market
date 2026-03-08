@@ -87,6 +87,58 @@ const GestaoFrotasOficinasSystem = () => {
   // Workshop ID for oficina users
   const [workshopId, setWorkshopId] = useState<string | null>(null);
 
+  // ── Generate Budget PDF helper ──
+  const handleDownloadBudgetPDF = useCallback(async (orderId: string) => {
+    try {
+      const order = fleet.serviceOrders.find(so => so.id === orderId);
+      if (!order) { toast.error('OS não encontrada'); return; }
+      const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
+      
+      // Fetch budget + items
+      const { data: budgets } = await supabase.from('fleet_budgets')
+        .select('*').eq('service_order_id', orderId).order('created_at', { ascending: false }).limit(1);
+      const budget = budgets?.[0];
+      if (!budget) { toast.error('Orçamento não encontrado'); return; }
+      
+      const { data: items } = await supabase.from('fleet_budget_items')
+        .select('*').eq('budget_id', (budget as any).id).order('sort_order', { ascending: true });
+      
+      const pdfData: BudgetPDFData = {
+        osNumber: `${vehicle?.placa || 'N/A'}/${orderId.slice(0, 4).toUpperCase()}`,
+        placa: vehicle?.placa || 'N/A',
+        veiculo: [vehicle?.marca, vehicle?.modelo, vehicle?.ano].filter(Boolean).join(' ') || 'N/A',
+        km: vehicle?.km_atual || 0,
+        dataEntrada: order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '--',
+        oficinaNome: order.oficina_nome || 'Oficina',
+        laudoTecnico: (budget as any).laudo_tecnico || '',
+        items: (items || []).map((it: any) => ({
+          tipo: it.tipo,
+          codigo: it.codigo || '',
+          descricao: it.descricao,
+          quantidade: it.quantidade,
+          valor_unitario: it.valor_unitario,
+          valor_total: it.valor_total,
+          horas: it.horas,
+          valor_hora: it.valor_hora,
+        })),
+        totalPecas: (budget as any).total_pecas,
+        totalMaoDeObra: (budget as any).total_mao_de_obra,
+        totalBruto: (budget as any).total_bruto,
+        comissaoPct: (budget as any).comissao_pct,
+        totalLiquido: (budget as any).total_liquido,
+        status: (budget as any).status,
+        budgetId: (budget as any).id,
+        approvedBy: order.stage === 'orcamento_aprovado' ? 'Gestor da Frota' : undefined,
+        approvedAt: order.stage === 'orcamento_aprovado' ? new Date().toLocaleDateString('pt-BR') : undefined,
+      };
+      generateBudgetPDF(pdfData);
+      toast.success('PDF gerado com sucesso!');
+    } catch (err) {
+      console.error('PDF error:', err);
+      toast.error('Erro ao gerar PDF do orçamento');
+    }
+  }, [fleet.serviceOrders, fleet.vehicles]);
+
   // Auto-detect role from DB when no URL param provided
   useEffect(() => {
     if (role !== 'select' || !user) {
