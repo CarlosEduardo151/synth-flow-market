@@ -374,14 +374,16 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
 
   // ── SEARCH VEHICLE BY PLACA ──
   const searchVehicleByPlaca = useCallback(async (placa: string): Promise<FleetVehicle | null> => {
-    if (!customerProductId && !isAdmin) return null;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return null;
     try {
       let query = supabase
         .from('fleet_vehicles')
         .select('*')
         .eq('placa', placa.toUpperCase().trim());
 
-      if (!isAdmin && customerProductId) {
+      // In workshop mode, search all vehicles (RLS allows approved workshops to read)
+      // In fleet mode, filter by own CP
+      if (!isAdmin && !isWorkshopMode && customerProductId) {
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -392,7 +394,7 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
       console.error('Error searching vehicle:', err);
       return null;
     }
-  }, [customerProductId, isAdmin]);
+  }, [customerProductId, isAdmin, isWorkshopMode]);
 
   // ── GET ACTIVE SERVICE ORDER FOR VEHICLE ──
   const getActiveServiceOrder = useCallback((vehicleId: string): FleetServiceOrder | undefined => {
