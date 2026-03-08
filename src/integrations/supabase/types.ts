@@ -973,6 +973,59 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_budget_audit_results: {
+        Row: {
+          budget_id: string
+          created_at: string
+          customer_product_id: string
+          economia_potencial: number
+          error_message: string | null
+          id: string
+          items: Json
+          metadata: Json | null
+          status: string
+          total_mercado: number
+          total_orcamento: number
+          updated_at: string
+        }
+        Insert: {
+          budget_id: string
+          created_at?: string
+          customer_product_id: string
+          economia_potencial?: number
+          error_message?: string | null
+          id?: string
+          items?: Json
+          metadata?: Json | null
+          status?: string
+          total_mercado?: number
+          total_orcamento?: number
+          updated_at?: string
+        }
+        Update: {
+          budget_id?: string
+          created_at?: string
+          customer_product_id?: string
+          economia_potencial?: number
+          error_message?: string | null
+          id?: string
+          items?: Json
+          metadata?: Json | null
+          status?: string
+          total_mercado?: number
+          total_orcamento?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_budget_audit_results_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_budget_items: {
         Row: {
           budget_id: string
