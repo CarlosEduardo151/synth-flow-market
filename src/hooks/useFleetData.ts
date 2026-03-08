@@ -88,7 +88,9 @@ interface UseFleetDataOptions {
   workshopId?: string | null;
 }
 
-export function useFleetData(customerProductId: string | null) {
+export function useFleetData(customerProductId: string | null, options?: UseFleetDataOptions) {
+  const workshopId = options?.workshopId || null;
+  const isWorkshopMode = !!workshopId;
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [serviceOrders, setServiceOrders] = useState<FleetServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
