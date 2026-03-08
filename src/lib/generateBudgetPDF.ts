@@ -9,9 +9,18 @@ const CARBON: [number, number, number] = [35, 35, 35];
 const LIGHT_BG: [number, number, number] = [245, 247, 250];
 const GRAY: [number, number, number] = [120, 120, 120];
 
-const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const fmt = (v: number) =>
+  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-function drawGradientBar(doc: jsPDF, x: number, y: number, w: number, h: number, from: [number, number, number], to: [number, number, number]) {
+function drawGradientBar(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  from: [number, number, number],
+  to: [number, number, number],
+) {
   const steps = 60;
   for (let i = 0; i < steps; i++) {
     const ratio = i / steps;
@@ -19,7 +28,7 @@ function drawGradientBar(doc: jsPDF, x: number, y: number, w: number, h: number,
     const g = Math.round(from[1] + (to[1] - from[1]) * ratio);
     const b = Math.round(from[2] + (to[2] - from[2]) * ratio);
     doc.setFillColor(r, g, b);
-    doc.rect(x, y + (i * h / steps), w, h / steps + 0.15, 'F');
+    doc.rect(x, y + (i * h) / steps, w, h / steps + 0.15, 'F');
   }
 }
 
@@ -54,12 +63,37 @@ export interface BudgetPDFData {
   approvedAt?: string;
 }
 
+// ── Column positions (absolute X from left edge) ──
+const COL = {
+  num: 14,       // #
+  tipo: 22,      // Tipo badge
+  desc: 38,      // Descrição
+  qty: 116,      // Qtd / Hrs
+  unit: 140,     // Unitário / Hora
+  total: 174,    // Total (right-aligned)
+} as const;
+
+function ensurePage(doc: jsPDF, y: number, needed: number): number {
+  if (y + needed > 272) {
+    doc.addPage();
+    doc.setFillColor(...LIGHT_BG);
+    doc.rect(0, 0, 210, 297, 'F');
+    return 16;
+  }
+  return y;
+}
+
 export function generateBudgetPDF(data: BudgetPDFData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const pw = 210;
   const margin = 14;
   const contentW = pw - margin * 2;
-  const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const rightEdge = margin + contentW;
+  const today = new Date().toLocaleDateString('pt-BR', {
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric',
+  });
 
   // ═══════════ BACKGROUND ═══════════
   doc.setFillColor(...LIGHT_BG);
@@ -83,12 +117,22 @@ export function generateBudgetPDF(data: BudgetPDFData) {
   doc.setTextColor(180, 200, 220);
   doc.text(`OS: ${data.osNumber}`, pw - margin, 12, { align: 'right' });
   doc.text(today, pw - margin, 18, { align: 'right' });
-  doc.text(`#${data.budgetId.slice(0, 8).toUpperCase()}`, pw - margin, 24, { align: 'right' });
+  doc.text(`#${data.budgetId.slice(0, 8).toUpperCase()}`, pw - margin, 24, {
+    align: 'right',
+  });
 
   // Status badge
   const isApproved = data.status === 'aprovado';
-  const statusLabel = isApproved ? 'APROVADO' : data.status === 'pendente' ? 'PENDENTE' : data.status.toUpperCase();
-  doc.setFillColor(isApproved ? 34 : 200, isApproved ? 139 : 160, isApproved ? 34 : 0);
+  const statusLabel = isApproved
+    ? 'APROVADO'
+    : data.status === 'pendente'
+      ? 'PENDENTE'
+      : data.status.toUpperCase();
+  doc.setFillColor(
+    isApproved ? 34 : 200,
+    isApproved ? 139 : 160,
+    isApproved ? 34 : 0,
+  );
   doc.roundedRect(pw - margin - 30, 28, 30, 7, 2, 2, 'F');
   doc.setFontSize(7);
   doc.setTextColor(...WHITE);
@@ -107,8 +151,16 @@ export function generateBudgetPDF(data: BudgetPDFData) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8.5);
   doc.setTextColor(60, 60, 60);
-  doc.text(`Placa: ${data.placa}   |   Veículo: ${data.veiculo}   |   KM: ${data.km.toLocaleString('pt-BR')}`, margin + 4, y + 13);
-  doc.text(`Oficina: ${data.oficinaNome}   |   Entrada: ${data.dataEntrada}`, margin + 4, y + 20);
+  doc.text(
+    `Placa: ${data.placa}   |   Veículo: ${data.veiculo}   |   KM: ${data.km.toLocaleString('pt-BR')}`,
+    margin + 4,
+    y + 13,
+  );
+  doc.text(
+    `Oficina: ${data.oficinaNome}   |   Entrada: ${data.dataEntrada}`,
+    margin + 4,
+    y + 20,
+  );
 
   // ═══════════ ITEMS TABLE ═══════════
   y += 32;
@@ -119,33 +171,25 @@ export function generateBudgetPDF(data: BudgetPDFData) {
   y += 5;
 
   // Table header
-  const colX = [margin, margin + 8, margin + 22, margin + 90, margin + 108, margin + 130, margin + 158];
-  const colLabels = ['#', 'Tipo', 'Descrição', 'Qtd/Hrs', 'Unit./Hora', 'Total'];
-
   doc.setFillColor(...NAVY);
   doc.roundedRect(margin, y, contentW, 7, 1.5, 1.5, 'F');
   doc.setFontSize(6.5);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(...WHITE);
-  doc.text('#', colX[0] + 2, y + 5);
-  doc.text('Tipo', colX[1], y + 5);
-  doc.text('Descrição', colX[2], y + 5);
-  doc.text('Qtd/Hrs', colX[3], y + 5);
-  doc.text('Unit./Hora', colX[4], y + 5);
-  doc.text('Total', colX[5] + 18, y + 5, { align: 'right' });
+  doc.text('#', COL.num + 2, y + 5);
+  doc.text('Tipo', COL.tipo + 2, y + 5);
+  doc.text('Descrição', COL.desc, y + 5);
+  doc.text('Qtd/Hrs', COL.qty, y + 5);
+  doc.text('Unit./Hora', COL.unit, y + 5);
+  doc.text('Total', COL.total + 8, y + 5, { align: 'right' });
   y += 9;
 
   // Table rows
-  doc.setFontSize(7.5);
+  const rowH = 7.5;
   data.items.forEach((item, idx) => {
-    if (y > 254) {
-      doc.addPage();
-      doc.setFillColor(...LIGHT_BG);
-      doc.rect(0, 0, pw, 297, 'F');
-      y = 20;
-    }
+    y = ensurePage(doc, y, rowH + 2);
 
     const isMO = item.tipo === 'mao_de_obra';
-    const rowH = 7.5;
 
     // Alternating row bg
     if (idx % 2 === 0) {
@@ -153,95 +197,105 @@ export function generateBudgetPDF(data: BudgetPDFData) {
       doc.rect(margin, y - 1, contentW, rowH, 'F');
     }
 
+    // Row number
     doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
     doc.setTextColor(...CARBON);
-    doc.text(String(idx + 1), colX[0] + 2, y + 4);
+    doc.text(String(idx + 1), COL.num + 2, y + 4);
 
     // Type badge
     if (isMO) {
       doc.setFillColor(245, 230, 200);
-      doc.roundedRect(colX[1], y, 12, 5.5, 1, 1, 'F');
+      doc.roundedRect(COL.tipo, y, 14, 5.5, 1, 1, 'F');
       doc.setFontSize(5.5);
       doc.setTextColor(120, 80, 20);
-      doc.text('M.O.', colX[1] + 6, y + 4, { align: 'center' });
+      doc.text('M.O.', COL.tipo + 7, y + 4, { align: 'center' });
     } else {
       doc.setFillColor(210, 228, 248);
-      doc.roundedRect(colX[1], y, 12, 5.5, 1, 1, 'F');
+      doc.roundedRect(COL.tipo, y, 14, 5.5, 1, 1, 'F');
       doc.setFontSize(5.5);
       doc.setTextColor(30, 80, 140);
-      doc.text('Peça', colX[1] + 6, y + 4, { align: 'center' });
+      doc.text('Peça', COL.tipo + 7, y + 4, { align: 'center' });
     }
 
+    // Description (truncate to fit)
     doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
     doc.setTextColor(...CARBON);
-    // Truncate description
-    const desc = item.descricao.length > 35 ? item.descricao.slice(0, 33) + '…' : item.descricao;
-    doc.text(desc, colX[2], y + 4);
+    const maxDescW = COL.qty - COL.desc - 3;
+    const desc =
+      doc.getTextWidth(item.descricao) > maxDescW
+        ? item.descricao.slice(0, 40) + '…'
+        : item.descricao;
+    doc.text(desc, COL.desc, y + 4);
 
     // Qty or hours
     doc.setFont('courier', 'normal');
+    doc.setFontSize(7.5);
     const qtyText = isMO ? `${item.horas || 0}h` : String(item.quantidade);
-    doc.text(qtyText, colX[3] + 8, y + 4, { align: 'center' });
+    doc.text(qtyText, COL.qty + 10, y + 4, { align: 'center' });
 
     // Unit price or hourly rate
     const unitText = isMO ? fmt(item.valor_hora || 0) : fmt(item.valor_unitario);
-    doc.text(unitText, colX[4] + 12, y + 4, { align: 'center' });
+    doc.text(unitText, COL.unit + 16, y + 4, { align: 'center' });
 
     // Total
     doc.setFont('courier', 'bold');
-    doc.text(fmt(item.valor_total), colX[5] + 18, y + 4, { align: 'right' });
+    doc.text(fmt(item.valor_total), COL.total + 8, y + 4, { align: 'right' });
 
     y += rowH;
   });
 
   // ═══════════ TOTALS ═══════════
+  y = ensurePage(doc, y, 50);
   y += 4;
   doc.setDrawColor(200, 205, 215);
-  doc.line(margin, y, margin + contentW, y);
+  doc.line(margin, y, rightEdge, y);
   y += 6;
 
-  const totalsX = margin + contentW - 60;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor(...GRAY);
+  const totalsX = rightEdge - 65;
 
-  doc.text('Peças:', totalsX, y);
-  doc.setFont('courier', 'bold');
-  doc.setTextColor(...CARBON);
-  doc.text(fmt(data.totalPecas), margin + contentW, y, { align: 'right' });
-  y += 5.5;
+  const drawTotalLine = (
+    label: string,
+    value: string,
+    bold = false,
+    color: [number, number, number] = CARBON,
+  ) => {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(...GRAY);
+    doc.text(label, totalsX, y);
+    doc.setFont('courier', bold ? 'bold' : 'normal');
+    doc.setTextColor(...color);
+    doc.text(value, rightEdge, y, { align: 'right' });
+    y += 5.5;
+  };
 
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...GRAY);
-  doc.text('Mão de Obra:', totalsX, y);
-  doc.setFont('courier', 'bold');
-  doc.setTextColor(...CARBON);
-  doc.text(fmt(data.totalMaoDeObra), margin + contentW, y, { align: 'right' });
-  y += 5.5;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(...GRAY);
-  doc.text(`Comissão Auditt (${data.comissaoPct}%):`, totalsX, y);
-  doc.setFont('courier', 'normal');
-  doc.setTextColor(180, 140, 50);
-  doc.text(fmt(data.totalBruto - data.totalLiquido), margin + contentW, y, { align: 'right' });
-  y += 7;
+  drawTotalLine('Peças:', fmt(data.totalPecas), true);
+  drawTotalLine('Mão de Obra:', fmt(data.totalMaoDeObra), true);
+  drawTotalLine(
+    `Comissão Auditt (${data.comissaoPct}%):`,
+    fmt(data.totalBruto - data.totalLiquido),
+    false,
+    [180, 140, 50],
+  );
+  y += 2;
 
   // Grand total box
   doc.setFillColor(...NAVY);
-  doc.roundedRect(totalsX - 4, y - 1, contentW - totalsX + 8, 10, 2, 2, 'F');
+  doc.roundedRect(totalsX - 4, y - 1, rightEdge - totalsX + 8, 10, 2, 2, 'F');
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(...WHITE);
   doc.text('TOTAL GERAL:', totalsX, y + 6);
   doc.setFont('courier', 'bold');
   doc.setFontSize(11);
-  doc.text(fmt(data.totalBruto), margin + contentW + 2, y + 6, { align: 'right' });
+  doc.text(fmt(data.totalBruto), rightEdge + 2, y + 6, { align: 'right' });
   y += 16;
 
   // ═══════════ LAUDO TÉCNICO ═══════════
-  if (data.laudoTecnico) {
-    if (y > 240) { doc.addPage(); y = 20; }
+  if (data.laudoTecnico && data.laudoTecnico.trim()) {
+    y = ensurePage(doc, y, 30);
     doc.setFillColor(235, 238, 244);
     const laudoLines = doc.splitTextToSize(data.laudoTecnico, contentW - 8);
     const laudoH = Math.max(16, laudoLines.length * 4.5 + 10);
@@ -260,7 +314,7 @@ export function generateBudgetPDF(data: BudgetPDFData) {
   }
 
   // ═══════════ APPROVAL SECTION ═══════════
-  if (y > 250) { doc.addPage(); y = 20; }
+  y = ensurePage(doc, y, 30);
 
   if (isApproved) {
     doc.setFillColor(230, 248, 230);
@@ -272,14 +326,13 @@ export function generateBudgetPDF(data: BudgetPDFData) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(10);
     doc.setTextColor(20, 100, 20);
-    doc.text('✓ ORÇAMENTO APROVADO', margin + 4, y + 9);
+    doc.text('ORÇAMENTO APROVADO', margin + 6, y + 9);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7.5);
     doc.setTextColor(40, 100, 40);
     const approvalText = `Aprovado por: ${data.approvedBy || 'Gestor da Frota'}   |   Data: ${data.approvedAt || today}`;
-    doc.text(approvalText, margin + 4, y + 16);
-    y += 24;
+    doc.text(approvalText, margin + 6, y + 16);
   } else {
     // Signature lines for pending approval
     doc.setFont('helvetica', 'bold');
@@ -291,35 +344,43 @@ export function generateBudgetPDF(data: BudgetPDFData) {
     doc.setDrawColor(180, 180, 180);
     doc.setLineWidth(0.3);
 
-    // Signature line - Oficina
+    // Signature line — Oficina
     doc.line(margin, y + 12, margin + 70, y + 12);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(7);
     doc.setTextColor(...GRAY);
     doc.text('Responsável Oficina', margin + 10, y + 17);
 
-    // Signature line - Gestor
-    doc.line(margin + contentW - 70, y + 12, margin + contentW, y + 12);
-    doc.text('Gestor da Frota', margin + contentW - 55, y + 17);
+    // Signature line — Gestor
+    doc.line(rightEdge - 70, y + 12, rightEdge, y + 12);
+    doc.text('Gestor da Frota', rightEdge - 55, y + 17);
 
     // Date line
-    doc.text(`Data: ____/____/________`, pw / 2, y + 17, { align: 'center' });
+    doc.text('Data: ____/____/________', pw / 2, y + 17, { align: 'center' });
   }
 
   // ═══════════ FOOTER ═══════════
-  const fY = 289;
-  doc.setFillColor(...GOLD);
-  doc.rect(0, fY - 4, pw, 0.5, 'F');
+  const totalPages = doc.getNumberOfPages();
+  for (let p = 1; p <= totalPages; p++) {
+    doc.setPage(p);
+    const fY = 289;
+    doc.setFillColor(...GOLD);
+    doc.rect(0, fY - 4, pw, 0.5, 'F');
 
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(5.5);
-  doc.setTextColor(160, 160, 160);
-  doc.text(
-    `Auditt Tecnologia e Logística LTDA • Documento gerado automaticamente • ${today}`,
-    pw / 2, fY, { align: 'center' }
-  );
+    doc.setFont('courier', 'normal');
+    doc.setFontSize(5.5);
+    doc.setTextColor(160, 160, 160);
+    doc.text(
+      `Auditt Tecnologia e Logística LTDA • Documento gerado automaticamente • ${today} • Página ${p}/${totalPages}`,
+      pw / 2,
+      fY,
+      { align: 'center' },
+    );
+  }
 
   // ═══════════ SAVE ═══════════
   const safePlaca = data.placa.replace(/[^a-zA-Z0-9]/g, '');
-  doc.save(`ORCAMENTO_AUDITT_${safePlaca}_${data.budgetId.slice(0, 8).toUpperCase()}.pdf`);
+  doc.save(
+    `ORCAMENTO_AUDITT_${safePlaca}_${data.budgetId.slice(0, 8).toUpperCase()}.pdf`,
+  );
 }
