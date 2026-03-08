@@ -644,6 +644,19 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
             </div>
           )}
 
+          {/* ── SECTION: Auditoria VERO 1.0 ── */}
+          <BudgetAuditPanel
+            result={auditResult}
+            loading={auditLoading}
+            error={auditError}
+            onRetry={() => {
+              // We need budget ID to retry — only available after submit
+              if (auditResult?.auditId) {
+                triggerAudit(auditResult.auditId);
+              }
+            }}
+          />
+
           {/* Bottom spacer */}
           <div className="h-6" />
         </div>
