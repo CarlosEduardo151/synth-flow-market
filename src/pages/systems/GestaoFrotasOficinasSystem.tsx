@@ -94,14 +94,29 @@ const GestaoFrotasOficinasSystem = () => {
       if (!order) { toast.error('OS não encontrada'); return; }
       const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
       
-      // Fetch budget + items
-      const { data: budgets } = await supabase.from('fleet_budgets')
-        .select('*').eq('service_order_id', orderId).order('created_at', { ascending: false }).limit(1);
-      const budget = budgets?.[0];
+      // Fetch budget + items + operator CNPJ in parallel
+      const [budgetsRes, operatorRes] = await Promise.all([
+        supabase.from('fleet_budgets')
+          .select('*').eq('service_order_id', orderId).order('created_at', { ascending: false }).limit(1),
+        user ? supabase.from('fleet_operators')
+          .select('cnpj, nome_fantasia, razao_social').eq('user_id', user.id).limit(1).single() : Promise.resolve({ data: null }),
+      ]);
+      
+      const budget = budgetsRes.data?.[0];
       if (!budget) { toast.error('Orçamento não encontrado'); return; }
       
       const { data: items } = await supabase.from('fleet_budget_items')
         .select('*').eq('budget_id', (budget as any).id).order('sort_order', { ascending: true });
+      
+      // Format CNPJ for display
+      const operatorCnpj = operatorRes.data?.cnpj;
+      const operatorName = operatorRes.data?.nome_fantasia || operatorRes.data?.razao_social;
+      const fmtCnpj = operatorCnpj
+        ? operatorCnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+        : null;
+      const gestorLabel = fmtCnpj
+        ? `${operatorName ? operatorName + ' — ' : ''}CNPJ ${fmtCnpj}`
+        : 'Gestor da Frota';
       
       const pdfData: BudgetPDFData = {
         osNumber: `${vehicle?.placa || 'N/A'}/${orderId.slice(0, 4).toUpperCase()}`,
@@ -128,7 +143,7 @@ const GestaoFrotasOficinasSystem = () => {
         totalLiquido: (budget as any).total_liquido,
         status: (budget as any).status,
         budgetId: (budget as any).id,
-        approvedBy: order.stage === 'orcamento_aprovado' ? 'Gestor da Frota' : undefined,
+        approvedBy: order.stage === 'orcamento_aprovado' ? gestorLabel : undefined,
         approvedAt: order.stage === 'orcamento_aprovado' ? new Date().toLocaleDateString('pt-BR') : undefined,
       };
       generateBudgetPDF(pdfData);
@@ -137,7 +152,7 @@ const GestaoFrotasOficinasSystem = () => {
       console.error('PDF error:', err);
       toast.error('Erro ao gerar PDF do orçamento');
     }
-  }, [fleet.serviceOrders, fleet.vehicles]);
+  }, [fleet.serviceOrders, fleet.vehicles, user]);
 
   // Auto-detect role from DB when no URL param provided
   useEffect(() => {
