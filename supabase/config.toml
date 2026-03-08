@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.auditt-onboard]
 verify_jwt = false
+
+[functions.auditt-price-audit]
+verify_jwt = false
