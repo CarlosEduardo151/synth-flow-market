@@ -115,16 +115,36 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLig
   const [budgets, setBudgets] = useState<BudgetRow[]>([]);
   const isMobile = useIsMobile();
 
-  // Load budgets from DB
+  // Load budgets from DB — query via service order's workshop_id for proper isolation
   const loadBudgets = useCallback(async () => {
-    if (!customerProductId) return;
-    const { data } = await supabase
-      .from('fleet_budgets')
-      .select('*')
-      .eq('customer_product_id', customerProductId)
-      .order('created_at', { ascending: false });
-    if (data) setBudgets(data as BudgetRow[]);
-  }, [customerProductId]);
+    if (!workshopId && !customerProductId) return;
+    try {
+      // If we have workshopId, load budgets for SOs assigned to this workshop
+      if (workshopId) {
+        const { data: sos } = await supabase
+          .from('fleet_service_orders')
+          .select('id')
+          .eq('workshop_id', workshopId);
+        const soIds = (sos || []).map((s: any) => s.id);
+        if (soIds.length === 0) { setBudgets([]); return; }
+        const { data } = await supabase
+          .from('fleet_budgets')
+          .select('*')
+          .in('service_order_id', soIds)
+          .order('created_at', { ascending: false });
+        if (data) setBudgets(data as BudgetRow[]);
+      } else if (customerProductId) {
+        const { data } = await supabase
+          .from('fleet_budgets')
+          .select('*')
+          .eq('customer_product_id', customerProductId)
+          .order('created_at', { ascending: false });
+        if (data) setBudgets(data as BudgetRow[]);
+      }
+    } catch (err) {
+      console.error('Error loading budgets:', err);
+    }
+  }, [customerProductId, workshopId]);
 
   useEffect(() => { loadBudgets(); }, [loadBudgets]);
 

@@ -72,9 +72,12 @@ const GestaoFrotasOficinasSystem = () => {
   const [fleetLight, setFleetLight] = useState(() => localStorage.getItem('fleet-theme-mode') === 'light');
   const isMobile = useIsMobile();
 
+  // Workshop ID for oficina users
+  const [workshopId, setWorkshopId] = useState<string | null>(null);
+
   // Product access & fleet data
   const { customerId: customerProductId, loading: accessLoading } = useProductAccess('gestao-frotas-oficinas');
-  const fleet = useFleetData(customerProductId);
+  const fleet = useFleetData(customerProductId, { workshopId: role === 'oficina' ? workshopId : null });
 
   // VERO 1.0 states
   const [veroStep, setVeroStep] = useState<'idle' | 'uploading' | 'analyzing' | 'result' | 'confirmed'>('idle');
@@ -83,9 +86,6 @@ const GestaoFrotasOficinasSystem = () => {
   const [veroScanType, setVeroScanType] = useState<'traseira' | 'documento'>('traseira');
   const [cadastroMode, setCadastroMode] = useState<'traseira' | 'documento' | 'manual'>('traseira');
   const [cadastroForm, setCadastroForm] = useState({ placa: '', marca: '', modelo: '', cor: '', ano: '', km: '', tipo: '', motorista: '', chassi: '', renavam: '', combustivel: '', potencia: '' });
-
-  // Workshop ID for oficina users
-  const [workshopId, setWorkshopId] = useState<string | null>(null);
 
   // ── Generate Budget PDF helper ──
   const handleDownloadBudgetPDF = useCallback(async (orderId: string) => {

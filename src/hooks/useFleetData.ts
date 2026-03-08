@@ -30,6 +30,7 @@ export interface FleetServiceOrder {
   id: string;
   customer_product_id: string;
   vehicle_id: string;
+  workshop_id: string | null;
   stage: ServiceStage;
   oficina_nome: string | null;
   descricao_servico: string | null;
@@ -78,9 +79,18 @@ interface NewServiceOrderData {
   oficina_nome?: string;
   descricao_servico?: string;
   valor_orcamento?: number;
+  /** Workshop performing the service — if set, the SO uses the vehicle owner's CP */
+  workshop_id?: string;
 }
 
-export function useFleetData(customerProductId: string | null) {
+interface UseFleetDataOptions {
+  /** When set, the hook operates in workshop mode: loads SOs by workshop_id */
+  workshopId?: string | null;
+}
+
+export function useFleetData(customerProductId: string | null, options?: UseFleetDataOptions) {
+  const workshopId = options?.workshopId || null;
+  const isWorkshopMode = !!workshopId;
   const [vehicles, setVehicles] = useState<FleetVehicle[]>([]);
   const [serviceOrders, setServiceOrders] = useState<FleetServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,14 +100,16 @@ export function useFleetData(customerProductId: string | null) {
   // ── LOAD VEHICLES ──
   const loadVehicles = useCallback(async () => {
     if (adminLoading) return;
-    if (!customerProductId && !isAdmin) return;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return;
 
     try {
       let query = supabase
         .from('fleet_vehicles')
         .select('*');
 
-      if (!isAdmin && customerProductId) {
+      // In workshop mode, RLS allows reading all vehicles (approved workshop policy)
+      // In fleet mode, filter by own CP
+      if (!isAdmin && !isWorkshopMode && customerProductId) {
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -107,19 +119,23 @@ export function useFleetData(customerProductId: string | null) {
     } catch (err: any) {
       console.error('Error loading vehicles:', err);
     }
-  }, [customerProductId, isAdmin, adminLoading]);
+  }, [customerProductId, isAdmin, adminLoading, isWorkshopMode]);
 
   // ── LOAD SERVICE ORDERS ──
   const loadServiceOrders = useCallback(async () => {
     if (adminLoading) return;
-    if (!customerProductId && !isAdmin) return;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return;
 
     try {
       let query = supabase
         .from('fleet_service_orders')
         .select('*');
 
-      if (!isAdmin && customerProductId) {
+      if (isWorkshopMode) {
+        // Workshop mode: load only SOs assigned to this workshop
+        query = query.eq('workshop_id', workshopId!);
+      } else if (!isAdmin && customerProductId) {
+        // Fleet mode: load SOs owned by this fleet
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -129,13 +145,13 @@ export function useFleetData(customerProductId: string | null) {
     } catch (err: any) {
       console.error('Error loading service orders:', err);
     }
-  }, [customerProductId, isAdmin, adminLoading]);
+  }, [customerProductId, isAdmin, adminLoading, isWorkshopMode, workshopId]);
 
   // ── INITIAL LOAD ──
   useEffect(() => {
     if (adminLoading) return;
 
-    if (!customerProductId && !isAdmin) {
+    if (!customerProductId && !isAdmin && !isWorkshopMode) {
       setLoading(false);
       return;
     }
@@ -202,26 +218,50 @@ export function useFleetData(customerProductId: string | null) {
 
   // ── CREATE SERVICE ORDER (CHECK-IN) ──
   const createServiceOrder = useCallback(async (data: NewServiceOrderData): Promise<FleetServiceOrder | null> => {
-    if (!customerProductId) return null;
     setSaving(true);
     try {
+      // Determine the correct customer_product_id:
+      // If workshop is doing check-in, use the VEHICLE OWNER's CP (fleet's CP)
+      let ownerCpId = customerProductId;
+      if (data.workshop_id || isWorkshopMode) {
+        // Fetch the vehicle's customer_product_id (belongs to the fleet owner)
+        const { data: vehicleData } = await supabase
+          .from('fleet_vehicles')
+          .select('customer_product_id')
+          .eq('id', data.vehicle_id)
+          .single();
+        if (vehicleData) {
+          ownerCpId = (vehicleData as any).customer_product_id;
+        }
+      }
+      if (!ownerCpId) {
+        toast.error('Não foi possível identificar a frota dona do veículo.');
+        return null;
+      }
+
       // Update vehicle status
       await supabase
         .from('fleet_vehicles')
         .update({ status: 'em_servico' })
         .eq('id', data.vehicle_id);
 
+      const insertData: any = {
+        customer_product_id: ownerCpId,
+        vehicle_id: data.vehicle_id,
+        stage: 'checkin',
+        oficina_nome: data.oficina_nome || null,
+        descricao_servico: data.descricao_servico || null,
+        valor_orcamento: data.valor_orcamento || null,
+        data_entrada: new Date().toISOString(),
+      };
+      // Set workshop_id if workshop is performing the check-in
+      if (data.workshop_id || workshopId) {
+        insertData.workshop_id = data.workshop_id || workshopId;
+      }
+
       const { data: created, error } = await supabase
         .from('fleet_service_orders')
-        .insert({
-          customer_product_id: customerProductId,
-          vehicle_id: data.vehicle_id,
-          stage: 'checkin',
-          oficina_nome: data.oficina_nome || null,
-          descricao_servico: data.descricao_servico || null,
-          valor_orcamento: data.valor_orcamento || null,
-          data_entrada: new Date().toISOString(),
-        })
+        .insert(insertData)
         .select()
         .single();
 
@@ -232,7 +272,7 @@ export function useFleetData(customerProductId: string | null) {
         service_order_id: (created as any).id,
         from_stage: null,
         to_stage: 'checkin',
-        changed_by: 'sistema',
+        changed_by: isWorkshopMode ? 'oficina' : 'sistema',
         notes: 'Check-in do veículo',
       });
 
@@ -246,7 +286,7 @@ export function useFleetData(customerProductId: string | null) {
     } finally {
       setSaving(false);
     }
-  }, [customerProductId, loadVehicles, loadServiceOrders]);
+  }, [customerProductId, workshopId, isWorkshopMode, loadVehicles, loadServiceOrders]);
 
   // ── UPDATE STAGE ──
   const updateStage = useCallback(async (
@@ -334,14 +374,16 @@ export function useFleetData(customerProductId: string | null) {
 
   // ── SEARCH VEHICLE BY PLACA ──
   const searchVehicleByPlaca = useCallback(async (placa: string): Promise<FleetVehicle | null> => {
-    if (!customerProductId && !isAdmin) return null;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return null;
     try {
       let query = supabase
         .from('fleet_vehicles')
         .select('*')
         .eq('placa', placa.toUpperCase().trim());
 
-      if (!isAdmin && customerProductId) {
+      // In workshop mode, search all vehicles (RLS allows approved workshops to read)
+      // In fleet mode, filter by own CP
+      if (!isAdmin && !isWorkshopMode && customerProductId) {
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -352,7 +394,7 @@ export function useFleetData(customerProductId: string | null) {
       console.error('Error searching vehicle:', err);
       return null;
     }
-  }, [customerProductId, isAdmin]);
+  }, [customerProductId, isAdmin, isWorkshopMode]);
 
   // ── GET ACTIVE SERVICE ORDER FOR VEHICLE ──
   const getActiveServiceOrder = useCallback((vehicleId: string): FleetServiceOrder | undefined => {

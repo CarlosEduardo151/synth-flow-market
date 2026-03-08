@@ -1579,6 +1579,7 @@ export type Database = {
           valor_aprovado: number | null
           valor_orcamento: number | null
           vehicle_id: string
+          workshop_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1596,6 +1597,7 @@ export type Database = {
           valor_aprovado?: number | null
           valor_orcamento?: number | null
           vehicle_id: string
+          workshop_id?: string | null
         }
         Update: {
           created_at?: string
@@ -1613,6 +1615,7 @@ export type Database = {
           valor_aprovado?: number | null
           valor_orcamento?: number | null
           vehicle_id?: string
+          workshop_id?: string | null
         }
         Relationships: [
           {
@@ -1620,6 +1623,13 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "fleet_vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_service_orders_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_partner_workshops"
             referencedColumns: ["id"]
           },
         ]
