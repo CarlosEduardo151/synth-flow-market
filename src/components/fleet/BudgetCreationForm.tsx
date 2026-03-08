@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import type { useFleetData, FleetServiceOrder, FleetVehicle } from '@/hooks/useFleetData';
 import { toast } from 'sonner';
+import { BudgetAuditPanel, type AuditResult } from './BudgetAuditPanel';
 
 // ── Catalogs ──
 const pecasCatalogo = [
@@ -136,6 +137,9 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
   const [searchQuery, setSearchQuery] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchType, setSearchType] = useState<ItemTipo>('PEÇAS');
+  const [auditResult, setAuditResult] = useState<AuditResult | null>(null);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditError, setAuditError] = useState<string | null>(null);
 
   const dataEntrada = serviceOrder.data_entrada
     ? new Date(serviceOrder.data_entrada).toLocaleDateString('pt-BR')
@@ -188,6 +192,52 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
 
   const removeItem = (id: string) => setItems(prev => prev.filter(i => i.id !== id));
 
+  // ── Audit trigger ──
+  const triggerAudit = async (budgetId: string) => {
+    setAuditLoading(true);
+    setAuditError(null);
+    setAuditResult(null);
+    try {
+      const auditItems = items.map(item => ({
+        descricao: item.descricao,
+        tipo: item.tipo,
+        valorUnitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
+        valorTotal: getValorFinal(item),
+        qtd: item.qtd,
+        code: item.code,
+        customer_product_id: serviceOrder.customer_product_id,
+      }));
+
+      const { data, error } = await supabase.functions.invoke('auditt-price-audit', {
+        body: {
+          budgetId,
+          items: auditItems,
+          vehicleInfo: {
+            marca: vehicle.marca,
+            modelo: vehicle.modelo,
+            ano: vehicle.ano,
+            placa: vehicle.placa,
+          },
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setAuditResult(data as AuditResult);
+      
+      if (data.economiaPotencial > 0) {
+        toast.info(`💰 Economia potencial detectada: ${fmt(data.economiaPotencial)}`);
+      } else {
+        toast.success('✅ Auditoria concluída — preços dentro do esperado.');
+      }
+    } catch (err: any) {
+      console.error('Audit error:', err);
+      setAuditError(err.message || 'Erro na auditoria de preços');
+    } finally {
+      setAuditLoading(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (items.length === 0) { toast.error('Adicione itens ao orçamento.'); return; }
     if (km <= 0) { toast.error('Informe o KM de entrada.'); return; }
@@ -203,8 +253,9 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         comissao_pct: 15, total_liquido: totalBruto * 0.85,
       }).select().single();
       if (budgetErr) throw budgetErr;
+      const budgetId = (budget as any).id;
       const dbItems = items.map((item, i) => ({
-        budget_id: (budget as any).id,
+        budget_id: budgetId,
         tipo: item.tipo === 'MECÂNICA' ? 'mao_de_obra' : 'peca',
         codigo: item.code, descricao: item.descricao, quantidade: item.qtd,
         valor_unitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
@@ -219,8 +270,10 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         'Orçamento enviado para aprovação',
         { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalMO)} | Total: ${fmt(totalBruto)}`, valor_orcamento: totalBruto }
       );
-      toast.success('Orçamento enviado com sucesso!');
-      onSuccess();
+      toast.success('Orçamento enviado! Auditoria VERO iniciada automaticamente...');
+      
+      // 🔥 Auto-trigger price audit after budget is saved
+      triggerAudit(budgetId);
     } catch (err) { console.error(err); toast.error('Erro ao salvar orçamento.'); }
     finally { setSaving(false); }
   };
@@ -590,6 +643,19 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
               </div>
             </div>
           )}
+
+          {/* ── SECTION: Auditoria VERO 1.0 ── */}
+          <BudgetAuditPanel
+            result={auditResult}
+            loading={auditLoading}
+            error={auditError}
+            onRetry={() => {
+              // We need budget ID to retry — only available after submit
+              if (auditResult?.auditId) {
+                triggerAudit(auditResult.auditId);
+              }
+            }}
+          />
 
           {/* Bottom spacer */}
           <div className="h-6" />
