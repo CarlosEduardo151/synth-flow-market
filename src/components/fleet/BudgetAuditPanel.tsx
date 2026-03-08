@@ -47,6 +47,11 @@ export interface AuditResult {
   };
   alerts: number;
   warnings: number;
+  stats?: {
+    cacheHits: number;
+    scrapeCount: number;
+    totalItems: number;
+  };
 }
 
 interface Props {
@@ -409,10 +414,16 @@ export function BudgetAuditPanel({ result, loading, error, onRetry }: Props) {
                 <span>Frete: +{result.config.fretePercent}%</span>
                 <span>•</span>
                 <span>Conveniência: +{result.config.convenienciaPercent}%</span>
-                <span>•</span>
-                <span>Alerta: &gt;{result.config.margemAtencao}% (amarelo) / &gt;{result.config.margemSobrepreco}% (vermelho)</span>
+                {result.stats && (
+                  <>
+                    <span>•</span>
+                    <span>💾 {result.stats.cacheHits} cache hits</span>
+                    <span>•</span>
+                    <span>🌐 {result.stats.scrapeCount} scrapes ao vivo</span>
+                  </>
+                )}
               </div>
-              <span className="text-[hsl(210,60%,50%)] font-semibold">Powered by VERO 1.0</span>
+              <span className="text-[hsl(210,60%,50%)] font-semibold">Powered by VERO 1.0 — Cache Inteligente</span>
             </div>
           </>
         )}
