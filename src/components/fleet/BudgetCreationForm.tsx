@@ -201,10 +201,14 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
       const auditItems = items.map(item => ({
         descricao: item.descricao,
         tipo: item.tipo,
+        code: item.code,
         valorUnitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
         valorTotal: getValorFinal(item),
         qtd: item.qtd,
-        code: item.code,
+        horas: item.horas || 0,
+        valorHora: item.valorHora || 0,
+        refPrice: item.refPrice || 0,
+        refHora: item.refHora || 0,
         customer_product_id: serviceOrder.customer_product_id,
       }));
 
