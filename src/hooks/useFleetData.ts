@@ -151,7 +151,7 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
   useEffect(() => {
     if (adminLoading) return;
 
-    if (!customerProductId && !isAdmin) {
+    if (!customerProductId && !isAdmin && !isWorkshopMode) {
       setLoading(false);
       return;
     }
