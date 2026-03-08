@@ -100,14 +100,16 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
   // ── LOAD VEHICLES ──
   const loadVehicles = useCallback(async () => {
     if (adminLoading) return;
-    if (!customerProductId && !isAdmin) return;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return;
 
     try {
       let query = supabase
         .from('fleet_vehicles')
         .select('*');
 
-      if (!isAdmin && customerProductId) {
+      // In workshop mode, RLS allows reading all vehicles (approved workshop policy)
+      // In fleet mode, filter by own CP
+      if (!isAdmin && !isWorkshopMode && customerProductId) {
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -117,19 +119,23 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
     } catch (err: any) {
       console.error('Error loading vehicles:', err);
     }
-  }, [customerProductId, isAdmin, adminLoading]);
+  }, [customerProductId, isAdmin, adminLoading, isWorkshopMode]);
 
   // ── LOAD SERVICE ORDERS ──
   const loadServiceOrders = useCallback(async () => {
     if (adminLoading) return;
-    if (!customerProductId && !isAdmin) return;
+    if (!customerProductId && !isAdmin && !isWorkshopMode) return;
 
     try {
       let query = supabase
         .from('fleet_service_orders')
         .select('*');
 
-      if (!isAdmin && customerProductId) {
+      if (isWorkshopMode) {
+        // Workshop mode: load only SOs assigned to this workshop
+        query = query.eq('workshop_id', workshopId!);
+      } else if (!isAdmin && customerProductId) {
+        // Fleet mode: load SOs owned by this fleet
         query = query.eq('customer_product_id', customerProductId);
       }
 
@@ -139,7 +145,7 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
     } catch (err: any) {
       console.error('Error loading service orders:', err);
     }
-  }, [customerProductId, isAdmin, adminLoading]);
+  }, [customerProductId, isAdmin, adminLoading, isWorkshopMode, workshopId]);
 
   // ── INITIAL LOAD ──
   useEffect(() => {
