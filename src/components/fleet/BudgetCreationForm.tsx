@@ -275,8 +275,34 @@ export function BudgetCreationForm({ serviceOrder, vehicle, fleet, onClose, onSu
         'Orçamento enviado para aprovação',
         { descricao_servico: `Peças: ${fmt(totalPecas)} | M.O: ${fmt(totalMO)} | Total: ${fmt(totalBruto)}`, valor_orcamento: totalBruto }
       );
-      toast.success('Orçamento enviado! Auditoria VERO iniciada automaticamente...');
+      toast.success('Orçamento enviado! Gerando PDF...');
       
+      // 📄 Auto-generate PDF
+      const pdfItems = items.map(item => ({
+        tipo: (item.tipo === 'MECÂNICA' ? 'mao_de_obra' : 'peca') as 'peca' | 'mao_de_obra',
+        codigo: item.code,
+        descricao: item.descricao,
+        quantidade: item.qtd,
+        valor_unitario: item.tipo === 'MECÂNICA' ? (item.horas || 0) * (item.valorHora || 0) : item.valorUnitario,
+        valor_total: getValorFinal(item),
+        horas: item.horas || null,
+        valor_hora: item.valorHora || null,
+      }));
+      generateBudgetPDF({
+        osNumber: osNumber,
+        placa: vehicle.placa,
+        veiculo: veiculoDesc || 'N/A',
+        km,
+        dataEntrada,
+        oficinaNome: serviceOrder.oficina_nome || 'Oficina',
+        laudoTecnico: laudo || 'Orçamento gerado via Auditt.',
+        items: pdfItems,
+        totalPecas, totalMaoDeObra: totalMO, totalBruto,
+        comissaoPct: 15, totalLiquido: totalBruto * 0.85,
+        status: 'pendente',
+        budgetId,
+      });
+
       // 🔥 Auto-trigger price audit after budget is saved
       triggerAudit(budgetId);
     } catch (err) { console.error(err); toast.error('Erro ao salvar orçamento.'); }
