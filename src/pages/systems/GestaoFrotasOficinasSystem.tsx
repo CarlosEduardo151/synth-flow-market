@@ -1051,14 +1051,28 @@ const GestaoFrotasOficinasSystem = () => {
                             <MessageCircle className="w-3.5 h-3.5" /> Chat
                           </Button>
                         </div>
+                        {/* Evidence Photos */}
+                        {v.activeOrder && (
+                          <details className="group pt-2">
+                            <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
+                              <Camera className="w-3.5 h-3.5" />
+                              <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
+                              Fotos e Evidências
+                            </summary>
+                            <div className="mt-3">
+                              <FleetEvidencePhotos
+                                serviceOrderId={v.activeOrder.id}
+                                customerProductId={customerProductId || ''}
+                                readOnly
+                              />
+                            </div>
+                          </details>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
                 </div>
               )}
-
-              {/* Available vehicles — compact table */}
-              {disponiveis.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Disponíveis ({disponiveis.length})
