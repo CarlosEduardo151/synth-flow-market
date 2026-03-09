@@ -1073,6 +1073,9 @@ const GestaoFrotasOficinasSystem = () => {
                   ))}
                 </div>
               )}
+
+              {/* Available vehicles — compact table */}
+              {disponiveis.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Disponíveis ({disponiveis.length})
