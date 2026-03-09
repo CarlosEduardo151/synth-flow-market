@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { BudgetCreationForm } from '@/components/fleet/BudgetCreationForm';
