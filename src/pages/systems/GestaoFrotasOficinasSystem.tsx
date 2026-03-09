@@ -486,8 +486,14 @@ const GestaoFrotasOficinasSystem = () => {
                               <div className="mt-2 space-y-3">
                                 <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
                                   <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
-                                  {descricao}
-                                </pre>
+                                    {descricao}
+                                  </pre>
+                                </div>
+                                <FleetEvidencePhotos
+                                  serviceOrderId={order.id}
+                                  customerProductId={customerProductId || ''}
+                                  readOnly
+                                />
                               </div>
                             </details>
                           </div>
