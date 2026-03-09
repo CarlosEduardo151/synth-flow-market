@@ -1238,6 +1238,53 @@ export type Database = {
           },
         ]
       }
+      fleet_evidence_photos: {
+        Row: {
+          caption: string | null
+          category: string
+          created_at: string
+          customer_product_id: string
+          file_name: string | null
+          file_size_bytes: number | null
+          id: string
+          service_order_id: string
+          storage_path: string
+          uploaded_by: string
+        }
+        Insert: {
+          caption?: string | null
+          category?: string
+          created_at?: string
+          customer_product_id: string
+          file_name?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          service_order_id: string
+          storage_path: string
+          uploaded_by?: string
+        }
+        Update: {
+          caption?: string | null
+          category?: string
+          created_at?: string
+          customer_product_id?: string
+          file_name?: string | null
+          file_size_bytes?: number | null
+          id?: string
+          service_order_id?: string
+          storage_path?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_evidence_photos_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_messages: {
         Row: {
           attachment_url: string | null
