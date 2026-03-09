@@ -481,10 +481,11 @@ const GestaoFrotasOficinasSystem = () => {
                             <details className="group">
                               <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
                                 <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
-                                Ver detalhes do orçamento
+                                Ver detalhes e evidências
                               </summary>
-                              <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border/30">
-                                <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
+                              <div className="mt-2 space-y-3">
+                                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                                  <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
                                   {descricao}
                                 </pre>
                               </div>
