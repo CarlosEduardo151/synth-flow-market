@@ -1170,26 +1170,84 @@ const GestaoFrotasOficinasSystem = () => {
         // ════════════════════════════════════
         // FINANCEIRO
         // ════════════════════════════════════
-        case 'financeiro':
+        case 'financeiro': {
+          const approvedOrders = fleet.serviceOrders.filter(so => so.stage === 'orcamento_aprovado' || so.stage === 'veiculo_finalizado' || so.stage === 'veiculo_entregue');
+          const totalSpent = approvedOrders.reduce((sum, so) => sum + (so.valor_aprovado || so.valor_orcamento || 0), 0);
+          const currentMonthSpent = approvedOrders.filter(so => so.data_entrada && new Date(so.data_entrada).getMonth() === new Date().getMonth()).reduce((sum, so) => sum + (so.valor_aprovado || so.valor_orcamento || 0), 0);
+          
           return (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">Financeiro</h2>
-                  <p className="text-sm text-muted-foreground">Controle de pagamentos e notas fiscais</p>
+                  <h2 className="text-lg font-semibold text-foreground">Dashboard Financeiro</h2>
+                  <p className="text-sm text-muted-foreground">Consolidação de gastos e pagamentos</p>
                 </div>
+                <Button variant="outline" className="gap-2" onClick={() => toast.info('Exportação iniciada')}><Download className="w-4 h-4"/> Exportar Relatório</Button>
               </div>
-              <Card className="border border-border/50">
-                <CardContent className="p-12 text-center">
-                  <CircleDollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-foreground">Em breve</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                    O módulo financeiro será alimentado automaticamente conforme os orçamentos forem aprovados e os serviços concluídos.
-                  </p>
-                </CardContent>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="border border-border/50 shadow-sm bg-card">
+                  <CardContent className="p-5 flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Gastos no Mês</span>
+                    <span className="text-3xl font-bold text-foreground">{currentMonthSpent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </CardContent>
+                </Card>
+                <Card className="border border-border/50 shadow-sm bg-card">
+                  <CardContent className="p-5 flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Acumulado Geral</span>
+                    <span className="text-3xl font-bold text-foreground">{totalSpent.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                  </CardContent>
+                </Card>
+                <Card className="border border-border/50 shadow-sm bg-card">
+                  <CardContent className="p-5 flex flex-col gap-1">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Serviços Aprovados</span>
+                    <span className="text-3xl font-bold text-foreground">{approvedOrders.length}</span>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card className="border border-border/50 shadow-sm overflow-hidden">
+                <div className="px-5 py-4 border-b border-border/40">
+                  <h3 className="text-sm font-semibold text-foreground">Extrato de Serviços</h3>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b bg-muted/30">
+                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Veículo</th>
+                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Oficina</th>
+                        <th className="text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Serviço</th>
+                        <th className="text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Status</th>
+                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Valor</th>
+                        <th className="text-right text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 py-3">Data</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/30">
+                      {approvedOrders.length > 0 ? approvedOrders.map(order => {
+                        const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
+                        return (
+                          <tr key={order.id} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-5 py-3">
+                              <span className="text-sm font-mono font-bold text-foreground">{vehicle?.placa || '—'}</span>
+                              {vehicle?.modelo && <p className="text-[10px] text-muted-foreground">{vehicle.modelo}</p>}
+                            </td>
+                            <td className="px-5 py-3 text-sm text-foreground font-medium">{order.oficina_nome || '—'}</td>
+                            <td className="px-5 py-3 text-sm text-muted-foreground max-w-xs truncate">{order.descricao_servico || 'Manutenção'}</td>
+                            <td className="px-5 py-3 text-center"><ServiceStageBadge stage={order.stage as ServiceStage} /></td>
+                            <td className="px-5 py-3 text-sm font-bold text-right text-foreground">{(order.valor_aprovado || order.valor_orcamento || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                            <td className="px-5 py-3 text-sm text-muted-foreground text-right">{order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '—'}</td>
+                          </tr>
+                        );
+                      }) : (
+                        <tr><td colSpan={6} className="text-center py-8 text-sm text-muted-foreground">Nenhum serviço aprovado ainda.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </Card>
             </div>
           );
+        }
 
         // ════════════════════════════════════
         // RELATÓRIOS
