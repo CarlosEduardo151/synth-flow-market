@@ -1288,6 +1288,65 @@ export type Database = {
           },
         ]
       }
+      fleet_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_product_id: string
+          delivered: boolean
+          id: string
+          is_read: boolean
+          message: string
+          metadata: Json | null
+          recipient_role: string
+          recipient_user_id: string | null
+          sent_at: string | null
+          service_order_id: string | null
+          stage: string | null
+          title: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          customer_product_id: string
+          delivered?: boolean
+          id?: string
+          is_read?: boolean
+          message: string
+          metadata?: Json | null
+          recipient_role?: string
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          service_order_id?: string | null
+          stage?: string | null
+          title: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_product_id?: string
+          delivered?: boolean
+          id?: string
+          is_read?: boolean
+          message?: string
+          metadata?: Json | null
+          recipient_role?: string
+          recipient_user_id?: string | null
+          sent_at?: string | null
+          service_order_id?: string | null
+          stage?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_notifications_service_order_id_fkey"
+            columns: ["service_order_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_service_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_operators: {
         Row: {
           cidade: string | null
