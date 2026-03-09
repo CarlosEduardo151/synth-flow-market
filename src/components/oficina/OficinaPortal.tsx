@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { FleetChat } from '@/components/fleet/FleetChat';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { BudgetCreationForm } from '@/components/fleet/BudgetCreationForm';
@@ -524,32 +525,54 @@ export function OficinaPortal({ onSwitchRole, fleet, customerProductId, fleetLig
                 <h3 className="text-sm font-semibold">Veículos no Pátio</h3>
               </div>
               <div className="divide-y divide-border/30">
-                {patioData.map(v => (
-                  <div key={v.id} className="flex items-center justify-between px-5 py-3 hover:bg-muted/20 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono font-semibold text-sm text-foreground">{v.placa}</span>
-                      <span className="text-sm text-muted-foreground">{v.modelo}</span>
-                      <span className="text-xs text-muted-foreground">· Entrada {v.horaEntrada}</span>
+                {patioData.map(v => {
+                  const soForPhotos = fleet?.serviceOrders.find(s => s.id === v.id);
+                  const cpIdForPhotos = soForPhotos?.customer_product_id || customerProductId || '';
+                  return (
+                  <div key={v.id} className="px-5 py-3">
+                    <div className="flex items-center justify-between hover:bg-muted/20 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono font-semibold text-sm text-foreground">{v.placa}</span>
+                        <span className="text-sm text-muted-foreground">{v.modelo}</span>
+                        <span className="text-xs text-muted-foreground">· Entrada {v.horaEntrada}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {v.valorTotal > 0 && <span className="text-sm font-semibold text-foreground">{fmt(v.valorTotal)}</span>}
+                        <ServiceStageBadge stage={v.stage} />
+                        {v.stage === 'orcamento_aprovado' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setSelectedVeiculo(v); setFinalizarDialog(true); }}>
+                            Finalizar
+                          </Button>
+                        )}
+                        {v.stage === 'checkin' && (
+                          <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => {
+                            const so = fleet?.serviceOrders.find(s => s.id === v.id);
+                            if (so) setBudgetServiceOrder(so);
+                          }}>
+                            <Plus className="w-3 h-3" /> Orçamento
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {v.valorTotal > 0 && <span className="text-sm font-semibold text-foreground">{fmt(v.valorTotal)}</span>}
-                      <ServiceStageBadge stage={v.stage} />
-                      {v.stage === 'orcamento_aprovado' && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setSelectedVeiculo(v); setFinalizarDialog(true); }}>
-                          Finalizar
-                        </Button>
-                      )}
-                      {v.stage === 'checkin' && (
-                        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => {
-                          const so = fleet?.serviceOrders.find(s => s.id === v.id);
-                          if (so) setBudgetServiceOrder(so);
-                        }}>
-                          <Plus className="w-3 h-3" /> Orçamento
-                        </Button>
-                      )}
-                    </div>
+                    {/* Evidence Photos for this SO */}
+                    {soForPhotos && (
+                      <details className="mt-2 group">
+                        <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
+                          <Camera className="w-3.5 h-3.5" />
+                          Fotos e Evidências
+                        </summary>
+                        <div className="mt-2">
+                          <FleetEvidencePhotos
+                            serviceOrderId={v.id}
+                            customerProductId={cpIdForPhotos}
+                            uploadedBy="oficina"
+                          />
+                        </div>
+                      </details>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (

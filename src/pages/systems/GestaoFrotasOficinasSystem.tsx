@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProductAccess } from '@/hooks/useProductAccess';
 import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
 import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
+import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -480,12 +481,19 @@ const GestaoFrotasOficinasSystem = () => {
                             <details className="group">
                               <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
                                 <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
-                                Ver detalhes do orçamento
+                                Ver detalhes e evidências
                               </summary>
-                              <div className="mt-2 p-3 rounded-lg bg-muted/30 border border-border/30">
-                                <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
-                                  {descricao}
-                                </pre>
+                              <div className="mt-2 space-y-3">
+                                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
+                                  <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
+                                    {descricao}
+                                  </pre>
+                                </div>
+                                <FleetEvidencePhotos
+                                  serviceOrderId={order.id}
+                                  customerProductId={customerProductId || ''}
+                                  readOnly
+                                />
                               </div>
                             </details>
                           </div>
@@ -1043,6 +1051,23 @@ const GestaoFrotasOficinasSystem = () => {
                             <MessageCircle className="w-3.5 h-3.5" /> Chat
                           </Button>
                         </div>
+                        {/* Evidence Photos */}
+                        {v.activeOrder && (
+                          <details className="group pt-2">
+                            <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
+                              <Camera className="w-3.5 h-3.5" />
+                              <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
+                              Fotos e Evidências
+                            </summary>
+                            <div className="mt-3">
+                              <FleetEvidencePhotos
+                                serviceOrderId={v.activeOrder.id}
+                                customerProductId={customerProductId || ''}
+                                readOnly
+                              />
+                            </div>
+                          </details>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
