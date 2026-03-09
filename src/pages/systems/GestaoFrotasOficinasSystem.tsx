@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useProductAccess } from '@/hooks/useProductAccess';
 import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
 import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
+import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
