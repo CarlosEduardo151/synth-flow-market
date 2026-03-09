@@ -345,6 +345,26 @@ export function useFleetData(customerProductId: string | null, options?: UseFlee
         veiculo_entregue: 'Veículo Entregue',
       };
       toast.success(`Etapa atualizada: ${stageLabels[newStage]}`);
+
+      // Fire multichannel notification (fire-and-forget)
+      const vehicle = (current as any).vehicle_id
+        ? await supabase.from('fleet_vehicles').select('placa, customer_product_id').eq('id', (current as any).vehicle_id).single()
+        : null;
+
+      const cpId = vehicle?.data?.customer_product_id || customerProductId;
+      if (cpId) {
+        supabase.functions.invoke('fleet-notify', {
+          body: {
+            service_order_id: serviceOrderId,
+            stage: newStage,
+            from_stage: (current as any).stage,
+            vehicle_placa: vehicle?.data?.placa || undefined,
+            customer_product_id: cpId,
+            changed_by: changedBy,
+            valor: extraData?.valor_aprovado || extraData?.valor_orcamento || undefined,
+          },
+        }).catch(err => console.warn('Notification dispatch failed:', err));
+      }
       await Promise.all([loadVehicles(), loadServiceOrders()]);
       return true;
     } catch (err: any) {
