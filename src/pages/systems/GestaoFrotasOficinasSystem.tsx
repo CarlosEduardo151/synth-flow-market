@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OficinaPortal } from '@/components/oficina/OficinaPortal';
 import { FleetChat } from '@/components/fleet/FleetChat';
+import { FleetNotificationBell } from '@/components/fleet/FleetNotificationBell';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
@@ -1362,10 +1363,7 @@ const GestaoFrotasOficinasSystem = () => {
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={toggleFleetTheme}>
                 {fleetLight ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
               </Button>
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground relative">
-                <Bell className="w-4 h-4" />
-                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive rounded-full text-[9px] text-destructive-foreground flex items-center justify-center font-bold">{orcamentosPendentes}</span>
-              </Button>
+              <FleetNotificationBell />
               <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground"><Download className="w-4 h-4" /></Button>
             </div>
           </header>
