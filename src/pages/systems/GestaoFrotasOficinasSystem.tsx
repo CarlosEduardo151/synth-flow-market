@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { OficinaPortal } from '@/components/oficina/OficinaPortal';
 import { FleetChat } from '@/components/fleet/FleetChat';
+import { FleetNotificationBell } from '@/components/fleet/FleetNotificationBell';
 import { ServiceStagePipeline, ServiceStageBadge, type ServiceStage } from '@/components/fleet/ServiceStagePipeline';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate, useSearchParams } from 'react-router-dom';
