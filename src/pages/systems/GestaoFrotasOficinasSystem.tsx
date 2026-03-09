@@ -1009,9 +1009,20 @@ const GestaoFrotasOficinasSystem = () => {
                             </Button>
                           )}
                           {v.currentStage === 'veiculo_finalizado' && (
-                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Serviço concluído — aguardando retirada
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-muted-foreground items-center gap-1.5 hidden lg:flex">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Serviço concluído
+                              </span>
+                              <Button size="sm" className="gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white" 
+                                onClick={async () => {
+                                  if (v.activeOrder) {
+                                    const ok = await fleet.updateStage(v.activeOrder.id, 'veiculo_entregue', 'gestor_frota', 'Veículo entregue confirmado');
+                                    if (ok) toast.success('Entrega confirmada com sucesso!');
+                                  }
+                                }}>
+                                <Check className="w-3.5 h-3.5" /> Confirmar Entrega
+                              </Button>
+                            </div>
                           )}
                           {v.currentStage === 'veiculo_entregue' && (
                             <ServiceStageBadge stage={v.currentStage} />
