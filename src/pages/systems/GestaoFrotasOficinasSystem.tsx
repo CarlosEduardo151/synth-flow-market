@@ -445,9 +445,7 @@ const GestaoFrotasOficinasSystem = () => {
                 </Card>
               )}
 
-              {/* Available vehicles — compact table */}
-              {disponiveis.length > 0 && (
-                <div className="space-y-3">
+              <div className="space-y-3">
                 {pendingOrders.map((order) => {
                   const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
                   const placa = vehicle?.placa || 'N/A';
