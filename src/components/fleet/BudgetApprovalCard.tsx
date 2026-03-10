@@ -160,7 +160,7 @@ export function BudgetApprovalCard({
         oficinaNome: oficina,
         laudoTecnico: budget.laudo_tecnico || '',
         items: items.map(it => ({
-          tipo: it.tipo,
+          tipo: it.tipo as 'peca' | 'mao_de_obra',
           codigo: it.codigo || '',
           descricao: it.descricao,
           quantidade: it.quantidade,
