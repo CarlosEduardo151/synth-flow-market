@@ -74,6 +74,7 @@ const GestaoFrotasOficinasSystem = () => {
   const [searchVeiculos, setSearchVeiculos] = useState('');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<FleetVehicle | null>(null);
+  const [historyVehicle, setHistoryVehicle] = useState<FleetVehicle | null>(null);
   const [fleetLight, setFleetLight] = useState(() => localStorage.getItem('fleet-theme-mode') === 'light');
   const isMobile = useIsMobile();
 
