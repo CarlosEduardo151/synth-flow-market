@@ -977,6 +977,9 @@ const GestaoFrotasOficinasSystem = () => {
                             </span>
                           )}
                           <div className="flex-1" />
+                          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setHistoryVehicle(v)}>
+                            <Clock className="w-3.5 h-3.5" /> Histórico
+                          </Button>
                           <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setActiveTab('questionar')}>
                             <MessageCircle className="w-3.5 h-3.5" /> Chat
                           </Button>
