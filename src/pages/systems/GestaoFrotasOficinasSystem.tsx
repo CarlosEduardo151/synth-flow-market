@@ -13,6 +13,7 @@ import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestD
 import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { BudgetApprovalCard } from '@/components/fleet/BudgetApprovalCard';
 import { FleetReports } from '@/components/fleet/FleetReports';
+import { VehicleMaintenanceHistory } from '@/components/fleet/VehicleMaintenanceHistory';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -73,6 +74,7 @@ const GestaoFrotasOficinasSystem = () => {
   const [searchVeiculos, setSearchVeiculos] = useState('');
   const [frotaSidebarOpen, setFrotaSidebarOpen] = useState(false);
   const [maintenanceVehicle, setMaintenanceVehicle] = useState<FleetVehicle | null>(null);
+  const [historyVehicle, setHistoryVehicle] = useState<FleetVehicle | null>(null);
   const [fleetLight, setFleetLight] = useState(() => localStorage.getItem('fleet-theme-mode') === 'light');
   const isMobile = useIsMobile();
 
@@ -867,6 +869,17 @@ const GestaoFrotasOficinasSystem = () => {
         // VEÍCULOS (FROTA)
         // ════════════════════════════════════
         case 'frota': {
+          // If a vehicle is selected for history, show the history view
+          if (historyVehicle) {
+            return (
+              <VehicleMaintenanceHistory
+                vehicle={historyVehicle}
+                serviceOrders={fleet.serviceOrders}
+                onBack={() => setHistoryVehicle(null)}
+              />
+            );
+          }
+
           const allVehicles = fleet.vehiclesWithOrders.filter(v =>
             v.placa.toLowerCase().includes(searchVeiculos.toLowerCase()) ||
             (v.modelo || '').toLowerCase().includes(searchVeiculos.toLowerCase()) ||
@@ -964,6 +977,9 @@ const GestaoFrotasOficinasSystem = () => {
                             </span>
                           )}
                           <div className="flex-1" />
+                          <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setHistoryVehicle(v)}>
+                            <Clock className="w-3.5 h-3.5" /> Histórico
+                          </Button>
                           <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setActiveTab('questionar')}>
                             <MessageCircle className="w-3.5 h-3.5" /> Chat
                           </Button>
@@ -1021,7 +1037,15 @@ const GestaoFrotasOficinasSystem = () => {
                               <td className="px-4 py-3.5 text-center">
                                 <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20" variant="outline">Disponível</Badge>
                               </td>
-                              <td className="px-4 py-3.5 text-right">
+                              <td className="px-4 py-3.5 text-right space-x-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="gap-1 text-xs"
+                                  onClick={() => setHistoryVehicle(v)}
+                                >
+                                  <Clock className="w-3.5 h-3.5" /> Histórico
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
