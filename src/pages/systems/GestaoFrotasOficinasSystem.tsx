@@ -11,6 +11,7 @@ import { useProductAccess } from '@/hooks/useProductAccess';
 import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
 import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
 import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
+import { BudgetApprovalCard } from '@/components/fleet/BudgetApprovalCard';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
