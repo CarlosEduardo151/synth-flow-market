@@ -446,125 +446,40 @@ const GestaoFrotasOficinasSystem = () => {
                 </Card>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 {pendingOrders.map((order) => {
                   const vehicle = fleet.vehicles.find(v => v.id === order.vehicle_id);
-                  const placa = vehicle?.placa || 'N/A';
-                  const modelo = vehicle ? `${vehicle.marca || ''} ${vehicle.modelo || ''}`.trim() : 'N/A';
-                  const km = vehicle?.km_atual || 0;
-                  const descricao = order.descricao_servico || 'Sem descrição';
-                  const valor = order.valor_orcamento || 0;
-                  const oficina = order.oficina_nome || 'Oficina';
-                  const dataEntrada = order.data_entrada ? new Date(order.data_entrada).toLocaleDateString('pt-BR') : '--';
-
                   return (
-                    <Card key={order.id} className="border border-border/50 shadow-sm overflow-hidden">
-                      <div className={`h-1 ${order.stage === 'orcamento_enviado' ? 'bg-amber-500' : 'bg-primary'}`} />
-                      <CardContent className="p-5">
-                        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                          <div className="flex-1 min-w-0 space-y-3">
-                            <div className="flex items-center gap-3 flex-wrap">
-                              <span className="font-mono font-bold text-foreground text-lg">{placa}</span>
-                              <Separator orientation="vertical" className="h-5" />
-                              <span className="text-sm text-muted-foreground">{modelo}</span>
-                              <Separator orientation="vertical" className="h-5" />
-                              <span className="text-sm font-medium text-muted-foreground">{oficina}</span>
-                              <ServiceStageBadge stage={order.stage as ServiceStage} />
-                            </div>
-
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                              <span>KM: {km.toLocaleString('pt-BR')}</span>
-                              <span>·</span>
-                              <span>Entrada: {dataEntrada}</span>
-                            </div>
-
-                            {/* Budget details */}
-                            <details className="group">
-                              <summary className="cursor-pointer text-xs font-medium text-primary flex items-center gap-1">
-                                <ChevronDown className="w-3.5 h-3.5 group-open:rotate-180 transition-transform" />
-                                Ver detalhes e evidências
-                              </summary>
-                              <div className="mt-2 space-y-3">
-                                <div className="p-3 rounded-lg bg-muted/30 border border-border/30">
-                                  <pre className="text-xs text-foreground whitespace-pre-wrap font-sans leading-relaxed max-h-64 overflow-y-auto">
-                                    {descricao}
-                                  </pre>
-                                </div>
-                                <FleetEvidencePhotos
-                                  serviceOrderId={order.id}
-                                  customerProductId={customerProductId || ''}
-                                  readOnly
-                                />
-                              </div>
-                            </details>
-                          </div>
-
-                          {/* Right side — Value & Actions */}
-                          <div className="flex flex-col items-end gap-3 shrink-0 lg:min-w-[200px]">
-                            <div className="text-right">
-                              <p className="text-2xl font-bold text-foreground">
-                                {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                              </p>
-                              <p className="text-xs text-muted-foreground">Valor do orçamento</p>
-                            </div>
-                            <div className="flex gap-2 w-full lg:w-auto">
-                              <Button
-                                size="default"
-                                variant="outline"
-                                className="gap-2 flex-1 lg:flex-none"
-                                onClick={() => handleDownloadBudgetPDF(order.id)}
-                              >
-                                <FileDown className="w-4 h-4" /> Ver PDF
-                              </Button>
-                            </div>
-                            <div className="flex gap-2 w-full lg:w-auto">
-                              <Button
-                                size="default"
-                                className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white flex-1 lg:flex-none"
-                                disabled={fleet.saving}
-                                onClick={async () => {
-                                  const ok = await fleet.updateStage(
-                                    order.id,
-                                    'orcamento_aprovado',
-                                    'gestor_frota',
-                                    'Orçamento aprovado pelo gestor',
-                                    { valor_aprovado: valor }
-                                  );
-                                  if (ok) toast.success(`Orçamento de ${placa} aprovado!`);
-                                }}
-                              >
-                                <Check className="w-4 h-4" /> Aprovar
-                              </Button>
-                              <Button
-                                size="default"
-                                variant="outline"
-                                className="gap-2 flex-1 lg:flex-none"
-                                onClick={() => { setActiveTab('questionar'); }}
-                              >
-                                <MessageCircle className="w-4 h-4" /> Questionar
-                              </Button>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              className="gap-1 text-xs text-destructive"
-                              disabled={fleet.saving}
-                              onClick={async () => {
-                                const ok = await fleet.updateStage(
-                                  order.id,
-                                  'checkin',
-                                  'gestor_frota',
-                                  'Orçamento recusado pelo gestor — devolvido para check-in'
-                                );
-                                if (ok) toast.success(`Orçamento de ${placa} recusado.`);
-                              }}
-                            >
-                              <X className="w-3.5 h-3.5" /> Recusar
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <BudgetApprovalCard
+                      key={order.id}
+                      order={order}
+                      vehicle={vehicle}
+                      customerProductId={customerProductId || ''}
+                      saving={fleet.saving}
+                      user={user}
+                      onApprove={async (orderId, valor, notes) => {
+                        const ok = await fleet.updateStage(
+                          orderId,
+                          'orcamento_aprovado',
+                          'gestor_frota',
+                          notes || 'Orçamento aprovado pelo gestor',
+                          { valor_aprovado: valor }
+                        );
+                        if (ok) toast.success(`Orçamento de ${vehicle?.placa || 'veículo'} aprovado!`);
+                        return ok;
+                      }}
+                      onReject={async (orderId, notes) => {
+                        const ok = await fleet.updateStage(
+                          orderId,
+                          'checkin',
+                          'gestor_frota',
+                          `Orçamento recusado: ${notes}`
+                        );
+                        if (ok) toast.success(`Orçamento de ${vehicle?.placa || 'veículo'} recusado.`);
+                        return ok;
+                      }}
+                      onQuestion={() => setActiveTab('questionar')}
+                    />
                   );
                 })}
               </div>
