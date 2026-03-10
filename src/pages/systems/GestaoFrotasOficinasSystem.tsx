@@ -13,6 +13,7 @@ import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestD
 import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { BudgetApprovalCard } from '@/components/fleet/BudgetApprovalCard';
 import { FleetReports } from '@/components/fleet/FleetReports';
+import { VehicleMaintenanceHistory } from '@/components/fleet/VehicleMaintenanceHistory';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
