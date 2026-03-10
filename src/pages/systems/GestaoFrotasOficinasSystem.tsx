@@ -1037,7 +1037,15 @@ const GestaoFrotasOficinasSystem = () => {
                               <td className="px-4 py-3.5 text-center">
                                 <Badge className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/20" variant="outline">Disponível</Badge>
                               </td>
-                              <td className="px-4 py-3.5 text-right">
+                              <td className="px-4 py-3.5 text-right space-x-1">
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="gap-1 text-xs"
+                                  onClick={() => setHistoryVehicle(v)}
+                                >
+                                  <Clock className="w-3.5 h-3.5" /> Histórico
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
