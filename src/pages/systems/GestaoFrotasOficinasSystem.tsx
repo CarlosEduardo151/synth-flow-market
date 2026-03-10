@@ -869,6 +869,17 @@ const GestaoFrotasOficinasSystem = () => {
         // VEÍCULOS (FROTA)
         // ════════════════════════════════════
         case 'frota': {
+          // If a vehicle is selected for history, show the history view
+          if (historyVehicle) {
+            return (
+              <VehicleMaintenanceHistory
+                vehicle={historyVehicle}
+                serviceOrders={fleet.serviceOrders}
+                onBack={() => setHistoryVehicle(null)}
+              />
+            );
+          }
+
           const allVehicles = fleet.vehiclesWithOrders.filter(v =>
             v.placa.toLowerCase().includes(searchVeiculos.toLowerCase()) ||
             (v.modelo || '').toLowerCase().includes(searchVeiculos.toLowerCase()) ||
