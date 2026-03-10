@@ -12,6 +12,7 @@ import { useFleetData, type FleetVehicle } from '@/hooks/useFleetData';
 import { MaintenanceRequestDialog } from '@/components/fleet/MaintenanceRequestDialog';
 import { FleetEvidencePhotos } from '@/components/fleet/FleetEvidencePhotos';
 import { BudgetApprovalCard } from '@/components/fleet/BudgetApprovalCard';
+import { FleetReports } from '@/components/fleet/FleetReports';
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1196,21 +1197,11 @@ const GestaoFrotasOficinasSystem = () => {
         // ════════════════════════════════════
         case 'relatorios':
           return (
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">Relatórios & Análises</h2>
-                <p className="text-sm text-muted-foreground">Visão analítica da sua operação</p>
-              </div>
-              <Card className="border border-border/50">
-                <CardContent className="p-12 text-center">
-                  <FileBarChart className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <h3 className="text-lg font-semibold text-foreground">Em breve</h3>
-                  <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-                    Os relatórios serão gerados automaticamente a partir dos dados reais de manutenção da sua frota.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <FleetReports
+              customerProductId={customerProductId || ''}
+              vehicles={fleet.vehicles}
+              serviceOrders={fleet.serviceOrders}
+            />
           );
 
         // ════════════════════════════════════
