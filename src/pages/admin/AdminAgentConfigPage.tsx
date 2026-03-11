@@ -570,7 +570,7 @@ const [syncingPrompt, setSyncingPrompt] = useState(false);
   }, []);
 
   // Auto-save com debounce
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
   const [autoSaving, setAutoSaving] = useState(false);
 

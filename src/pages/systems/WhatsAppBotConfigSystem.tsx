@@ -113,7 +113,7 @@ const WhatsAppBotConfigSystem = () => {
   }, [user, authLoading, productId]);
 
   // Auto-save
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFirstRender = useRef(true);
 
   const autoSave = useCallback(async () => {
