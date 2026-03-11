@@ -113,7 +113,7 @@ export function BotMetricsPanel({ isActive, customerProductId }: BotMetricsPanel
     avgProcessingMs: 0,
   });
   const [prevMetrics, setPrevMetrics] = useState<MetricsData | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchMetrics = async () => {
     if (!customerProductId) return;
