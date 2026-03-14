@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Save, Bot, Brain, Plug, Pencil, Check,
-  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu
+  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu,
+  Code, Send
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -31,6 +32,8 @@ import { BotConversationLogsTab } from '@/components/bots/tabs/BotConversationLo
 import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
 import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
+import { BotWebEmbedTab } from '@/components/bots/tabs/BotWebEmbedTab';
+import { BotTelegramTab } from '@/components/bots/tabs/BotTelegramTab';
 
 const supabase = supabaseClient as any;
 
@@ -48,7 +51,7 @@ interface AgentConfig {
   businessName: string;
 }
 
-const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente para WhatsApp.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
+const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
 
 const WhatsAppBotConfigSystem = () => {
   const { user, loading: authLoading } = useAuth();
@@ -99,7 +102,9 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'logs', label: 'Logs', icon: ScrollText },
     { value: 'reports', label: 'Relatórios', icon: Mail },
-    { value: 'whatsapp-api', label: 'WhatsApp API', icon: Smartphone },
+    { value: 'whatsapp-api', label: 'WhatsApp', icon: Smartphone },
+    { value: 'telegram', label: 'Telegram', icon: Send },
+    { value: 'web-embed', label: 'Script Web', icon: Code },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
   ];
 
@@ -352,7 +357,7 @@ const WhatsAppBotConfigSystem = () => {
           </div>
           <div>
             <p className="font-semibold text-foreground text-sm leading-none">{config.businessName}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Bot WhatsApp</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Agente IA</p>
           </div>
         </div>
       </div>
@@ -550,6 +555,14 @@ const WhatsAppBotConfigSystem = () => {
                   onConnectionChange={setWapiConnected}
                 />
               )}
+            </TabsContent>
+
+            <TabsContent value="telegram">
+              {productId && <BotTelegramTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="web-embed">
+              {productId && <BotWebEmbedTab customerProductId={productId} businessName={config.businessName} />}
             </TabsContent>
 
             <TabsContent value="chat">
