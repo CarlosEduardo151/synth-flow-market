@@ -32,6 +32,8 @@ import { BotConversationLogsTab } from '@/components/bots/tabs/BotConversationLo
 import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
 import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
+import { BotWebEmbedTab } from '@/components/bots/tabs/BotWebEmbedTab';
+import { BotTelegramTab } from '@/components/bots/tabs/BotTelegramTab';
 
 const supabase = supabaseClient as any;
 
