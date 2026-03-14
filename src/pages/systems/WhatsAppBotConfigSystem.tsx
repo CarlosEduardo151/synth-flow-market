@@ -557,6 +557,14 @@ const WhatsAppBotConfigSystem = () => {
               )}
             </TabsContent>
 
+            <TabsContent value="telegram">
+              {productId && <BotTelegramTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="web-embed">
+              {productId && <BotWebEmbedTab customerProductId={productId} businessName={config.businessName} />}
+            </TabsContent>
+
             <TabsContent value="chat">
               {productId ? (
                 <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} motorActive={botInstances.active?.is_active ?? false} />
