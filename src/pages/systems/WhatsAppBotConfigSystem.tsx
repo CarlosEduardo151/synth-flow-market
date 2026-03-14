@@ -51,7 +51,7 @@ interface AgentConfig {
   businessName: string;
 }
 
-const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente para WhatsApp.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
+const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
 
 const WhatsAppBotConfigSystem = () => {
   const { user, loading: authLoading } = useAuth();
