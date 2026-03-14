@@ -2249,6 +2249,51 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_logs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          error_stack: string | null
+          event_type: string
+          function_name: string | null
+          id: string
+          level: string
+          message: string
+          metadata: Json | null
+          source: string
+          status_code: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          error_stack?: string | null
+          event_type?: string
+          function_name?: string | null
+          id?: string
+          level?: string
+          message: string
+          metadata?: Json | null
+          source?: string
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          error_stack?: string | null
+          event_type?: string
+          function_name?: string | null
+          id?: string
+          level?: string
+          message?: string
+          metadata?: Json | null
+          source?: string
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       product_credentials: {
         Row: {
           created_at: string
