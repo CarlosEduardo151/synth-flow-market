@@ -78,6 +78,7 @@ import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
 import AdminBotsAutomacaoPage from "./pages/admin/AdminBotsAutomacaoPage";
 import AdminEnginesPage from "./pages/admin/AdminEnginesPage";
 import AdminWorkshopReviewPage from "./pages/admin/AdminWorkshopReviewPage";
+import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
 
 import NotFound from "./pages/NotFound";
 
