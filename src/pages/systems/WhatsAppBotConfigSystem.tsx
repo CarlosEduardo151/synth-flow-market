@@ -349,9 +349,20 @@ const WhatsAppBotConfigSystem = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/meus-produtos')} className="rounded-xl">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
+              <motion.button
+                onClick={() => navigate('/meus-produtos')}
+                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border transition-all duration-300 overflow-hidden"
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <motion.div
+                  className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                />
+                <ChevronLeft className="h-4 w-4 relative z-10 transition-transform duration-300 group-hover:-translate-x-0.5" />
+                <span className="relative z-10 text-xs font-medium max-w-0 overflow-hidden group-hover:max-w-[80px] transition-all duration-300 whitespace-nowrap">
+                  Voltar
+                </span>
+              </motion.button>
               <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
                 <MessageCircle className="h-5 w-5 text-green-500" />
               </div>
