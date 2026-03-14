@@ -59,7 +59,7 @@ const WhatsAppBotConfigSystem = () => {
 
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<string>('status');
-  const [railCollapsed, setRailCollapsed] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [customerProductId, setCustomerProductId] = useState<string | null>(null);
   const [configLoaded, setConfigLoaded] = useState(false);
   const [autoSaving, setAutoSaving] = useState(false);
