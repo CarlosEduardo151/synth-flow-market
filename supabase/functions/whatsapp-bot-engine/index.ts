@@ -15,6 +15,7 @@ import {
   type AIUsageResult,
 } from "../_shared/ai-providers.ts";
 import { zapiSendText, loadZAPICredentials } from "../_shared/zapi.ts";
+import { platformLog } from "../_shared/platform-logger.ts";
 
 /**
  * WhatsApp Bot Engine — motor nativo (sem n8n, sem Lovable AI Gateway).
