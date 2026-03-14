@@ -496,6 +496,13 @@ serve(async (req) => {
     }, 200, origin);
   } catch (error) {
     console.error("whatsapp-bot-engine error:", error);
+    platformLog({
+      function_name: 'whatsapp-bot-engine',
+      level: 'error',
+      message: `Engine crash: ${error.message}`,
+      error_stack: error.stack,
+      status_code: 500,
+    });
     return corsResponse({ error: "internal_error" }, 500, origin);
   }
 });
