@@ -341,242 +341,225 @@ const WhatsAppBotConfigSystem = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <Header />
+  const activeTabData = sidebarItems.find(t => t.value === activeTab);
 
-      {/* Top bar */}
-      <header className="sticky top-0 z-40 border-b border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="container mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <motion.button
-                onClick={() => navigate('/meus-produtos')}
-                className="group relative flex items-center gap-1.5 px-3 py-2 rounded-xl bg-muted/60 border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted hover:border-border transition-all duration-300 overflow-hidden"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-              >
-                <motion.div
-                  className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                />
-                <ChevronLeft className="h-4 w-4 relative z-10 transition-transform duration-300 group-hover:-translate-x-0.5" />
-                <span className="relative z-10 text-xs font-medium max-w-0 overflow-hidden group-hover:max-w-[80px] transition-all duration-300 whitespace-nowrap">
-                  Voltar
-                </span>
-              </motion.button>
-              <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
-                <MessageCircle className="h-5 w-5 text-green-500" />
-              </div>
-              <div>
-                {editingBusinessName ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={config.businessName}
-                      onChange={(e) => setConfig(prev => ({ ...prev, businessName: e.target.value }))}
-                      className="h-8 text-lg font-bold w-44"
-                      autoFocus
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingBusinessName(false); }}
-                    />
-                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBusinessName(false)}>
-                      <Check className="h-4 w-4 text-green-500" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setEditingBusinessName(true)}>
-                    <h1 className="text-lg font-bold">{config.businessName}</h1>
-                    <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
-                  </div>
-                )}
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <span>Bot WhatsApp</span>
-                  <Badge
-                    variant="outline"
-                    className={`text-[10px] px-1.5 py-0 ${
-                      botInstances.active?.is_active
-                        ? 'text-green-500 border-green-500/30'
-                        : 'text-destructive border-destructive/30'
-                    }`}
-                  >
-                    {botInstances.active?.is_active ? 'Motor Ativo' : 'Motor Desligado'}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-muted/50 border border-border/50">
-                <div className={`w-2 h-2 rounded-full ${botInstances.active?.is_active ? 'bg-green-500 animate-pulse' : 'bg-destructive'}`} />
-                <span className="text-xs font-medium">{botInstances.active?.is_active ? 'Online' : 'Offline'}</span>
-              </div>
-
-              {autoSaving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
-
-              <Button onClick={handleSave} disabled={loading} size="sm" className="rounded-xl">
-                <Save className="h-4 w-4 mr-2" />
-                {loading ? 'Salvando...' : 'Salvar'}
-              </Button>
-            </div>
+  const BotSidebarNav = () => (
+    <div className="flex flex-col h-full">
+      <div className="px-5 py-5 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-md bg-green-500/10 flex items-center justify-center">
+            <MessageCircle className="w-4 h-4 text-green-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm leading-none">{config.businessName}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Bot WhatsApp</p>
           </div>
         </div>
-      </header>
+      </div>
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        {sidebarItems.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.value;
+          return (
+            <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors ${
+                active
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              }`}>
+              <Icon className="w-[18px] h-[18px] shrink-0" />
+              <span className="flex-1 text-left">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="px-3 py-3 border-t border-border/50">
+        <motion.button
+          onClick={() => navigate('/meus-produtos')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors group"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <ChevronLeft className="w-[18px] h-[18px] transition-transform group-hover:-translate-x-0.5" />
+          <span>Voltar</span>
+        </motion.button>
+      </div>
+    </div>
+  );
 
-      <main className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="flex w-full min-h-[65vh] gap-4 rounded-2xl border border-border/30 bg-card/20 backdrop-blur shadow-lg">
-            {/* Sidebar */}
-            <div className="p-2 md:py-4 md:pl-4">
-              <div className="md:sticky md:top-1/2 md:-translate-y-1/2">
-                <VerticalTabRail
-                  items={sidebarItems}
-                  activeValue={activeTab}
-                  onChange={setActiveTab}
-                  collapsed={isMobile ? false : railCollapsed}
-                  onCollapsedChange={setRailCollapsed}
-                />
-              </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-background flex">
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
+        <BotSidebarNav />
+      </aside>
 
-            {/* Content */}
-            <div className="min-w-0 flex-1 overflow-hidden">
-              <div className="p-4 md:p-6">
-                <TabsContent value="status">
-                  <BotStatusTab
-                    customerProductId={customerProductId}
-                    isActive={botInstances.active?.is_active ?? false}
-                    onStart={async () => {
-                      if (!botInstances.active || !customerProductId) return;
-                      await supabase
-                        .from('ai_control_config')
-                        .update({ is_active: true })
-                        .eq('customer_product_id', customerProductId);
-                      await supabase
-                        .from('bot_instances')
-                        .update({ is_active: true })
-                        .eq('id', botInstances.active.id);
-                      await botInstances.refresh();
-                    }}
-                    onShutdown={async () => {
-                      if (!botInstances.active || !customerProductId) return;
-                      await supabase
-                        .from('bot_instances')
-                        .update({ is_active: false })
-                        .eq('id', botInstances.active.id);
-                      await supabase
-                        .from('ai_control_config')
-                        .update({ is_active: false })
-                        .eq('customer_product_id', customerProductId);
-                      await botInstances.refresh();
-                    }}
-                    onRestart={async () => {
-                      if (!botInstances.active || !customerProductId) return;
-                      await supabase
-                        .from('bot_instances')
-                        .update({ is_active: false })
-                        .eq('id', botInstances.active.id);
-                      await supabase
-                        .from('ai_control_config')
-                        .update({ is_active: false })
-                        .eq('customer_product_id', customerProductId);
-                      await new Promise((r) => setTimeout(r, 2000));
-                      await supabase
-                        .from('ai_control_config')
-                        .update({ is_active: true })
-                        .eq('customer_product_id', customerProductId);
-                      await supabase
-                        .from('bot_instances')
-                        .update({ is_active: true })
-                        .eq('id', botInstances.active.id);
-                      await botInstances.refresh();
-                    }}
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/50 px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8"><Menu className="w-4 h-4" /></Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-56 p-0"><BotSidebarNav /></SheetContent>
+            </Sheet>
+            <div>
+              {editingBusinessName ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={config.businessName}
+                    onChange={(e) => setConfig(prev => ({ ...prev, businessName: e.target.value }))}
+                    className="h-8 text-base font-semibold w-44"
+                    autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingBusinessName(false); }}
                   />
-                </TabsContent>
-
-                <TabsContent value="engine">
-                  <BotEngineTab
-                    provider={config.provider}
-                    apiKey={config.apiKey}
-                    model={config.model}
-                    temperature={config.temperature}
-                    maxTokens={config.maxTokens}
-                    onProviderChange={handleProviderChange}
-                    onApiKeyChange={(key) => setConfig(prev => ({ ...prev, apiKey: key }))}
-                    onModelChange={(model) => setConfig(prev => ({ ...prev, model }))}
-                    onTemperatureChange={(temp) => setConfig(prev => ({ ...prev, temperature: temp }))}
-                    onMaxTokensChange={(tokens) => setConfig(prev => ({ ...prev, maxTokens: tokens }))}
-                  />
-                </TabsContent>
-
-                <TabsContent value="knowledge">
-                  {productId && <BotKnowledgeTab customerProductId={productId} />}
-                </TabsContent>
-
-                <TabsContent value="faq">
-                  {productId && <BotFAQTab customerProductId={productId} />}
-                </TabsContent>
-
-                <TabsContent value="memory">
-                  <BotMemoryTab
-                    contextWindowSize={config.contextWindowSize}
-                    retentionPolicy={config.retentionPolicy}
-                    onContextWindowChange={(size) => setConfig(prev => ({ ...prev, contextWindowSize: size }))}
-                    onRetentionChange={(p) => setConfig(prev => ({ ...prev, retentionPolicy: p }))}
-                  />
-                </TabsContent>
-
-                <TabsContent value="personality">
-                  <BotPersonalityTab
-                    communicationTone={config.communicationTone}
-                    systemPrompt={config.systemPrompt}
-                    actionInstructions={config.actionInstructions}
-                    onToneChange={(tone) => setConfig(prev => ({ ...prev, communicationTone: tone }))}
-                    onSystemPromptChange={(prompt) => setConfig(prev => ({ ...prev, systemPrompt: prompt }))}
-                    onAddInstruction={(instruction, type) => setConfig(prev => ({
-                      ...prev,
-                      actionInstructions: [...prev.actionInstructions, { id: Date.now().toString(), instruction, type }],
-                    }))}
-                    onRemoveInstruction={(id) => setConfig(prev => ({
-                      ...prev,
-                      actionInstructions: prev.actionInstructions.filter(i => i.id !== id),
-                    }))}
-                  />
-                </TabsContent>
-
-                <TabsContent value="logs">
-                  {productId && <BotConversationLogsTab customerProductId={productId} />}
-                </TabsContent>
-
-                <TabsContent value="reports">
-                  {productId && <BotReportsTab customerProductId={productId} />}
-                </TabsContent>
-
-                <TabsContent value="whatsapp-api">
-                  {productId && (
-                    <BotWhatsAppApiTab
-                      customerProductId={productId}
-                      isConnected={wapiConnected}
-                      instanceId={wapiInstanceId}
-                      token={wapiToken}
-                      phoneNumber={wapiPhone}
-                      onInstanceIdChange={setWapiInstanceId}
-                      onTokenChange={setWapiToken}
-                      onPhoneNumberChange={setWapiPhone}
-                      onConnectionChange={setWapiConnected}
-                    />
-                  )}
-                </TabsContent>
-
-                <TabsContent value="chat">
-                  {productId ? (
-                    <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} motorActive={botInstances.active?.is_active ?? false} />
-                  ) : null}
-                </TabsContent>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditingBusinessName(false)}>
+                    <Check className="h-4 w-4 text-green-500" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setEditingBusinessName(true)}>
+                  <h1 className="text-base font-semibold text-foreground leading-none">{activeTabData?.label}</h1>
+                  <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity" />
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] px-1.5 py-0 ${
+                    botInstances.active?.is_active
+                      ? 'text-green-500 border-green-500/30'
+                      : 'text-destructive border-destructive/30'
+                  }`}
+                >
+                  {botInstances.active?.is_active ? 'Online' : 'Offline'}
+                </Badge>
               </div>
             </div>
           </div>
-        </Tabs>
-      </main>
 
-      <Footer />
+          <div className="flex items-center gap-2">
+            {autoSaving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
+            <Button onClick={handleSave} disabled={loading} size="sm" className="rounded-xl">
+              <Save className="h-4 w-4 mr-2" />
+              {loading ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="status">
+              <BotStatusTab
+                customerProductId={customerProductId}
+                isActive={botInstances.active?.is_active ?? false}
+                onStart={async () => {
+                  if (!botInstances.active || !customerProductId) return;
+                  await supabase.from('ai_control_config').update({ is_active: true }).eq('customer_product_id', customerProductId);
+                  await supabase.from('bot_instances').update({ is_active: true }).eq('id', botInstances.active.id);
+                  await botInstances.refresh();
+                }}
+                onShutdown={async () => {
+                  if (!botInstances.active || !customerProductId) return;
+                  await supabase.from('bot_instances').update({ is_active: false }).eq('id', botInstances.active.id);
+                  await supabase.from('ai_control_config').update({ is_active: false }).eq('customer_product_id', customerProductId);
+                  await botInstances.refresh();
+                }}
+                onRestart={async () => {
+                  if (!botInstances.active || !customerProductId) return;
+                  await supabase.from('bot_instances').update({ is_active: false }).eq('id', botInstances.active.id);
+                  await supabase.from('ai_control_config').update({ is_active: false }).eq('customer_product_id', customerProductId);
+                  await new Promise((r) => setTimeout(r, 2000));
+                  await supabase.from('ai_control_config').update({ is_active: true }).eq('customer_product_id', customerProductId);
+                  await supabase.from('bot_instances').update({ is_active: true }).eq('id', botInstances.active.id);
+                  await botInstances.refresh();
+                }}
+              />
+            </TabsContent>
+
+            <TabsContent value="engine">
+              <BotEngineTab
+                provider={config.provider}
+                apiKey={config.apiKey}
+                model={config.model}
+                temperature={config.temperature}
+                maxTokens={config.maxTokens}
+                onProviderChange={handleProviderChange}
+                onApiKeyChange={(key) => setConfig(prev => ({ ...prev, apiKey: key }))}
+                onModelChange={(model) => setConfig(prev => ({ ...prev, model }))}
+                onTemperatureChange={(temp) => setConfig(prev => ({ ...prev, temperature: temp }))}
+                onMaxTokensChange={(tokens) => setConfig(prev => ({ ...prev, maxTokens: tokens }))}
+              />
+            </TabsContent>
+
+            <TabsContent value="knowledge">
+              {productId && <BotKnowledgeTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="faq">
+              {productId && <BotFAQTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="memory">
+              <BotMemoryTab
+                contextWindowSize={config.contextWindowSize}
+                retentionPolicy={config.retentionPolicy}
+                onContextWindowChange={(size) => setConfig(prev => ({ ...prev, contextWindowSize: size }))}
+                onRetentionChange={(p) => setConfig(prev => ({ ...prev, retentionPolicy: p }))}
+              />
+            </TabsContent>
+
+            <TabsContent value="personality">
+              <BotPersonalityTab
+                communicationTone={config.communicationTone}
+                systemPrompt={config.systemPrompt}
+                actionInstructions={config.actionInstructions}
+                onToneChange={(tone) => setConfig(prev => ({ ...prev, communicationTone: tone }))}
+                onSystemPromptChange={(prompt) => setConfig(prev => ({ ...prev, systemPrompt: prompt }))}
+                onAddInstruction={(instruction, type) => setConfig(prev => ({
+                  ...prev,
+                  actionInstructions: [...prev.actionInstructions, { id: Date.now().toString(), instruction, type }],
+                }))}
+                onRemoveInstruction={(id) => setConfig(prev => ({
+                  ...prev,
+                  actionInstructions: prev.actionInstructions.filter(i => i.id !== id),
+                }))}
+              />
+            </TabsContent>
+
+            <TabsContent value="logs">
+              {productId && <BotConversationLogsTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="reports">
+              {productId && <BotReportsTab customerProductId={productId} />}
+            </TabsContent>
+
+            <TabsContent value="whatsapp-api">
+              {productId && (
+                <BotWhatsAppApiTab
+                  customerProductId={productId}
+                  isConnected={wapiConnected}
+                  instanceId={wapiInstanceId}
+                  token={wapiToken}
+                  phoneNumber={wapiPhone}
+                  onInstanceIdChange={setWapiInstanceId}
+                  onTokenChange={setWapiToken}
+                  onPhoneNumberChange={setWapiPhone}
+                  onConnectionChange={setWapiConnected}
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="chat">
+              {productId ? (
+                <WhatsAppBotTestChat customerProductId={productId} businessName={config.businessName} motorActive={botInstances.active?.is_active ?? false} />
+              ) : null}
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
     </div>
   );
 };
