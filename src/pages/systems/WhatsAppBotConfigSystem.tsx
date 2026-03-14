@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Save, Bot, Brain, Plug, Pencil, Check,
-  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft
+  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
