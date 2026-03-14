@@ -102,7 +102,9 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'logs', label: 'Logs', icon: ScrollText },
     { value: 'reports', label: 'Relatórios', icon: Mail },
-    { value: 'whatsapp-api', label: 'WhatsApp API', icon: Smartphone },
+    { value: 'whatsapp-api', label: 'WhatsApp', icon: Smartphone },
+    { value: 'telegram', label: 'Telegram', icon: Send },
+    { value: 'web-embed', label: 'Script Web', icon: Code },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
   ];
 
