@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
-  ArrowLeft, Save, Bot, Brain, Plug, Pencil, Check,
-  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail
+  Save, Bot, Brain, Plug, Pencil, Check,
+  Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft
 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
