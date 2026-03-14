@@ -181,6 +181,14 @@ const AdminDashboard = () => {
       link: '/admin/workshop-review',
       color: 'bg-orange-500',
       stats: 'Análise'
+    },
+    {
+      title: 'Monitoramento',
+      description: 'Logs, métricas e saúde da plataforma',
+      icon: Cpu,
+      link: '/admin/monitoring',
+      color: 'bg-red-600',
+      stats: 'LIVE'
     }
   ];
 

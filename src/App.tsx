@@ -175,6 +175,7 @@ const App = () => (
               <Route path="/admin/bots-automacao" element={<AdminBotsAutomacaoPage />} />
               <Route path="/admin/engines" element={<AdminEnginesPage />} />
               <Route path="/admin/workshop-review" element={<AdminWorkshopReviewPage />} />
+              <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />
