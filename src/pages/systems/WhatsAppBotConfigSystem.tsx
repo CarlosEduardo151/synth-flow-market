@@ -357,7 +357,7 @@ const WhatsAppBotConfigSystem = () => {
           </div>
           <div>
             <p className="font-semibold text-foreground text-sm leading-none">{config.businessName}</p>
-            <p className="text-[11px] text-muted-foreground mt-0.5">Bot WhatsApp</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Agente IA</p>
           </div>
         </div>
       </div>
