@@ -19,11 +19,14 @@ export function BotWebEmbedTab({ customerProductId, businessName }: BotWebEmbedT
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 
-  const embedScript = `<!-- NovaLink Agente IA - Chat Widget -->
+  const shortId = customerProductId.split('-')[0];
+
+  const embedScript = `<!-- NovaLink Agente IA - Chat Widget [${shortId}] -->
 <script>
   (function() {
     var w = window, d = document;
-    w.__NL_CONFIG = {
+    var ns = "__NL_" + "${shortId}";
+    w[ns] = {
       productId: "${customerProductId}",
       endpoint: "${supabaseUrl}/functions/v1/bot-proxy",
       name: "${businessName}",
@@ -31,8 +34,9 @@ export function BotWebEmbedTab({ customerProductId, businessName }: BotWebEmbedT
       position: "${position}"
     };
     var s = d.createElement("script");
-    s.src = "${supabaseUrl}/functions/v1/bot-proxy/widget.js";
+    s.src = "${supabaseUrl}/functions/v1/bot-proxy/widget.js?id=${shortId}";
     s.async = true;
+    s.dataset.nlId = "${shortId}";
     d.head.appendChild(s);
   })();
 </script>`;
