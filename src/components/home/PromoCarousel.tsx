@@ -156,46 +156,44 @@ function SlideContent({ slide }: { slide: PromoSlide }) {
   const Wrapper = slide.href ? LinkOrAnchor : "div";
 
   return (
-    <div className="relative w-full h-[220px] sm:h-[280px] md:h-[340px] lg:h-[400px] overflow-hidden">
+    <div className="relative w-full h-[140px] sm:h-[160px] md:h-[180px] overflow-hidden">
       {/* Background image */}
       {slide.image && (
         <img
           src={slide.image}
           alt=""
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-center"
           loading="eager"
         />
       )}
 
       {/* Gradient overlays for depth */}
-      <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
-      <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/30" />
-      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-r from-background/85 via-background/40 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-background/20" />
+      <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-primary via-primary/50 to-transparent" />
 
       {/* Content */}
       <Wrapper href={slide.href} className="relative z-[1] h-full">
         <div className="container mx-auto px-6 h-full flex items-center">
-          <div className="max-w-xl space-y-3 sm:space-y-4">
+          <div className="max-w-lg space-y-1.5 sm:space-y-2">
             {slide.eyebrow && (
-              <span className="inline-block text-xs sm:text-sm font-bold tracking-[0.2em] uppercase text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]">
+              <span className="inline-block text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase text-primary drop-shadow-[0_0_6px_hsl(var(--primary)/0.4)]">
                 {slide.eyebrow}
               </span>
             )}
-            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-foreground leading-tight drop-shadow-lg">
+            <h2 className="text-base sm:text-lg md:text-xl lg:text-2xl font-extrabold text-foreground leading-snug drop-shadow-md">
               {slide.title}
             </h2>
             {slide.subtitle && (
-              <p className="text-sm sm:text-base md:text-lg text-muted-foreground/90 drop-shadow-md">
+              <p className="text-xs sm:text-sm text-muted-foreground/90 drop-shadow-sm">
                 {slide.subtitle}
               </p>
             )}
             {slide.href && (
-              <div className="pt-1 sm:pt-2">
-                <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20 hover:border-primary/50 transition-all shadow-[0_0_20px_hsl(var(--primary)/0.15)]">
-                  Saiba mais
-                  <ArrowRight className="h-4 w-4" />
-                </span>
-              </div>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 border border-primary/30 backdrop-blur-sm px-3.5 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 hover:border-primary/50 transition-all">
+                Saiba mais
+                <ArrowRight className="h-3 w-3" />
+              </span>
             )}
           </div>
         </div>
