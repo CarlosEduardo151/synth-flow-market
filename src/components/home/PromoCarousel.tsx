@@ -8,7 +8,7 @@ import {
   type CarouselApi,
 } from "@/components/ui/carousel";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
 
 type PromoSlide = {
   id: string;
@@ -16,6 +16,7 @@ type PromoSlide = {
   title: string;
   subtitle?: string;
   href?: string;
+  image?: string;
 };
 
 const defaultSlides: PromoSlide[] = [
@@ -25,6 +26,7 @@ const defaultSlides: PromoSlide[] = [
     title: "Automatize cobranças e reduza inadimplência",
     subtitle: "Ative o Gestão de Cobranças em minutos",
     href: "/p/gestao-cobrancas",
+    image: "/images/banners/banner-oferta.jpg",
   },
   {
     id: "promo-2",
@@ -32,6 +34,7 @@ const defaultSlides: PromoSlide[] = [
     title: "Experimente nossos sistemas por 7 dias",
     subtitle: "Sem cartão. Cancelamento simples.",
     href: "/teste-gratis",
+    image: "/images/banners/banner-trial.jpg",
   },
   {
     id: "promo-3",
@@ -39,12 +42,14 @@ const defaultSlides: PromoSlide[] = [
     title: "Agentes de IA prontos para microempresas",
     subtitle: "Configuração guiada e suporte dedicado",
     href: "/planos",
+    image: "/images/banners/banner-novidade.jpg",
   },
 ];
 
 export function PromoCarousel({ slides = defaultSlides }: { slides?: PromoSlide[] }) {
   const [api, setApi] = React.useState<CarouselApi | null>(null);
   const [dbSlides, setDbSlides] = React.useState<PromoSlide[] | null>(null);
+  const [current, setCurrent] = React.useState(0);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -74,28 +79,30 @@ export function PromoCarousel({ slides = defaultSlides }: { slides?: PromoSlide[
     };
 
     load();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
   React.useEffect(() => {
     if (!api) return;
 
+    const onSelect = () => setCurrent(api.selectedScrollSnap());
+    api.on("select", onSelect);
+    onSelect();
+
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
     if (reduceMotion) return;
 
-    const interval = window.setInterval(() => {
-      api.scrollNext();
-    }, 3000);
-
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(() => api.scrollNext(), 4500);
+    return () => {
+      window.clearInterval(interval);
+      api.off("select", onSelect);
+    };
   }, [api]);
 
   const activeSlides = (dbSlides && dbSlides.length > 0 ? dbSlides : slides) ?? slides;
 
   return (
-    <section aria-label="Ofertas e promoções" className="w-full">
+    <section aria-label="Ofertas e promoções" className="w-full relative group/carousel">
       <Carousel
         setApi={setApi}
         opts={{ loop: true, align: "start" }}
@@ -104,65 +111,122 @@ export function PromoCarousel({ slides = defaultSlides }: { slides?: PromoSlide[
         <CarouselContent className="-ml-0">
           {activeSlides.map((s) => (
             <CarouselItem key={s.id} className="pl-0">
-              <div className="w-full">
-                <div className="w-full border-y border-border bg-gradient-to-r from-card/20 via-card/40 to-card/20 backdrop-blur supports-[backdrop-filter]:bg-card/20">
-                  <div className="container mx-auto px-4">
-                    <div className="h-24 md:h-28 flex items-center justify-between gap-4">
-                      <div className="min-w-0">
-                        {s.eyebrow && (
-                          <p className="text-xs text-muted-foreground tracking-wide uppercase">
-                            {s.eyebrow}
-                          </p>
-                        )}
-                        <p className="truncate text-base md:text-lg font-semibold text-foreground">
-                          {s.title}
-                        </p>
-                        {s.subtitle && (
-                          <p className="truncate text-sm text-muted-foreground">{s.subtitle}</p>
-                        )}
-                      </div>
-
-                      <div className="hidden sm:flex items-center gap-3">
-                        {s.href ? (
-                          <ButtonLikeLink href={s.href} />
-                        ) : (
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-                            <span>Atualiza a cada 3s</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <SlideContent slide={s} />
             </CarouselItem>
           ))}
         </CarouselContent>
       </Carousel>
+
+      {/* Navigation arrows */}
+      <button
+        onClick={() => api?.scrollPrev()}
+        className="absolute left-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/30 backdrop-blur-md border border-border/30 flex items-center justify-center text-foreground/70 hover:bg-background/60 hover:text-foreground transition-all opacity-0 group-hover/carousel:opacity-100"
+        aria-label="Slide anterior"
+      >
+        <ChevronLeft className="h-5 w-5" />
+      </button>
+      <button
+        onClick={() => api?.scrollNext()}
+        className="absolute right-3 top-1/2 -translate-y-1/2 z-10 h-10 w-10 rounded-full bg-background/30 backdrop-blur-md border border-border/30 flex items-center justify-center text-foreground/70 hover:bg-background/60 hover:text-foreground transition-all opacity-0 group-hover/carousel:opacity-100"
+        aria-label="Próximo slide"
+      >
+        <ChevronRight className="h-5 w-5" />
+      </button>
+
+      {/* Dot indicators */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+        {activeSlides.map((_, i) => (
+          <button
+            key={i}
+            onClick={() => api?.scrollTo(i)}
+            className={`h-2 rounded-full transition-all duration-300 ${
+              i === current
+                ? "w-8 bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.6)]"
+                : "w-2 bg-foreground/30 hover:bg-foreground/50"
+            }`}
+            aria-label={`Ir para slide ${i + 1}`}
+          />
+        ))}
+      </div>
     </section>
   );
 }
 
-function ButtonLikeLink({ href }: { href: string }) {
-  const isExternal = /^https?:\/\//i.test(href);
-  const className =
-    "inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-4 py-2 text-sm font-medium text-foreground shadow-sm transition hover:bg-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+function SlideContent({ slide }: { slide: PromoSlide }) {
+  const Wrapper = slide.href ? LinkOrAnchor : "div";
 
+  return (
+    <div className="relative w-full h-[220px] sm:h-[280px] md:h-[340px] lg:h-[400px] overflow-hidden">
+      {/* Background image */}
+      {slide.image && (
+        <img
+          src={slide.image}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="eager"
+        />
+      )}
+
+      {/* Gradient overlays for depth */}
+      <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/50 to-transparent" />
+      <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-background/30" />
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
+
+      {/* Content */}
+      <Wrapper href={slide.href} className="relative z-[1] h-full">
+        <div className="container mx-auto px-6 h-full flex items-center">
+          <div className="max-w-xl space-y-3 sm:space-y-4">
+            {slide.eyebrow && (
+              <span className="inline-block text-xs sm:text-sm font-bold tracking-[0.2em] uppercase text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.5)]">
+                {slide.eyebrow}
+              </span>
+            )}
+            <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold text-foreground leading-tight drop-shadow-lg">
+              {slide.title}
+            </h2>
+            {slide.subtitle && (
+              <p className="text-sm sm:text-base md:text-lg text-muted-foreground/90 drop-shadow-md">
+                {slide.subtitle}
+              </p>
+            )}
+            {slide.href && (
+              <div className="pt-1 sm:pt-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 border border-primary/30 backdrop-blur-sm px-5 py-2.5 text-sm font-semibold text-primary hover:bg-primary/20 hover:border-primary/50 transition-all shadow-[0_0_20px_hsl(var(--primary)/0.15)]">
+                  Saiba mais
+                  <ArrowRight className="h-4 w-4" />
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </Wrapper>
+    </div>
+  );
+}
+
+function LinkOrAnchor({
+  href,
+  children,
+  className,
+}: {
+  href?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  if (!href) return <div className={className}>{children}</div>;
+
+  const isExternal = /^https?:\/\//i.test(href);
   if (isExternal) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={className}>
-        Ver detalhes
-        <ArrowRight className="h-4 w-4" />
+      <a href={href} target="_blank" rel="noreferrer" className={`block ${className}`}>
+        {children}
       </a>
     );
   }
 
   return (
-    <Link to={href} className={className}>
-      Ver detalhes
-      <ArrowRight className="h-4 w-4" />
+    <Link to={href} className={`block ${className}`}>
+      {children}
     </Link>
   );
 }
-
