@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.fleet-notify]
 verify_jwt = false
+
+[functions.novalink-chat]
+verify_jwt = false
