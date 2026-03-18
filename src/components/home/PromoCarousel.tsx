@@ -156,7 +156,7 @@ function SlideContent({ slide }: { slide: PromoSlide }) {
   const Wrapper = slide.href ? LinkOrAnchor : "div";
 
   return (
-    <div className="relative w-full h-[140px] sm:h-[160px] md:h-[180px] overflow-hidden">
+    <div className="relative w-full h-[200px] sm:h-[250px] md:h-[300px] lg:h-[340px] overflow-hidden">
       {/* Background image */}
       {slide.image && (
         <img
