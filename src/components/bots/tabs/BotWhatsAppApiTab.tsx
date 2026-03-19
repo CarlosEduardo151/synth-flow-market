@@ -18,9 +18,11 @@ interface BotWhatsAppApiTabProps {
   isConnected: boolean;
   instanceId: string;
   token: string;
+  clientToken: string;
   phoneNumber: string;
   onInstanceIdChange: (v: string) => void;
   onTokenChange: (v: string) => void;
+  onClientTokenChange: (v: string) => void;
   onPhoneNumberChange: (v: string) => void;
   onConnectionChange: (connected: boolean) => void;
 }
