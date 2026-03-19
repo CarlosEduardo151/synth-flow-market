@@ -497,7 +497,7 @@ serve(async (req) => {
       // Try to extract any text content from unknown message types
       const fallbackText = sanitizeString(body?.caption || body?.message || body?.body || "");
       if (fallbackText) {
-        result = await processText(resolved.resolvedProvider, aiOpts, fallbackText);
+        result = await processText(resolved.resolvedProvider, aiOpts, fallbackText, conversationHistory);
       } else {
         result = { text: "Recebi sua mensagem! Infelizmente ainda não consigo processar esse tipo de conteúdo. Tente enviar como texto, imagem, áudio ou documento. 📎", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
