@@ -248,7 +248,7 @@ const WhatsAppBotConfigSystem = () => {
           .select('credential_key, credential_value')
           .eq('user_id', user.id)
           .eq('product_slug', 'bots-automacao')
-          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_phone']);
+          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_client_token', 'zapi_phone']);
 
         if (wapiCreds && wapiCreds.length > 0) {
           for (const c of wapiCreds) {
