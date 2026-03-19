@@ -100,8 +100,23 @@ function geminiModelPath(model?: string): string {
 export async function geminiChat(
   opts: AICallOptions,
   userText: string,
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/${geminiModelPath(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
+
+  const contents: any[] = [];
+
+  // Inject conversation history for memory
+  if (conversationHistory?.length) {
+    for (const msg of conversationHistory) {
+      contents.push({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      });
+    }
+  }
+
+  contents.push({ role: "user", parts: [{ text: userText }] });
 
   const resp = await fetch(url, {
     method: "POST",
@@ -112,7 +127,7 @@ export async function geminiChat(
         maxOutputTokens: clampNumber(opts.maxTokens, 1, 8192, 512),
       },
       systemInstruction: { parts: [{ text: opts.systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: userText }] }],
+      contents,
     }),
   });
 
