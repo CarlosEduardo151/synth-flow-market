@@ -483,7 +483,7 @@ serve(async (req) => {
       const displayName = sanitizeString(contact?.displayName || contact?.name || "");
       const vcard = sanitizeString(contact?.vcard || contact?.vCard || "");
       const contactText = `O usuário compartilhou um contato: Nome: ${displayName}. ${vcard ? `vCard: ${vcard.slice(0, 500)}` : ""}. Responda confirmando que recebeu o contato em português.`;
-      result = await processText(resolved.resolvedProvider, aiOpts, contactText);
+      result = await processText(resolved.resolvedProvider, aiOpts, contactText, conversationHistory);
     } else if (hasText) {
       messageType = "text";
       const userMessage = sanitizeString(userMessageText);
