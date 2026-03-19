@@ -476,7 +476,7 @@ serve(async (req) => {
       const lng = body.location?.longitude || body.location?.lng || "";
       const locName = sanitizeString(body.location?.name || body.location?.address || "");
       const locText = `O usuário compartilhou uma localização: ${locName ? locName + " — " : ""}Latitude: ${lat}, Longitude: ${lng}. Responda de forma útil sobre essa localização em português.`;
-      result = await processText(resolved.resolvedProvider, aiOpts, locText);
+      result = await processText(resolved.resolvedProvider, aiOpts, locText, conversationHistory);
     } else if (hasContact) {
       messageType = "contact";
       const contact = body.contact || body.contactMessage;
