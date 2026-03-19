@@ -32,9 +32,11 @@ export function BotWhatsAppApiTab({
   isConnected,
   instanceId,
   token,
+  clientToken,
   phoneNumber,
   onInstanceIdChange,
   onTokenChange,
+  onClientTokenChange,
   onPhoneNumberChange,
   onConnectionChange,
 }: BotWhatsAppApiTabProps) {
