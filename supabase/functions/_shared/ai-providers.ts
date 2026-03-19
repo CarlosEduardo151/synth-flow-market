@@ -24,10 +24,29 @@ export interface AIUsageResult {
 
 // ========== OpenAI ==========
 
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function openaiChat(
   opts: AICallOptions,
   userContent: string | any[],
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
+  const messages: any[] = [
+    { role: "system", content: opts.systemPrompt || "" },
+  ];
+
+  // Inject conversation history for memory
+  if (conversationHistory?.length) {
+    for (const msg of conversationHistory) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  messages.push({ role: "user", content: userContent });
+
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -38,10 +57,7 @@ export async function openaiChat(
       model: opts.model || "gpt-4o-mini",
       temperature: clampNumber(opts.temperature, 0, 2, 0.7),
       max_tokens: clampNumber(opts.maxTokens, 1, 4096, 512),
-      messages: [
-        { role: "system", content: opts.systemPrompt || "" },
-        { role: "user", content: userContent },
-      ],
+      messages,
     }),
   });
 
@@ -84,8 +100,23 @@ function geminiModelPath(model?: string): string {
 export async function geminiChat(
   opts: AICallOptions,
   userText: string,
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
   const url = `https://generativelanguage.googleapis.com/v1beta/${geminiModelPath(opts.model)}:generateContent?key=${encodeURIComponent(opts.apiKey)}`;
+
+  const contents: any[] = [];
+
+  // Inject conversation history for memory
+  if (conversationHistory?.length) {
+    for (const msg of conversationHistory) {
+      contents.push({
+        role: msg.role === "assistant" ? "model" : "user",
+        parts: [{ text: msg.content }],
+      });
+    }
+  }
+
+  contents.push({ role: "user", parts: [{ text: userText }] });
 
   const resp = await fetch(url, {
     method: "POST",
@@ -96,7 +127,7 @@ export async function geminiChat(
         maxOutputTokens: clampNumber(opts.maxTokens, 1, 8192, 512),
       },
       systemInstruction: { parts: [{ text: opts.systemPrompt }] },
-      contents: [{ role: "user", parts: [{ text: userText }] }],
+      contents,
     }),
   });
 
@@ -156,9 +187,10 @@ export async function processText(
   provider: ResolvedProvider,
   opts: AICallOptions,
   text: string,
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
-  if (provider === "google") return geminiChat(opts, text);
-  return openaiChat(opts, text);
+  if (provider === "google") return geminiChat(opts, text, conversationHistory);
+  return openaiChat(opts, text, conversationHistory);
 }
 
 export async function processImage(
