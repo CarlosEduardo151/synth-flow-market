@@ -288,7 +288,25 @@ export function BotWhatsAppApiTab({
               className="text-sm"
             />
             <p className="text-[10px] text-muted-foreground">
-              Encontre na página da instância, em "Token" ou "Security Token"
+              Encontre na página da instância, em "Token"
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="zapi-client-token" className="text-xs font-medium flex items-center gap-1.5">
+              <KeyRound className="h-3 w-3 text-muted-foreground" />
+              Client Token <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">Obrigatório</Badge>
+            </Label>
+            <Input
+              id="zapi-client-token"
+              type="password"
+              placeholder="Seu Client-Token Z-API"
+              value={clientToken}
+              onChange={(e) => onClientTokenChange(e.target.value)}
+              className="text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Encontre em Z-API → Configurações da Conta → "Client Token" (usado no header das requisições)
             </p>
           </div>
 

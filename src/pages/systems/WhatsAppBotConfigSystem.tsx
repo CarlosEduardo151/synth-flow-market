@@ -550,9 +550,11 @@ const WhatsAppBotConfigSystem = () => {
                   isConnected={wapiConnected}
                   instanceId={wapiInstanceId}
                   token={wapiToken}
+                  clientToken={wapiClientToken}
                   phoneNumber={wapiPhone}
                   onInstanceIdChange={setWapiInstanceId}
                   onTokenChange={setWapiToken}
+                  onClientTokenChange={setWapiClientToken}
                   onPhoneNumberChange={setWapiPhone}
                   onConnectionChange={setWapiConnected}
                 />
