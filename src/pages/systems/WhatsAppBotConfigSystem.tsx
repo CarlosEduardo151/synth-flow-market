@@ -254,6 +254,7 @@ const WhatsAppBotConfigSystem = () => {
           for (const c of wapiCreds) {
             if (c.credential_key === 'zapi_instance_id') setWapiInstanceId(c.credential_value || '');
             if (c.credential_key === 'zapi_token') setWapiToken(c.credential_value || '');
+            if (c.credential_key === 'zapi_client_token') setWapiClientToken(c.credential_value || '');
             if (c.credential_key === 'zapi_phone') setWapiPhone(c.credential_value || '');
           }
           if (wapiCreds.length >= 2 && wapiCreds.filter((c: any) => c.credential_value).length >= 2) {
