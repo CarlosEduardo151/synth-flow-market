@@ -194,20 +194,61 @@ serve(async (req) => {
       return corsResponse({ ok: true, skipped: "no_zapi_creds" }, 200, origin);
     }
 
-    // 2. AI config
+    // 2. AI config (now includes personality + action_instructions + configuration)
     const { data: aiConfig } = await service
       .from("ai_control_config")
-      .select("provider, model, system_prompt, temperature, max_tokens, business_name, is_active")
+      .select("provider, model, system_prompt, temperature, max_tokens, business_name, is_active, personality, action_instructions, configuration")
       .eq("customer_product_id", customerProductId)
       .maybeSingle();
-
-    // ai_control_config.is_active is secondary — bot_instances.is_active is the primary toggle
 
     const provider = (aiConfig?.provider as string) || "google";
     const temperature = Number(aiConfig?.temperature ?? 0.7);
     const maxTokens = Number(aiConfig?.max_tokens ?? 512);
+    const contextWindowSize = Number(aiConfig?.configuration?.context_window_size ?? 10);
+
     let systemPrompt = (aiConfig?.system_prompt as string) ||
       `Você é o agente StarAI do negócio ${aiConfig?.business_name || ""}. Responda de forma objetiva e útil em português.`;
+
+    // ===== PERSONALITY INJECTION =====
+    const personalityTone = aiConfig?.personality as string || "";
+    const TONE_INSTRUCTIONS: Record<string, string> = {
+      profissional: "Use linguagem corporativa e formal. Mantenha um tom respeitoso e objetivo.",
+      amigavel: "Use linguagem casual mas respeitosa. Use emojis com moderação para ser acolhedor.",
+      tecnico: "Use terminologia técnica precisa. Seja detalhado e específico nas explicações.",
+      entusiasmado: "Demonstre energia positiva! Celebre conquistas do cliente. Use exclamações e emojis.",
+      empatico: "Demonstre compreensão genuína. Seja paciente e atencioso com as necessidades do cliente.",
+      direto: "Vá direto ao ponto. Respostas concisas e objetivas sem rodeios.",
+    };
+
+    if (personalityTone && TONE_INSTRUCTIONS[personalityTone]) {
+      systemPrompt += `\n\n=== TOM DE COMUNICAÇÃO ===\n${TONE_INSTRUCTIONS[personalityTone]}`;
+    }
+
+    // ===== ACTION INSTRUCTIONS INJECTION =====
+    if (aiConfig?.action_instructions) {
+      try {
+        const instructions = typeof aiConfig.action_instructions === "string"
+          ? JSON.parse(aiConfig.action_instructions)
+          : aiConfig.action_instructions;
+
+        if (Array.isArray(instructions) && instructions.length > 0) {
+          const doRules = instructions
+            .filter((i: any) => i.type === "do" && i.instruction?.trim())
+            .map((i: any) => `✅ ${i.instruction.trim()}`);
+          const dontRules = instructions
+            .filter((i: any) => i.type === "dont" && i.instruction?.trim())
+            .map((i: any) => `❌ NUNCA: ${i.instruction.trim()}`);
+
+          if (doRules.length || dontRules.length) {
+            systemPrompt += `\n\n=== REGRAS DE COMPORTAMENTO ===`;
+            if (doRules.length) systemPrompt += `\nSEMPRE faça:\n${doRules.join("\n")}`;
+            if (dontRules.length) systemPrompt += `\nNUNCA faça:\n${dontRules.join("\n")}`;
+          }
+        }
+      } catch (e) {
+        console.error("action_instructions_parse_error:", e);
+      }
+    }
 
     // 3. Load knowledge base and inject into system prompt
     try {
@@ -223,16 +264,39 @@ serve(async (req) => {
           .map((e: any) => `### ${e.title}\n${(e.content || "").slice(0, 5000)}`)
           .join("\n\n");
 
-        // Limit total knowledge context to ~15000 chars to stay within token limits
         const truncatedKnowledge = knowledgeText.slice(0, 15000);
-
         systemPrompt += `\n\n=== BASE DE CONHECIMENTO DO NEGÓCIO ===\nUse as informações abaixo para responder perguntas sobre o negócio. Estas são informações reais e verificadas:\n\n${truncatedKnowledge}\n\n=== FIM DA BASE DE CONHECIMENTO ===`;
       }
     } catch (e) {
       console.error("knowledge_load_error:", e);
     }
 
-    // 4. Resolve AI credentials
+    // ===== 4. LOAD CONVERSATION MEMORY =====
+    let conversationHistory: ConversationMessage[] = [];
+    try {
+      const { data: recentMessages } = await service
+        .from("bot_conversation_logs")
+        .select("direction, message_text, created_at")
+        .eq("customer_product_id", customerProductId)
+        .eq("phone", phone)
+        .order("created_at", { ascending: false })
+        .limit(contextWindowSize * 2); // pairs of inbound+outbound
+
+      if (recentMessages && recentMessages.length > 0) {
+        // Reverse to chronological order
+        conversationHistory = recentMessages
+          .reverse()
+          .map((msg: any) => ({
+            role: msg.direction === "inbound" ? "user" as const : "assistant" as const,
+            content: (msg.message_text || "").replace(/^\[FAQ\]\s*/, ""),
+          }))
+          .filter((msg: any) => msg.content.trim());
+      }
+    } catch (e) {
+      console.error("memory_load_error:", e);
+    }
+
+    // 5. Resolve AI credentials
     const resolved = await resolveAICredentials(
       service,
       provider,
