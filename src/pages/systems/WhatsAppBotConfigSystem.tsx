@@ -74,6 +74,7 @@ const WhatsAppBotConfigSystem = () => {
   const [wapiConnected, setWapiConnected] = useState(false);
   const [wapiInstanceId, setWapiInstanceId] = useState('');
   const [wapiToken, setWapiToken] = useState('');
+  const [wapiClientToken, setWapiClientToken] = useState('');
   const [wapiPhone, setWapiPhone] = useState('');
 
   const [config, setConfig] = useState<AgentConfig>({
