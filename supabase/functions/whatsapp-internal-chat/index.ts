@@ -6,6 +6,7 @@ import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rat
 import {
   processText,
   resolveAICredentials,
+  type ConversationMessage,
 } from "../_shared/ai-providers.ts";
 
 serve(async (req) => {
