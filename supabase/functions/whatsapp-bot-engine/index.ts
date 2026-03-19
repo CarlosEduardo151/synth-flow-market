@@ -488,7 +488,7 @@ serve(async (req) => {
       messageType = "text";
       const userMessage = sanitizeString(userMessageText);
       if (userMessage) {
-        result = await processText(resolved.resolvedProvider, aiOpts, userMessage);
+        result = await processText(resolved.resolvedProvider, aiOpts, userMessage, conversationHistory);
       } else {
         result = { text: "", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
