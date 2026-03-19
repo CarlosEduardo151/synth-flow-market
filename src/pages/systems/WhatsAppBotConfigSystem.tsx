@@ -159,6 +159,21 @@ const WhatsAppBotConfigSystem = () => {
       setCustomerProductId(productId);
       await botInstances.ensureDefault();
 
+      // Auto-provision webhook_token if missing (fallback for legacy products)
+      if (!product.webhook_token) {
+        try {
+          const { data: tokenResult } = await supabase.functions.invoke('admin-customer-product-webhook', {
+            body: { action: 'ensure', customer_product_id: productId },
+          });
+          if (tokenResult?.webhook_token) {
+            console.log('webhook_token auto-provisioned');
+          }
+        } catch (e) {
+          // Non-critical: admin-only function, silently skip for non-admins
+          console.log('webhook_token auto-provision skipped (non-admin or error)');
+        }
+      }
+
       // Load or auto-create AI config
       let { data: configData } = await supabase
         .from('ai_control_config')
