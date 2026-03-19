@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
-import { Database, CheckCircle2, BookOpen, HardDrive, Clock, BarChart3 } from 'lucide-react';
+import { Database, CheckCircle2, BookOpen, HardDrive, Clock, BarChart3, Brain, MessageSquare } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const RETENTION_OPTIONS = [
@@ -30,17 +30,17 @@ export function BotMemoryTab({
       <Card className="border-border/50">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Database className="h-5 w-5 text-primary" />
+            <Brain className="h-5 w-5 text-primary" />
             Memória de Conversação
           </CardTitle>
-          <CardDescription>Como o agente lembra das conversas anteriores</CardDescription>
+          <CardDescription>O agente lembra mensagens anteriores de cada contato</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="p-3 rounded-xl bg-green-500/5 border border-green-500/20 flex items-center gap-3">
             <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
             <div>
-              <p className="font-medium text-sm text-green-500">PostgreSQL Ativa</p>
-              <p className="text-xs text-muted-foreground">Banco de dados persistente configurado automaticamente</p>
+              <p className="font-medium text-sm text-green-600 dark:text-green-400">Memória Ativa</p>
+              <p className="text-xs text-muted-foreground">O motor carrega as últimas mensagens automaticamente por telefone</p>
             </div>
           </div>
 
@@ -54,7 +54,7 @@ export function BotMemoryTab({
               max={100}
             />
             <p className="text-xs text-muted-foreground">
-              Quantidade de mensagens anteriores que o agente consegue lembrar em cada conversa
+              O motor carrega até <strong>{contextWindowSize * 2}</strong> mensagens (pares enviadas/recebidas) do histórico de cada contato
             </p>
           </div>
 
@@ -74,6 +74,34 @@ export function BotMemoryTab({
               Por quanto tempo os logs de conversa são mantidos
             </p>
           </div>
+
+          {/* Visual preview of how memory works */}
+          <div className="rounded-xl border border-border/50 bg-muted/30 p-4 space-y-3">
+            <p className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <MessageSquare className="h-3.5 w-3.5" />
+              Como funciona na prática
+            </p>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex items-start gap-2">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 border-blue-500/30 text-blue-500">Cliente</Badge>
+                <span className="text-muted-foreground">"Qual o preço do plano?"</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 border-green-500/30 text-green-500">Bot</Badge>
+                <span className="text-muted-foreground">"O plano custa R$ 99/mês..."</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 border-blue-500/30 text-blue-500">Cliente</Badge>
+                <span className="text-muted-foreground">"Tem desconto?"</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0 border-green-500/30 text-green-500">Bot</Badge>
+                <span className="text-muted-foreground">
+                  ✅ <em>Lembra que falou de planos e responde contextualmente</em>
+                </span>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -84,14 +112,14 @@ export function BotMemoryTab({
               <HardDrive className="h-5 w-5 text-primary" />
               Armazenamento
             </CardTitle>
-            <CardDescription>Dados persistidos pelo sistema</CardDescription>
+            <CardDescription>Dados persistidos pelo motor</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="p-3 rounded-xl bg-muted/50 border border-border/50 flex items-center gap-3">
               <Clock className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Conversas WhatsApp</p>
-                <code className="text-xs text-muted-foreground font-mono">bot_conversation_logs</code>
+                <p className="text-[11px] text-muted-foreground">Histórico por telefone, usado na memória contextual</p>
               </div>
             </div>
 
@@ -99,7 +127,7 @@ export function BotMemoryTab({
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Métricas de Uso</p>
-                <code className="text-xs text-muted-foreground font-mono">bot_usage_metrics</code>
+                <p className="text-[11px] text-muted-foreground">Tokens, latência e volume por chamada IA</p>
               </div>
             </div>
 
@@ -107,7 +135,7 @@ export function BotMemoryTab({
               <BookOpen className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Base de Conhecimento</p>
-                <code className="text-xs text-muted-foreground font-mono">bot_knowledge_base</code>
+                <p className="text-[11px] text-muted-foreground">Injetada no system prompt do motor</p>
               </div>
             </div>
 
@@ -115,21 +143,20 @@ export function BotMemoryTab({
               <Database className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-sm font-medium">Eventos Brutos</p>
-                <code className="text-xs text-muted-foreground font-mono">whatsapp_inbox_events</code>
+                <p className="text-[11px] text-muted-foreground">Payloads Z-API para auditoria</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 border-primary/20 bg-primary/5">
+        <Card className="border-primary/20 bg-primary/5">
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <Database className="h-5 w-5 text-primary mt-0.5" />
               <div>
-                <p className="text-sm font-medium">Motor Edge Function Nativo</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Processamento direto via Supabase Edge Functions — sem dependência de serviços externos.
-                  As conversas e métricas são armazenadas automaticamente no PostgreSQL.
+                <p className="text-sm font-medium">Pipeline do Motor</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                  <strong>System Prompt</strong> → Tom de comunicação → Regras do agente → Base de conhecimento → <strong>Últimas {contextWindowSize * 2} mensagens</strong> → Resposta IA
                 </p>
               </div>
             </div>

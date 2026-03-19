@@ -74,6 +74,7 @@ const WhatsAppBotConfigSystem = () => {
   const [wapiConnected, setWapiConnected] = useState(false);
   const [wapiInstanceId, setWapiInstanceId] = useState('');
   const [wapiToken, setWapiToken] = useState('');
+  const [wapiClientToken, setWapiClientToken] = useState('');
   const [wapiPhone, setWapiPhone] = useState('');
 
   const [config, setConfig] = useState<AgentConfig>({
@@ -247,12 +248,13 @@ const WhatsAppBotConfigSystem = () => {
           .select('credential_key, credential_value')
           .eq('user_id', user.id)
           .eq('product_slug', 'bots-automacao')
-          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_phone']);
+          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_client_token', 'zapi_phone']);
 
         if (wapiCreds && wapiCreds.length > 0) {
           for (const c of wapiCreds) {
             if (c.credential_key === 'zapi_instance_id') setWapiInstanceId(c.credential_value || '');
             if (c.credential_key === 'zapi_token') setWapiToken(c.credential_value || '');
+            if (c.credential_key === 'zapi_client_token') setWapiClientToken(c.credential_value || '');
             if (c.credential_key === 'zapi_phone') setWapiPhone(c.credential_value || '');
           }
           if (wapiCreds.length >= 2 && wapiCreds.filter((c: any) => c.credential_value).length >= 2) {
@@ -548,9 +550,11 @@ const WhatsAppBotConfigSystem = () => {
                   isConnected={wapiConnected}
                   instanceId={wapiInstanceId}
                   token={wapiToken}
+                  clientToken={wapiClientToken}
                   phoneNumber={wapiPhone}
                   onInstanceIdChange={setWapiInstanceId}
                   onTokenChange={setWapiToken}
+                  onClientTokenChange={setWapiClientToken}
                   onPhoneNumberChange={setWapiPhone}
                   onConnectionChange={setWapiConnected}
                 />
