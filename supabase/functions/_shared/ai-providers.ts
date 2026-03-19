@@ -187,9 +187,10 @@ export async function processText(
   provider: ResolvedProvider,
   opts: AICallOptions,
   text: string,
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
-  if (provider === "google") return geminiChat(opts, text);
-  return openaiChat(opts, text);
+  if (provider === "google") return geminiChat(opts, text, conversationHistory);
+  return openaiChat(opts, text, conversationHistory);
 }
 
 export async function processImage(
