@@ -24,10 +24,29 @@ export interface AIUsageResult {
 
 // ========== OpenAI ==========
 
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function openaiChat(
   opts: AICallOptions,
   userContent: string | any[],
+  conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
+  const messages: any[] = [
+    { role: "system", content: opts.systemPrompt || "" },
+  ];
+
+  // Inject conversation history for memory
+  if (conversationHistory?.length) {
+    for (const msg of conversationHistory) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  messages.push({ role: "user", content: userContent });
+
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -38,10 +57,7 @@ export async function openaiChat(
       model: opts.model || "gpt-4o-mini",
       temperature: clampNumber(opts.temperature, 0, 2, 0.7),
       max_tokens: clampNumber(opts.maxTokens, 1, 4096, 512),
-      messages: [
-        { role: "system", content: opts.systemPrompt || "" },
-        { role: "user", content: userContent },
-      ],
+      messages,
     }),
   });
 
