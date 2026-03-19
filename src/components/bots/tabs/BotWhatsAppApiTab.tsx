@@ -95,6 +95,7 @@ export function BotWhatsAppApiTab({
       const credentials = [
         { key: 'zapi_instance_id', value: instanceId },
         { key: 'zapi_token', value: token },
+        { key: 'zapi_client_token', value: clientToken },
         { key: 'zapi_phone', value: phoneNumber },
       ];
 
