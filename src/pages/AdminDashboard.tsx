@@ -97,14 +97,6 @@ const AdminDashboard = () => {
       stats: 'Protótipo'
     },
     {
-      title: 'Bots de Automação',
-      description: 'WhatsApp webhook + scripts privados',
-      icon: MessageCircle,
-      link: '/admin/bots-automacao',
-      color: 'bg-emerald-600',
-      stats: 'Z-API'
-    },
-    {
       title: 'Relatório de Assinaturas',
       description: 'MRR, assinaturas ativas e vencimentos',
       icon: FileText,

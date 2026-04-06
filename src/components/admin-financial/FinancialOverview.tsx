@@ -162,27 +162,6 @@ export function FinancialOverview() {
 
   return (
     <div className="space-y-6">
-      {/* Atalho Sniper HFT */}
-      <Card className="bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 border-amber-500/30">
-        <CardContent className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/20">
-              <Zap className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-amber-500">Bot Sniper HFT</h3>
-              <p className="text-sm text-muted-foreground">Trading automatizado de alta frequência</p>
-            </div>
-          </div>
-          <Button 
-            onClick={() => navigate('/sistemas/sniper-hft')}
-            className="bg-amber-500 hover:bg-amber-600 text-black"
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Acessar
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Cards de estatísticas principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
