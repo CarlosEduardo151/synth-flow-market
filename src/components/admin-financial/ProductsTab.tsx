@@ -167,13 +167,13 @@ export function ProductsTab() {
 
   const fetchProducts = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('admin_products')
       .select('*')
       .order('name', { ascending: true });
 
     if (!error && data) {
-      setProducts(data);
+      setProducts(data as Product[]);
     }
     setLoading(false);
   };
@@ -193,12 +193,12 @@ export function ProductsTab() {
 
     let error;
     if (editingProduct) {
-      ({ error } = await supabase
+      ({ error } = await (supabase as any)
         .from('admin_products')
         .update(productData)
         .eq('id', editingProduct.id));
     } else {
-      ({ error } = await supabase
+      ({ error } = await (supabase as any)
         .from('admin_products')
         .insert(productData));
     }
@@ -222,7 +222,7 @@ export function ProductsTab() {
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('admin_products')
       .delete()
       .eq('id', productToDelete.id);
@@ -241,7 +241,7 @@ export function ProductsTab() {
   };
 
   const toggleProductStatus = async (id: string, currentStatus: boolean) => {
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('admin_products')
       .update({ is_active: !currentStatus })
       .eq('id', id);
@@ -271,7 +271,7 @@ export function ProductsTab() {
     if (!editingCategory || !newCategoryName.trim()) return;
     
     // Update all products with this category
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('admin_products')
       .update({ category: newCategoryName.trim() })
       .eq('category', editingCategory);
@@ -298,7 +298,7 @@ export function ProductsTab() {
     if (!categoryToDelete) return;
 
     // Set category to null for all products in this category
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('admin_products')
       .update({ category: null })
       .eq('category', categoryToDelete);
