@@ -104,11 +104,11 @@ export function ProductsTab() {
   const syncCatalogProducts = async () => {
     setSyncing(true);
     try {
-      const { data: existingProducts } = await supabase
+      const { data: existingProducts } = await (supabase as any)
         .from('admin_products')
         .select('name');
 
-      const existingNames = new Set(existingProducts?.map(p => p.name?.toLowerCase()) || []);
+      const existingNames = new Set((existingProducts as any[])?.map((p: any) => p.name?.toLowerCase()) || []);
 
       const newProducts = catalogProducts.filter(
         product => !existingNames.has(product.title.toLowerCase())
@@ -128,7 +128,7 @@ export function ProductsTab() {
         is_active: product.inStock
       }));
 
-      const { error: insertError } = await supabase
+      const { error: insertError } = await (supabase as any)
         .from('admin_products')
         .insert(productsToInsert);
 

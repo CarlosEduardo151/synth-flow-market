@@ -65,39 +65,40 @@ export function FinancialOverview() {
 
     // Buscar transações do mês atual
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const { data: transactions } = await supabase
+    const { data: transactions } = await (supabase as any)
       .from('financial_transactions')
       .select('type, amount, reference_date')
       .gte('reference_date', `${currentMonth}-01`);
 
     // Buscar saldos das caixinhas
-    const { data: boxBalances } = await supabase
+    const { data: boxBalances } = await (supabase as any)
       .from('box_balances')
       .select('box_type, balance');
 
     // Buscar contagem de clientes
-    const { count: customersCount } = await supabase
+    const { count: customersCount } = await (supabase as any)
       .from('admin_crm_customers')
       .select('*', { count: 'exact', head: true });
 
     // Buscar contagem de produtos
-    const { count: productsCount } = await supabase
+    const { count: productsCount } = await (supabase as any)
       .from('admin_products')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
 
     // Calcular estatísticas
-    const income = (transactions || [])
+    const txList = (transactions || []) as Transaction[];
+    const income = txList
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     
-    const expenses = (transactions || [])
+    const expenses = txList
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // Mapear saldos das caixinhas
     const boxMap: Record<string, number> = {};
-    (boxBalances || []).forEach((b: BoxBalance) => {
+    ((boxBalances || []) as BoxBalance[]).forEach((b: BoxBalance) => {
       boxMap[b.box_type] = Number(b.balance);
     });
 
@@ -114,7 +115,7 @@ export function FinancialOverview() {
 
     // Preparar dados mensais para o gráfico
     const monthlyMap: Record<string, { income: number; expense: number }> = {};
-    (transactions || []).forEach((t: Transaction) => {
+    txList.forEach((t: Transaction) => {
       const date = t.reference_date;
       if (!monthlyMap[date]) {
         monthlyMap[date] = { income: 0, expense: 0 };
