@@ -131,9 +131,9 @@ const BillingSystem = () => {
 
   const loadData = async (productId: string) => {
     // Use admin_crm_customers as fallback for billing_clients
-    const { data: clientsData } = await (supabase
+    const { data: clientsData } = await (supabase as any)
       .from('admin_crm_customers')
-      .select('*') as any);
+      .select('*');
 
     if (clientsData) {
       setClients((clientsData || []).map((c: any) => ({
@@ -162,7 +162,7 @@ const BillingSystem = () => {
     if (!customerProductId) return;
 
     const formData = new FormData(e.currentTarget);
-    const { error } = await (supabase.from('admin_crm_customers') as any).insert({
+    const { error } = await (supabase as any).from('admin_crm_customers').insert({
       name: formData.get('name') as string,
       email: formData.get('email') as string || null,
       phone: formData.get('phone') as string,

@@ -51,7 +51,7 @@ export default function SniperHFTSystem() {
     if (!user?.id) return;
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bot_hft_configs')
         .select('*')
         .eq('user_id', user.id)
@@ -125,7 +125,7 @@ export default function SniperHFTSystem() {
 
     try {
       // Save config to database first
-      const { error: dbError } = await supabase
+      const { error: dbError } = await (supabase as any)
         .from('bot_hft_configs')
         .upsert({
           user_id: user.id,
@@ -222,7 +222,7 @@ export default function SniperHFTSystem() {
       
       // Update patrimonio in database
       if (dbConfig?.id && newStatus.patrimonio !== dbConfig.patrimonio_atual) {
-        await supabase
+        await (supabase as any)
           .from('bot_hft_configs')
           .update({ patrimonio_atual: newStatus.patrimonio })
           .eq('id', dbConfig.id);
@@ -250,7 +250,7 @@ export default function SniperHFTSystem() {
     if (!dbConfig?.id) return;
     
     const newState = !isRunning;
-    await supabase
+    await (supabase as any)
       .from('bot_hft_configs')
       .update({ is_active: newState })
       .eq('id', dbConfig.id);
@@ -264,7 +264,7 @@ export default function SniperHFTSystem() {
     if (!dbConfig?.id) return;
     
     const amount = dbConfig.patrimonio_atual;
-    await supabase.from('bot_hft_configs').delete().eq('id', dbConfig.id);
+    await (supabase as any).from('bot_hft_configs').delete().eq('id', dbConfig.id);
     
     setDbConfig(null);
     setBotStatus(null);
