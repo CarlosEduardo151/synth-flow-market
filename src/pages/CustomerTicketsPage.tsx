@@ -79,7 +79,7 @@ export default function CustomerTicketsPage() {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)
@@ -146,8 +146,8 @@ export default function CustomerTicketsPage() {
     }
 
     try {
-      const { error } = await (supabase
-        .from('support_tickets') as any)
+      const { error } = await (supabase as any)
+        .from('support_tickets')
         .insert({
           user_id: user.id,
           subject: newTicket.title,

@@ -79,7 +79,7 @@ export default function AdminAbandonedCartsPage() {
       }
 
       // Pega a conexão Z-API do admin logado (para enviar mensagens)
-      const { data: conns } = await supabase
+      const { data: conns } = await (supabase as any)
         .from('zapi_connections')
         .select('instance_id, token')
         .eq('user_id', user.id)

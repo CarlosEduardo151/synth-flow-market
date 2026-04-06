@@ -51,7 +51,7 @@ export function useBotHFTConfig() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bot_hft_configs')
         .select('*')
         .eq('user_id', user.id)
@@ -60,7 +60,7 @@ export function useBotHFTConfig() {
       if (error) throw error;
       
       if (data) {
-        setConfig(data as BotHFTConfig);
+        setConfig(data as unknown as BotHFTConfig);
       } else {
         setConfig(null);
       }
@@ -85,14 +85,14 @@ export function useBotHFTConfig() {
     setSaving(true);
     try {
       if (config?.id) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('bot_hft_configs')
           .update(newConfig)
           .eq('id', config.id);
 
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('bot_hft_configs')
           .insert({
             user_id: user.id,
@@ -123,7 +123,7 @@ export function useBotHFTConfig() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bot_hft_configs')
         .insert({
           user_id: user.id,
@@ -159,7 +159,7 @@ export function useBotHFTConfig() {
 
     setSaving(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bot_hft_configs')
         .delete()
         .eq('id', config.id);
@@ -191,7 +191,7 @@ export function useBotHFTConfig() {
     if (!config?.id) return false;
 
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('bot_hft_configs')
         .update({ patrimonio_atual: novoPatrimonio })
         .eq('id', config.id);

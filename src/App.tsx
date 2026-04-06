@@ -75,7 +75,7 @@ import HowBotWorksPage from "./pages/HowBotWorksPage";
 import AdminAbandonedCartsPage from "./pages/admin/AdminAbandonedCartsPage";
 import AdminCustomMessagesPage from "./pages/admin/AdminCustomMessagesPage";
 import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
-import AdminBotsAutomacaoPage from "./pages/admin/AdminBotsAutomacaoPage";
+
 import AdminEnginesPage from "./pages/admin/AdminEnginesPage";
 import AdminWorkshopReviewPage from "./pages/admin/AdminWorkshopReviewPage";
 import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
@@ -172,7 +172,7 @@ const App = () => (
              <Route path="/admin/diagnostico" element={<AdminDiagnosticPage />} />
               <Route path="/admin/abandoned-carts" element={<AdminAbandonedCartsPage />} />
               <Route path="/admin/custom-messages" element={<AdminCustomMessagesPage />} />
-              <Route path="/admin/bots-automacao" element={<AdminBotsAutomacaoPage />} />
+              
               <Route path="/admin/engines" element={<AdminEnginesPage />} />
               <Route path="/admin/workshop-review" element={<AdminWorkshopReviewPage />} />
               <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />

@@ -79,8 +79,8 @@ export function ThreeBoxesTab() {
     setLoading(true);
 
     const [productsRes, balancesRes] = await Promise.all([
-      supabase.from('admin_products').select('id, name, sale_price, cost_price').eq('is_active', true),
-      supabase.from('box_balances').select('box_type, balance'),
+      (supabase as any).from('admin_products').select('id, name, sale_price, cost_price').eq('is_active', true),
+      (supabase as any).from('box_balances').select('box_type, balance'),
     ]);
 
     // Fetch movements and distributions using raw queries since tables may not exist in types
@@ -96,8 +96,8 @@ export function ThreeBoxesTab() {
       .order('created_at', { ascending: false })
       .limit(10);
 
-    if (productsRes.data) setProducts(productsRes.data);
-    if (balancesRes.data) setBoxBalances(balancesRes.data);
+    if (productsRes.data) setProducts(productsRes.data as Product[]);
+    if (balancesRes.data) setBoxBalances(balancesRes.data as BoxBalance[]);
     if (movementsRes.data) setMovements(movementsRes.data as unknown as BoxMovement[]);
     if (distributionsRes.data) setDistributions(distributionsRes.data as unknown as ProfitDistribution[]);
 
@@ -162,7 +162,7 @@ export function ThreeBoxesTab() {
 
     for (const update of updates) {
       const currentBalance = boxBalances.find(b => b.box_type === update.box_type)?.balance || 0;
-      await supabase
+      await (supabase as any)
         .from('box_balances')
         .update({ balance: Number(currentBalance) + update.amount, last_updated: new Date().toISOString() })
         .eq('box_type', update.box_type);
@@ -209,7 +209,7 @@ export function ThreeBoxesTab() {
     }
 
     // Atualizar saldo
-    const { error: updateError } = await supabase
+    const { error: updateError } = await (supabase as any)
       .from('box_balances')
       .update({ balance: Number(currentBalance) - amount, last_updated: new Date().toISOString() })
       .eq('box_type', withdrawBoxType);

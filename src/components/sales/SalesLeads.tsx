@@ -108,13 +108,13 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
   const loadLeads = async () => {
     if (!user) return;
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from('sales_leads')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false });
 
-    if (!error && data) setLeads(data);
+    if (!error && data) setLeads(data as any);
     setIsLoading(false);
   };
 

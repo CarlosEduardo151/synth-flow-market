@@ -11,9 +11,7 @@ import {
   Wallet,
   PiggyBank,
   Shield,
-  Briefcase,
-  Zap,
-  ExternalLink
+  Briefcase
 } from 'lucide-react';
 import {
   AreaChart,
@@ -65,39 +63,40 @@ export function FinancialOverview() {
 
     // Buscar transações do mês atual
     const currentMonth = new Date().toISOString().slice(0, 7);
-    const { data: transactions } = await supabase
+    const { data: transactions } = await (supabase as any)
       .from('financial_transactions')
       .select('type, amount, reference_date')
       .gte('reference_date', `${currentMonth}-01`);
 
     // Buscar saldos das caixinhas
-    const { data: boxBalances } = await supabase
+    const { data: boxBalances } = await (supabase as any)
       .from('box_balances')
       .select('box_type, balance');
 
     // Buscar contagem de clientes
-    const { count: customersCount } = await supabase
+    const { count: customersCount } = await (supabase as any)
       .from('admin_crm_customers')
       .select('*', { count: 'exact', head: true });
 
     // Buscar contagem de produtos
-    const { count: productsCount } = await supabase
+    const { count: productsCount } = await (supabase as any)
       .from('admin_products')
       .select('*', { count: 'exact', head: true })
       .eq('is_active', true);
 
     // Calcular estatísticas
-    const income = (transactions || [])
+    const txList = (transactions || []) as Transaction[];
+    const income = txList
       .filter(t => t.type === 'income')
       .reduce((sum, t) => sum + Number(t.amount), 0);
     
-    const expenses = (transactions || [])
+    const expenses = txList
       .filter(t => t.type === 'expense')
       .reduce((sum, t) => sum + Number(t.amount), 0);
 
     // Mapear saldos das caixinhas
     const boxMap: Record<string, number> = {};
-    (boxBalances || []).forEach((b: BoxBalance) => {
+    ((boxBalances || []) as BoxBalance[]).forEach((b: BoxBalance) => {
       boxMap[b.box_type] = Number(b.balance);
     });
 
@@ -114,7 +113,7 @@ export function FinancialOverview() {
 
     // Preparar dados mensais para o gráfico
     const monthlyMap: Record<string, { income: number; expense: number }> = {};
-    (transactions || []).forEach((t: Transaction) => {
+    txList.forEach((t: Transaction) => {
       const date = t.reference_date;
       if (!monthlyMap[date]) {
         monthlyMap[date] = { income: 0, expense: 0 };
@@ -161,27 +160,6 @@ export function FinancialOverview() {
 
   return (
     <div className="space-y-6">
-      {/* Atalho Sniper HFT */}
-      <Card className="bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-red-500/20 border-amber-500/30">
-        <CardContent className="flex items-center justify-between py-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-amber-500/20">
-              <Zap className="h-6 w-6 text-amber-500" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-amber-500">Bot Sniper HFT</h3>
-              <p className="text-sm text-muted-foreground">Trading automatizado de alta frequência</p>
-            </div>
-          </div>
-          <Button 
-            onClick={() => navigate('/sistemas/sniper-hft')}
-            className="bg-amber-500 hover:bg-amber-600 text-black"
-          >
-            <ExternalLink className="h-4 w-4 mr-2" />
-            Acessar
-          </Button>
-        </CardContent>
-      </Card>
 
       {/* Cards de estatísticas principais */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

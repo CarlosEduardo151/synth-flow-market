@@ -65,7 +65,7 @@ export function CashFlowTab() {
     const endDate = new Date(parseInt(dateFilter.split('-')[0]), parseInt(dateFilter.split('-')[1]), 0)
       .toISOString().split('T')[0];
 
-    const { data: txData } = await supabase
+    const { data: txData } = await (supabase as any)
       .from('financial_transactions')
       .select('*')
       .gte('reference_date', startDate)
@@ -73,13 +73,13 @@ export function CashFlowTab() {
       .order('reference_date', { ascending: false });
 
     // Buscar produtos para o select
-    const { data: prodData } = await supabase
+    const { data: prodData } = await (supabase as any)
       .from('admin_products')
       .select('id, name')
       .eq('is_active', true);
 
-    if (txData) setTransactions(txData);
-    if (prodData) setProducts(prodData);
+    if (txData) setTransactions(txData as Transaction[]);
+    if (prodData) setProducts(prodData as Product[]);
     
     setLoading(false);
   };
@@ -101,12 +101,12 @@ export function CashFlowTab() {
 
     let error;
     if (editingTransaction) {
-      ({ error } = await supabase
+      ({ error } = await (supabase as any)
         .from('financial_transactions')
         .update(transactionData)
         .eq('id', editingTransaction.id));
     } else {
-      ({ error } = await supabase
+      ({ error } = await (supabase as any)
         .from('financial_transactions')
         .insert(transactionData));
     }
@@ -130,7 +130,7 @@ export function CashFlowTab() {
   const handleDeleteTransaction = async (id: string) => {
     if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
       .from('financial_transactions')
       .delete()
       .eq('id', id);

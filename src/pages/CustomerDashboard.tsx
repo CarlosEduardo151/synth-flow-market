@@ -66,7 +66,7 @@ const CustomerDashboard = () => {
       setOrders(ordersData || []);
 
       // Fetch tickets (using support_tickets table)
-      const { data: ticketsData } = await supabase
+      const { data: ticketsData } = await (supabase as any)
         .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)

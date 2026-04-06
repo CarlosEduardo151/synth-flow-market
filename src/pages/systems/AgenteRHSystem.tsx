@@ -131,12 +131,12 @@ const AgenteRHSystem = () => {
     
     try {
       const [vagasRes, candidatosRes, entrevistasRes] = await Promise.all([
-        supabase.from('rh_vagas').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'ativa'),
-        supabase.from('rh_candidatos').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('rh_entrevistas').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'agendada')
+        (supabase as any).from('rh_vagas').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'ativa'),
+        (supabase as any).from('rh_candidatos').select('*', { count: 'exact', head: true }).eq('user_id', user.id),
+        (supabase as any).from('rh_entrevistas').select('*', { count: 'exact', head: true }).eq('user_id', user.id).eq('status', 'agendada')
       ]);
       
-      const { count: contratados } = await supabase
+      const { count: contratados } = await (supabase as any)
         .from('rh_candidatos')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)

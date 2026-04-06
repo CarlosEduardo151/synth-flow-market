@@ -82,7 +82,7 @@ export default function AdminTicketsPage() {
 
   const fetchTickets = async () => {
     try {
-      const { data: ticketsData, error } = await supabase
+      const { data: ticketsData, error } = await (supabase as any)
         .from('support_tickets')
         .select('*')
         .order('created_at', { ascending: false });
@@ -121,7 +121,7 @@ export default function AdminTicketsPage() {
 
   const fetchTicketMessages = async (ticketId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('ticket_messages')
         .select('*')
         .eq('ticket_id', ticketId)
@@ -197,7 +197,7 @@ export default function AdminTicketsPage() {
         }
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('ticket_messages')
         .insert({
           ticket_id: selectedTicket.id,
@@ -210,9 +210,9 @@ export default function AdminTicketsPage() {
       if (error) throw error;
 
       if (selectedTicket.status === 'open') {
-        await supabase
+        await (supabase as any)
           .from('support_tickets')
-          .update({ status: 'in_progress' } as any)
+          .update({ status: 'in_progress' })
           .eq('id', selectedTicket.id);
       }
 
@@ -239,9 +239,9 @@ export default function AdminTicketsPage() {
 
   const updateTicketStatus = async (ticketId: string, newStatus: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('support_tickets')
-        .update({ status: newStatus } as any)
+        .update({ status: newStatus })
         .eq('id', ticketId);
 
       if (error) throw error;
