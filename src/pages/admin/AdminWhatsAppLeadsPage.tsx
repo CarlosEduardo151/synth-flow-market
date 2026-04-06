@@ -87,7 +87,7 @@ export default function AdminWhatsAppLeadsPage() {
     setLoading(true);
     try {
       // Carregar leads
-      const { data: leadsData, error: leadsError } = await supabase
+      const { data: leadsData, error: leadsError } = await (supabase as any)
         .from("whatsapp_leads")
         .select("*")
         .order("created_at", { ascending: false });

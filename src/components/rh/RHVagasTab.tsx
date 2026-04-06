@@ -57,7 +57,7 @@ export function RHVagasTab({ userId }: RHVagasTabProps) {
 
   const loadVagas = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('rh_vagas')
         .select('*')
         .eq('user_id', userId)
@@ -65,15 +65,15 @@ export function RHVagasTab({ userId }: RHVagasTabProps) {
 
       if (error) throw error;
 
-      const vagasWithCount = await Promise.all((data || []).map(async (vaga) => {
-        const { count } = await supabase
+      const vagasWithCount = await Promise.all(((data || []) as any[]).map(async (vaga: any) => {
+        const { count } = await (supabase as any)
           .from('rh_candidatos')
           .select('*', { count: 'exact', head: true })
           .eq('vaga_id', vaga.id);
         return { ...vaga, candidatos_count: count || 0 };
       }));
 
-      setVagas(vagasWithCount);
+      setVagas(vagasWithCount as any);
     } catch (error) {
       console.error('Error loading vagas:', error);
     } finally {
@@ -101,14 +101,14 @@ export function RHVagasTab({ userId }: RHVagasTabProps) {
       };
 
       if (editingVaga) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('rh_vagas')
           .update(vagaData)
           .eq('id', editingVaga.id);
         if (error) throw error;
         toast({ title: 'Vaga atualizada!' });
       } else {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('rh_vagas')
           .insert(vagaData);
         if (error) throw error;
