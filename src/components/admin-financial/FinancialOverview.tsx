@@ -11,9 +11,7 @@ import {
   Wallet,
   PiggyBank,
   Shield,
-  Briefcase,
-  Zap,
-  ExternalLink
+  Briefcase
 } from 'lucide-react';
 import {
   AreaChart,
