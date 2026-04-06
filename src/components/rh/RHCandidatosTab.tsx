@@ -57,20 +57,20 @@ export function RHCandidatosTab({ userId }: RHCandidatosTabProps) {
   const loadData = async () => {
     try {
       const [candidatosRes, vagasRes] = await Promise.all([
-        supabase.from('rh_candidatos').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
-        supabase.from('rh_vagas').select('id, titulo').eq('user_id', userId)
+        (supabase as any).from('rh_candidatos').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
+        (supabase as any).from('rh_vagas').select('id, titulo').eq('user_id', userId)
       ]);
 
       if (candidatosRes.error) throw candidatosRes.error;
       if (vagasRes.error) throw vagasRes.error;
 
-      const vagasMap = new Map(vagasRes.data?.map(v => [v.id, v.titulo]) || []);
-      const candidatosWithVaga = (candidatosRes.data || []).map(c => ({
+      const vagasMap = new Map((vagasRes.data as any[])?.map((v: any) => [v.id, v.titulo]) || []);
+      const candidatosWithVaga = ((candidatosRes.data || []) as any[]).map((c: any) => ({
         ...c,
         vaga: c.vaga_id ? { titulo: vagasMap.get(c.vaga_id) || 'Sem vaga' } : undefined
       }));
 
-      setCandidatos(candidatosWithVaga);
+      setCandidatos(candidatosWithVaga as any);
       setVagas(vagasRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -81,7 +81,7 @@ export function RHCandidatosTab({ userId }: RHCandidatosTabProps) {
 
   const handleUpdateEtapa = async (id: string, etapa: string) => {
     try {
-      const { error } = await supabase.from('rh_candidatos').update({ etapa }).eq('id', id);
+      const { error } = await (supabase as any).from('rh_candidatos').update({ etapa }).eq('id', id);
       if (error) throw error;
       toast({ title: 'Etapa atualizada!' });
       loadData();

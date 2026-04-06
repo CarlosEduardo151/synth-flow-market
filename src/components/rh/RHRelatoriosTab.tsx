@@ -34,23 +34,23 @@ export function RHRelatoriosTab({ userId }: RHRelatoriosTabProps) {
   const loadStats = async () => {
     try {
       const [vagasRes, candidatosRes, entrevistasRes] = await Promise.all([
-        supabase.from('rh_vagas').select('*').eq('user_id', userId),
-        supabase.from('rh_candidatos').select('*').eq('user_id', userId),
-        supabase.from('rh_entrevistas').select('*').eq('user_id', userId)
+        (supabase as any).from('rh_vagas').select('*').eq('user_id', userId),
+        (supabase as any).from('rh_candidatos').select('*').eq('user_id', userId),
+        (supabase as any).from('rh_entrevistas').select('*').eq('user_id', userId)
       ]);
 
-      const vagas = vagasRes.data || [];
-      const candidatos = candidatosRes.data || [];
-      const entrevistas = entrevistasRes.data || [];
+      const vagas = (vagasRes.data || []) as any[];
+      const candidatos = (candidatosRes.data || []) as any[];
+      const entrevistas = (entrevistasRes.data || []) as any[];
 
       // Basic stats
-      const vagasAtivas = vagas.filter(v => v.status === 'ativa').length;
-      const candidatosNovos = candidatos.filter(c => c.etapa === 'triagem').length;
-      const entrevistasAgendadas = entrevistas.filter(e => e.status === 'agendada' && new Date(e.data_hora) > new Date()).length;
-      const contratados = candidatos.filter(c => c.etapa === 'contratado').length;
+      const vagasAtivas = vagas.filter((v: any) => v.status === 'ativa').length;
+      const candidatosNovos = candidatos.filter((c: any) => c.etapa === 'triagem').length;
+      const entrevistasAgendadas = entrevistas.filter((e: any) => e.status === 'agendada' && new Date(e.data_hora) > new Date()).length;
+      const contratados = candidatos.filter((c: any) => c.etapa === 'contratado').length;
       
-      const avaliacoes = candidatos.filter(c => c.avaliacao !== null).map(c => c.avaliacao as number);
-      const mediaAvaliacao = avaliacoes.length > 0 ? avaliacoes.reduce((a, b) => a + b, 0) / avaliacoes.length : 0;
+      const avaliacoes = candidatos.filter((c: any) => c.avaliacao !== null).map((c: any) => c.avaliacao as number);
+      const mediaAvaliacao = avaliacoes.length > 0 ? avaliacoes.reduce((a: number, b: number) => a + b, 0) / avaliacoes.length : 0;
 
       setStats({
         totalVagas: vagas.length,

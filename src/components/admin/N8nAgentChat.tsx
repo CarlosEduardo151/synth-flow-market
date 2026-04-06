@@ -54,19 +54,18 @@ const N8nAgentChat = () => {
   // Load messages
   const loadMessages = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('n8n_agent_messages')
         .select('*')
         .order('created_at', { ascending: true });
 
       if (error) {
         console.error('Error loading messages:', error);
-        // Silently fail - table may not have data yet
         setMessages([]);
         return;
       }
 
-      setMessages((data as Message[]) || []);
+      setMessages((data as unknown as Message[]) || []);
     } catch (error) {
       console.error('Error loading messages:', error);
       setMessages([]);
@@ -81,7 +80,7 @@ const N8nAgentChat = () => {
     
     try {
       // Insert directly to database as user message
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('n8n_agent_messages')
         .insert({
           agent_id: 'default',

@@ -70,27 +70,27 @@ export function RHEntrevistasTab({ userId }: RHEntrevistasTabProps) {
   const loadData = async () => {
     try {
       const [entrevistasRes, candidatosRes, vagasRes] = await Promise.all([
-        supabase.from('rh_entrevistas').select('*').eq('user_id', userId).order('data_hora', { ascending: true }),
-        supabase.from('rh_candidatos').select('id, nome').eq('user_id', userId),
-        supabase.from('rh_vagas').select('id, titulo').eq('user_id', userId)
+        (supabase as any).from('rh_entrevistas').select('*').eq('user_id', userId).order('data_hora', { ascending: true }),
+        (supabase as any).from('rh_candidatos').select('id, nome').eq('user_id', userId),
+        (supabase as any).from('rh_vagas').select('id, titulo').eq('user_id', userId)
       ]);
 
       if (entrevistasRes.error) throw entrevistasRes.error;
       if (candidatosRes.error) throw candidatosRes.error;
       if (vagasRes.error) throw vagasRes.error;
 
-      const candidatosMap = new Map(candidatosRes.data?.map(c => [c.id, c.nome]) || []);
-      const vagasMap = new Map(vagasRes.data?.map(v => [v.id, v.titulo]) || []);
+      const candidatosMap = new Map((candidatosRes.data as any[])?.map((c: any) => [c.id, c.nome]) || []);
+      const vagasMap = new Map((vagasRes.data as any[])?.map((v: any) => [v.id, v.titulo]) || []);
       
-      const entrevistasWithNames = (entrevistasRes.data || []).map(e => ({
+      const entrevistasWithNames = ((entrevistasRes.data || []) as any[]).map((e: any) => ({
         ...e,
         candidato: e.candidato_id ? { nome: candidatosMap.get(e.candidato_id) || 'Desconhecido' } : undefined,
         vaga: e.vaga_id ? { titulo: vagasMap.get(e.vaga_id) || 'Sem vaga' } : undefined
       }));
 
-      setEntrevistas(entrevistasWithNames);
-      setCandidatos(candidatosRes.data || []);
-      setVagas(vagasRes.data || []);
+      setEntrevistas(entrevistasWithNames as any);
+      setCandidatos(candidatosRes.data as any[] || []);
+      setVagas(vagasRes.data as any[] || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -118,11 +118,11 @@ export function RHEntrevistasTab({ userId }: RHEntrevistasTabProps) {
       };
 
       if (editingEntrevista) {
-        const { error } = await supabase.from('rh_entrevistas').update(entrevistaData).eq('id', editingEntrevista.id);
+        const { error } = await (supabase as any).from('rh_entrevistas').update(entrevistaData).eq('id', editingEntrevista.id);
         if (error) throw error;
         toast({ title: 'Entrevista atualizada!' });
       } else {
-        const { error } = await supabase.from('rh_entrevistas').insert(entrevistaData);
+        const { error } = await (supabase as any).from('rh_entrevistas').insert(entrevistaData);
         if (error) throw error;
         toast({ title: 'Entrevista agendada!' });
       }
