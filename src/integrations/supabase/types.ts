@@ -787,6 +787,45 @@ export type Database = {
         }
         Relationships: []
       }
+      evolution_instances: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          evolution_apikey: string
+          evolution_url: string
+          groq_api_key: string | null
+          id: string
+          instance_name: string
+          is_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          evolution_apikey?: string
+          evolution_url?: string
+          groq_api_key?: string | null
+          id?: string
+          instance_name: string
+          is_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          evolution_apikey?: string
+          evolution_url?: string
+          groq_api_key?: string | null
+          id?: string
+          instance_name?: string
+          is_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_agent_chat_logs: {
         Row: {
           created_at: string
