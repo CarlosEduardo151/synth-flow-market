@@ -338,6 +338,7 @@ const WhatsAppBotConfigSystem = () => {
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
+        is_active: true,
       }, { onConflict: 'customer_product_id' });
 
       // Save API key (skip for novalink — uses admin keys)
