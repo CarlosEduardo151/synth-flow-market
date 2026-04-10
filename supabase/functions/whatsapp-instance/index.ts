@@ -39,9 +39,42 @@ const EVOLUTION_KEY = () => {
   return key;
 };
 
-function sanitizeInstanceName(email: string): string {
-  // Use email as instance name, replacing special chars
-  return email.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+/** Get instance name: prefer evolution_instances table, fallback to generating from email */
+async function resolveInstanceName(sb: any, userId: string, userEmail: string): Promise<string> {
+  const { data: evoInst } = await sb
+    .from("evolution_instances")
+    .select("instance_name")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (evoInst?.instance_name) return evoInst.instance_name;
+
+  // Fallback: generate from email
+  return userEmail.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+}
+
+/** Configure webhook on Evolution API instance */
+async function configureWebhook(instanceName: string, webhookUrl: string): Promise<void> {
+  try {
+    const resp = await fetch(`${EVOLUTION_URL()}/webhook/set/${encodeURIComponent(instanceName)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+      body: JSON.stringify({
+        webhook: {
+          enabled: true,
+          url: webhookUrl,
+          webhookByEvents: false,
+          webhookBase64: false,
+          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+        },
+      }),
+    });
+    const data = await resp.json().catch(() => null);
+    console.log("[whatsapp-instance] webhook set:", resp.status, JSON.stringify(data));
+  } catch (e) {
+    console.error("[whatsapp-instance] webhook set error:", e);
+  }
 }
 
 serve(async (req) => {
@@ -56,21 +89,31 @@ serve(async (req) => {
 
     if (!action) return json({ error: "action required" }, 400);
 
-    const instanceName = sanitizeInstanceName(user.email || user.id);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const sb = createClient(supabaseUrl, serviceKey);
+
+    const instanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
+
+    // Fetch customer_product for this user
+    const { data: cp } = await sb
+      .from("customer_products")
+      .select("id, webhook_token")
+      .eq("user_id", user.id)
+      .eq("product_slug", "bots-automacao")
+      .eq("is_active", true)
+      .maybeSingle();
+
+    const buildWebhookUrl = () => {
+      if (!cp?.id || !cp?.webhook_token) return null;
+      return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
+    };
 
     if (action === "create") {
-      // Create instance on Evolution API
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          apikey: EVOLUTION_KEY(),
-        },
-        body: JSON.stringify({
-          instanceName,
-          integration: "WHATSAPP-BAILEYS",
-          qrcode: true,
-        }),
+        headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+        body: JSON.stringify({ instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
       });
 
       const data = await resp.json().catch(() => null);
@@ -80,77 +123,45 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
-      // Store instance info and get customer_product for webhook
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const sb = createClient(supabaseUrl, serviceKey);
+      // Upsert into evolution_instances table
+      if (cp?.id) {
+        await sb.from("evolution_instances").upsert({
+          user_id: user.id,
+          customer_product_id: cp.id,
+          instance_name: instanceName,
+          evolution_url: EVOLUTION_URL(),
+          evolution_apikey: EVOLUTION_KEY(),
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "user_id,customer_product_id" }).then(({ error: e }: any) => {
+          if (e) console.error("[whatsapp-instance] evolution_instances upsert error:", e.message);
+        });
+      }
 
-      // Save the instance name
+      // Also save to product_credentials for backward compat
       await sb.from("product_credentials").upsert({
         user_id: user.id,
         product_slug: "bots-automacao",
         credential_key: "evolution_instance_name",
         credential_value: instanceName,
         updated_at: new Date().toISOString(),
-      }, { onConflict: "user_id,product_slug,credential_key" });
+      }, { onConflict: "user_id,product_slug,credential_key" }).then(({ error: e }: any) => {
+        if (e) console.error("[whatsapp-instance] product_credentials upsert error:", e.message);
+      });
 
-      // Fetch customer_product to build the webhook URL
-      const { data: cp } = await sb
-        .from("customer_products")
-        .select("id, webhook_token")
-        .eq("user_id", user.id)
-        .eq("product_slug", "bots-automacao")
-        .eq("is_active", true)
-        .maybeSingle();
-
-      // Configure webhook pointing to our AI engine
-      if (cp?.id && cp?.webhook_token) {
-        const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
-
-        try {
-          const whResp = await fetch(`${EVOLUTION_URL()}/webhook/set/${encodeURIComponent(instanceName)}`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: EVOLUTION_KEY(),
-            },
-            body: JSON.stringify({
-              webhook: {
-                enabled: true,
-                url: webhookUrl,
-                webhookByEvents: false,
-                webhookBase64: false,
-                events: [
-                  "MESSAGES_UPSERT",
-                  "MESSAGES_UPDATE",
-                  "CONNECTION_UPDATE",
-                  "QRCODE_UPDATED",
-                ],
-              },
-            }),
-          });
-          const whData = await whResp.json().catch(() => null);
-          console.log("[whatsapp-instance] webhook set:", whResp.status, JSON.stringify(whData));
-        } catch (e) {
-          console.error("[whatsapp-instance] webhook set error:", e);
-        }
+      // Configure webhook
+      const webhookUrl = buildWebhookUrl();
+      if (webhookUrl) {
+        await configureWebhook(instanceName, webhookUrl);
       } else {
         console.warn("[whatsapp-instance] no customer_product found for webhook setup");
       }
 
-      // Extract QR code from response
       const qrcode = data?.qrcode?.base64 || data?.qrcode || null;
-
-      return json({
-        success: true,
-        instanceName,
-        qrcode,
-        status: data?.instance?.status || "created",
-      });
+      return json({ success: true, instanceName, qrcode, status: data?.instance?.status || "created" });
     }
 
     if (action === "qrcode") {
-      // Get QR code for existing instance
       const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
@@ -171,7 +182,6 @@ serve(async (req) => {
     }
 
     if (action === "status") {
-      // Check connection status
       const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
@@ -190,13 +200,20 @@ serve(async (req) => {
       return json({ connected, state, instanceName });
     }
 
+    if (action === "reconfigure_webhook") {
+      const webhookUrl = buildWebhookUrl();
+      if (!webhookUrl) {
+        return json({ error: "No customer_product or webhook_token found" }, 400);
+      }
+      await configureWebhook(instanceName, webhookUrl);
+      return json({ success: true, webhookUrl });
+    }
+
     if (action === "disconnect") {
-      // Logout the instance
       const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(instanceName)}`, {
         method: "DELETE",
         headers: { apikey: EVOLUTION_KEY() },
       });
-      
       await resp.text();
       return json({ success: true });
     }
