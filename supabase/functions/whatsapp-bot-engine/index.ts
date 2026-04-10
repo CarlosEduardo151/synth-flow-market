@@ -15,7 +15,7 @@ import {
   type AIUsageResult,
   type ConversationMessage,
 } from "../_shared/ai-providers.ts";
-import { zapiSendText, loadZAPICredentials } from "../_shared/zapi.ts";
+import { zapiSendText, loadZAPICredentials, evolutionSendText, loadEvolutionCredentials, type EvolutionCredentials } from "../_shared/zapi.ts";
 import { platformLog } from "../_shared/platform-logger.ts";
 
 /**
