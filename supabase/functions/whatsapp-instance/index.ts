@@ -133,7 +133,7 @@ serve(async (req) => {
           evolution_apikey: EVOLUTION_KEY(),
           is_active: true,
           updated_at: new Date().toISOString(),
-        }, { onConflict: "user_id,customer_product_id" }).then(({ error: e }: any) => {
+        }, { onConflict: "customer_product_id" }).then(({ error: e }: any) => {
           if (e) console.error("[whatsapp-instance] evolution_instances upsert error:", e.message);
         });
       }
