@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
-  Smartphone, Zap, QrCode, Wifi, WifiOff
+  Smartphone, Zap, QrCode, Wifi, WifiOff,
+  ArrowDownLeft, ArrowUpRight, Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
