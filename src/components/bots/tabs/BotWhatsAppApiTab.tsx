@@ -349,11 +349,119 @@ export function BotWhatsAppApiTab({
         </Card>
       )}
 
+      {/* Activity Log - WhatsApp only */}
+      {isConnected && <WhatsAppActivityLog customerProductId={customerProductId} />}
+
       {/* Tip */}
       <p className="text-[11px] text-muted-foreground text-center px-4">
         💡 O <strong>Chat Teste</strong> (menu lateral) funciona sem essa integração. 
         A conexão WhatsApp é necessária apenas para respostas automáticas no WhatsApp real.
       </p>
     </div>
+  );
+}
+
+/* ───────── Mini activity log component ───────── */
+interface LogEntry {
+  id: string;
+  direction: string;
+  phone: string | null;
+  message_text: string;
+  created_at: string;
+  processing_ms: number | null;
+}
+
+function WhatsAppActivityLog({ customerProductId }: { customerProductId: string }) {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLogs = useCallback(async () => {
+    try {
+      const { data } = await (supabase as any)
+        .from('bot_conversation_logs')
+        .select('id, direction, phone, message_text, created_at, processing_ms')
+        .eq('customer_product_id', customerProductId)
+        .eq('source', 'whatsapp')
+        .order('created_at', { ascending: false })
+        .limit(30);
+      setLogs(data || []);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [customerProductId]);
+
+  useEffect(() => {
+    fetchLogs();
+    const iv = setInterval(fetchLogs, 8_000);
+    return () => clearInterval(iv);
+  }, [fetchLogs]);
+
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  };
+
+  const maskPhone = (p: string | null) => {
+    if (!p || p.length < 6) return p || '—';
+    return p.slice(0, 4) + '••••' + p.slice(-2);
+  };
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Activity className="h-4 w-4 text-primary" />
+            Atividade do Motor
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={fetchLogs} disabled={loading} className="h-7 px-2">
+            <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+        <p className="text-[11px] text-muted-foreground">Mensagens recebidas e enviadas pelo bot nesta instância</p>
+      </CardHeader>
+      <CardContent>
+        {loading && logs.length === 0 ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : logs.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6">
+            Nenhuma atividade ainda. Envie uma mensagem pelo WhatsApp para ver aqui.
+          </p>
+        ) : (
+          <ScrollArea className="h-[260px]">
+            <div className="space-y-1.5 pr-3">
+              {logs.map((l) => {
+                const isIn = l.direction === 'inbound';
+                return (
+                  <div key={l.id} className="flex items-start gap-2 rounded-md border border-border/40 bg-card/50 px-2.5 py-1.5 text-xs">
+                    <div className={`mt-0.5 shrink-0 rounded p-0.5 ${isIn ? 'bg-blue-500/10' : 'bg-green-500/10'}`}>
+                      {isIn
+                        ? <ArrowDownLeft className="h-3 w-3 text-blue-500" />
+                        : <ArrowUpRight className="h-3 w-3 text-green-500" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="text-[9px] px-1 py-0 leading-tight">
+                          {isIn ? 'Recebida' : 'Enviada'}
+                        </Badge>
+                        <span className="text-[9px] text-muted-foreground font-mono">{maskPhone(l.phone)}</span>
+                        <span className="text-[9px] text-muted-foreground ml-auto">{fmtTime(l.created_at)}</span>
+                      </div>
+                      <p className="text-foreground/80 line-clamp-1 mt-0.5">{l.message_text}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
+        {logs.length > 0 && (
+          <p className="text-[10px] text-muted-foreground text-center mt-2">
+            Atualiza a cada 8s • {logs.length} registro{logs.length !== 1 ? 's' : ''}
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
