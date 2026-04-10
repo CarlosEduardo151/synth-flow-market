@@ -1,14 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import {
-  Loader2, CheckCircle2, XCircle, Copy,
-  ExternalLink, RefreshCw, Smartphone, Zap,
-  ArrowRight, CircleDot, Link2, KeyRound, PhoneCall
+  Loader2, CheckCircle2, XCircle, RefreshCw,
+  Smartphone, Zap, QrCode, Wifi, WifiOff
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,123 +26,148 @@ interface BotWhatsAppApiTabProps {
 export function BotWhatsAppApiTab({
   customerProductId,
   isConnected,
-  instanceId,
-  token,
-  clientToken,
-  phoneNumber,
-  onInstanceIdChange,
-  onTokenChange,
-  onClientTokenChange,
-  onPhoneNumberChange,
   onConnectionChange,
 }: BotWhatsAppApiTabProps) {
   const { toast } = useToast();
-  const [testing, setTesting] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [qrCode, setQrCode] = useState<string | null>(null);
+  const [instanceName, setInstanceName] = useState<string | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
 
-  const canTest = instanceId.trim() && token.trim() && phoneNumber.trim();
-
-  const currentStep = !instanceId.trim() && !token.trim() && !phoneNumber.trim()
-    ? 1
-    : !isConnected
-      ? 2
-      : 3;
-
-  const handleTestConnection = async () => {
-    if (!canTest) return;
-    setTesting(true);
+  const checkStatus = useCallback(async () => {
     try {
-      const { data, error } = await (supabase as any).functions.invoke('send-whatsapp', {
-        body: {
-          instanceId,
-          token,
-          phoneNumber,
-          productSlug: 'bots-automacao',
-          productTitle: 'Bots de Automação',
-          message: '✅ Teste de conexão bem-sucedido! Seu bot está pronto.',
-        },
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'status' },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.message || 'Falha no teste');
-      onConnectionChange(true);
-      toast({ title: '✅ Conectado!', description: 'Mensagem de teste enviada com sucesso para o seu WhatsApp.' });
-    } catch (e: any) {
-      onConnectionChange(false);
-      toast({
-        title: 'Falha na conexão',
-        description: e.message || 'Verifique suas credenciais Z-API.',
-        variant: 'destructive',
-      });
-    } finally {
-      setTesting(false);
+      if (data?.connected) {
+        onConnectionChange(true);
+        setQrCode(null);
+        setInstanceName(data.instanceName || null);
+      } else if (data?.state === 'close' && instanceName) {
+        // Instance exists but disconnected
+        onConnectionChange(false);
+      }
+      return data;
+    } catch {
+      return null;
     }
-  };
+  }, [onConnectionChange, instanceName]);
 
-  const handleSaveCredentials = async () => {
-    if (!canTest) {
-      toast({ title: 'Preencha todos os campos', variant: 'destructive' });
-      return;
-    }
-    setSaving(true);
+  // Check status on mount
+  useEffect(() => {
+    checkStatus().finally(() => setInitialLoading(false));
+  }, []);
+
+  // Poll for connection while QR code is showing
+  useEffect(() => {
+    if (!qrCode) return;
+    const interval = setInterval(async () => {
+      const result = await checkStatus();
+      if (result?.connected) {
+        clearInterval(interval);
+        toast({ title: '✅ WhatsApp conectado!', description: 'Seu bot já está pronto para responder.' });
+      }
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [qrCode, checkStatus, toast]);
+
+  const handleActivate = async () => {
+    setCreating(true);
     try {
-      const { data: { user } } = await (supabase as any).auth.getUser();
-      if (!user) throw new Error('Não autenticado');
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'create' },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Falha ao criar instância');
 
-      const credentials = [
-        { key: 'zapi_instance_id', value: instanceId },
-        { key: 'zapi_token', value: token },
-        { key: 'zapi_client_token', value: clientToken },
-        { key: 'zapi_phone', value: phoneNumber },
-      ];
+      setInstanceName(data.instanceName);
 
-      for (const cred of credentials) {
-        const { data: existing } = await (supabase as any)
-          .from('product_credentials')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('product_slug', 'bots-automacao')
-          .eq('credential_key', cred.key)
-          .maybeSingle();
-
-        if (existing?.id) {
-          await (supabase as any).from('product_credentials').update({
-            credential_value: cred.value,
-            updated_at: new Date().toISOString(),
-          }).eq('id', existing.id);
-        } else {
-          await (supabase as any).from('product_credentials').insert({
-            user_id: user.id,
-            product_slug: 'bots-automacao',
-            credential_key: cred.key,
-            credential_value: cred.value,
-          });
+      if (data.qrcode) {
+        setQrCode(data.qrcode);
+      } else {
+        // Instance already existed, fetch QR
+        const qrResp = await supabase.functions.invoke('whatsapp-instance', {
+          body: { action: 'qrcode' },
+        });
+        if (qrResp.data?.qrcode) {
+          setQrCode(qrResp.data.qrcode);
         }
       }
 
-      toast({ title: 'Credenciais salvas!', description: 'Suas credenciais foram armazenadas com segurança.' });
+      if (data.status === 'open') {
+        onConnectionChange(true);
+        toast({ title: '✅ Já conectado!', description: 'Sua instância WhatsApp já estava ativa.' });
+      } else {
+        toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
+      }
     } catch (e: any) {
-      toast({ title: 'Erro ao salvar', description: e.message, variant: 'destructive' });
+      toast({
+        title: 'Erro ao ativar',
+        description: e.message || 'Tente novamente.',
+        variant: 'destructive',
+      });
     } finally {
-      setSaving(false);
+      setCreating(false);
     }
   };
 
-  const handleDisconnect = () => {
-    onInstanceIdChange('');
-    onTokenChange('');
-    onPhoneNumberChange('');
-    onConnectionChange(false);
-    toast({ title: 'Desconectado', description: 'Credenciais removidas.' });
+  const handleRefreshQr = async () => {
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'qrcode' },
+      });
+      if (error) throw error;
+      if (data?.qrcode) {
+        setQrCode(data.qrcode);
+        toast({ title: 'QR Code atualizado!' });
+      } else {
+        toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast({ title: 'Copiado!' });
+  const handleDisconnect = async () => {
+    try {
+      await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'disconnect' },
+      });
+      onConnectionChange(false);
+      setQrCode(null);
+      toast({ title: 'Desconectado', description: 'WhatsApp desconectado com sucesso.' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    }
   };
+
+  const handleCheckStatus = async () => {
+    setChecking(true);
+    const result = await checkStatus();
+    setChecking(false);
+    if (result?.connected) {
+      toast({ title: '✅ Conectado!', description: 'WhatsApp está online.' });
+    } else {
+      toast({ title: 'Não conectado', description: 'Escaneie o QR Code para conectar.', variant: 'destructive' });
+    }
+  };
+
+  if (initialLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
-      {/* Header com status */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-green-500/10 flex items-center justify-center">
@@ -155,7 +176,7 @@ export function BotWhatsAppApiTab({
           <div>
             <h2 className="text-lg font-semibold">Conectar WhatsApp</h2>
             <p className="text-xs text-muted-foreground">
-              Vincule seu número para o bot responder automaticamente
+              Conecte seu número para o bot responder automaticamente
             </p>
           </div>
         </div>
@@ -166,256 +187,146 @@ export function BotWhatsAppApiTab({
             : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
           }
         >
-          {isConnected ? <CheckCircle2 className="h-3 w-3" /> : <CircleDot className="h-3 w-3" />}
-          {isConnected ? 'Conectado' : 'Pendente'}
+          {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+          {isConnected ? 'Conectado' : 'Desconectado'}
         </Badge>
       </div>
 
-      {/* Progress Steps */}
-      <div className="flex items-center gap-0">
-        <StepIndicator step={1} currentStep={currentStep} label="Criar conta Z-API" />
-        <div className="flex-1 h-px bg-border mx-1" />
-        <StepIndicator step={2} currentStep={currentStep} label="Inserir credenciais" />
-        <div className="flex-1 h-px bg-border mx-1" />
-        <StepIndicator step={3} currentStep={currentStep} label="Pronto!" />
-      </div>
-
-      {/* Step 1: Create Z-API account */}
-      <Card className={`border transition-all ${currentStep === 1 ? 'border-primary/30 shadow-sm' : 'border-border/50 opacity-80'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              1
-            </span>
-            Crie sua conta na Z-API
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            A <strong>Z-API</strong> é o serviço que conecta seu WhatsApp ao nosso sistema. 
-            É como uma "ponte" entre o WhatsApp e o bot.
-          </p>
-          <ol className="space-y-2 text-sm text-muted-foreground">
-            <li className="flex items-start gap-2">
-              <ArrowRight className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <span>Acesse <a href="https://z-api.io" target="_blank" rel="noopener noreferrer" className="text-primary font-medium underline underline-offset-2 hover:text-primary/80">z-api.io</a> e crie uma conta gratuita</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <ArrowRight className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <span>Crie uma <strong>Nova Instância</strong> no painel</span>
-            </li>
-            <li className="flex items-start gap-2">
-              <ArrowRight className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-              <span>Escaneie o <strong>QR Code</strong> com o WhatsApp que deseja usar</span>
-            </li>
-          </ol>
-          <Button variant="outline" size="sm" className="gap-2 mt-1" asChild>
-            <a href="https://z-api.io" target="_blank" rel="noopener noreferrer">
-              <ExternalLink className="h-3.5 w-3.5" />
-              Abrir Z-API
-            </a>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Step 2: Insert credentials */}
-      <Card className={`border transition-all ${currentStep === 2 ? 'border-primary/30 shadow-sm' : 'border-border/50 opacity-80'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-              2
-            </span>
-            Cole suas credenciais
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Copie os dados da sua instância Z-API e cole nos campos abaixo.
-          </p>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="zapi-instance" className="text-xs font-medium flex items-center gap-1.5">
-                <KeyRound className="h-3 w-3 text-muted-foreground" />
-                ID da Instância
-              </Label>
-              <div className="relative">
-                <Input
-                  id="zapi-instance"
-                  placeholder="Ex: 3C12345678"
-                  value={instanceId}
-                  onChange={(e) => onInstanceIdChange(e.target.value)}
-                  className="pr-8 text-sm"
-                />
-                {instanceId && (
-                  <button
-                    onClick={() => copyToClipboard(instanceId)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Copy className="h-3 w-3" />
-                  </button>
-                )}
+      {/* Connected State */}
+      {isConnected && (
+        <Card className="border-green-500/30 bg-green-500/5">
+          <CardContent className="pt-6 space-y-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="h-8 w-8 text-green-500" />
+              <div>
+                <h3 className="font-semibold text-green-700 dark:text-green-400">WhatsApp ativo!</h3>
+                <p className="text-sm text-green-600/80 dark:text-green-400/80">
+                  Seu bot está respondendo automaticamente via WhatsApp.
+                </p>
               </div>
             </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="zapi-phone" className="text-xs font-medium flex items-center gap-1.5">
-                <PhoneCall className="h-3 w-3 text-muted-foreground" />
-                Número do WhatsApp
-              </Label>
-              <Input
-                id="zapi-phone"
-                placeholder="5511999999999"
-                value={phoneNumber}
-                onChange={(e) => onPhoneNumberChange(e.target.value.replace(/\D/g, ''))}
-                className="text-sm"
-              />
-              <p className="text-[10px] text-muted-foreground">DDI + DDD + número, só números</p>
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="zapi-token" className="text-xs font-medium flex items-center gap-1.5">
-              <Link2 className="h-3 w-3 text-muted-foreground" />
-              Token de Autenticação
-            </Label>
-            <Input
-              id="zapi-token"
-              type="password"
-              placeholder="Seu token Z-API"
-              value={token}
-              onChange={(e) => onTokenChange(e.target.value)}
-              className="text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Encontre na página da instância, em "Token"
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="zapi-client-token" className="text-xs font-medium flex items-center gap-1.5">
-              <KeyRound className="h-3 w-3 text-muted-foreground" />
-              Client Token <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1">Obrigatório</Badge>
-            </Label>
-            <Input
-              id="zapi-client-token"
-              type="password"
-              placeholder="Seu Client-Token Z-API"
-              value={clientToken}
-              onChange={(e) => onClientTokenChange(e.target.value)}
-              className="text-sm"
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Encontre em Z-API → Configurações da Conta → "Client Token" (usado no header das requisições)
-            </p>
-          </div>
-
-          <Separator />
-
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              onClick={handleSaveCredentials}
-              disabled={!canTest || saving}
-              size="sm"
-              className="gap-2"
-            >
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              )}
-              {saving ? 'Salvando...' : 'Salvar'}
-            </Button>
-
-            <Button
-              onClick={handleTestConnection}
-              disabled={!canTest || testing}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              {testing ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              {testing ? 'Testando...' : 'Testar Conexão'}
-            </Button>
-
-            {isConnected && (
-              <Button variant="ghost" size="sm" onClick={handleDisconnect} className="gap-2 text-destructive hover:text-destructive ml-auto">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleCheckStatus}
+                disabled={checking}
+              >
+                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Verificar Status
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-destructive hover:text-destructive ml-auto"
+                onClick={handleDisconnect}
+              >
                 <XCircle className="h-3.5 w-3.5" />
                 Desconectar
               </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Step 3: Connected */}
-      <Card className={`border transition-all ${currentStep === 3 ? 'border-green-500/30 bg-green-500/5 shadow-sm' : 'border-border/50 opacity-60'}`}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-              currentStep === 3 ? 'bg-green-500/20 text-green-600' : 'bg-primary/10 text-primary'
-            }`}>
-              {currentStep === 3 ? <CheckCircle2 className="h-3.5 w-3.5" /> : '3'}
-            </span>
-            {currentStep === 3 ? 'WhatsApp conectado!' : 'Tudo pronto'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {currentStep === 3 ? (
-            <div className="space-y-3">
-              <p className="text-sm text-green-700 dark:text-green-400">
-                Seu bot está <strong>ativo no WhatsApp</strong>. Qualquer mensagem recebida será respondida automaticamente pela IA.
-              </p>
-              <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <Smartphone className="h-3 w-3" />
-                  {phoneNumber}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Zap className="h-3 w-3" />
-                  Z-API ativa
-                </span>
+      {/* Not connected - Activate */}
+      {!isConnected && !qrCode && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              Ativar WhatsApp
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Clique no botão abaixo para ativar o WhatsApp no seu bot. 
+              Um <strong>QR Code</strong> será gerado para você escanear com o WhatsApp que deseja conectar.
+            </p>
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+                <span>Clique em <strong>"Ativar WhatsApp"</strong></span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+                <span>Escaneie o <strong>QR Code</strong> com seu WhatsApp</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
+                <span><strong>Pronto!</strong> O bot começa a responder automaticamente</span>
+              </li>
+            </ol>
+            <Button
+              onClick={handleActivate}
+              disabled={creating}
+              className="w-full gap-2"
+              size="lg"
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Preparando...
+                </>
+              ) : (
+                <>
+                  <Smartphone className="h-4 w-4" />
+                  Ativar WhatsApp
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* QR Code Display */}
+      {!isConnected && qrCode && (
+        <Card className="border-primary/20">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <QrCode className="h-4 w-4 text-primary" />
+              Escaneie o QR Code
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground text-center">
+              Abra o WhatsApp no celular → <strong>Dispositivos conectados</strong> → <strong>Conectar dispositivo</strong>
+            </p>
+            <div className="flex justify-center">
+              <div className="bg-white p-4 rounded-xl shadow-sm border">
+                <img
+                  src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                  alt="QR Code WhatsApp"
+                  className="w-64 h-64 object-contain"
+                />
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Complete os passos acima para ativar o bot no WhatsApp.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+            <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Aguardando leitura do QR Code...
+            </div>
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleRefreshQr}
+                disabled={checking}
+              >
+                {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                Gerar novo QR Code
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tip */}
       <p className="text-[11px] text-muted-foreground text-center px-4">
         💡 O <strong>Chat Teste</strong> (menu lateral) funciona sem essa integração. 
-        A conexão Z-API é necessária apenas para respostas automáticas no WhatsApp real.
+        A conexão WhatsApp é necessária apenas para respostas automáticas no WhatsApp real.
       </p>
-    </div>
-  );
-}
-
-function StepIndicator({ step, currentStep, label }: { step: number; currentStep: number; label: string }) {
-  const isDone = currentStep > step;
-  const isActive = currentStep === step;
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-        isDone
-          ? 'bg-green-500 text-white'
-          : isActive
-            ? 'bg-primary text-primary-foreground ring-2 ring-primary/20'
-            : 'bg-muted text-muted-foreground'
-      }`}>
-        {isDone ? <CheckCircle2 className="h-3.5 w-3.5" /> : step}
-      </div>
-      <span className={`text-[10px] whitespace-nowrap ${isActive ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-        {label}
-      </span>
     </div>
   );
 }
