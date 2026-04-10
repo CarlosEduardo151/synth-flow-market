@@ -1,0 +1,1 @@
+GRANT ALL ON public.whatsapp_inbox_events TO service_role;
