@@ -171,9 +171,9 @@ export function SalesLeads({ customerProductId }: SalesLeadsProps) {
 
     let error;
     if (editingLead) {
-      ({ error } = await supabase.from('sales_leads').update(leadData).eq('id', editingLead.id));
+      ({ error } = await (supabase as any).from('sales_leads').update(leadData).eq('id', editingLead.id));
     } else {
-      ({ error } = await supabase.from('sales_leads').insert(leadData));
+      ({ error } = await (supabase as any).from('sales_leads').insert(leadData));
     }
 
     if (error) {

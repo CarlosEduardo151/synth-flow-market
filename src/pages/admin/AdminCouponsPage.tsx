@@ -139,10 +139,10 @@ export default function AdminCouponsPage() {
         code: formData.code.toUpperCase(),
         discount_type: formData.type,
         discount_value: Math.round(parseFloat(formData.value) * 100),
-        min_order_value: formData.min_order_amount ? Math.round(parseFloat(formData.min_order_amount) * 100) : null,
+        min_value: formData.min_order_amount ? Math.round(parseFloat(formData.min_order_amount) * 100) : null,
         max_uses: formData.max_uses ? parseInt(formData.max_uses) : null,
-        starts_at: formData.valid_from ? new Date(formData.valid_from).toISOString() : new Date().toISOString(),
-        expires_at: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
+        valid_from: formData.valid_from ? new Date(formData.valid_from).toISOString() : new Date().toISOString(),
+        valid_until: formData.valid_until ? new Date(formData.valid_until).toISOString() : null,
         is_active: formData.is_active
       };
 
