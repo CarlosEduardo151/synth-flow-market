@@ -146,6 +146,21 @@ export function BotWhatsAppApiTab({
     }
   };
 
+  const handleReconfigureWebhook = async () => {
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'reconfigure_webhook' },
+      });
+      if (error) throw error;
+      toast({ title: '✅ Webhook reconfigurado!', description: 'As mensagens serão processadas corretamente.' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const handleCheckStatus = async () => {
     setChecking(true);
     const result = await checkStatus();
