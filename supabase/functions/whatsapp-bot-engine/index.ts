@@ -187,12 +187,24 @@ serve(async (req) => {
 
     // ===== Load client config =====
 
-    // 1. Z-API credentials
+    // 1. Evolution API credentials (preferred) or Z-API (legacy fallback)
+    let evoCreds: EvolutionCredentials | null = null;
     const zapiCreds = await loadZAPICredentials(service, cp.user_id);
-    if (!zapiCreds) {
-      console.error("Z-API creds missing for user", cp.user_id);
-      return corsResponse({ ok: true, skipped: "no_zapi_creds" }, 200, origin);
+    evoCreds = await loadEvolutionCredentials(service, cp.user_id);
+
+    if (!evoCreds && !zapiCreds) {
+      console.error("No messaging creds (Evolution or Z-API) for user", cp.user_id);
+      return corsResponse({ ok: true, skipped: "no_messaging_creds" }, 200, origin);
     }
+
+    // Helper to send text via whichever provider is available
+    const sendTextReply = async (toPhone: string, text: string, msgId?: string) => {
+      if (evoCreds) {
+        await evolutionSendText(evoCreds, toPhone, text);
+      } else if (zapiCreds) {
+        await zapiSendText(zapiCreds, toPhone, text, msgId);
+      }
+    };
 
     // 2. AI config (now includes personality + action_instructions + configuration)
     const { data: aiConfig } = await service
