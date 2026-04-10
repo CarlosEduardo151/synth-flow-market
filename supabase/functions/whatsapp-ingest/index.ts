@@ -6,14 +6,125 @@ import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rat
 import { batchValidate, sanitizeString, validateStringLength, validateUUID } from "../_shared/validation.ts";
 
 /**
- * WhatsApp/Z-API webhook ingestion (Opção A - sem worker/VPS)
- *
- * Segurança:
- * - Endpoint público (webhook), autentica via query ?token=... (customer_products.webhook_token)
- * - Rate limit (RATE_LIMITS.WEBHOOK)
- * - Valida/sanitiza entradas
- * - Persiste o payload em public.whatsapp_inbox_events para processamento posterior
+ * WhatsApp webhook ingestion — normalizes Evolution API payloads
+ * into Z-API-like format before forwarding to bot engine.
  */
+
+/**
+ * Transform Evolution API "messages.upsert" payload into the
+ * Z-API-like format the bot engine expects.
+ */
+function normalizeEvolutionPayload(raw: any): any {
+  // If it already has Z-API shape, pass through
+  if (raw?.phone && (raw?.text || raw?.image || raw?.audio)) {
+    return raw;
+  }
+
+  const event = raw?.event || "";
+  const data = raw?.data;
+
+  // Only process message events
+  if (!data?.key) {
+    console.log("[ingest] non-message event:", event);
+    return null;
+  }
+
+  const key = data.key;
+  const remoteJid = key.remoteJid || "";
+  // Extract phone number: remove @s.whatsapp.net / @g.us
+  const phone = remoteJid.replace(/@.*$/, "");
+  const fromMe = key.fromMe === true;
+  const messageId = key.id || "";
+
+  const message = data.message || {};
+  const pushName = data.pushName || "";
+
+  // Build the normalized payload
+  const normalized: any = {
+    phone,
+    fromMe,
+    messageId,
+    senderName: pushName,
+    // Keep raw event type for debugging
+    _evolutionEvent: event,
+  };
+
+  // Text message
+  if (message.conversation) {
+    normalized.text = { message: message.conversation };
+  } else if (message.extendedTextMessage?.text) {
+    normalized.text = { message: message.extendedTextMessage.text };
+  }
+  // Image
+  else if (message.imageMessage) {
+    normalized.image = {
+      imageUrl: message.imageMessage.url || data.media?.url || "",
+      caption: message.imageMessage.caption || "",
+      mimeType: message.imageMessage.mimetype || "",
+    };
+  }
+  // Audio / PTT (voice note)
+  else if (message.audioMessage) {
+    normalized.audio = {
+      audioUrl: message.audioMessage.url || data.media?.url || "",
+      mimeType: message.audioMessage.mimetype || "",
+    };
+  }
+  // Video
+  else if (message.videoMessage) {
+    normalized.video = {
+      videoUrl: message.videoMessage.url || data.media?.url || "",
+      caption: message.videoMessage.caption || "",
+      mimeType: message.videoMessage.mimetype || "",
+    };
+  }
+  // Document
+  else if (message.documentMessage) {
+    normalized.document = {
+      documentUrl: message.documentMessage.url || data.media?.url || "",
+      fileName: message.documentMessage.fileName || "",
+      mimeType: message.documentMessage.mimetype || "",
+    };
+  }
+  // Sticker
+  else if (message.stickerMessage) {
+    normalized.sticker = {
+      stickerUrl: message.stickerMessage.url || data.media?.url || "",
+    };
+  }
+  // Location
+  else if (message.locationMessage) {
+    normalized.location = {
+      latitude: message.locationMessage.degreesLatitude,
+      longitude: message.locationMessage.degreesLongitude,
+      name: message.locationMessage.name || "",
+      address: message.locationMessage.address || "",
+    };
+  }
+  // Contact
+  else if (message.contactMessage) {
+    normalized.contact = {
+      displayName: message.contactMessage.displayName || "",
+      vcard: message.contactMessage.vcard || "",
+    };
+  }
+  // Fallback: try to extract any text
+  else {
+    // Some events (e.g. reactions, edits) might not have processable content
+    const anyText = message.editedMessage?.message?.conversation
+      || message.buttonsResponseMessage?.selectedDisplayText
+      || message.listResponseMessage?.title
+      || "";
+    if (anyText) {
+      normalized.text = { message: anyText };
+    } else {
+      console.log("[ingest] unhandled message type:", JSON.stringify(Object.keys(message)));
+      return null;
+    }
+  }
+
+  return normalized;
+}
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -22,7 +133,6 @@ serve(async (req) => {
     return handleCorsPreflightRequest(req);
   }
 
-  // Para webhooks, aceitamos POST (ou PUT em alguns provedores) — mas restringimos aqui.
   if (req.method !== "POST") {
     return corsResponse({ error: "method_not_allowed" }, 405, origin);
   }
@@ -50,7 +160,7 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const service = createClient(supabaseUrl, serviceKey);
 
-    // Autentica o webhook: customer_product_id + token devem bater
+    // Authenticate webhook
     const { data: cp, error: cpErr } = await service
       .from("customer_products")
       .select("id")
@@ -60,34 +170,48 @@ serve(async (req) => {
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
-    // Limita tamanho do body (simples) antes de parsear JSON
     const bodyText = await req.text();
     if (bodyText.length > 250_000) {
       return corsResponse({ error: "payload_too_large" }, 413, origin);
     }
 
-    let payload: unknown;
+    let rawPayload: any;
     try {
-      payload = bodyText ? JSON.parse(bodyText) : {};
+      rawPayload = bodyText ? JSON.parse(bodyText) : {};
     } catch {
       return corsResponse({ error: "invalid_json" }, 400, origin);
     }
 
-    // Chama o bot engine diretamente (substitui o n8n)
-    // O bot engine faz: persistir evento, rotear tipo, processar IA, responder Z-API
-    const engineUrl = `${Deno.env.get("SUPABASE_URL")}/functions/v1/whatsapp-bot-engine?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
+    console.log("[ingest] event received:", rawPayload?.event || "unknown", "instance:", rawPayload?.instance || "n/a");
 
-    // Fire-and-forget: responde rápido ao Z-API e processa em background
+    // Skip non-message events (connection updates, qrcode updates, etc.)
+    const event = rawPayload?.event || "";
+    if (event && !event.startsWith("messages")) {
+      console.log("[ingest] skipping non-message event:", event);
+      return corsResponse({ ok: true, skipped: "non_message_event" }, 200, origin);
+    }
+
+    // Normalize Evolution API payload → Z-API-like format
+    const normalized = normalizeEvolutionPayload(rawPayload);
+    if (!normalized) {
+      return corsResponse({ ok: true, skipped: "unprocessable_event" }, 200, origin);
+    }
+
+    const normalizedBody = JSON.stringify(normalized);
+
+    // Forward to bot engine
+    const engineUrl = `${supabaseUrl}/functions/v1/whatsapp-bot-engine?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
+
+    // Fire-and-forget
     const enginePromise = fetch(engineUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+        Authorization: `Bearer ${serviceKey}`,
       },
-      body: bodyText,
+      body: normalizedBody,
     }).catch((e) => console.error("bot-engine call failed:", e));
 
-    // Não bloqueia — responde imediatamente ao provedor
     // deno-lint-ignore no-unused-vars
     const _ = enginePromise;
 

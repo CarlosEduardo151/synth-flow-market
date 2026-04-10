@@ -15,7 +15,7 @@ import {
   type AIUsageResult,
   type ConversationMessage,
 } from "../_shared/ai-providers.ts";
-import { zapiSendText, loadZAPICredentials } from "../_shared/zapi.ts";
+import { zapiSendText, loadZAPICredentials, evolutionSendText, loadEvolutionCredentials, type EvolutionCredentials } from "../_shared/zapi.ts";
 import { platformLog } from "../_shared/platform-logger.ts";
 
 /**
@@ -187,12 +187,24 @@ serve(async (req) => {
 
     // ===== Load client config =====
 
-    // 1. Z-API credentials
+    // 1. Evolution API credentials (preferred) or Z-API (legacy fallback)
+    let evoCreds: EvolutionCredentials | null = null;
     const zapiCreds = await loadZAPICredentials(service, cp.user_id);
-    if (!zapiCreds) {
-      console.error("Z-API creds missing for user", cp.user_id);
-      return corsResponse({ ok: true, skipped: "no_zapi_creds" }, 200, origin);
+    evoCreds = await loadEvolutionCredentials(service, cp.user_id);
+
+    if (!evoCreds && !zapiCreds) {
+      console.error("No messaging creds (Evolution or Z-API) for user", cp.user_id);
+      return corsResponse({ ok: true, skipped: "no_messaging_creds" }, 200, origin);
     }
+
+    // Helper to send text via whichever provider is available
+    const sendTextReply = async (toPhone: string, text: string, msgId?: string) => {
+      if (evoCreds) {
+        await evolutionSendText(evoCreds, toPhone, text);
+      } else if (zapiCreds) {
+        await zapiSendText(zapiCreds, toPhone, text, msgId);
+      }
+    };
 
     // 2. AI config (now includes personality + action_instructions + configuration)
     const { data: aiConfig } = await service
@@ -306,8 +318,7 @@ serve(async (req) => {
 
     if (!resolved) {
       console.error(`AI key missing: provider=${provider}, user=${cp.user_id}`);
-      await zapiSendText(
-        zapiCreds,
+      await sendTextReply(
         phone,
         "⚠️ O bot ainda não está configurado. O administrador precisa configurar a chave de IA no painel.",
         messageId,
@@ -397,11 +408,8 @@ serve(async (req) => {
                 }
               });
 
-            // Send FAQ reply via Z-API
-            const zapiCreds = await loadZAPICredentials(service, cp.user_id);
-            if (zapiCreds) {
-              await zapiSendText(zapiCreds, phone, faqAnswer, messageId);
-            }
+            // Send FAQ reply
+            await sendTextReply(phone, faqAnswer, messageId);
 
             // Log conversation
             service.from("bot_conversation_logs").insert({
@@ -508,7 +516,7 @@ serve(async (req) => {
 
     // Send reply
     if (result.text) {
-      await zapiSendText(zapiCreds, phone, result.text, messageId);
+      await sendTextReply(phone, result.text, messageId);
     }
 
     // Log metrics + conversation (fire and forget)
