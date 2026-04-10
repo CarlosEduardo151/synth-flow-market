@@ -55,6 +55,7 @@ const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSO
 
 const OPENAI_MODEL_REGEX = /^(gpt|o1|o3|o4)(-|$)/;
 const GEMINI_MODEL_REGEX = /^(models\/gemini|gemini)/;
+const GROQ_MODEL_REGEX = /^(llama|mixtral|gemma|distil)/;
 
 function normalizeEngineModel(provider: AgentConfig['provider'], model?: string | null) {
   const trimmedModel = (model || '').trim();
@@ -68,6 +69,10 @@ function normalizeEngineModel(provider: AgentConfig['provider'], model?: string 
   }
 
   if (OPENAI_MODEL_REGEX.test(trimmedModel) || GEMINI_MODEL_REGEX.test(trimmedModel)) {
+    return trimmedModel;
+  }
+
+  if (GROQ_MODEL_REGEX.test(trimmedModel)) {
     return trimmedModel;
   }
 

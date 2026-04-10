@@ -5,7 +5,7 @@
 
 // ========== Types ==========
 
-export type ResolvedProvider = "openai" | "google";
+export type ResolvedProvider = "openai" | "google" | "groq";
 
 export interface AICallOptions {
   apiKey: string;
@@ -181,6 +181,51 @@ export async function geminiMultimodal(
   };
 }
 
+// ========== Groq (OpenAI-compatible) ==========
+
+export async function groqChat(
+  opts: AICallOptions,
+  userContent: string | any[],
+  conversationHistory?: ConversationMessage[],
+): Promise<AIUsageResult> {
+  const messages: any[] = [
+    { role: "system", content: opts.systemPrompt || "" },
+  ];
+
+  if (conversationHistory?.length) {
+    for (const msg of conversationHistory) {
+      messages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  messages.push({ role: "user", content: typeof userContent === "string" ? userContent : JSON.stringify(userContent) });
+
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${opts.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: opts.model || "llama-3.3-70b-versatile",
+      temperature: clampNumber(opts.temperature, 0, 2, 0.7),
+      max_tokens: clampNumber(opts.maxTokens, 1, 8192, 1024),
+      messages,
+    }),
+  });
+
+  const json = await resp.json().catch(() => null);
+  if (!resp.ok) throw new Error(`groq_error:${resp.status}:${safeStringify(json)}`);
+  const text = json?.choices?.[0]?.message?.content?.trim() || "";
+  const usage = json?.usage;
+  return {
+    text,
+    tokensInput: usage?.prompt_tokens || 0,
+    tokensOutput: usage?.completion_tokens || 0,
+    tokensTotal: usage?.total_tokens || 0,
+  };
+}
+
 // ========== Unified dispatchers ==========
 
 export async function processText(
@@ -190,6 +235,7 @@ export async function processText(
   conversationHistory?: ConversationMessage[],
 ): Promise<AIUsageResult> {
   if (provider === "google") return geminiChat(opts, text, conversationHistory);
+  if (provider === "groq") return groqChat(opts, text, conversationHistory);
   return openaiChat(opts, text, conversationHistory);
 }
 
@@ -204,6 +250,11 @@ export async function processImage(
   if (provider === "google") {
     const { base64, mimeType } = await downloadAsBase64(imageUrl);
     return geminiMultimodal(opts, { mimeType, data: base64 }, prompt);
+  }
+
+  // Groq doesn't support vision well, fall back to text description
+  if (provider === "groq") {
+    return groqChat(opts, `O usuário enviou uma imagem${caption ? `: "${caption}"` : ""}. Descreva que você não consegue ver imagens diretamente mas pode ajudar com base na descrição. Responda em português.`);
   }
 
   return openaiChat(opts, [
@@ -227,6 +278,26 @@ export async function processAudio(
   }
 
   // OpenAI: Whisper + Chat
+  if (provider === "groq") {
+    // Groq supports Whisper
+    const audioResp = await fetch(audioUrl);
+    if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
+    const audioBlob = await audioResp.blob();
+    const formData = new FormData();
+    formData.append("file", audioBlob, "audio.ogg");
+    formData.append("model", "whisper-large-v3");
+    formData.append("language", "pt");
+    const whisperResp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${opts.apiKey}` },
+      body: formData,
+    });
+    const whisperJson = await whisperResp.json().catch(() => null);
+    if (!whisperResp.ok) throw new Error(`groq_whisper_error:${whisperResp.status}:${safeStringify(whisperJson)}`);
+    const transcription = whisperJson?.text || "";
+    return groqChat(opts, `[Transcrição do áudio]: ${transcription}`);
+  }
+
   const audioResp = await fetch(audioUrl);
   if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
   const audioBlob = await audioResp.blob();
@@ -336,7 +407,21 @@ export async function resolveAICredentials(
   let resolvedProvider: ResolvedProvider = provider === "google" ? "google" : "openai";
 
   if (provider === "novalink") {
-    // Get admin user
+    // Try GROQ_API_KEY from env first (platform-managed)
+    const groqKey = Deno.env.get("GROQ_API_KEY") || "";
+    if (groqKey) {
+      const isGroqModel = /^(llama|mixtral|gemma|whisper|distil)/.test((configModel || "").trim());
+      // If model is a groq model OR no specific model set, use groq
+      if (isGroqModel || !(configModel || "").trim()) {
+        return {
+          apiKey: groqKey,
+          resolvedProvider: "groq",
+          model: (configModel || "").trim() || "llama-3.3-70b-versatile",
+        };
+      }
+    }
+
+    // Fallback: Get admin user for OpenAI/Google keys
     const { data: adminRole } = await service
       .from("user_roles")
       .select("user_id")
@@ -387,13 +472,14 @@ export async function resolveAICredentials(
 
   if (!apiKey) return null;
 
-  const defaultModel = resolvedProvider === "google" ? "gemini-2.5-flash" : "gpt-4o-mini";
+  const defaultModel = resolvedProvider === "google" ? "gemini-2.5-flash" : resolvedProvider === "groq" ? "llama-3.3-70b-versatile" : "gpt-4o-mini";
 
   // If the configured model doesn't match the resolved provider, use the default.
   // This also self-heals legacy Groq/Meta model names accidentally saved under OpenAI.
   let model = (configModel || "").trim() || defaultModel;
   const isGeminiModel = model.startsWith("models/gemini") || model.startsWith("gemini");
   const isOpenAIModel = /^(gpt|o1|o3|o4)(-|$)/.test(model);
+  const isGroqModel = /^(llama|mixtral|gemma|distil)/.test(model);
 
   if (resolvedProvider === "openai" && !isOpenAIModel) {
     console.warn(`[ai-providers] invalid OpenAI model \"${model}\"; falling back to gpt-4o-mini`);
@@ -401,6 +487,9 @@ export async function resolveAICredentials(
   } else if (resolvedProvider === "google" && !isGeminiModel) {
     console.warn(`[ai-providers] invalid Gemini model \"${model}\"; falling back to gemini-2.5-flash`);
     model = "gemini-2.5-flash";
+  } else if (resolvedProvider === "groq" && !isGroqModel) {
+    console.warn(`[ai-providers] invalid Groq model \"${model}\"; falling back to llama-3.3-70b-versatile`);
+    model = "llama-3.3-70b-versatile";
   }
 
   return { apiKey, resolvedProvider, model };
