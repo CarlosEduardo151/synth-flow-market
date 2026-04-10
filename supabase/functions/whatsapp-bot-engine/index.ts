@@ -140,15 +140,27 @@ serve(async (req) => {
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
-    // Check if bot instance is active
+    // Check if bot instance is active; if missing, auto-allow when AI config is active
     const { data: botInstance } = await service
       .from("bot_instances")
       .select("is_active")
       .eq("customer_product_id", cp.id)
       .eq("is_active", true)
       .maybeSingle();
+
     if (!botInstance) {
-      return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
+      const { data: aiActive } = await service
+        .from("ai_control_config")
+        .select("is_active")
+        .eq("customer_product_id", cp.id)
+        .maybeSingle();
+
+      if (!aiActive?.is_active) {
+        console.log("[bot-engine] skipped: bot and ai config inactive", cp.id);
+        return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
+      }
+
+      console.log("[bot-engine] continuing without active bot_instance because AI config is active", cp.id);
     }
 
     // Parse body (max 500KB)

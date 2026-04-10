@@ -199,21 +199,24 @@ serve(async (req) => {
 
     const normalizedBody = JSON.stringify(normalized);
 
-    // Forward to bot engine
+    // Forward to bot engine and wait for the result so execution is not dropped
     const engineUrl = `${supabaseUrl}/functions/v1/whatsapp-bot-engine?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
 
-    // Fire-and-forget
-    const enginePromise = fetch(engineUrl, {
+    const engineResp = await fetch(engineUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${serviceKey}`,
       },
       body: normalizedBody,
-    }).catch((e) => console.error("bot-engine call failed:", e));
+    });
 
-    // deno-lint-ignore no-unused-vars
-    const _ = enginePromise;
+    const engineText = await engineResp.text().catch(() => "");
+    console.log("[ingest] bot-engine response:", engineResp.status, engineText.slice(0, 500));
+
+    if (!engineResp.ok) {
+      return corsResponse({ ok: false, engine_status: engineResp.status, engine_body: engineText.slice(0, 500) }, 502, origin);
+    }
 
     return corsResponse({ ok: true }, 200, origin);
   } catch (error) {
