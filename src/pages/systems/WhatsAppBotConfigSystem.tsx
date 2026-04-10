@@ -256,25 +256,20 @@ const WhatsAppBotConfigSystem = () => {
         }
       } catch {}
 
-      // Load WhatsApp API credentials
+      // Load WhatsApp connection state from the new provider flow
       try {
-        const { data: wapiCreds } = await supabase
+        const { data: evoCred } = await supabase
           .from('product_credentials')
-          .select('credential_key, credential_value')
+          .select('credential_value')
           .eq('user_id', user.id)
           .eq('product_slug', 'bots-automacao')
-          .in('credential_key', ['zapi_instance_id', 'zapi_token', 'zapi_client_token', 'zapi_phone']);
+          .eq('credential_key', 'evolution_instance_name')
+          .maybeSingle();
 
-        if (wapiCreds && wapiCreds.length > 0) {
-          for (const c of wapiCreds) {
-            if (c.credential_key === 'zapi_instance_id') setWapiInstanceId(c.credential_value || '');
-            if (c.credential_key === 'zapi_token') setWapiToken(c.credential_value || '');
-            if (c.credential_key === 'zapi_client_token') setWapiClientToken(c.credential_value || '');
-            if (c.credential_key === 'zapi_phone') setWapiPhone(c.credential_value || '');
-          }
-          if (wapiCreds.length >= 2 && wapiCreds.filter((c: any) => c.credential_value).length >= 2) {
-            setWapiConnected(true);
-          }
+        if (evoCred?.credential_value) {
+          setWapiInstanceId(evoCred.credential_value || '');
+          // do not force connected=true only because credentials exist
+          // the WhatsApp tab itself checks real connection status via edge function
         }
       } catch {}
 
