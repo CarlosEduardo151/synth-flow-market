@@ -80,8 +80,7 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
-      // If 409 = already exists, that's fine, just get QR code
-      // Store instance info in product_credentials
+      // Store instance info and get customer_product for webhook
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       const sb = createClient(supabaseUrl, serviceKey);
@@ -94,6 +93,48 @@ serve(async (req) => {
         credential_value: instanceName,
         updated_at: new Date().toISOString(),
       }, { onConflict: "user_id,product_slug,credential_key" });
+
+      // Fetch customer_product to build the webhook URL
+      const { data: cp } = await sb
+        .from("customer_products")
+        .select("id, webhook_token")
+        .eq("user_id", user.id)
+        .eq("product_slug", "bots-automacao")
+        .eq("is_active", true)
+        .maybeSingle();
+
+      // Configure webhook pointing to our AI engine
+      if (cp?.id && cp?.webhook_token) {
+        const webhookUrl = `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
+
+        try {
+          const whResp = await fetch(`${EVOLUTION_URL()}/webhook/set/${encodeURIComponent(instanceName)}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              apikey: EVOLUTION_KEY(),
+            },
+            body: JSON.stringify({
+              enabled: true,
+              url: webhookUrl,
+              webhookByEvents: false,
+              webhookBase64: false,
+              events: [
+                "MESSAGES_UPSERT",
+                "MESSAGES_UPDATE",
+                "CONNECTION_UPDATE",
+                "QRCODE_UPDATED",
+              ],
+            }),
+          });
+          const whData = await whResp.json().catch(() => null);
+          console.log("[whatsapp-instance] webhook set:", whResp.status, JSON.stringify(whData));
+        } catch (e) {
+          console.error("[whatsapp-instance] webhook set error:", e);
+        }
+      } else {
+        console.warn("[whatsapp-instance] no customer_product found for webhook setup");
+      }
 
       // Extract QR code from response
       const qrcode = data?.qrcode?.base64 || data?.qrcode || null;
