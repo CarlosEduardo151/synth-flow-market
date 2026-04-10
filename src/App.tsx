@@ -79,6 +79,7 @@ import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
 import AdminEnginesPage from "./pages/admin/AdminEnginesPage";
 import AdminWorkshopReviewPage from "./pages/admin/AdminWorkshopReviewPage";
 import AdminMonitoringPage from "./pages/admin/AdminMonitoringPage";
+import AdminLogsPage from "./pages/admin/AdminLogsPage";
 
 import NotFound from "./pages/NotFound";
 
@@ -176,6 +177,7 @@ const App = () => (
               <Route path="/admin/engines" element={<AdminEnginesPage />} />
               <Route path="/admin/workshop-review" element={<AdminWorkshopReviewPage />} />
               <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
+              <Route path="/admin/logs" element={<AdminLogsPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />

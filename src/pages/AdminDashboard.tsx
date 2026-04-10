@@ -167,6 +167,14 @@ const AdminDashboard = () => {
       link: '/admin/monitoring',
       color: 'bg-red-600',
       stats: 'LIVE'
+    },
+    {
+      title: 'Central de Logs',
+      description: 'Tudo que entra e sai — em tempo real',
+      icon: MessageCircle,
+      link: '/admin/logs',
+      color: 'bg-teal-600',
+      stats: 'LIVE'
     }
   ];
 
