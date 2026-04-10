@@ -140,28 +140,27 @@ serve(async (req) => {
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
-    // Check if bot instance is active; if missing, auto-allow when AI config is active
-    const { data: botInstance } = await service
+    // Check if bot instance OR AI config is active — allow if either is active
+    const { data: botInstances } = await service
       .from("bot_instances")
       .select("is_active")
+      .eq("customer_product_id", cp.id);
+
+    const { data: aiActive } = await service
+      .from("ai_control_config")
+      .select("is_active")
       .eq("customer_product_id", cp.id)
-      .eq("is_active", true)
       .maybeSingle();
 
-    if (!botInstance) {
-      const { data: aiActive } = await service
-        .from("ai_control_config")
-        .select("is_active")
-        .eq("customer_product_id", cp.id)
-        .maybeSingle();
+    const hasBotActive = botInstances?.some((b: any) => b.is_active);
+    const hasAiActive = aiActive?.is_active === true;
 
-      if (!aiActive?.is_active) {
-        console.log("[bot-engine] skipped: bot and ai config inactive", cp.id);
-        return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
-      }
-
-      console.log("[bot-engine] continuing without active bot_instance because AI config is active", cp.id);
+    if (!hasBotActive && !hasAiActive) {
+      console.log("[bot-engine] skipped: bot and ai config inactive", cp.id, "bot:", hasBotActive, "ai:", hasAiActive);
+      return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
     }
+
+    console.log("[bot-engine] active check passed", cp.id, "bot:", hasBotActive, "ai:", hasAiActive);
 
     // Parse body (max 500KB)
     const bodyText = await req.text();
