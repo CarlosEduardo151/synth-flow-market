@@ -318,8 +318,7 @@ serve(async (req) => {
 
     if (!resolved) {
       console.error(`AI key missing: provider=${provider}, user=${cp.user_id}`);
-      await zapiSendText(
-        zapiCreds,
+      await sendTextReply(
         phone,
         "⚠️ O bot ainda não está configurado. O administrador precisa configurar a chave de IA no painel.",
         messageId,
@@ -409,11 +408,8 @@ serve(async (req) => {
                 }
               });
 
-            // Send FAQ reply via Z-API
-            const zapiCreds = await loadZAPICredentials(service, cp.user_id);
-            if (zapiCreds) {
-              await zapiSendText(zapiCreds, phone, faqAnswer, messageId);
-            }
+            // Send FAQ reply
+            await sendTextReply(phone, faqAnswer, messageId);
 
             // Log conversation
             service.from("bot_conversation_logs").insert({
@@ -520,7 +516,7 @@ serve(async (req) => {
 
     // Send reply
     if (result.text) {
-      await zapiSendText(zapiCreds, phone, result.text, messageId);
+      await sendTextReply(phone, result.text, messageId);
     }
 
     // Log metrics + conversation (fire and forget)
