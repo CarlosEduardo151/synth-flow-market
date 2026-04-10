@@ -53,6 +53,27 @@ interface AgentConfig {
 
 const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
 
+const OPENAI_MODEL_REGEX = /^(gpt|o1|o3|o4)(-|$)/;
+const GEMINI_MODEL_REGEX = /^(models\/gemini|gemini)/;
+
+function normalizeEngineModel(provider: AgentConfig['provider'], model?: string | null) {
+  const trimmedModel = (model || '').trim();
+
+  if (provider === 'openai') {
+    return OPENAI_MODEL_REGEX.test(trimmedModel) ? trimmedModel : 'gpt-4o-mini';
+  }
+
+  if (provider === 'google') {
+    return GEMINI_MODEL_REGEX.test(trimmedModel) ? trimmedModel : 'models/gemini-2.5-flash';
+  }
+
+  if (OPENAI_MODEL_REGEX.test(trimmedModel) || GEMINI_MODEL_REGEX.test(trimmedModel)) {
+    return trimmedModel;
+  }
+
+  return 'models/gemini-2.5-flash';
+}
+
 const WhatsAppBotConfigSystem = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -212,13 +233,21 @@ const WhatsAppBotConfigSystem = () => {
           try { actionInstructions = JSON.parse(configData.action_instructions); } catch {}
         }
 
-      const storedProvider = configData.provider || 'google';
+        const storedProvider = configData.provider || 'google';
         const inferredProvider = storedProvider === 'novalink' ? 'novalink' : storedProvider === 'google' ? 'google' : 'openai';
+        const normalizedModel = normalizeEngineModel(inferredProvider, configData.model);
+
+        if (configData.model !== normalizedModel) {
+          await supabase
+            .from('ai_control_config')
+            .update({ model: normalizedModel, updated_at: new Date().toISOString() })
+            .eq('id', configData.id);
+        }
 
         setConfig(prev => ({
           ...prev,
           provider: inferredProvider,
-          model: configData.model || (inferredProvider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini'),
+          model: normalizedModel,
           temperature: configData.temperature || 0.7,
           maxTokens: configData.max_tokens || 2048,
           communicationTone: configData.personality || 'amigavel',
@@ -284,7 +313,7 @@ const WhatsAppBotConfigSystem = () => {
     if (!customerProductId || !user) return false;
     try {
       const engineProvider = config.provider === 'novalink' ? 'novalink' : config.provider === 'google' ? 'google' : 'openai';
-      const engineModel = (config.model || '').trim() || (engineProvider === 'google' || engineProvider === 'novalink' ? 'models/gemini-2.5-flash' : 'gpt-4o-mini');
+      const engineModel = normalizeEngineModel(engineProvider, config.model);
 
       await supabase.from('ai_control_config').upsert({
         customer_product_id: customerProductId,
@@ -328,7 +357,7 @@ const WhatsAppBotConfigSystem = () => {
   };
 
   const handleProviderChange = (provider: 'openai' | 'google' | 'novalink') => {
-    const defaultModel = provider === 'novalink' ? 'models/gemini-2.5-flash' : provider === 'google' ? 'models/gemini-2.5-flash' : 'gpt-4o';
+    const defaultModel = provider === 'openai' ? 'gpt-4o-mini' : 'models/gemini-2.5-flash';
     setConfig(prev => ({ ...prev, provider, model: defaultModel, ...(provider === 'novalink' ? { apiKey: '' } : {}) }));
   };
 
