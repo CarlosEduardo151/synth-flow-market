@@ -119,7 +119,7 @@ const AdminWorkshopReviewPage = () => {
         updates.aprovado_em = new Date().toISOString();
         updates.aprovado_por = user.id;
       }
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('fleet_partner_workshops')
         .update(updates)
         .eq('id', selectedWorkshop.id);
