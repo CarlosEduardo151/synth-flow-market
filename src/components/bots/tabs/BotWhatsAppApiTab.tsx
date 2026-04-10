@@ -146,6 +146,21 @@ export function BotWhatsAppApiTab({
     }
   };
 
+  const handleReconfigureWebhook = async () => {
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'reconfigure_webhook' },
+      });
+      if (error) throw error;
+      toast({ title: '✅ Webhook reconfigurado!', description: 'As mensagens serão processadas corretamente.' });
+    } catch (e: any) {
+      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const handleCheckStatus = async () => {
     setChecking(true);
     const result = await checkStatus();
@@ -205,7 +220,7 @@ export function BotWhatsAppApiTab({
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 variant="outline"
                 size="sm"
@@ -215,6 +230,16 @@ export function BotWhatsAppApiTab({
               >
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 Verificar Status
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={handleReconfigureWebhook}
+                disabled={checking}
+              >
+                <Zap className="h-3.5 w-3.5" />
+                Reconfigurar Webhook
               </Button>
               <Button
                 variant="ghost"

@@ -185,7 +185,8 @@ serve(async (req) => {
     console.log("[ingest] event received:", rawPayload?.event || "unknown", "instance:", rawPayload?.instance || "n/a");
 
     // Skip non-message events (connection updates, qrcode updates, etc.)
-    const event = rawPayload?.event || "";
+    // Evolution API sends uppercase events like MESSAGES_UPSERT, normalize to lowercase
+    const event = (rawPayload?.event || "").toLowerCase();
     if (event && !event.startsWith("messages")) {
       console.log("[ingest] skipping non-message event:", event);
       return corsResponse({ ok: true, skipped: "non_message_event" }, 200, origin);

@@ -121,15 +121,31 @@ export async function loadEvolutionCredentials(
   service: any,
   userId: string,
 ): Promise<EvolutionCredentials | null> {
+  // First try evolution_instances table (primary source)
+  const { data: evoInstance } = await service
+    .from("evolution_instances")
+    .select("instance_name, evolution_url, evolution_apikey")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (evoInstance?.instance_name) {
+    return {
+      instanceName: evoInstance.instance_name,
+      apiUrl: (evoInstance.evolution_url || "").replace(/\/$/, ""),
+      apiKey: evoInstance.evolution_apikey || "",
+    };
+  }
+
+  // Fallback: product_credentials + env vars
   const apiUrl = Deno.env.get("EVOLUTION_API_URL");
   const apiKey = Deno.env.get("EVOLUTION_GLOBAL_APIKEY");
 
   if (!apiUrl || !apiKey) {
-    console.error("Evolution API env vars missing");
+    console.error("Evolution API env vars missing and no evolution_instances entry");
     return null;
   }
 
-  // Get the instance name from product_credentials
   const { data: creds } = await service
     .from("product_credentials")
     .select("credential_value")
