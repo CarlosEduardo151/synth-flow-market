@@ -76,7 +76,7 @@ serve(async (req) => {
       const data = await resp.json().catch(() => null);
       console.log("[whatsapp-instance] create response:", resp.status, JSON.stringify(data));
 
-      if (!resp.ok && resp.status !== 409) {
+      if (!resp.ok && resp.status !== 409 && resp.status !== 403) {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
@@ -115,16 +115,18 @@ serve(async (req) => {
               apikey: EVOLUTION_KEY(),
             },
             body: JSON.stringify({
-              enabled: true,
-              url: webhookUrl,
-              webhookByEvents: false,
-              webhookBase64: false,
-              events: [
-                "MESSAGES_UPSERT",
-                "MESSAGES_UPDATE",
-                "CONNECTION_UPDATE",
-                "QRCODE_UPDATED",
-              ],
+              webhook: {
+                enabled: true,
+                url: webhookUrl,
+                webhookByEvents: false,
+                webhookBase64: false,
+                events: [
+                  "MESSAGES_UPSERT",
+                  "MESSAGES_UPDATE",
+                  "CONNECTION_UPDATE",
+                  "QRCODE_UPDATED",
+                ],
+              },
             }),
           });
           const whData = await whResp.json().catch(() => null);
