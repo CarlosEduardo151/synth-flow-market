@@ -173,7 +173,7 @@ serve(async (req) => {
     // Persist raw event
     await service.from("whatsapp_inbox_events").insert({
       customer_product_id: cp.id,
-      source: "z-api",
+      source: payload?._evolutionEvent ? "evolution" : "z-api",
       payload,
     }).then(({ error }: any) => { if (error) console.error("event_insert_error:", error.message); });
 
@@ -528,6 +528,7 @@ serve(async (req) => {
 
     // Send reply
     if (result.text) {
+      console.log("[bot-engine] sending reply to", phone, "type:", messageType, "chars:", result.text.length);
       await sendTextReply(phone, result.text, messageId);
     }
 
