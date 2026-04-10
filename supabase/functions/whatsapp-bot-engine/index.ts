@@ -141,18 +141,26 @@ serve(async (req) => {
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
     // Check if bot instance OR AI config is active — allow if either is active
-    const { data: botInstances } = await service
+    const { data: botInstances, error: botErr } = await service
       .from("bot_instances")
       .select("is_active")
       .eq("customer_product_id", cp.id);
 
-    const { data: aiActive } = await service
+    const { data: aiActive, error: aiErr } = await service
       .from("ai_control_config")
       .select("is_active")
       .eq("customer_product_id", cp.id)
       .maybeSingle();
 
-    const hasBotActive = botInstances?.some((b: any) => b.is_active);
+    console.log("[bot-engine] activation debug:", JSON.stringify({
+      cpId: cp.id,
+      botInstances,
+      botErr: botErr?.message,
+      aiActive,
+      aiErr: aiErr?.message,
+    }));
+
+    const hasBotActive = botInstances?.some((b: any) => b.is_active) ?? false;
     const hasAiActive = aiActive?.is_active === true;
 
     if (!hasBotActive && !hasAiActive) {
