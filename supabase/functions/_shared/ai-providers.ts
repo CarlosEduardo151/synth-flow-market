@@ -389,14 +389,17 @@ export async function resolveAICredentials(
 
   const defaultModel = resolvedProvider === "google" ? "gemini-2.5-flash" : "gpt-4o-mini";
 
-  // If the configured model doesn't match the resolved provider, use the default
-  let model = configModel || defaultModel;
-  const isGeminiModel = model.startsWith("models/") || model.startsWith("gemini");
-  const isOpenAIModel = model.startsWith("gpt") || model.startsWith("o1") || model.startsWith("o3");
+  // If the configured model doesn't match the resolved provider, use the default.
+  // This also self-heals legacy Groq/Meta model names accidentally saved under OpenAI.
+  let model = (configModel || "").trim() || defaultModel;
+  const isGeminiModel = model.startsWith("models/gemini") || model.startsWith("gemini");
+  const isOpenAIModel = /^(gpt|o1|o3|o4)(-|$)/.test(model);
 
-  if (resolvedProvider === "openai" && isGeminiModel) {
+  if (resolvedProvider === "openai" && !isOpenAIModel) {
+    console.warn(`[ai-providers] invalid OpenAI model \"${model}\"; falling back to gpt-4o-mini`);
     model = "gpt-4o-mini";
-  } else if (resolvedProvider === "google" && isOpenAIModel) {
+  } else if (resolvedProvider === "google" && !isGeminiModel) {
+    console.warn(`[ai-providers] invalid Gemini model \"${model}\"; falling back to gemini-2.5-flash`);
     model = "gemini-2.5-flash";
   }
 

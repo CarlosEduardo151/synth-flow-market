@@ -39,6 +39,112 @@ const EVOLUTION_KEY = () => {
   return key;
 };
 
+const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente. Responda de forma objetiva, útil e em português. Quando não souber algo, diga com transparência e ofereça ajuda humana.`;
+
+function generateWebhookToken(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function ensureCustomerProduct(sb: any, userId: string) {
+  const { data: existing, error } = await sb
+    .from("customer_products")
+    .select("id, webhook_token")
+    .eq("user_id", userId)
+    .eq("product_slug", "bots-automacao")
+    .eq("is_active", true)
+    .maybeSingle();
+
+  if (error) throw error;
+  if (!existing?.id) return null;
+
+  if (existing.webhook_token) return existing;
+
+  const webhookToken = generateWebhookToken();
+  const { error: updateError } = await sb
+    .from("customer_products")
+    .update({ webhook_token: webhookToken, updated_at: new Date().toISOString() })
+    .eq("id", existing.id);
+
+  if (updateError) throw updateError;
+
+  return {
+    ...existing,
+    webhook_token: webhookToken,
+  };
+}
+
+async function ensureBotRuntime(sb: any, userId: string, customerProductId: string) {
+  const nowIso = new Date().toISOString();
+
+  const { data: firstBot, error: botFetchError } = await sb
+    .from("bot_instances")
+    .select("id, is_active")
+    .eq("customer_product_id", customerProductId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (botFetchError) throw botFetchError;
+
+  if (!firstBot?.id) {
+    const { error: createBotError } = await sb
+      .from("bot_instances")
+      .insert({
+        customer_product_id: customerProductId,
+        name: "Bot 1",
+        is_active: true,
+        updated_at: nowIso,
+      });
+    if (createBotError) throw createBotError;
+  } else if (!firstBot.is_active) {
+    const { error: activateBotError } = await sb
+      .from("bot_instances")
+      .update({ is_active: true, updated_at: nowIso })
+      .eq("id", firstBot.id);
+    if (activateBotError) throw activateBotError;
+  }
+
+  const { data: aiConfig, error: aiFetchError } = await sb
+    .from("ai_control_config")
+    .select("id, is_active")
+    .eq("customer_product_id", customerProductId)
+    .maybeSingle();
+
+  if (aiFetchError) throw aiFetchError;
+
+  if (!aiConfig?.id) {
+    const { error: createAiError } = await sb
+      .from("ai_control_config")
+      .insert({
+        customer_product_id: customerProductId,
+        user_id: userId,
+        is_active: true,
+        provider: "novalink",
+        model: "models/gemini-2.5-flash",
+        temperature: 0.7,
+        max_tokens: 2048,
+        business_name: "Meu Negócio",
+        personality: "amigavel",
+        system_prompt: DEFAULT_SYSTEM_PROMPT,
+        configuration: {
+          platform: "whatsapp",
+          configured_at: nowIso,
+          auto_provisioned: true,
+        },
+        updated_at: nowIso,
+      });
+    if (createAiError) throw createAiError;
+  } else if (!aiConfig.is_active) {
+    const { error: activateAiError } = await sb
+      .from("ai_control_config")
+      .update({ is_active: true, updated_at: nowIso })
+      .eq("id", aiConfig.id);
+    if (activateAiError) throw activateAiError;
+  }
+}
+
 /** Get instance name: prefer evolution_instances table, fallback to generating from email */
 async function resolveInstanceName(sb: any, userId: string, userEmail: string): Promise<string> {
   const { data: evoInst } = await sb
@@ -95,14 +201,8 @@ serve(async (req) => {
 
     const instanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
 
-    // Fetch customer_product for this user
-    const { data: cp } = await sb
-      .from("customer_products")
-      .select("id, webhook_token")
-      .eq("user_id", user.id)
-      .eq("product_slug", "bots-automacao")
-      .eq("is_active", true)
-      .maybeSingle();
+    // Fetch customer_product for this user and auto-provision webhook token if missing
+    const cp = await ensureCustomerProduct(sb, user.id);
 
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
@@ -121,6 +221,10 @@ serve(async (req) => {
 
       if (!resp.ok && resp.status !== 409 && resp.status !== 403) {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
+      }
+
+      if (cp?.id) {
+        await ensureBotRuntime(sb, user.id, cp.id);
       }
 
       // Upsert into evolution_instances table
@@ -205,6 +309,7 @@ serve(async (req) => {
       if (!webhookUrl) {
         return json({ error: "No customer_product or webhook_token found" }, 400);
       }
+      await ensureBotRuntime(sb, user.id, cp.id);
       await configureWebhook(instanceName, webhookUrl);
       return json({ success: true, webhookUrl });
     }
