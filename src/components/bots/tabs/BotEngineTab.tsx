@@ -175,10 +175,14 @@ export function BotEngineTab({
                     <SelectGroup>
                       <SelectLabel className="bg-muted/50">💬 Chat</SelectLabel>
                       <SelectItem value="models/gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</SelectItem>
-                      <SelectItem value="models/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>
+                      <SelectItem value="models/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>                      
                       <SelectItem value="models/gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</SelectItem>
                       <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
                       <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                    </SelectGroup>
+                    <SelectGroup>
+                      <SelectLabel className="bg-muted/50">🦙 Groq (Ultra-rápido)</SelectLabel>
+                      <SelectItem value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</SelectItem>
                     </SelectGroup>
                   </>
                 ) : provider === 'openai' ? (
