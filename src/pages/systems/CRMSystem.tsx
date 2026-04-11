@@ -35,9 +35,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CRMDashboard } from '@/components/crm/CRMDashboard';
 import { CRMClientsTable } from '@/components/crm/CRMClientsTable';
 import { CRMOpportunities } from '@/components/crm/CRMOpportunities';
-import { CRMIntegration } from '@/components/crm/CRMIntegration';
 import { CRMMessages } from '@/components/crm/CRMMessages';
-import { CRMAIConfig } from '@/components/crm/CRMAIConfig';
+import { CRMAIEngine } from '@/components/crm/CRMAIEngine';
 import { CRMAIPendingActions } from '@/components/crm/CRMAIPendingActions';
 import { CRMAIReports } from '@/components/crm/CRMAIReports';
 import { useProductAccess } from '@/hooks/useProductAccess';
@@ -94,8 +93,7 @@ const CRMSystem = () => {
       { value: 'clientes', label: 'Clientes', icon: Users },
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
       { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
-      { value: 'integracao', label: 'Integração', icon: Link2 },
-      { value: 'ai-config', label: 'Config IA', icon: Settings },
+      { value: 'motor-ia', label: 'Motor IA', icon: Settings },
       { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
     ],
@@ -504,12 +502,8 @@ const CRMSystem = () => {
                     {customerProductId && <CRMMessages customerProductId={customerProductId} />}
                   </TabsContent>
 
-                  <TabsContent value="integracao" className="space-y-4">
-                    {customerProductId && <CRMIntegration customerProductId={customerProductId} />}
-                  </TabsContent>
-
-                  <TabsContent value="ai-config" className="space-y-4">
-                    <CRMAIConfig />
+                  <TabsContent value="motor-ia" className="space-y-4">
+                    {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
                   </TabsContent>
 
                   <TabsContent value="ai-actions" className="space-y-4">
