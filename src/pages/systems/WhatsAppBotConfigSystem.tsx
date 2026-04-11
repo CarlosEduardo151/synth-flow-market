@@ -27,6 +27,7 @@ import { BotStatusTab } from '@/components/bots/tabs/BotStatusTab';
 import { BotEngineTab } from '@/components/bots/tabs/BotEngineTab';
 import { BotMemoryTab } from '@/components/bots/tabs/BotMemoryTab';
 import { BotPersonalityTab, type CommunicationTone, type ActionInstruction } from '@/components/bots/tabs/BotPersonalityTab';
+import { type AgentVoiceConfig } from '@/components/bots/tabs/BotVoiceConfig';
 import { BotWhatsAppApiTab } from '@/components/bots/tabs/BotWhatsAppApiTab';
 import { BotConversationLogsTab } from '@/components/bots/tabs/BotConversationLogsTab';
 import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
@@ -49,6 +50,7 @@ interface AgentConfig {
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
   businessName: string;
+  voiceConfig: AgentVoiceConfig;
 }
 
 const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSOBRE NÓS:\n- Atendemos clientes de forma rápida e eficiente\n- Horário: Segunda a sexta, 9h às 18h\n\nCOMO AJUDAR:\n- Tire dúvidas sobre nossos produtos/serviços\n- Ajude com agendamentos\n- Encaminhe para um atendente humano quando necessário`;
