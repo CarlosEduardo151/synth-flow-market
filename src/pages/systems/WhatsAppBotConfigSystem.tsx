@@ -55,7 +55,7 @@ const DEFAULT_SYSTEM_PROMPT = `Você é um assistente virtual inteligente.\n\nSO
 
 const OPENAI_MODEL_REGEX = /^(gpt|o1|o3|o4)(-|$)/;
 const GEMINI_MODEL_REGEX = /^(models\/gemini|gemini)/;
-const GROQ_MODEL_REGEX = /^(llama|mixtral|gemma|distil)/;
+const GROQ_MODEL_REGEX = /^(llama|mixtral|gemma|distil|qwen|gpt-oss)/;
 
 function normalizeEngineModel(provider: AgentConfig['provider'], model?: string | null) {
   const trimmedModel = (model || '').trim();
@@ -76,7 +76,7 @@ function normalizeEngineModel(provider: AgentConfig['provider'], model?: string 
     return trimmedModel;
   }
 
-  return 'models/gemini-2.5-flash';
+  return 'llama-3.3-70b-versatile';
 }
 
 const WhatsAppBotConfigSystem = () => {
@@ -104,9 +104,9 @@ const WhatsAppBotConfigSystem = () => {
   const [wapiPhone, setWapiPhone] = useState('');
 
   const [config, setConfig] = useState<AgentConfig>({
-    provider: 'google',
+    provider: 'novalink',
     apiKey: '',
-    model: 'models/gemini-2.5-flash',
+    model: 'llama-3.3-70b-versatile',
     temperature: 0.7,
     maxTokens: 2048,
     contextWindowSize: 10,

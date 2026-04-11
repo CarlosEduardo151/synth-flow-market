@@ -410,7 +410,7 @@ export async function resolveAICredentials(
     // Try GROQ_API_KEY from env first (platform-managed)
     const groqKey = Deno.env.get("GROQ_API_KEY") || "";
     if (groqKey) {
-      const isGroqModel = /^(llama|mixtral|gemma|whisper|distil)/.test((configModel || "").trim());
+      const isGroqModel = /^(llama|mixtral|gemma|whisper|distil|qwen|gpt-oss)/.test((configModel || "").trim());
       // If model is a groq model OR no specific model set, use groq
       if (isGroqModel || !(configModel || "").trim()) {
         return {
@@ -479,7 +479,7 @@ export async function resolveAICredentials(
   let model = (configModel || "").trim() || defaultModel;
   const isGeminiModel = model.startsWith("models/gemini") || model.startsWith("gemini");
   const isOpenAIModel = /^(gpt|o1|o3|o4)(-|$)/.test(model);
-  const isGroqModel = /^(llama|mixtral|gemma|distil)/.test(model);
+  const isGroqModel = /^(llama|mixtral|gemma|distil|qwen|gpt-oss)/.test(model);
 
   if (resolvedProvider === "openai" && !isOpenAIModel) {
     console.warn(`[ai-providers] invalid OpenAI model \"${model}\"; falling back to gpt-4o-mini`);

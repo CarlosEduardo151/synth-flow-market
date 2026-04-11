@@ -122,7 +122,7 @@ async function ensureBotRuntime(sb: any, userId: string, customerProductId: stri
         user_id: userId,
         is_active: true,
         provider: "novalink",
-        model: "models/gemini-2.5-flash",
+        model: "llama-3.3-70b-versatile",
         temperature: 0.7,
         max_tokens: 2048,
         business_name: "Meu Negócio",
