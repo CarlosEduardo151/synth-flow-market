@@ -1,10 +1,9 @@
-import { Volume2, Play, Square, Loader2 } from 'lucide-react';
+import { Volume2, Play, Square } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { useState, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export type AgentVoiceId = 'nova' | 'onyx' | 'shimmer' | 'alloy' | 'echo' | 'fable';
 
@@ -30,8 +29,6 @@ const VOICES: VoiceDef[] = [
   { id: 'fable', novalinkName: 'Narrative', emoji: '📖', profile: 'Expressiva e envolvente', recommendation: 'Contação de histórias ou apresentações' },
 ];
 
-const PREVIEW_TEXT = 'Olá! Eu sou a voz do seu agente. Como posso ajudar você hoje?';
-
 interface BotVoiceConfigProps {
   voiceConfig: AgentVoiceConfig;
   onVoiceConfigChange: (config: AgentVoiceConfig) => void;
@@ -41,10 +38,9 @@ export function BotVoiceConfig({ voiceConfig, onVoiceConfigChange }: BotVoiceCon
   const [playingVoice, setPlayingVoice] = useState<AgentVoiceId | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handlePlayVoice = async (voiceId: AgentVoiceId, e: React.MouseEvent) => {
+  const handlePlayVoice = (voiceId: AgentVoiceId, e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // If already playing this voice, stop it
     if (playingVoice === voiceId) {
       audioRef.current?.pause();
       audioRef.current = null;
@@ -52,7 +48,6 @@ export function BotVoiceConfig({ voiceConfig, onVoiceConfigChange }: BotVoiceCon
       return;
     }
 
-    // Stop any current playback
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current = null;
@@ -60,36 +55,20 @@ export function BotVoiceConfig({ voiceConfig, onVoiceConfigChange }: BotVoiceCon
 
     setPlayingVoice(voiceId);
 
-    try {
-      const { data, error } = await supabase.functions.invoke('tts-preview', {
-        body: { voice: voiceId, text: PREVIEW_TEXT },
-      });
+    const audio = new Audio(`/audio/voices/${voiceId}.mp3`);
+    audioRef.current = audio;
 
-      if (error) throw error;
-
-      // data is the audio blob
-      const blob = new Blob([data], { type: 'audio/mpeg' });
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      audioRef.current = audio;
-
-      audio.onended = () => {
-        setPlayingVoice(null);
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-      };
-
-      audio.onerror = () => {
-        setPlayingVoice(null);
-        URL.revokeObjectURL(url);
-        audioRef.current = null;
-      };
-
-      await audio.play();
-    } catch (err) {
-      console.error('TTS preview error:', err);
+    audio.onended = () => {
       setPlayingVoice(null);
-    }
+      audioRef.current = null;
+    };
+
+    audio.onerror = () => {
+      setPlayingVoice(null);
+      audioRef.current = null;
+    };
+
+    audio.play();
   };
 
   return (
@@ -134,24 +113,30 @@ export function BotVoiceConfig({ voiceConfig, onVoiceConfigChange }: BotVoiceCon
                     : 'border-border/50 hover:border-muted-foreground/30 bg-card/50'
                 }`}
               >
-                <div className="flex items-start gap-3">
+                <div className="flex flex-col items-center gap-3 text-center">
                   <span className="text-2xl">{voice.emoji}</span>
-                  <div className="flex-1 min-w-0">
+                  <div>
                     <h3 className="font-semibold text-sm">{voice.novalinkName}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{voice.profile}</p>
                     <p className="text-[11px] text-muted-foreground/70 mt-1">💡 {voice.recommendation}</p>
                   </div>
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 flex-shrink-0 hover:bg-primary/10"
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 mt-1"
                     onClick={(e) => handlePlayVoice(voice.id, e)}
                     disabled={playingVoice !== null && playingVoice !== voice.id}
                   >
                     {playingVoice === voice.id ? (
-                      <Square className="h-3.5 w-3.5 text-primary fill-primary" />
+                      <>
+                        <Square className="h-3 w-3 fill-primary text-primary" />
+                        Parar
+                      </>
                     ) : (
-                      <Play className="h-3.5 w-3.5 text-primary" />
+                      <>
+                        <Play className="h-3 w-3 text-primary" />
+                        Ouvir voz
+                      </>
                     )}
                   </Button>
                 </div>
