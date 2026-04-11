@@ -24,14 +24,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     const service = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
     const action = body.action || "send_report";
 
     if (action === "process_scheduled") {
-      return await processScheduled(service, resendKey, lovableApiKey);
+      return await processScheduled(service, resendKey);
     }
 
     const cpId = body.customer_product_id;
@@ -47,7 +46,7 @@ Deno.serve(async (req) => {
 
       const reportData = await generateReport(service, cpId, "daily");
       const html = buildReportHTML(reportData, "Relatório de Teste", "test", undefined);
-      await sendEmail(resendKey, lovableApiKey, email, "📊 Relatório de Teste — Bot WhatsApp", html);
+      await sendEmail(resendKey, email, "📊 Relatório de Teste — Bot WhatsApp", html);
 
       return json({ ok: true, message: "Test report sent" });
     }
@@ -67,7 +66,7 @@ Deno.serve(async (req) => {
       const sections = config.report_sections || [];
       const html = buildReportHTML(reportData, `Relatório ${periodLabel}`, config.frequency, sections);
 
-      await sendEmail(resendKey, lovableApiKey, config.recipient_email, subject, html);
+      await sendEmail(resendKey, config.recipient_email, subject, html);
 
       await service
         .from("bot_report_config")
@@ -99,7 +98,7 @@ Deno.serve(async (req) => {
 
 // ===== Process scheduled reports (for cron) =====
 
-async function processScheduled(service: any, resendKey: string | undefined, lovableApiKey: string | undefined) {
+async function processScheduled(service: any, resendKey: string | undefined) {
   const now = new Date();
   const hour = now.getUTCHours();
   const dayOfWeek = now.getUTCDay();
@@ -134,7 +133,7 @@ async function processScheduled(service: any, resendKey: string | undefined, lov
       const sections = config.report_sections || [];
       const html = buildReportHTML(reportData, `Relatório ${periodLabel}`, config.frequency, sections);
 
-      await sendEmail(resendKey, lovableApiKey, config.recipient_email, subject, html);
+      await sendEmail(resendKey, config.recipient_email, subject, html);
 
       await service
         .from("bot_report_config")
@@ -490,20 +489,16 @@ function getPeriodLabel(frequency: string): string {
   return "Mensal";
 }
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
-
-async function sendEmail(resendKey: string | undefined, lovableApiKey: string | undefined, to: string, subject: string, html: string) {
+async function sendEmail(resendKey: string | undefined, to: string, subject: string, html: string) {
   if (!resendKey) throw new Error("RESEND_API_KEY não configurada");
-  if (!lovableApiKey) throw new Error("LOVABLE_API_KEY não configurada");
 
   console.log(`[bot-send-report] Sending email to ${to} subject: ${subject}`);
 
-  const res = await fetch(`${GATEWAY_URL}/emails`, {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${lovableApiKey}`,
-      "X-Connection-Api-Key": resendKey,
+      "Authorization": `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
       from: "StarAI Bot <onboarding@resend.dev>",
