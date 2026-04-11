@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Save, Bot, Brain, Plug, Pencil, Check,
   Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu,
-  Code, Send
+  Code
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
