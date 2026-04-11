@@ -465,6 +465,10 @@ const CRMSystem = () => {
                   setIsAddingCustomer(true);
                 }}
                 onDelete={handleDeleteCustomer}
+                onAddCustomer={() => {
+                  setEditingCustomer(null);
+                  setIsAddingCustomer(true);
+                }}
               />
             </TabsContent>
 
