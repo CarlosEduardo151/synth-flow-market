@@ -376,10 +376,10 @@ const CRMSystem = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setActiveTab('integracao')}
+              onClick={() => setActiveTab('motor-ia')}
             >
               <Settings className="h-4 w-4 mr-2" />
-              Conectar/Importar
+              Motor IA
             </Button>
           </div>
         </div>
@@ -394,7 +394,7 @@ const CRMSystem = () => {
             <CardContent className="space-y-3">
               <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
                 <li>Cadastre seu primeiro cliente (nome + contato).</li>
-                <li>Configure a integração para importar leads automaticamente.</li>
+                <li>Configure o Motor IA para análises inteligentes.</li>
                 <li>Use “Insights com IA” no Dashboard para priorizar follow-ups.</li>
               </ol>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -408,9 +408,9 @@ const CRMSystem = () => {
                   <UserPlus className="h-4 w-4 mr-2" />
                   Adicionar 1º cliente
                 </Button>
-                <Button variant="outline" onClick={() => setActiveTab('integracao')}>
+                <Button variant="outline" onClick={() => setActiveTab('motor-ia')}>
                   <Settings className="h-4 w-4 mr-2" />
-                  Abrir integração
+                  Configurar Motor IA
                 </Button>
               </div>
             </CardContent>
