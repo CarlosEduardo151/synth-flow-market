@@ -475,7 +475,7 @@ serve(async (req) => {
       messageType = "audio";
       const audioUrl = body.audio?.audioUrl || body.audio?.url || "";
       if (audioUrl) {
-        result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl);
+        result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl, conversationHistory);
       } else {
         result = { text: "Não consegui acessar o áudio. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
