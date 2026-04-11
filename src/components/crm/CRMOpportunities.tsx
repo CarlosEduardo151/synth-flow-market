@@ -46,8 +46,10 @@ interface CRMOpportunitiesProps {
 const stages = [
   { value: 'novo_lead', label: 'Novo Lead', icon: Target, gradient: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/30', text: 'text-blue-600', dot: 'bg-blue-500' },
   { value: 'qualificacao', label: 'Qualificação', icon: Eye, gradient: 'from-indigo-500/10 to-indigo-600/5', border: 'border-indigo-500/30', text: 'text-indigo-600', dot: 'bg-indigo-500' },
+  { value: 'contato', label: 'Contato Feito', icon: PhoneCall, gradient: 'from-cyan-500/10 to-cyan-600/5', border: 'border-cyan-500/30', text: 'text-cyan-600', dot: 'bg-cyan-500' },
   { value: 'proposta', label: 'Proposta', icon: ArrowRight, gradient: 'from-amber-500/10 to-amber-600/5', border: 'border-amber-500/30', text: 'text-amber-600', dot: 'bg-amber-500' },
   { value: 'negociacao', label: 'Negociação', icon: Percent, gradient: 'from-orange-500/10 to-orange-600/5', border: 'border-orange-500/30', text: 'text-orange-600', dot: 'bg-orange-500' },
+  { value: 'compromisso', label: 'Compromisso', icon: Handshake, gradient: 'from-purple-500/10 to-purple-600/5', border: 'border-purple-500/30', text: 'text-purple-600', dot: 'bg-purple-500' },
   { value: 'fechado_ganho', label: 'Ganho', icon: Trophy, gradient: 'from-green-500/10 to-green-600/5', border: 'border-green-500/30', text: 'text-green-600', dot: 'bg-green-500' },
   { value: 'fechado_perdido', label: 'Perdido', icon: TrendingDown, gradient: 'from-red-500/10 to-red-600/5', border: 'border-red-500/30', text: 'text-red-600', dot: 'bg-red-500' },
 ];
