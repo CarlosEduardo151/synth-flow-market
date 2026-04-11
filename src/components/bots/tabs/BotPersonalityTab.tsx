@@ -149,6 +149,11 @@ export function BotPersonalityTab({
         </CardContent>
       </Card>
 
+      {/* Voice Config */}
+      {onVoiceConfigChange && (
+        <BotVoiceConfig voiceConfig={voiceConfig} onVoiceConfigChange={onVoiceConfigChange} />
+      )}
+
       {/* System Prompt */}
       <Card className="border-border/50">
         <CardHeader className="pb-4">
