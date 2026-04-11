@@ -219,7 +219,7 @@ export function BotEngineTab({
       <Card className="border-border/50">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg">Parâmetros do Modelo</CardTitle>
-          <CardDescription>Ajuste fino do comportamento da IA</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
