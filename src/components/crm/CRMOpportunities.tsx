@@ -408,7 +408,7 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {stages.map(stage => {
             const stageOpps = getOpportunitiesByStage(stage.value);
             const totalValue = stageOpps.reduce((s, o) => s + Number(o.value || 0), 0);
@@ -421,7 +421,7 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
                 onDragOver={(e) => handleDragOver(e, stage.value)}
                 onDragLeave={handleDragLeave}
                 onDrop={() => handleDrop(stage.value)}
-                className="flex-shrink-0 w-[260px]"
+                className="min-w-0"
               >
                 <div className={`rounded-xl border ${isDragOver ? stage.border + ' bg-gradient-to-b ' + stage.gradient : 'border-border'} transition-all duration-200`}>
                   {/* Column Header */}
