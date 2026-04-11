@@ -12,7 +12,8 @@ import { Progress } from '@/components/ui/progress';
 import {
   Plus, DollarSign, Calendar, TrendingUp, TrendingDown, Target,
   Clock, User, MoreHorizontal, Eye, Pencil, Trash2, Trophy,
-  AlertTriangle, ArrowRight, Percent, Flame, BarChart3
+  AlertTriangle, ArrowRight, Percent, Flame, BarChart3,
+  PhoneCall, Handshake
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
