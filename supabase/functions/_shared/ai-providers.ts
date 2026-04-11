@@ -265,18 +265,32 @@ export async function processImage(
 
 /**
  * Transcribes audio using Groq Whisper (whisper-large-v3).
- * Always uses GROQ_API_KEY from env — independent of the LLM provider.
+ * Accepts either a base64 string or a URL. Base64 is preferred (more reliable).
  */
-export async function groqTranscribe(audioUrl: string): Promise<string> {
+export async function groqTranscribe(audioUrl: string, base64Data?: string, mimeType?: string): Promise<string> {
   const groqKey = Deno.env.get("GROQ_API_KEY") || "";
   if (!groqKey) throw new Error("groq_whisper_no_key: GROQ_API_KEY not set");
 
-  const audioResp = await fetch(audioUrl);
-  if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
-  const audioBlob = await audioResp.blob();
+  let audioBlob: Blob;
+  const mime = mimeType || "audio/ogg";
+  const ext = mime.includes("mp4") ? "mp4" : mime.includes("mpeg") ? "mp3" : "ogg";
+
+  if (base64Data) {
+    // Decode base64 → binary → Blob
+    const raw = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+    audioBlob = new Blob([raw], { type: mime });
+    console.log(`[whisper] using base64 data (${raw.length} bytes)`);
+  } else if (audioUrl) {
+    const audioResp = await fetch(audioUrl);
+    if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
+    audioBlob = await audioResp.blob();
+    console.log(`[whisper] downloaded from URL (${audioBlob.size} bytes)`);
+  } else {
+    throw new Error("no_audio_source");
+  }
 
   const formData = new FormData();
-  formData.append("file", audioBlob, "audio.ogg");
+  formData.append("file", audioBlob, `audio.${ext}`);
   formData.append("model", "whisper-large-v3");
   formData.append("language", "pt");
 
@@ -296,9 +310,10 @@ export async function processAudio(
   opts: AICallOptions,
   audioUrl: string,
   conversationHistory?: ConversationMessage[],
+  base64Data?: string,
+  mimeType?: string,
 ): Promise<AIUsageResult> {
-  // Always use Groq Whisper for transcription, then send to the configured LLM
-  const transcription = await groqTranscribe(audioUrl);
+  const transcription = await groqTranscribe(audioUrl, base64Data, mimeType);
 
   if (!transcription.trim()) {
     return { text: "Não consegui transcrever o áudio. Pode enviar novamente ou digitar sua mensagem?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };

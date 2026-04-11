@@ -474,8 +474,10 @@ serve(async (req) => {
     } else if (hasAudio) {
       messageType = "audio";
       const audioUrl = body.audio?.audioUrl || body.audio?.url || "";
-      if (audioUrl) {
-        result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl, conversationHistory);
+      const audioBase64 = body.audio?.base64 || "";
+      const audioMime = body.audio?.mimeType || "audio/ogg";
+      if (audioUrl || audioBase64) {
+        result = await processAudio(resolved.resolvedProvider, aiOpts, audioUrl, conversationHistory, audioBase64, audioMime);
       } else {
         result = { text: "Não consegui acessar o áudio. Pode enviar novamente?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
       }
