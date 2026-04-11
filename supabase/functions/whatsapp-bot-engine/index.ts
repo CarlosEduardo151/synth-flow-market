@@ -302,6 +302,15 @@ serve(async (req) => {
       console.error("knowledge_load_error:", e);
     }
 
+    // ===== MULTI-LANGUAGE DETECTION =====
+    systemPrompt += `\n\n=== DETECÇÃO AUTOMÁTICA DE IDIOMA ===
+REGRA OBRIGATÓRIA: Sempre responda no MESMO idioma em que o usuário escreveu a mensagem.
+- Se o usuário escrever em inglês, responda em inglês.
+- Se o usuário escrever em espanhol, responda em espanhol.
+- Se o usuário escrever em português, responda em português.
+- Para qualquer outro idioma, responda nesse mesmo idioma.
+Detecte o idioma automaticamente pela mensagem recebida. Nunca force um idioma específico.`;
+
     // ===== 4. LOAD CONVERSATION MEMORY =====
     let conversationHistory: ConversationMessage[] = [];
     try {
@@ -669,6 +678,89 @@ serve(async (req) => {
       error_stack: error.stack,
       status_code: 500,
     });
+
+    // ===== SEND ERROR NOTIFICATION TO OWNER =====
+    try {
+      const RESEND_KEY = Deno.env.get("RESEND_API_KEY");
+      if (RESEND_KEY) {
+        // Get owner email from the customer_product
+        const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+        const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.75.0");
+        const adminClient = createClient(supabaseUrl, serviceKey);
+
+        // Find the customer_product from the URL params
+        const urlParams = new URL(error._request_url || "http://x", "http://x").searchParams;
+        const cpId = urlParams.get("customer_product_id");
+        
+        if (cpId) {
+          const { data: cp } = await adminClient
+            .from("customer_products")
+            .select("user_id")
+            .eq("id", cpId)
+            .maybeSingle();
+
+          if (cp?.user_id) {
+            const { data: userData } = await adminClient.auth.admin.getUserById(cp.user_id);
+            const ownerEmail = userData?.user?.email;
+
+            if (ownerEmail) {
+              // Check if we already sent a notification in the last 30 min (avoid spam)
+              const { data: recentNotif } = await adminClient
+                .from("bot_conversation_logs")
+                .select("id")
+                .eq("customer_product_id", cpId)
+                .eq("direction", "outbound")
+                .eq("source", "error_notification")
+                .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
+                .limit(1);
+
+              if (!recentNotif || recentNotif.length === 0) {
+                await fetch("https://api.resend.com/emails", {
+                  method: "POST",
+                  headers: {
+                    "Authorization": `Bearer ${RESEND_KEY}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    from: "StarAI Bot <noreply@starai.com.br>",
+                    to: [ownerEmail],
+                    subject: "⚠️ Seu Bot StarAI encontrou um erro",
+                    html: `
+                      <div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;">
+                        <h2 style="color:#ef4444;margin-bottom:8px;">⚠️ Erro no Bot</h2>
+                        <p style="color:#666;font-size:14px;">Seu bot de automação encontrou um erro ao processar uma mensagem:</p>
+                        <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;margin:16px 0;">
+                          <code style="font-size:13px;color:#991b1b;">${(error.message || "Erro desconhecido").slice(0, 300)}</code>
+                        </div>
+                        <p style="color:#666;font-size:13px;">
+                          O bot continuará funcionando normalmente para as próximas mensagens.
+                          Se o erro persistir, verifique as configurações do motor IA no painel.
+                        </p>
+                        <p style="color:#999;font-size:11px;margin-top:24px;">
+                          Data: ${new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                        </p>
+                      </div>
+                    `,
+                  }),
+                });
+
+                // Log that we sent the notification (to avoid spam)
+                await adminClient.from("bot_conversation_logs").insert({
+                  customer_product_id: cpId,
+                  source: "error_notification",
+                  direction: "outbound",
+                  message_text: `[NOTIFICAÇÃO] Erro enviado para ${ownerEmail}: ${error.message}`,
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (notifErr) {
+      console.error("error_notification_failed:", notifErr);
+    }
+
     return corsResponse({ error: "internal_error" }, 500, origin);
   }
 });
