@@ -93,7 +93,7 @@ export function BotEngineTab({
             <Brain className="h-5 w-5 text-primary" />
             Provedor & Modelo
           </CardTitle>
-          <CardDescription>Escolha a IA que vai alimentar seu bot</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
