@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Save, Bot, Brain, Plug, Pencil, Check,
   Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu,
-  Code
+  Code, BarChart3
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -34,6 +34,7 @@ import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
 import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
 import { BotWebEmbedTab } from '@/components/bots/tabs/BotWebEmbedTab';
+import { BotAnalyticsTab } from '@/components/bots/tabs/BotAnalyticsTab';
 
 
 const supabase = supabaseClient as any;
@@ -131,9 +132,9 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
     { value: 'logs', label: 'Logs', icon: ScrollText },
+    { value: 'analytics', label: 'Analytics', icon: BarChart3 },
     { value: 'reports', label: 'Relatórios', icon: Mail },
     { value: 'whatsapp-api', label: 'WhatsApp', icon: Smartphone },
-    
     { value: 'web-embed', label: 'Script Web', icon: Code },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
   ];
@@ -613,6 +614,10 @@ const WhatsAppBotConfigSystem = () => {
               )}
             </TabsContent>
 
+
+            <TabsContent value="analytics">
+              {productId && <BotAnalyticsTab customerProductId={productId} />}
+            </TabsContent>
 
             <TabsContent value="web-embed">
               {productId && <BotWebEmbedTab customerProductId={productId} businessName={config.businessName} />}
