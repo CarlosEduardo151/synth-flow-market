@@ -167,13 +167,11 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
       body: JSON.stringify({
-        webhook: {
-          enabled: true,
-          url: webhookUrl,
-          webhookByEvents: false,
-          webhookBase64: true,
-          events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
-        },
+        enabled: true,
+        url: webhookUrl,
+        webhookByEvents: false,
+        webhookBase64: true,
+        events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
       }),
     });
     const data = await resp.json().catch(() => null);
