@@ -411,7 +411,7 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {stages.map(stage => {
             const stageOpps = getOpportunitiesByStage(stage.value);
             const totalValue = stageOpps.reduce((s, o) => s + Number(o.value || 0), 0);
