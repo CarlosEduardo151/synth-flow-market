@@ -249,6 +249,9 @@ serve(async (req) => {
     // For CRM context, use crm-simples product slug
     const productSlug = context === "crm" ? "crm-simples" : "bots-automacao";
 
+    // Fetch customer_product for this user and auto-provision webhook token if missing
+    const cp = await ensureCustomerProduct(sb, user.id, productSlug);
+
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
       return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
