@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, Link2 } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -35,9 +35,8 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { CRMDashboard } from '@/components/crm/CRMDashboard';
 import { CRMClientsTable } from '@/components/crm/CRMClientsTable';
 import { CRMOpportunities } from '@/components/crm/CRMOpportunities';
-import { CRMIntegration } from '@/components/crm/CRMIntegration';
 import { CRMMessages } from '@/components/crm/CRMMessages';
-import { CRMAIConfig } from '@/components/crm/CRMAIConfig';
+import { CRMAIEngine } from '@/components/crm/CRMAIEngine';
 import { CRMAIPendingActions } from '@/components/crm/CRMAIPendingActions';
 import { CRMAIReports } from '@/components/crm/CRMAIReports';
 import { useProductAccess } from '@/hooks/useProductAccess';
@@ -94,8 +93,7 @@ const CRMSystem = () => {
       { value: 'clientes', label: 'Clientes', icon: Users },
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
       { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
-      { value: 'integracao', label: 'Integração', icon: Link2 },
-      { value: 'ai-config', label: 'Config IA', icon: Settings },
+      { value: 'motor-ia', label: 'Motor IA', icon: Settings },
       { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
     ],
@@ -378,10 +376,10 @@ const CRMSystem = () => {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setActiveTab('integracao')}
+              onClick={() => setActiveTab('motor-ia')}
             >
               <Settings className="h-4 w-4 mr-2" />
-              Conectar/Importar
+              Motor IA
             </Button>
           </div>
         </div>
@@ -396,7 +394,7 @@ const CRMSystem = () => {
             <CardContent className="space-y-3">
               <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
                 <li>Cadastre seu primeiro cliente (nome + contato).</li>
-                <li>Configure a integração para importar leads automaticamente.</li>
+                <li>Configure o Motor IA para análises inteligentes.</li>
                 <li>Use “Insights com IA” no Dashboard para priorizar follow-ups.</li>
               </ol>
               <div className="flex flex-col gap-2 sm:flex-row">
@@ -410,9 +408,9 @@ const CRMSystem = () => {
                   <UserPlus className="h-4 w-4 mr-2" />
                   Adicionar 1º cliente
                 </Button>
-                <Button variant="outline" onClick={() => setActiveTab('integracao')}>
+                <Button variant="outline" onClick={() => setActiveTab('motor-ia')}>
                   <Settings className="h-4 w-4 mr-2" />
-                  Abrir integração
+                  Configurar Motor IA
                 </Button>
               </div>
             </CardContent>
@@ -504,12 +502,8 @@ const CRMSystem = () => {
                     {customerProductId && <CRMMessages customerProductId={customerProductId} />}
                   </TabsContent>
 
-                  <TabsContent value="integracao" className="space-y-4">
-                    {customerProductId && <CRMIntegration customerProductId={customerProductId} />}
-                  </TabsContent>
-
-                  <TabsContent value="ai-config" className="space-y-4">
-                    <CRMAIConfig />
+                  <TabsContent value="motor-ia" className="space-y-4">
+                    {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
                   </TabsContent>
 
                   <TabsContent value="ai-actions" className="space-y-4">
