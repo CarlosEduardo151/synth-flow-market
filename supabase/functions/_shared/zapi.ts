@@ -125,37 +125,75 @@ export async function evolutionSendAudio(
   const number = phone.replace(/@.*$/, "");
   const url = `${creds.apiUrl}/message/sendWhatsAppAudio/${encodeURIComponent(creds.instanceName)}`;
 
-  // Ensure we have a proper data URI — Evolution API requires it
-  let audioData = audioBase64;
-  if (!audioData.startsWith("data:")) {
-    audioData = `data:audio/mpeg;base64,${audioData}`;
-  }
+  const dataUri = audioBase64.startsWith("data:")
+    ? audioBase64
+    : `data:audio/mpeg;base64,${audioBase64}`;
+  const rawBase64 = dataUri.replace(/^data:[^;]+;base64,/, "");
 
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      apikey: creds.apiKey,
-    },
-    body: JSON.stringify({
+  const payloads = [
+    {
       number,
       audioMessage: {
-        audio: audioData,
+        audio: dataUri,
       },
       options: {
         encoding: true,
         presence: "recording",
       },
-    }),
-  });
+    },
+    {
+      number,
+      audioMessage: {
+        audio: rawBase64,
+      },
+      options: {
+        encoding: true,
+        presence: "recording",
+      },
+    },
+    {
+      number,
+      audio: dataUri,
+      options: {
+        encoding: true,
+        presence: "recording",
+      },
+    },
+    {
+      number,
+      audio: rawBase64,
+      options: {
+        encoding: true,
+        presence: "recording",
+      },
+    },
+  ];
 
-  if (!resp.ok) {
-    const txt = await resp.text().catch(() => "");
-    console.error(`evolution_send_audio_error:${resp.status}:${txt.slice(0, 300)}`);
-    throw new Error(`evolution_send_audio_error:${resp.status}`);
-  } else {
-    console.log("[evolution] audio sent to", number);
+  let lastStatus = 0;
+  let lastError = "";
+
+  for (const [index, payload] of payloads.entries()) {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: creds.apiKey,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (resp.ok) {
+      console.log(`[evolution] audio sent to ${number} using payload variant ${index + 1}`);
+      return;
+    }
+
+    lastStatus = resp.status;
+    lastError = await resp.text().catch(() => "");
+    console.warn(`evolution_send_audio_attempt_${index + 1}_error:${resp.status}:${lastError.slice(0, 300)}`);
   }
+
+  console.error(`evolution_send_audio_error:${lastStatus}:${lastError.slice(0, 300)}`);
+  throw new Error(`evolution_send_audio_error:${lastStatus}`);
 }
 
 /**
