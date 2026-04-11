@@ -24,14 +24,13 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendKey = Deno.env.get("RESEND_API_KEY");
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
     const service = createClient(supabaseUrl, serviceKey);
 
     const body = await req.json();
     const action = body.action || "send_report";
 
     if (action === "process_scheduled") {
-      return await processScheduled(service, resendKey, lovableApiKey);
+      return await processScheduled(service, resendKey);
     }
 
     const cpId = body.customer_product_id;
