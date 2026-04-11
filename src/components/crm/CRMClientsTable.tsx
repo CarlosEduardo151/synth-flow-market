@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Edit, Trash2, Search, Download } from 'lucide-react';
+import { Eye, Edit, Trash2, Search, Download, UserPlus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import * as XLSX from 'xlsx';
 
@@ -30,9 +30,10 @@ interface CRMClientsTableProps {
   onEdit: (customer: CRMCustomer) => void;
   onDelete: (customerId: string) => void;
   onRowClick?: (customer: CRMCustomer) => void;
+  onAddCustomer?: () => void;
 }
 
-export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, onRowClick }: CRMClientsTableProps) => {
+export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, onRowClick, onAddCustomer }: CRMClientsTableProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'created_at' | 'name'>('created_at');
