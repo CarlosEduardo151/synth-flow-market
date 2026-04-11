@@ -489,20 +489,16 @@ function getPeriodLabel(frequency: string): string {
   return "Mensal";
 }
 
-const GATEWAY_URL = "https://connector-gateway.lovable.dev/resend";
-
-async function sendEmail(resendKey: string | undefined, lovableApiKey: string | undefined, to: string, subject: string, html: string) {
+async function sendEmail(resendKey: string | undefined, to: string, subject: string, html: string) {
   if (!resendKey) throw new Error("RESEND_API_KEY não configurada");
-  if (!lovableApiKey) throw new Error("LOVABLE_API_KEY não configurada");
 
   console.log(`[bot-send-report] Sending email to ${to} subject: ${subject}`);
 
-  const res = await fetch(`${GATEWAY_URL}/emails`, {
+  const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${lovableApiKey}`,
-      "X-Connection-Api-Key": resendKey,
+      "Authorization": `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
       from: "StarAI Bot <onboarding@resend.dev>",
