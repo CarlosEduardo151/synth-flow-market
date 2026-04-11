@@ -293,7 +293,7 @@ serve(async (req) => {
       // Also save to product_credentials for backward compat
       await sb.from("product_credentials").upsert({
         user_id: user.id,
-        product_slug: "bots-automacao",
+        product_slug: productSlug,
         credential_key: "evolution_instance_name",
         credential_value: instanceName,
         updated_at: new Date().toISOString(),
