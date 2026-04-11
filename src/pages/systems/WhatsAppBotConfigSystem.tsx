@@ -34,7 +34,7 @@ import { BotKnowledgeTab } from '@/components/bots/tabs/BotKnowledgeTab';
 import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
 import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
 import { BotWebEmbedTab } from '@/components/bots/tabs/BotWebEmbedTab';
-import { BotTelegramTab } from '@/components/bots/tabs/BotTelegramTab';
+
 
 const supabase = supabaseClient as any;
 
@@ -133,7 +133,7 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'logs', label: 'Logs', icon: ScrollText },
     { value: 'reports', label: 'Relatórios', icon: Mail },
     { value: 'whatsapp-api', label: 'WhatsApp', icon: Smartphone },
-    { value: 'telegram', label: 'Telegram', icon: Send },
+    
     { value: 'web-embed', label: 'Script Web', icon: Code },
     { value: 'chat', label: 'Chat Teste', icon: MessageCircle },
   ];
@@ -613,9 +613,6 @@ const WhatsAppBotConfigSystem = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="telegram">
-              {productId && <BotTelegramTab customerProductId={productId} />}
-            </TabsContent>
 
             <TabsContent value="web-embed">
               {productId && <BotWebEmbedTab customerProductId={productId} businessName={config.businessName} />}
