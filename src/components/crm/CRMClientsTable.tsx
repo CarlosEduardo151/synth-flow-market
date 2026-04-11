@@ -145,6 +145,12 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, on
                 <SelectItem value="name:desc">Nome (Z-A)</SelectItem>
               </SelectContent>
             </Select>
+            {onAddCustomer && (
+              <Button onClick={onAddCustomer} className="rounded-xl">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Novo Cliente
+              </Button>
+            )}
             <Button onClick={exportToXLSX} variant="outline">
               <Download className="h-4 w-4 mr-2" />
               Exportar XLSX
