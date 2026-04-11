@@ -6,6 +6,51 @@ import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rat
 import { batchValidate, sanitizeString, validateStringLength, validateUUID } from "../_shared/validation.ts";
 
 /**
+ * Fetch media as base64 from Evolution API using the message key ID.
+ * This is the reliable fallback when webhookBase64 doesn't deliver inline data.
+ */
+async function fetchBase64FromEvolution(
+  instanceName: string,
+  messageKeyId: string,
+): Promise<{ base64: string; mimeType: string } | null> {
+  const evoUrl = (Deno.env.get("EVOLUTION_API_URL") || "").replace(/\/$/, "");
+  const evoKey = Deno.env.get("EVOLUTION_GLOBAL_APIKEY") || "";
+  if (!evoUrl || !evoKey || !instanceName || !messageKeyId) return null;
+
+  try {
+    const resp = await fetch(
+      `${evoUrl}/chat/getBase64FromMediaMessage/${encodeURIComponent(instanceName)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: evoKey },
+        body: JSON.stringify({
+          message: { key: { id: messageKeyId } },
+          convertToMp4: false,
+        }),
+      },
+    );
+    const json = await resp.json().catch(() => null);
+    console.log("[ingest] getBase64 response:", resp.status, json ? `${JSON.stringify(json).slice(0, 200)}...` : "null");
+
+    if (!resp.ok || !json) return null;
+
+    // Evolution returns { base64: "data:audio/ogg;base64,..." } or { base64: "<raw>" }
+    const raw = json?.base64 || "";
+    if (!raw) return null;
+
+    // Strip data URI prefix if present
+    const dataUriMatch = raw.match(/^data:([^;]+);base64,(.+)$/);
+    if (dataUriMatch) {
+      return { base64: dataUriMatch[2], mimeType: dataUriMatch[1] };
+    }
+    return { base64: raw, mimeType: json?.mimetype || "application/octet-stream" };
+  } catch (e) {
+    console.error("[ingest] getBase64 error:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
+/**
  * WhatsApp webhook ingestion — normalizes Evolution API payloads
  * into Z-API-like format before forwarding to bot engine.
  */
@@ -197,6 +242,39 @@ serve(async (req) => {
     const normalized = normalizeEvolutionPayload(rawPayload);
     if (!normalized) {
       return corsResponse({ ok: true, skipped: "unprocessable_event" }, 200, origin);
+    }
+
+    // ── Enrich media with base64 from Evolution API when webhook didn't include it ──
+    const instanceName = rawPayload?.instance || "";
+    const messageKeyId = rawPayload?.data?.key?.id || normalized.messageId || "";
+
+    const needsBase64 =
+      (normalized.audio && !normalized.audio.base64) ||
+      (normalized.image && !normalized.image.base64) ||
+      (normalized.video && !normalized.video.base64) ||
+      (normalized.document && !normalized.document.base64);
+
+    if (needsBase64 && instanceName && messageKeyId) {
+      console.log("[ingest] media without base64, fetching from Evolution...");
+      const fetched = await fetchBase64FromEvolution(instanceName, messageKeyId);
+      if (fetched) {
+        console.log("[ingest] base64 fetched successfully:", fetched.mimeType, `${fetched.base64.length} chars`);
+        if (normalized.audio) {
+          normalized.audio.base64 = fetched.base64;
+          normalized.audio.mimeType = normalized.audio.mimeType || fetched.mimeType;
+        } else if (normalized.image) {
+          normalized.image.base64 = fetched.base64;
+          normalized.image.mimeType = normalized.image.mimeType || fetched.mimeType;
+        } else if (normalized.video) {
+          normalized.video.base64 = fetched.base64;
+          normalized.video.mimeType = normalized.video.mimeType || fetched.mimeType;
+        } else if (normalized.document) {
+          normalized.document.base64 = fetched.base64;
+          normalized.document.mimeType = normalized.document.mimeType || fetched.mimeType;
+        }
+      } else {
+        console.warn("[ingest] base64 fetch failed — engine will try URL fallback");
+      }
     }
 
     const normalizedBody = JSON.stringify(normalized);
