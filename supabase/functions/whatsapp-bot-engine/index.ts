@@ -535,57 +535,74 @@ serve(async (req) => {
     const processingMs = Date.now() - startMs;
     const dataBytesOut = new TextEncoder().encode(result.text).length;
 
+    // ===== Helper: generate TTS audio and send =====
+    const generateAndSendAudio = async (text: string) => {
+      if (!evoCreds) return false;
+      const voiceConfig = aiConfig?.configuration?.voice_config;
+      const voiceId = voiceConfig?.enabled ? (voiceConfig.voiceId || "nova") : "nova";
+
+      const { data: openaiCred } = await service
+        .from("product_credentials")
+        .select("credential_value")
+        .eq("credential_key", "openai_api_key")
+        .limit(1)
+        .maybeSingle();
+
+      const openaiKey = openaiCred?.credential_value;
+      if (!openaiKey) {
+        console.warn("[bot-engine] TTS: no OpenAI key found, falling back to text");
+        return false;
+      }
+
+      console.log("[bot-engine] generating TTS with voice:", voiceId);
+      const ttsResp = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1",
+          voice: voiceId,
+          input: text.slice(0, 4096),
+          response_format: "mp3",
+        }),
+      });
+
+      if (ttsResp.ok) {
+        const audioBuffer = await ttsResp.arrayBuffer();
+        const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+        const base64WithMime = `data:audio/mpeg;base64,${audioBase64}`;
+        await evolutionSendAudio(evoCreds, phone, base64WithMime);
+        console.log("[bot-engine] TTS audio sent to", phone);
+        return true;
+      } else {
+        console.error("[bot-engine] TTS error:", ttsResp.status, await ttsResp.text().catch(() => ""));
+        return false;
+      }
+    };
+
     // Send reply
     if (result.text) {
       console.log("[bot-engine] sending reply to", phone, "type:", messageType, "chars:", result.text.length);
-      await sendTextReply(phone, result.text, messageId);
 
-      // ===== TTS: Generate and send audio if voice is enabled =====
-      const voiceConfig = aiConfig?.configuration?.voice_config;
-      if (voiceConfig?.enabled && evoCreds) {
+      // If incoming message was audio → always reply with audio
+      // If voice config is enabled → also reply with audio for all messages
+      const shouldReplyAudio = messageType === "audio" || aiConfig?.configuration?.voice_config?.enabled;
+
+      if (shouldReplyAudio && evoCreds) {
         try {
-          const voiceId = voiceConfig.voiceId || "nova";
-          console.log("[bot-engine] generating TTS with voice:", voiceId);
-
-          // Get OpenAI key for TTS
-          const { data: openaiCred } = await service
-            .from("product_credentials")
-            .select("credential_value")
-            .eq("credential_key", "openai_api_key")
-            .limit(1)
-            .maybeSingle();
-
-          const openaiKey = openaiCred?.credential_value;
-          if (openaiKey) {
-            const ttsResp = await fetch("https://api.openai.com/v1/audio/speech", {
-              method: "POST",
-              headers: {
-                "Authorization": `Bearer ${openaiKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "tts-1",
-                voice: voiceId,
-                input: result.text.slice(0, 4096),
-                response_format: "mp3",
-              }),
-            });
-
-            if (ttsResp.ok) {
-              const audioBuffer = await ttsResp.arrayBuffer();
-              const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
-              const base64WithMime = `data:audio/mpeg;base64,${audioBase64}`;
-              await evolutionSendAudio(evoCreds, phone, base64WithMime);
-              console.log("[bot-engine] TTS audio sent to", phone);
-            } else {
-              console.error("[bot-engine] TTS error:", ttsResp.status, await ttsResp.text().catch(() => ""));
-            }
-          } else {
-            console.warn("[bot-engine] TTS enabled but no OpenAI key found");
+          const audioSent = await generateAndSendAudio(result.text);
+          if (!audioSent) {
+            // Fallback to text if TTS fails
+            await sendTextReply(phone, result.text, messageId);
           }
         } catch (ttsErr) {
           console.error("[bot-engine] TTS generation error:", ttsErr);
+          await sendTextReply(phone, result.text, messageId);
         }
+      } else {
+        await sendTextReply(phone, result.text, messageId);
       }
     }
 
