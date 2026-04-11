@@ -120,6 +120,7 @@ const WhatsAppBotConfigSystem = () => {
       { id: '2', instruction: 'Nunca invente informações sobre preços', type: 'dont' },
     ],
     businessName: 'Meu Negócio',
+    voiceConfig: { enabled: false, voiceId: 'nova' },
   });
 
   const sidebarItems = [
