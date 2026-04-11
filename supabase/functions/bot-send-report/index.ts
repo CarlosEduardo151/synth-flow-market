@@ -501,7 +501,7 @@ async function sendEmail(resendKey: string | undefined, to: string, subject: str
       "Authorization": `Bearer ${resendKey}`,
     },
     body: JSON.stringify({
-      from: "StarAI Bot <onboarding@resend.dev>",
+      from: "StarAI Bot <noreply@starai.com.br>",
       to: [to],
       subject,
       html,
