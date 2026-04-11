@@ -124,7 +124,12 @@ export async function evolutionSendAudio(
 ): Promise<void> {
   const number = phone.replace(/@.*$/, "");
   const url = `${creds.apiUrl}/message/sendWhatsAppAudio/${encodeURIComponent(creds.instanceName)}`;
-  const normalizedAudio = audioBase64.replace(/^data:audio\/[^;]+;base64,/, "");
+
+  // Ensure we have a proper data URI — Evolution API requires it
+  let audioData = audioBase64;
+  if (!audioData.startsWith("data:")) {
+    audioData = `data:audio/mpeg;base64,${audioData}`;
+  }
 
   const resp = await fetch(url, {
     method: "POST",
@@ -135,7 +140,7 @@ export async function evolutionSendAudio(
     body: JSON.stringify({
       number,
       audioMessage: {
-        audio: normalizedAudio,
+        audio: audioData,
       },
       options: {
         encoding: true,
