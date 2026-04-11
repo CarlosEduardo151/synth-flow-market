@@ -407,17 +407,6 @@ const CRMSystem = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={() => {
-                setEditingCustomer(null);
-                setIsAddingCustomer(true);
-              }}
-              className="rounded-xl"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Novo Cliente
-            </Button>
           </div>
         </header>
 
@@ -476,6 +465,10 @@ const CRMSystem = () => {
                   setIsAddingCustomer(true);
                 }}
                 onDelete={handleDeleteCustomer}
+                onAddCustomer={() => {
+                  setEditingCustomer(null);
+                  setIsAddingCustomer(true);
+                }}
               />
             </TabsContent>
 
