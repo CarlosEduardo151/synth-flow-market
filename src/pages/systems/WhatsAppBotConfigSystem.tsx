@@ -570,6 +570,7 @@ const WhatsAppBotConfigSystem = () => {
                 communicationTone={config.communicationTone}
                 systemPrompt={config.systemPrompt}
                 actionInstructions={config.actionInstructions}
+                voiceConfig={config.voiceConfig}
                 onToneChange={(tone) => setConfig(prev => ({ ...prev, communicationTone: tone }))}
                 onSystemPromptChange={(prompt) => setConfig(prev => ({ ...prev, systemPrompt: prompt }))}
                 onAddInstruction={(instruction, type) => setConfig(prev => ({
@@ -580,6 +581,7 @@ const WhatsAppBotConfigSystem = () => {
                   ...prev,
                   actionInstructions: prev.actionInstructions.filter(i => i.id !== id),
                 }))}
+                onVoiceConfigChange={(voiceConfig) => setConfig(prev => ({ ...prev, voiceConfig }))}
               />
             </TabsContent>
 
