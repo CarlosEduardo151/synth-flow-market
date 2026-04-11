@@ -176,14 +176,30 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
     events: [...WEBHOOK_EVENTS],
   };
 
+  const nestedWebhookConfig = {
+    enabled: true,
+    url: webhookUrl,
+    byEvents: false,
+    base64: true,
+    events: [...WEBHOOK_EVENTS],
+  };
+
   // Try multiple payload formats for different Evolution API versions
   const payloads = [
-    // Format A: root-level (Evolution API v2 docs)
+    // Format A: nested webhook object used by several Evolution server builds
+    { webhook: nestedWebhookConfig },
+    // Format B: same nested shape plus explicit instanceName
+    { instanceName, webhook: nestedWebhookConfig },
+    // Format C: nested webhook but with both naming styles for compatibility
+    {
+      webhook: {
+        ...nestedWebhookConfig,
+        webhookByEvents: false,
+        webhookBase64: true,
+      },
+    },
+    // Format D: root-level payload from public v2 docs
     webhookConfig,
-    // Format B: nested under "webhook" key
-    { webhook: webhookConfig },
-    // Format C: with instanceName + nested webhook
-    { instanceName, webhook: webhookConfig },
   ];
 
   for (let i = 0; i < payloads.length; i++) {
