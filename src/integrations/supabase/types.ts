@@ -625,6 +625,48 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_client_memories: {
+        Row: {
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          interaction_date: string
+          raw_message_count: number | null
+          search_vector: unknown
+          sentiment: string | null
+          summary: string
+          topics: string[] | null
+        }
+        Insert: {
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          interaction_date?: string
+          raw_message_count?: number | null
+          search_vector?: unknown
+          sentiment?: string | null
+          summary: string
+          topics?: string[] | null
+        }
+        Update: {
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          interaction_date?: string
+          raw_message_count?: number | null
+          search_vector?: unknown
+          sentiment?: string | null
+          summary?: string
+          topics?: string[] | null
+        }
+        Relationships: []
+      }
       crm_message_templates: {
         Row: {
           content: string
@@ -3063,6 +3105,23 @@ export type Database = {
       owns_customer_product: {
         Args: { _customer_product_id: string }
         Returns: boolean
+      }
+      search_crm_memories: {
+        Args: {
+          p_customer_product_id: string
+          p_limit?: number
+          p_query: string
+        }
+        Returns: {
+          mem_client_name: string
+          mem_client_phone: string
+          mem_id: string
+          mem_interaction_date: string
+          mem_raw_message_count: number
+          mem_sentiment: string
+          mem_summary: string
+          mem_topics: string[]
+        }[]
       }
       update_expired_trials: { Args: never; Returns: undefined }
     }
