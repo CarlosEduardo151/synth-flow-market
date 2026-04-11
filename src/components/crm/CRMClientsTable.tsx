@@ -236,10 +236,9 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, on
             </TableBody>
           </Table>
         </div>
-        <div className="mt-4 text-sm text-muted-foreground">
-          Mostrando {sortedCustomers.length} de {customers.length} clientes
-        </div>
-      </CardContent>
-    </Card>
+      <div className="text-sm text-muted-foreground">
+        Mostrando {sortedCustomers.length} de {customers.length} clientes
+      </div>
+    </div>
   );
 };
