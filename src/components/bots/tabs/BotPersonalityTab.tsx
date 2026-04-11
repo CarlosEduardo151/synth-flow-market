@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useState } from 'react';
+import { BotVoiceConfig, type AgentVoiceConfig } from './BotVoiceConfig';
 
 export type CommunicationTone = 'profissional' | 'amigavel' | 'tecnico' | 'entusiasmado' | 'empatico' | 'direto';
 
@@ -52,20 +53,24 @@ interface BotPersonalityTabProps {
   communicationTone: CommunicationTone;
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
+  voiceConfig?: AgentVoiceConfig;
   onToneChange: (tone: CommunicationTone) => void;
   onSystemPromptChange: (prompt: string) => void;
   onAddInstruction: (instruction: string, type: 'do' | 'dont') => void;
   onRemoveInstruction: (id: string) => void;
+  onVoiceConfigChange?: (config: AgentVoiceConfig) => void;
 }
 
 export function BotPersonalityTab({
   communicationTone,
   systemPrompt,
   actionInstructions,
+  voiceConfig = { enabled: false, voiceId: 'nova' },
   onToneChange,
   onSystemPromptChange,
   onAddInstruction,
   onRemoveInstruction,
+  onVoiceConfigChange,
 }: BotPersonalityTabProps) {
   const [newInstruction, setNewInstruction] = useState('');
   const [newType, setNewType] = useState<'do' | 'dont'>('do');
@@ -143,6 +148,11 @@ export function BotPersonalityTab({
           </div>
         </CardContent>
       </Card>
+
+      {/* Voice Config */}
+      {onVoiceConfigChange && (
+        <BotVoiceConfig voiceConfig={voiceConfig} onVoiceConfigChange={onVoiceConfigChange} />
+      )}
 
       {/* System Prompt */}
       <Card className="border-border/50">
