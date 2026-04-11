@@ -264,6 +264,7 @@ const WhatsAppBotConfigSystem = () => {
           contextWindowSize: configData.configuration?.context_window_size || 10,
           retentionPolicy: configData.configuration?.retention_policy || '30days',
           businessName: configData.business_name || 'Meu Negócio',
+          voiceConfig: configData.configuration?.voice_config || { enabled: false, voiceId: 'nova' },
         }));
       }
 
@@ -338,6 +339,7 @@ const WhatsAppBotConfigSystem = () => {
           configured_at: new Date().toISOString(),
           retention_policy: config.retentionPolicy,
           context_window_size: config.contextWindowSize,
+          voice_config: config.voiceConfig,
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
