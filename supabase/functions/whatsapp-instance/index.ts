@@ -195,11 +195,13 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
         body: JSON.stringify({
-          enabled: true,
-          url: webhookUrl,
-          webhookByEvents: false,
-          webhookBase64: true,
-          events: [...WEBHOOK_EVENTS],
+          webhook: {
+            enabled: true,
+            url: webhookUrl,
+            webhookByEvents: false,
+            webhookBase64: true,
+            events: [...WEBHOOK_EVENTS],
+          },
         }),
       });
 
