@@ -173,16 +173,13 @@ export function BotEngineTab({
                 {provider === 'novalink' ? (
                   <>
                     <SelectGroup>
-                      <SelectLabel className="bg-muted/50">💬 Chat</SelectLabel>
-                      <SelectItem value="models/gemini-2.5-flash">Gemini 2.5 Flash (Recomendado)</SelectItem>
-                      <SelectItem value="models/gemini-2.5-pro">Gemini 2.5 Pro</SelectItem>                      
-                      <SelectItem value="models/gemini-2.5-flash-lite">Gemini 2.5 Flash-Lite</SelectItem>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
+                      <SelectLabel className="bg-muted/50">💬 Chat (Ultra-Rápido)</SelectLabel>
+                      <SelectItem value="llama-3.3-70b-versatile">⭐ Nova 3.3 Flash (Recomendado)</SelectItem>
+                      <SelectItem value="qwen-3-32b">Nova 2.0 Ultra</SelectItem>
                     </SelectGroup>
                     <SelectGroup>
-                      <SelectLabel className="bg-muted/50">🦙 Groq (Ultra-rápido)</SelectLabel>
-                      <SelectItem value="llama-3.3-70b-versatile">Llama 3.3 70B Versatile</SelectItem>
+                      <SelectLabel className="bg-muted/50">🛠️ Ferramentas (Precisão)</SelectLabel>
+                      <SelectItem value="gpt-oss-20b">Nova 1.8 Pro</SelectItem>
                     </SelectGroup>
                   </>
                 ) : provider === 'openai' ? (
