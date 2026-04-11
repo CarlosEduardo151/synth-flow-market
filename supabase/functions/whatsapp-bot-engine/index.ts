@@ -601,9 +601,8 @@ Detecte o idioma automaticamente pela mensagem recebida. Nunca force um idioma e
     if (result.text) {
       console.log("[bot-engine] sending reply to", phone, "type:", messageType, "chars:", result.text.length);
 
-      // If incoming message was audio → always reply with audio
-      // If voice config is enabled → also reply with audio for all messages
-      const shouldReplyAudio = messageType === "audio" || aiConfig?.configuration?.voice_config?.enabled;
+      // Only reply with audio if the incoming message was audio
+      const shouldReplyAudio = messageType === "audio";
 
       if (shouldReplyAudio && evoCreds) {
         try {
