@@ -53,20 +53,24 @@ interface BotPersonalityTabProps {
   communicationTone: CommunicationTone;
   systemPrompt: string;
   actionInstructions: ActionInstruction[];
+  voiceConfig?: AgentVoiceConfig;
   onToneChange: (tone: CommunicationTone) => void;
   onSystemPromptChange: (prompt: string) => void;
   onAddInstruction: (instruction: string, type: 'do' | 'dont') => void;
   onRemoveInstruction: (id: string) => void;
+  onVoiceConfigChange?: (config: AgentVoiceConfig) => void;
 }
 
 export function BotPersonalityTab({
   communicationTone,
   systemPrompt,
   actionInstructions,
+  voiceConfig = { enabled: false, voiceId: 'nova' },
   onToneChange,
   onSystemPromptChange,
   onAddInstruction,
   onRemoveInstruction,
+  onVoiceConfigChange,
 }: BotPersonalityTabProps) {
   const [newInstruction, setNewInstruction] = useState('');
   const [newType, setNewType] = useState<'do' | 'dont'>('do');
