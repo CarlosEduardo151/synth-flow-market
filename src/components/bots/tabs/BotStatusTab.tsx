@@ -65,7 +65,6 @@ export function BotStatusTab({ isActive, customerProductId, onStart, onShutdown,
             <ServerCog className="h-5 w-5 text-primary" />
             Motor NovaLink
           </CardTitle>
-          <CardDescription>Controle total do seu motor de IA — cada cliente tem seu motor independente</CardDescription>
         </CardHeader>
         <CardContent className="space-y-5">
           {/* Status indicator */}
@@ -138,46 +137,12 @@ export function BotStatusTab({ isActive, customerProductId, onStart, onShutdown,
             </Button>
           </div>
 
-          {/* Info boxes */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-            <div className="p-3 rounded-lg border bg-green-500/5 border-green-500/20">
-              <p className="font-medium text-green-600 dark:text-green-400 mb-1">🟢 Ligar</p>
-              <p className="text-muted-foreground">Ativa o bot e a IA. Começa a responder mensagens.</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-destructive/5 border-destructive/20">
-              <p className="font-medium text-destructive mb-1">🔴 Desligar</p>
-              <p className="text-muted-foreground">Desativa tudo: bot, IA e cache. Parada total para fazer alterações.</p>
-            </div>
-            <div className="p-3 rounded-lg border bg-muted/30">
-              <p className="font-medium text-foreground mb-1">🔄 Reiniciar</p>
-              <p className="text-muted-foreground">Desliga → limpa cache → religa com configurações atualizadas.</p>
-            </div>
-          </div>
         </CardContent>
       </Card>
 
       {/* Metrics */}
       <BotMetricsPanel isActive={isActive} customerProductId={customerProductId} />
 
-      {/* How it works */}
-      <Card className="border-border/50">
-        <CardHeader className="pb-4">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Shield className="h-5 w-5 text-primary" />
-            Como Funciona
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 text-sm text-muted-foreground">
-            <p>✅ Cada cliente tem seu próprio motor independente</p>
-            <p>✅ Com o motor <strong>desligado</strong>, o bot não responde nenhuma mensagem</p>
-            <p>✅ Desligue antes de alterar personalidade, prompt ou configurações</p>
-            <p>✅ Após fazer alterações, clique em <strong>Reiniciar</strong> para aplicar</p>
-            <p>✅ O reiniciar limpa o cache e aplica todas as novas configurações</p>
-            <p>✅ Mensagens de texto, imagens e áudios são processados automaticamente quando ligado</p>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
