@@ -67,10 +67,7 @@ const CRMSystem = () => {
   const [editingCustomer, setEditingCustomer] = useState<CRMCustomer | null>(null);
   const [isAddingInteraction, setIsAddingInteraction] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [hovered, setHovered] = useState(false);
-  const [pinnedOpen, setPinnedOpen] = useState(false);
-  // No mobile, deixamos o provider “expanded” para o drawer funcionar sem estados estranhos.
-  const open = isMobile ? true : pinnedOpen || hovered;
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
   const sidebarItems: SidebarItem[] = useMemo(
