@@ -47,12 +47,12 @@ function generateWebhookToken(): string {
     .join("");
 }
 
-async function ensureCustomerProduct(sb: any, userId: string) {
+async function ensureCustomerProduct(sb: any, userId: string, productSlug = "bots-automacao") {
   const { data: existing, error } = await sb
     .from("customer_products")
     .select("id, webhook_token")
     .eq("user_id", userId)
-    .eq("product_slug", "bots-automacao")
+    .eq("product_slug", productSlug)
     .eq("is_active", true)
     .maybeSingle();
 
@@ -235,6 +235,7 @@ serve(async (req) => {
     const user = await getAuthUser(req);
     const body = await req.json().catch(() => ({}));
     const action = body.action as string;
+    const context = (body.context as string) || "bot"; // "bot" or "crm"
 
     if (!action) return json({ error: "action required" }, 400);
 
@@ -242,10 +243,11 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, serviceKey);
 
-    const instanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
+    const baseInstanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
+    const instanceName = context === "crm" ? `${baseInstanceName}_CRM` : baseInstanceName;
 
-    // Fetch customer_product for this user and auto-provision webhook token if missing
-    const cp = await ensureCustomerProduct(sb, user.id);
+    // For CRM context, use crm-simples product slug
+    const productSlug = context === "crm" ? "crm-simples" : "bots-automacao";
 
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
