@@ -26,6 +26,7 @@ import { CRMAIEngine } from '@/components/crm/CRMAIEngine';
 import { CRMAIPendingActions } from '@/components/crm/CRMAIPendingActions';
 import { CRMAIReports } from '@/components/crm/CRMAIReports';
 import { CRMWhatsAppTab } from '@/components/crm/CRMWhatsAppTab';
+import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { useProductAccess } from '@/hooks/useProductAccess';
 
 interface CRMCustomer {
