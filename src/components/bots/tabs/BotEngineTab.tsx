@@ -1,5 +1,5 @@
 import { Brain, Eye, EyeOff, Zap, TrendingUp, Sparkles } from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -93,7 +93,7 @@ export function BotEngineTab({
             <Brain className="h-5 w-5 text-primary" />
             Provedor & Modelo
           </CardTitle>
-          <CardDescription>Escolha a IA que vai alimentar seu bot</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
@@ -219,7 +219,7 @@ export function BotEngineTab({
       <Card className="border-border/50">
         <CardHeader className="pb-4">
           <CardTitle className="text-lg">Parâmetros do Modelo</CardTitle>
-          <CardDescription>Ajuste fino do comportamento da IA</CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-4">
