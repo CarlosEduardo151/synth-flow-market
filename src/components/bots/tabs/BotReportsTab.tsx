@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Mail, Plus, Trash2, RefreshCw, Loader2, Clock, CalendarDays,
   Send, CheckCircle2, XCircle, BarChart3, Settings2, TestTube,
-  ChevronDown, ChevronUp, Pencil, AlertCircle, Sparkles
+  ChevronDown, ChevronUp, Pencil, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
