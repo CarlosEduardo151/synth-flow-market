@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ScrollText, MessageCircle, Smartphone, TestTube, RefreshCw, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { ScrollText, MessageCircle, Smartphone, TestTube, RefreshCw, Search, ChevronDown, ChevronUp, Download } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface ConversationLog {
@@ -25,6 +26,7 @@ interface BotConversationLogsTabProps {
 }
 
 export function BotConversationLogsTab({ customerProductId }: BotConversationLogsTabProps) {
+  const { toast } = useToast();
   const [logs, setLogs] = useState<ConversationLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -74,6 +76,37 @@ export function BotConversationLogsTab({ customerProductId }: BotConversationLog
     return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
+  const handleExportCSV = () => {
+    if (filtered.length === 0) {
+      toast({ title: 'Nenhum dado para exportar', variant: 'destructive' });
+      return;
+    }
+
+    const headers = ['Data/Hora', 'Direção', 'Fonte', 'Telefone', 'Mensagem', 'Tokens', 'Tempo (ms)', 'Provider', 'Modelo'];
+    const rows = filtered.map(log => [
+      new Date(log.created_at).toLocaleString('pt-BR'),
+      log.direction === 'inbound' ? 'Recebida' : 'Enviada',
+      log.source === 'whatsapp' ? 'WhatsApp' : 'Chat Teste',
+      log.phone || '',
+      `"${log.message_text.replace(/"/g, '""')}"`,
+      log.tokens_used?.toString() || '0',
+      log.processing_ms?.toString() || '0',
+      log.provider || '',
+      log.model || '',
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const BOM = '\uFEFF';
+    const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `logs-bot-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: `${filtered.length} registros exportados!` });
+  };
+
   return (
     <div className="space-y-4">
       <Card className="border-border/50">
@@ -86,10 +119,16 @@ export function BotConversationLogsTab({ customerProductId }: BotConversationLog
               </CardTitle>
               <CardDescription className="mt-1">Histórico de todas as mensagens processadas pelo bot</CardDescription>
             </div>
-            <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading} className="gap-2">
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={handleExportCSV} disabled={filtered.length === 0} className="gap-2">
+                <Download className="h-3.5 w-3.5" />
+                Exportar CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={fetchLogs} disabled={loading} className="gap-2">
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">

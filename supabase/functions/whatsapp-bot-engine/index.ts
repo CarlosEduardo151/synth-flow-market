@@ -302,6 +302,15 @@ serve(async (req) => {
       console.error("knowledge_load_error:", e);
     }
 
+    // ===== MULTI-LANGUAGE DETECTION =====
+    systemPrompt += `\n\n=== DETECÇÃO AUTOMÁTICA DE IDIOMA ===
+REGRA OBRIGATÓRIA: Sempre responda no MESMO idioma em que o usuário escreveu a mensagem.
+- Se o usuário escrever em inglês, responda em inglês.
+- Se o usuário escrever em espanhol, responda em espanhol.
+- Se o usuário escrever em português, responda em português.
+- Para qualquer outro idioma, responda nesse mesmo idioma.
+Detecte o idioma automaticamente pela mensagem recebida. Nunca force um idioma específico.`;
+
     // ===== 4. LOAD CONVERSATION MEMORY =====
     let conversationHistory: ConversationMessage[] = [];
     try {
