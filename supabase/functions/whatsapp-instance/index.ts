@@ -162,61 +162,52 @@ async function resolveInstanceName(sb: any, userId: string, userEmail: string): 
 
 const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"] as const;
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+/**
+ * Configure webhook on Evolution API instance.
+ * Tries multiple payload formats for compatibility across Evolution API versions.
+ * Never throws — logs errors but allows instance creation to continue.
+ */
+async function configureWebhook(instanceName: string, webhookUrl: string): Promise<boolean> {
+  const webhookConfig = {
+    enabled: true,
+    url: webhookUrl,
+    webhookByEvents: false,
+    webhookBase64: true,
+    events: [...WEBHOOK_EVENTS],
+  };
 
-async function waitForInstanceAvailability(instanceName: string, maxAttempts = 10): Promise<void> {
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
-      method: "GET",
-      headers: { apikey: EVOLUTION_KEY() },
-    });
+  // Try multiple payload formats for different Evolution API versions
+  const payloads = [
+    // Format A: root-level (Evolution API v2 docs)
+    webhookConfig,
+    // Format B: nested under "webhook" key
+    { webhook: webhookConfig },
+    // Format C: with instanceName + nested webhook
+    { instanceName, webhook: webhookConfig },
+  ];
 
-    const data = await resp.json().catch(() => null);
-    console.log(`[whatsapp-instance] availability check ${attempt}/${maxAttempts}:`, resp.status, JSON.stringify(data));
-
-    if (resp.ok) return;
-    if (attempt < maxAttempts) await sleep(1200);
-  }
-
-  throw new Error("instance_not_ready_for_webhook");
-}
-
-/** Configure webhook on Evolution API instance */
-async function configureWebhook(instanceName: string, webhookUrl: string): Promise<void> {
-  let lastError: string | null = null;
-
-  for (let attempt = 1; attempt <= 4; attempt++) {
+  for (let i = 0; i < payloads.length; i++) {
     try {
-      await waitForInstanceAvailability(instanceName);
-
       const resp = await fetch(`${EVOLUTION_URL()}/webhook/set/${encodeURIComponent(instanceName)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
-        body: JSON.stringify({
-          enabled: true,
-          url: webhookUrl,
-          webhookByEvents: false,
-          webhookBase64: true,
-          events: [...WEBHOOK_EVENTS],
-        }),
+        body: JSON.stringify(payloads[i]),
       });
 
       const data = await resp.json().catch(() => null);
-      console.log(`[whatsapp-instance] webhook set attempt ${attempt}/4:`, resp.status, JSON.stringify(data));
+      console.log(`[whatsapp-instance] webhook set format ${i + 1}/${payloads.length}:`, resp.status, JSON.stringify(data));
 
-      if (resp.ok) return;
-      lastError = data?.message || data?.error || `webhook_set_failed:${resp.status}`;
+      if (resp.ok) {
+        console.log(`[whatsapp-instance] webhook configured successfully with format ${i + 1}`);
+        return true;
+      }
     } catch (e) {
-      lastError = e instanceof Error ? e.message : String(e);
-      console.error(`[whatsapp-instance] webhook set attempt ${attempt}/4 error:`, lastError);
+      console.error(`[whatsapp-instance] webhook set format ${i + 1} error:`, e instanceof Error ? e.message : e);
     }
-
-    if (attempt < 4) await sleep(1500);
   }
 
-  throw new Error(lastError || "webhook_set_failed");
+  console.error("[whatsapp-instance] all webhook formats failed — instance created but webhook not configured");
+  return false;
 }
 
 serve(async (req) => {
