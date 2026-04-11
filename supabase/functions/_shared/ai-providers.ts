@@ -263,46 +263,49 @@ export async function processImage(
   ]);
 }
 
-export async function processAudio(
-  provider: ResolvedProvider,
-  opts: AICallOptions,
-  audioUrl: string,
-): Promise<AIUsageResult> {
-  if (provider === "google") {
-    const { base64, mimeType } = await downloadAsBase64(audioUrl);
-    return geminiMultimodal(
-      opts,
-      { mimeType, data: base64 },
-      "Transcreva este áudio com precisão e depois analise o conteúdo. Responda em português.",
-    );
-  }
-
-  // OpenAI: Whisper + Chat
-  if (provider === "groq") {
-    // Groq supports Whisper
-    const audioResp = await fetch(audioUrl);
-    if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
-    const audioBlob = await audioResp.blob();
-    const formData = new FormData();
-    formData.append("file", audioBlob, "audio.ogg");
-    formData.append("model", "whisper-large-v3");
-    formData.append("language", "pt");
-    const whisperResp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${opts.apiKey}` },
-      body: formData,
-    });
-    const whisperJson = await whisperResp.json().catch(() => null);
-    if (!whisperResp.ok) throw new Error(`groq_whisper_error:${whisperResp.status}:${safeStringify(whisperJson)}`);
-    const transcription = whisperJson?.text || "";
-    return groqChat(opts, `[Transcrição do áudio]: ${transcription}`);
-  }
+/**
+ * Transcribes audio using Groq Whisper (whisper-large-v3).
+ * Always uses GROQ_API_KEY from env — independent of the LLM provider.
+ */
+export async function groqTranscribe(audioUrl: string): Promise<string> {
+  const groqKey = Deno.env.get("GROQ_API_KEY") || "";
+  if (!groqKey) throw new Error("groq_whisper_no_key: GROQ_API_KEY not set");
 
   const audioResp = await fetch(audioUrl);
   if (!audioResp.ok) throw new Error(`audio_download_failed:${audioResp.status}`);
   const audioBlob = await audioResp.blob();
-  const transcription = await openaiTranscribe(opts.apiKey, audioBlob);
-  return openaiChat(opts, `[Transcrição do áudio]: ${transcription}`);
+
+  const formData = new FormData();
+  formData.append("file", audioBlob, "audio.ogg");
+  formData.append("model", "whisper-large-v3");
+  formData.append("language", "pt");
+
+  const whisperResp = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${groqKey}` },
+    body: formData,
+  });
+
+  const whisperJson = await whisperResp.json().catch(() => null);
+  if (!whisperResp.ok) throw new Error(`groq_whisper_error:${whisperResp.status}:${safeStringify(whisperJson)}`);
+  return whisperJson?.text || "";
+}
+
+export async function processAudio(
+  provider: ResolvedProvider,
+  opts: AICallOptions,
+  audioUrl: string,
+  conversationHistory?: ConversationMessage[],
+): Promise<AIUsageResult> {
+  // Always use Groq Whisper for transcription, then send to the configured LLM
+  const transcription = await groqTranscribe(audioUrl);
+
+  if (!transcription.trim()) {
+    return { text: "Não consegui transcrever o áudio. Pode enviar novamente ou digitar sua mensagem?", tokensInput: 0, tokensOutput: 0, tokensTotal: 0 };
+  }
+
+  const prompt = `[Transcrição do áudio do cliente]: ${transcription}`;
+  return processText(provider, opts, prompt, conversationHistory);
 }
 
 export async function processDocument(
