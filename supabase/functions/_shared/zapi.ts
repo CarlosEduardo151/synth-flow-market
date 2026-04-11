@@ -115,6 +115,38 @@ export async function evolutionSendText(
 }
 
 /**
+ * Send an audio message via Evolution API using base64
+ */
+export async function evolutionSendAudio(
+  creds: EvolutionCredentials,
+  phone: string,
+  audioBase64: string,
+): Promise<void> {
+  const number = phone.replace(/@.*$/, "");
+  const url = `${creds.apiUrl}/message/sendWhatsAppAudio/${encodeURIComponent(creds.instanceName)}`;
+
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: creds.apiKey,
+    },
+    body: JSON.stringify({
+      number,
+      audio: audioBase64,
+    }),
+  });
+
+  if (!resp.ok) {
+    const txt = await resp.text().catch(() => "");
+    console.error(`evolution_send_audio_error:${resp.status}:${txt.slice(0, 300)}`);
+    throw new Error(`evolution_send_audio_error:${resp.status}`);
+  } else {
+    console.log("[evolution] audio sent to", number);
+  }
+}
+
+/**
  * Load Evolution API credentials for a user from product_credentials + env
  */
 export async function loadEvolutionCredentials(

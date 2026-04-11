@@ -338,6 +338,7 @@ const WhatsAppBotConfigSystem = () => {
           configured_at: new Date().toISOString(),
           retention_policy: config.retentionPolicy,
           context_window_size: config.contextWindowSize,
+          voice_config: config.voiceConfig,
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
