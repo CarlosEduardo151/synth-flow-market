@@ -80,6 +80,25 @@ export function BotMemoryTab({
                 Por quanto tempo os logs de conversa são mantidos
               </p>
             </div>
+
+            {/* Exemplo visual */}
+            <div className="mt-4 p-3 rounded-xl bg-muted/30 border border-border/50 space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">Exemplo com janela de {contextWindowSize}:</p>
+              <div className="space-y-1.5">
+                {Array.from({ length: Math.min(contextWindowSize, 3) }).map((_, i) => (
+                  <div key={i} className="flex gap-2 text-[11px]">
+                    <span className="text-primary font-medium min-w-[52px]">Cliente:</span>
+                    <span className="text-muted-foreground italic">Mensagem {i + 1}...</span>
+                  </div>
+                ))}
+                {contextWindowSize > 3 && (
+                  <p className="text-[11px] text-muted-foreground/60 pl-1">... +{contextWindowSize - 3} pares anteriores</p>
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                A IA lê esse histórico antes de responder cada nova mensagem.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
