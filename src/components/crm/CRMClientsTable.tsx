@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -101,64 +101,64 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, on
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <CardTitle>Lista de Clientes</CardTitle>
-          <div className="flex flex-col md:flex-row gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nome, email ou telefone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 md:w-64"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-40">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="lead">Leads</SelectItem>
-                <SelectItem value="prospect">Em Negociação</SelectItem>
-                <SelectItem value="customer">Clientes</SelectItem>
-                <SelectItem value="inactive">Inativos</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={`${sortBy}:${sortDir}`}
-              onValueChange={(v) => {
-                const [by, dir] = v.split(':') as ['created_at' | 'name', 'asc' | 'desc'];
-                setSortBy(by);
-                setSortDir(dir);
-              }}
-            >
-              <SelectTrigger className="w-full md:w-44">
-                <SelectValue placeholder="Ordenar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="created_at:desc">Mais recentes</SelectItem>
-                <SelectItem value="created_at:asc">Mais antigos</SelectItem>
-                <SelectItem value="name:asc">Nome (A-Z)</SelectItem>
-                <SelectItem value="name:desc">Nome (Z-A)</SelectItem>
-              </SelectContent>
-            </Select>
-            {onAddCustomer && (
-              <Button onClick={onAddCustomer} className="rounded-xl">
-                <UserPlus className="h-4 w-4 mr-2" />
-                Novo Cliente
-              </Button>
-            )}
-            <Button onClick={exportToXLSX} variant="outline">
-              <Download className="h-4 w-4 mr-2" />
-              Exportar XLSX
-            </Button>
+    <div className="flex flex-col h-full gap-4">
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <h2 className="text-lg font-semibold text-foreground">Lista de Clientes</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nome, email ou telefone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 w-64"
+            />
           </div>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="lead">Leads</SelectItem>
+              <SelectItem value="prospect">Em Negociação</SelectItem>
+              <SelectItem value="customer">Clientes</SelectItem>
+              <SelectItem value="inactive">Inativos</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={`${sortBy}:${sortDir}`}
+            onValueChange={(v) => {
+              const [by, dir] = v.split(':') as ['created_at' | 'name', 'asc' | 'desc'];
+              setSortBy(by);
+              setSortDir(dir);
+            }}
+          >
+            <SelectTrigger className="w-44">
+              <SelectValue placeholder="Ordenar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="created_at:desc">Mais recentes</SelectItem>
+              <SelectItem value="created_at:asc">Mais antigos</SelectItem>
+              <SelectItem value="name:asc">Nome (A-Z)</SelectItem>
+              <SelectItem value="name:desc">Nome (Z-A)</SelectItem>
+            </SelectContent>
+          </Select>
+          {onAddCustomer && (
+            <Button onClick={onAddCustomer} className="rounded-xl">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Novo Cliente
+            </Button>
+          )}
+          <Button onClick={exportToXLSX} variant="outline">
+            <Download className="h-4 w-4 mr-2" />
+            Exportar XLSX
+          </Button>
         </div>
-      </CardHeader>
-      <CardContent>
+      </div>
+
+      {/* Tabela */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
@@ -236,10 +236,9 @@ export const CRMClientsTable = ({ customers, onViewDetails, onEdit, onDelete, on
             </TableBody>
           </Table>
         </div>
-        <div className="mt-4 text-sm text-muted-foreground">
-          Mostrando {sortedCustomers.length} de {customers.length} clientes
-        </div>
-      </CardContent>
-    </Card>
+      <div className="text-sm text-muted-foreground">
+        Mostrando {sortedCustomers.length} de {customers.length} clientes
+      </div>
+    </div>
   );
 };
