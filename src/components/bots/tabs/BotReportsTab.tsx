@@ -301,31 +301,13 @@ export function BotReportsTab({ customerProductId }: BotReportsTabProps) {
         </Card>
       </div>
 
-      {/* Info */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-sm font-medium">Relatórios Automáticos por E-mail</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Receba resumos completos do desempenho do seu bot no e-mail. Configure frequência, seções e horário de envio.
-                Acompanhe mensagens, tokens, FAQs e muito mais.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold flex items-center gap-2">
-            <Mail className="h-5 w-5 text-primary" />
-            Configurações de Relatório
-          </h3>
-          <p className="text-sm text-muted-foreground">Gerencie seus relatórios automáticos</p>
-        </div>
+        <h3 className="text-lg font-semibold flex items-center gap-2">
+          <Mail className="h-5 w-5 text-primary" />
+          Configurações de Relatório
+        </h3>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchData} className="rounded-xl">
             <RefreshCw className="h-4 w-4" />
