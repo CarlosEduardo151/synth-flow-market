@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
       const reportData = await generateReport(service, cpId, "daily");
       const html = buildReportHTML(reportData, "Relatório de Teste", "test", undefined);
-      await sendEmail(resendKey, lovableApiKey, email, "📊 Relatório de Teste — Bot WhatsApp", html);
+      await sendEmail(resendKey, email, "📊 Relatório de Teste — Bot WhatsApp", html);
 
       return json({ ok: true, message: "Test report sent" });
     }
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
       const sections = config.report_sections || [];
       const html = buildReportHTML(reportData, `Relatório ${periodLabel}`, config.frequency, sections);
 
-      await sendEmail(resendKey, lovableApiKey, config.recipient_email, subject, html);
+      await sendEmail(resendKey, config.recipient_email, subject, html);
 
       await service
         .from("bot_report_config")
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
 
 // ===== Process scheduled reports (for cron) =====
 
-async function processScheduled(service: any, resendKey: string | undefined, lovableApiKey: string | undefined) {
+async function processScheduled(service: any, resendKey: string | undefined) {
   const now = new Date();
   const hour = now.getUTCHours();
   const dayOfWeek = now.getUTCDay();
@@ -133,7 +133,7 @@ async function processScheduled(service: any, resendKey: string | undefined, lov
       const sections = config.report_sections || [];
       const html = buildReportHTML(reportData, `Relatório ${periodLabel}`, config.frequency, sections);
 
-      await sendEmail(resendKey, lovableApiKey, config.recipient_email, subject, html);
+      await sendEmail(resendKey, config.recipient_email, subject, html);
 
       await service
         .from("bot_report_config")
