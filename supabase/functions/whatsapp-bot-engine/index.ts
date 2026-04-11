@@ -571,7 +571,13 @@ serve(async (req) => {
 
       if (ttsResp.ok) {
         const audioBuffer = await ttsResp.arrayBuffer();
-        const audioBase64 = btoa(String.fromCharCode(...new Uint8Array(audioBuffer)));
+        const bytes = new Uint8Array(audioBuffer);
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        const audioBase64 = btoa(binary);
         const base64WithMime = `data:audio/mpeg;base64,${audioBase64}`;
         await evolutionSendAudio(evoCreds, phone, base64WithMime);
         console.log("[bot-engine] TTS audio sent to", phone);
