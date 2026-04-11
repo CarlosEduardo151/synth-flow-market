@@ -331,361 +331,359 @@ const CRMSystem = () => {
     </div>;
   }
 
+  const activeTabData = sidebarItems.find(t => t.value === activeTab);
+
+  const CRMSidebarNav = () => (
+    <div className="flex flex-col h-full">
+      <div className="px-5 py-5 border-b border-border/50">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-md bg-primary/10 flex items-center justify-center">
+            <Users className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <p className="font-semibold text-foreground text-sm leading-none">CRM</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Gestão de Clientes</p>
+          </div>
+        </div>
+      </div>
+      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+        {sidebarItems.map((tab) => {
+          const Icon = tab.icon;
+          const active = activeTab === tab.value;
+          return (
+            <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors ${
+                active
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+              }`}>
+              <Icon className="w-[18px] h-[18px] shrink-0" />
+              <span className="flex-1 text-left">{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <div className="px-3 py-3 border-t border-border/50">
+        <button
+          onClick={() => navigate('/meus-produtos')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-colors"
+        >
+          <ChevronLeft className="w-[18px] h-[18px]" />
+          <span>Voltar</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex">
       <ProductTutorial
         productSlug="crm-simples"
         productTitle="CRM Simples para Microempresas"
         steps={crmSimplesTutorial}
         onComplete={() => {}}
       />
-      
-      <Header />
-      <main className="container mx-auto px-4 py-8">
-        <div className="flex flex-col gap-4 mb-8 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <Users className="h-8 w-8 text-primary" />
-              CRM - Gestão de Clientes Completa
-            </h1>
-            <p className="text-muted-foreground mt-2">Gerencie clientes, oportunidades e automações com IA</p>
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex flex-col w-56 border-r border-border/50 bg-card/50 sticky top-0 h-screen">
+        <CRMSidebarNav />
+      </aside>
+
+      {/* Main Content */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-sm border-b border-border/50 px-5 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden h-8 w-8"><Menu className="w-4 h-4" /></Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-56 p-0"><CRMSidebarNav /></SheetContent>
+            </Sheet>
+            <div>
+              <h1 className="text-base font-semibold text-foreground leading-none">{activeTabData?.label}</h1>
+              <p className="text-[11px] text-muted-foreground mt-0.5">CRM - Gestão de Clientes Completa</p>
+            </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
+
+          <div className="flex items-center gap-2">
             <Button
+              size="sm"
               onClick={() => {
                 setEditingCustomer(null);
                 setIsAddingCustomer(true);
               }}
+              className="rounded-xl"
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Novo Cliente
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => setActiveTab('motor-ia')}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Motor IA
-            </Button>
           </div>
-        </div>
+        </header>
 
-        {/* Onboarding rápido */}
-        {customers.length === 0 && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Primeiros passos</CardTitle>
-              <CardDescription>Em 2 minutos você deixa o CRM pronto pra usar.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
-                <li>Cadastre seu primeiro cliente (nome + contato).</li>
-                <li>Configure o Motor IA para análises inteligentes.</li>
-                <li>Use “Insights com IA” no Dashboard para priorizar follow-ups.</li>
-              </ol>
+        <main className="flex-1 p-4 sm:p-6 max-w-[1400px] w-full mx-auto">
+          {/* Onboarding rápido */}
+          {customers.length === 0 && activeTab === 'dashboard' && (
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle>Primeiros passos</CardTitle>
+                <CardDescription>Em 2 minutos você deixa o CRM pronto pra usar.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <ol className="list-decimal pl-5 space-y-2 text-sm text-muted-foreground">
+                  <li>Cadastre seu primeiro cliente (nome + contato).</li>
+                  <li>Configure o Motor IA para análises inteligentes.</li>
+                  <li>Use "Insights com IA" no Dashboard para priorizar follow-ups.</li>
+                </ol>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button
+                    onClick={() => {
+                      setEditingCustomer(null);
+                      setIsAddingCustomer(true);
+                      setActiveTab('clientes');
+                    }}
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Adicionar 1º cliente
+                  </Button>
+                  <Button variant="outline" onClick={() => setActiveTab('motor-ia')}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Configurar Motor IA
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsContent value="dashboard" className="space-y-4">
+              <CRMDashboard customers={customers} opportunities={opportunities} />
+            </TabsContent>
+
+            <TabsContent value="clientes" className="space-y-4">
+              <CRMClientsTable
+                customers={customers}
+                onRowClick={(customer) => {
+                  setSelectedCustomer(customer as CRMCustomer);
+                  loadInteractions(customer.id);
+                }}
+                onViewDetails={(customer) => {
+                  setSelectedCustomer(customer as CRMCustomer);
+                  loadInteractions(customer.id);
+                }}
+                onEdit={(customer) => {
+                  setEditingCustomer(customer as CRMCustomer);
+                  setIsAddingCustomer(true);
+                }}
+                onDelete={handleDeleteCustomer}
+              />
+            </TabsContent>
+
+            <TabsContent value="oportunidades" className="space-y-4">
+              <CRMOpportunities
+                opportunities={opportunities}
+                customers={customers}
+                onRefresh={refreshData}
+              />
+            </TabsContent>
+
+            <TabsContent value="mensagens" className="space-y-4">
+              {customerProductId && <CRMMessages customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="motor-ia" className="space-y-4">
+              {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="ai-actions" className="space-y-4">
+              <CRMAIPendingActions />
+            </TabsContent>
+
+            <TabsContent value="ai-reports" className="space-y-4">
+              <CRMAIReports />
+            </TabsContent>
+          </Tabs>
+        </main>
+      </div>
+
+      {/* Dialog para adicionar/editar cliente */}
+      <Dialog open={isAddingCustomer} onOpenChange={(open) => {
+        setIsAddingCustomer(open);
+        if (!open) setEditingCustomer(null);
+      }}>
+        <DialogContent className="sm:max-w-[525px]">
+          <form onSubmit={handleSaveCustomer}>
+            <DialogHeader>
+              <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
+              <DialogDescription>Preencha as informações do cliente</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Nome *</Label>
+                <Input id="name" name="name" defaultValue={editingCustomer?.name} required />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" defaultValue={editingCustomer?.email || ''} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Telefone</Label>
+                <Input id="phone" name="phone" defaultValue={editingCustomer?.phone || ''} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company">Empresa</Label>
+                <Input id="company" name="company" defaultValue={editingCustomer?.company || ''} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="business_type">Tipo de Negócio</Label>
+                <Input id="business_type" name="business_type" defaultValue={editingCustomer?.business_type || ''} />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status</Label>
+                <Select name="status" defaultValue={editingCustomer?.status || 'lead'}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lead">Lead</SelectItem>
+                    <SelectItem value="prospect">Prospect</SelectItem>
+                    <SelectItem value="customer">Cliente</SelectItem>
+                    <SelectItem value="inactive">Inativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea id="notes" name="notes" defaultValue={editingCustomer?.notes || ''} />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="submit">{editingCustomer ? 'Atualizar' : 'Adicionar'} Cliente</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Sheet
+        open={!!selectedCustomer}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedCustomer(null);
+            setIsAddingInteraction(false);
+          }
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>{selectedCustomer?.name ?? 'Cliente'}</SheetTitle>
+            <SheetDescription>Detalhes e ações rápidas</SheetDescription>
+          </SheetHeader>
+
+          {selectedCustomer && (
+            <div className="mt-6 space-y-6">
+              <div className="grid gap-3">
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">{selectedCustomer.company || 'Sem empresa'}</Badge>
+                  <Badge variant="outline">{selectedCustomer.status}</Badge>
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  <div><span className="font-medium text-foreground">Email:</span> {selectedCustomer.email || '-'}</div>
+                  <div><span className="font-medium text-foreground">Telefone:</span> {selectedCustomer.phone || '-'}</div>
+                  <div><span className="font-medium text-foreground">Criado em:</span> {new Date(selectedCustomer.created_at).toLocaleDateString('pt-BR')}</div>
+                </div>
+              </div>
+
               <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
+                  variant="default"
                   onClick={() => {
-                    setEditingCustomer(null);
+                    setEditingCustomer(selectedCustomer);
                     setIsAddingCustomer(true);
-                    setActiveTab('clientes');
                   }}
                 >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Adicionar 1º cliente
+                  Editar
                 </Button>
-                <Button variant="outline" onClick={() => setActiveTab('motor-ia')}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Configurar Motor IA
+                <Button
+                  variant="outline"
+                  onClick={() => handleDeleteCustomer(selectedCustomer.id)}
+                >
+                  Excluir
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        )}
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <SidebarProvider open={open} onOpenChange={setPinnedOpen} className="min-h-0 !min-h-0">
-            <div className="flex w-full min-h-[60vh] min-h-0 items-start gap-4 overflow-hidden rounded-xl border border-border/50 bg-card/40 backdrop-blur supports-[backdrop-filter]:bg-card/30 shadow-card">
-              <div
-                className="self-start p-2 md:py-6 md:pl-4"
-                onMouseEnter={() => !isMobile && setHovered(true)}
-                onMouseLeave={() => !isMobile && setHovered(false)}
-              >
-                <div className="md:sticky md:top-24">
-                  <div className="h-fit max-h-[calc(100svh-theme(spacing.24))] overflow-auto rounded-2xl border border-sidebar-border/60 bg-sidebar/70 backdrop-blur supports-[backdrop-filter]:bg-sidebar/50 shadow-card">
-                    <Sidebar
-                      collapsible={isMobile ? 'offcanvas' : 'icon'}
-                      className="border-none bg-transparent text-sidebar-foreground"
-                    >
-                      <SidebarContent>
-                        <SidebarGroup>
-                          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
-                          <SidebarMenu>
-                            {sidebarItems.map((item) => {
-                              const Icon = item.icon;
-                              return (
-                                <SidebarMenuItem key={item.value}>
-                                  <SidebarMenuButton
-                                    type="button"
-                                    isActive={activeTab === item.value}
-                                    tooltip={item.label}
-                                    onClick={() => setActiveTab(item.value)}
-                                  >
-                                    <Icon className="shrink-0" />
-                                    <span>{item.label}</span>
-                                  </SidebarMenuButton>
-                                </SidebarMenuItem>
-                              );
-                            })}
-                          </SidebarMenu>
-                        </SidebarGroup>
-                      </SidebarContent>
-                    </Sidebar>
-                  </div>
-                </div>
-              </div>
-
-              <SidebarInset className="min-w-0">
-                {isMobile ? (
-                  <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-border/50 bg-background/70 backdrop-blur supports-[backdrop-filter]:bg-background/40 px-3 py-2">
-                    <SidebarTrigger />
-                    <span className="text-sm font-medium">Navegação</span>
-                  </div>
-                ) : null}
-                <div className="p-4">
-                  <TabsContent value="dashboard" className="space-y-4">
-                    <CRMDashboard customers={customers} opportunities={opportunities} />
-                  </TabsContent>
-
-                  <TabsContent value="clientes" className="space-y-4">
-                    <CRMClientsTable
-                      customers={customers}
-                      onRowClick={(customer) => {
-                        setSelectedCustomer(customer as CRMCustomer);
-                        loadInteractions(customer.id);
-                      }}
-                      onViewDetails={(customer) => {
-                        setSelectedCustomer(customer as CRMCustomer);
-                        loadInteractions(customer.id);
-                      }}
-                      onEdit={(customer) => {
-                        setEditingCustomer(customer as CRMCustomer);
-                        setIsAddingCustomer(true);
-                      }}
-                      onDelete={handleDeleteCustomer}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="oportunidades" className="space-y-4">
-                    <CRMOpportunities
-                      opportunities={opportunities}
-                      customers={customers}
-                      onRefresh={refreshData}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="mensagens" className="space-y-4">
-                    {customerProductId && <CRMMessages customerProductId={customerProductId} />}
-                  </TabsContent>
-
-                  <TabsContent value="motor-ia" className="space-y-4">
-                    {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
-                  </TabsContent>
-
-                  <TabsContent value="ai-actions" className="space-y-4">
-                    <CRMAIPendingActions />
-                  </TabsContent>
-
-                  <TabsContent value="ai-reports" className="space-y-4">
-                    <CRMAIReports />
-                  </TabsContent>
-                </div>
-              </SidebarInset>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Interações</CardTitle>
+                  <CardDescription>Em breve: ligações, mensagens e follow-ups por cliente.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Button onClick={() => setIsAddingInteraction(true)} className="w-full" disabled>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Nova Interação
+                  </Button>
+                  {interactions.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
+                  ) : (
+                    interactions.map((interaction) => (
+                      <Card key={interaction.id}>
+                        <CardHeader>
+                          <CardTitle className="text-sm">{interaction.subject}</CardTitle>
+                          <CardDescription className="text-xs">
+                            {new Date(interaction.created_at).toLocaleString('pt-BR')}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <p className="text-sm">{interaction.description}</p>
+                        </CardContent>
+                      </Card>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
             </div>
-          </SidebarProvider>
-        </Tabs>
+          )}
+        </SheetContent>
+      </Sheet>
 
-        {/* Dialog para adicionar/editar cliente */}
-        <Dialog open={isAddingCustomer} onOpenChange={(open) => {
-          setIsAddingCustomer(open);
-          if (!open) setEditingCustomer(null);
-        }}>
-          <DialogContent className="sm:max-w-[525px]">
-            <form onSubmit={handleSaveCustomer}>
+      {isAddingInteraction && selectedCustomer && (
+        <Dialog open={isAddingInteraction} onOpenChange={setIsAddingInteraction}>
+          <DialogContent>
+            <form onSubmit={handleAddInteraction}>
               <DialogHeader>
-                <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
-                <DialogDescription>Preencha as informações do cliente</DialogDescription>
+                <DialogTitle>Nova Interação</DialogTitle>
+                <DialogDescription>Funcionalidade em breve.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="name">Nome *</Label>
-                  <Input id="name" name="name" defaultValue={editingCustomer?.name} required />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="email" defaultValue={editingCustomer?.email || ''} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Telefone</Label>
-                  <Input id="phone" name="phone" defaultValue={editingCustomer?.phone || ''} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="company">Empresa</Label>
-                  <Input id="company" name="company" defaultValue={editingCustomer?.company || ''} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="business_type">Tipo de Negócio</Label>
-                  <Input id="business_type" name="business_type" defaultValue={editingCustomer?.business_type || ''} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <Select name="status" defaultValue={editingCustomer?.status || 'lead'}>
+                  <Label htmlFor="type">Tipo</Label>
+                  <Select name="type" required>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="lead">Lead</SelectItem>
-                      <SelectItem value="prospect">Prospect</SelectItem>
-                      <SelectItem value="customer">Cliente</SelectItem>
-                      <SelectItem value="inactive">Inativo</SelectItem>
+                      <SelectItem value="call">Ligação</SelectItem>
+                      <SelectItem value="email">Email</SelectItem>
+                      <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                      <SelectItem value="meeting">Reunião</SelectItem>
+                      <SelectItem value="note">Nota</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="notes">Observações</Label>
-                  <Textarea id="notes" name="notes" defaultValue={editingCustomer?.notes || ''} />
+                  <Label htmlFor="subject">Assunto</Label>
+                  <Input id="subject" name="subject" />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="description">Descrição *</Label>
+                  <Textarea id="description" name="description" required />
                 </div>
               </div>
               <DialogFooter>
-                <Button type="submit">{editingCustomer ? 'Atualizar' : 'Adicionar'} Cliente</Button>
+                <Button type="submit">Registrar</Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
-
-        <Sheet
-          open={!!selectedCustomer}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedCustomer(null);
-              setIsAddingInteraction(false);
-            }
-          }}
-        >
-          <SheetContent className="w-full sm:max-w-lg">
-            <SheetHeader>
-              <SheetTitle>{selectedCustomer?.name ?? 'Cliente'}</SheetTitle>
-              <SheetDescription>Detalhes e ações rápidas</SheetDescription>
-            </SheetHeader>
-
-            {selectedCustomer && (
-              <div className="mt-6 space-y-6">
-                <div className="grid gap-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="secondary">{selectedCustomer.company || 'Sem empresa'}</Badge>
-                    <Badge variant="outline">{selectedCustomer.status}</Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    <div><span className="font-medium text-foreground">Email:</span> {selectedCustomer.email || '-'}</div>
-                    <div><span className="font-medium text-foreground">Telefone:</span> {selectedCustomer.phone || '-'}</div>
-                    <div><span className="font-medium text-foreground">Criado em:</span> {new Date(selectedCustomer.created_at).toLocaleDateString('pt-BR')}</div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    variant="default"
-                    onClick={() => {
-                      setEditingCustomer(selectedCustomer);
-                      setIsAddingCustomer(true);
-                    }}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleDeleteCustomer(selectedCustomer.id)}
-                  >
-                    Excluir
-                  </Button>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Interações</CardTitle>
-                    <CardDescription>Em breve: ligações, mensagens e follow-ups por cliente.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <Button onClick={() => setIsAddingInteraction(true)} className="w-full" disabled>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Nova Interação
-                    </Button>
-                    {interactions.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
-                    ) : (
-                      interactions.map((interaction) => (
-                        <Card key={interaction.id}>
-                          <CardHeader>
-                            <CardTitle className="text-sm">{interaction.subject}</CardTitle>
-                            <CardDescription className="text-xs">
-                              {new Date(interaction.created_at).toLocaleString('pt-BR')}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <p className="text-sm">{interaction.description}</p>
-                          </CardContent>
-                        </Card>
-                      ))
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </SheetContent>
-        </Sheet>
-
-        {isAddingInteraction && selectedCustomer && (
-          <Dialog open={isAddingInteraction} onOpenChange={setIsAddingInteraction}>
-            <DialogContent>
-              <form onSubmit={handleAddInteraction}>
-                <DialogHeader>
-                  <DialogTitle>Nova Interação</DialogTitle>
-                  <DialogDescription>Funcionalidade em breve.</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid gap-2">
-                    <Label htmlFor="type">Tipo</Label>
-                    <Select name="type" required>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="call">Ligação</SelectItem>
-                        <SelectItem value="email">Email</SelectItem>
-                        <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                        <SelectItem value="meeting">Reunião</SelectItem>
-                        <SelectItem value="note">Nota</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="subject">Assunto</Label>
-                    <Input id="subject" name="subject" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Descrição *</Label>
-                    <Textarea id="description" name="description" required />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button type="submit">Registrar</Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
-      </main>
-      <Footer />
+      )}
     </div>
   );
 };
