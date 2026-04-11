@@ -68,6 +68,7 @@ function normalizeEvolutionPayload(raw: any): any {
     normalized.audio = {
       audioUrl: message.audioMessage.url || data.media?.url || "",
       mimeType: message.audioMessage.mimetype || "",
+      base64: message.audioMessage.base64 || data.message?.base64 || "",
     };
   }
   // Video

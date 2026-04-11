@@ -171,7 +171,7 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
           enabled: true,
           url: webhookUrl,
           webhookByEvents: false,
-          webhookBase64: false,
+          webhookBase64: true,
           events: ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
         },
       }),
