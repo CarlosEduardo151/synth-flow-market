@@ -107,9 +107,12 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
         { role: "assistant", content: data.answer, memoriesUsed: data.memories_used },
       ]);
 
-      // If the AI saved a memory via chat, refresh the list
+      // If the AI saved a memory or created an opportunity, refresh
       if (data.memory_saved) {
         loadMemories();
+      }
+      if (data.opportunity_created) {
+        toast.success("Oportunidade criada pelo agente de IA!");
       }
     } catch {
       setChatMessages((prev) => [
