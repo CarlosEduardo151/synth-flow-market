@@ -13,7 +13,8 @@ import {
   Users,
   Zap,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
