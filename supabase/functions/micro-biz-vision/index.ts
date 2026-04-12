@@ -1,11 +1,45 @@
 /**
  * MICRO-BIZ VISION ENGINE
- * Analisa fotos de produtos via IA (Groq Vision) e gera descrições + prompts criativos.
- * Gera arte publicitária real via fal.ai FLUX.1.
+ * Analisa fotos via Groq Vision → gera copies → gera arte via Lovable AI Gateway (Gemini Image).
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
+
+async function generateImage(prompt: string): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash-image",
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      modalities: ["image", "text"],
+    }),
+  });
+
+  if (!resp.ok) {
+    const errText = await resp.text();
+    if (resp.status === 429) throw new Error("rate_limited");
+    if (resp.status === 402) throw new Error("credits_exhausted");
+    throw new Error(`image_gen_failed[${resp.status}]:${errText}`);
+  }
+
+  const data = await resp.json();
+  const imageUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url || "";
+  if (!imageUrl) throw new Error("no_image_in_response");
+  return imageUrl;
+}
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -15,71 +49,11 @@ serve(async (req) => {
     const body = await req.json();
     const { customer_product_id, product_id, image_url, image_base64, mime_type, action, prompt, creative_id } = body;
 
-    async function generateFalImage(artPrompt: string) {
-      const falKey = Deno.env.get("FAL_AI_API_KEY") || "";
-      if (!falKey) {
-        throw new Error("FAL_AI_API_KEY not configured");
-      }
-
-      const submitResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Key ${falKey}`,
-        },
-        body: JSON.stringify({
-          prompt: artPrompt,
-          image_size: "landscape_16_9",
-          num_images: 1,
-          enable_safety_checker: true,
-        }),
-      });
-
-      const submitData = await submitResp.json();
-      if (!submitResp.ok) {
-        throw new Error(`fal_submit_failed:${JSON.stringify(submitData)}`);
-      }
-
-      const statusUrl = submitData?.status_url;
-      if (!statusUrl) {
-        throw new Error(`fal_missing_status_url:${JSON.stringify(submitData)}`);
-      }
-
-      for (let i = 0; i < 20; i++) {
-        const statusResp = await fetch(statusUrl, {
-          headers: {
-            "Authorization": `Key ${falKey}`,
-          },
-        });
-
-        const statusData = await statusResp.json();
-        if (!statusResp.ok) {
-          throw new Error(`fal_status_failed:${JSON.stringify(statusData)}`);
-        }
-
-        const imageUrl = statusData?.response?.images?.[0]?.url || statusData?.images?.[0]?.url || "";
-        if (imageUrl) {
-          return { imageUrl, raw: statusData };
-        }
-
-        const status = statusData?.status;
-        if (status === "COMPLETED" && !imageUrl) {
-          throw new Error(`fal_completed_without_image:${JSON.stringify(statusData)}`);
-        }
-        if (status === "FAILED") {
-          throw new Error(`fal_generation_failed:${JSON.stringify(statusData)}`);
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-      }
-
-      throw new Error("fal_generation_timeout");
-    }
-
+    // Action: generate-art — gera imagem com prompt existente
     if (action === "generate-art") {
       if (!prompt) return corsResponse({ error: "prompt required" }, 400, origin);
 
-      const { imageUrl: generatedImageUrl, raw } = await generateFalImage(prompt);
+      const generatedImageUrl = await generateImage(prompt);
 
       if (creative_id) {
         const service = createClient(
@@ -92,13 +66,10 @@ serve(async (req) => {
           .eq("id", creative_id);
       }
 
-      return corsResponse({
-        success: true,
-        image_url: generatedImageUrl,
-        raw,
-      }, 200, origin);
+      return corsResponse({ success: true, image_url: generatedImageUrl }, 200, origin);
     }
 
+    // Default action: analyze product photo
     if (!customer_product_id) {
       return corsResponse({ error: "customer_product_id required" }, 400, origin);
     }
@@ -108,8 +79,6 @@ serve(async (req) => {
 
     const groqKey = Deno.env.get("GROQ_API_KEY") || "";
     if (!groqKey) return corsResponse({ error: "GROQ_API_KEY not configured" }, 500, origin);
-
-    const falKey = Deno.env.get("FAL_AI_API_KEY") || "";
 
     const service = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -124,6 +93,7 @@ serve(async (req) => {
 
     const visionModel = aiConfig?.vision_model || "meta-llama/llama-4-scout-17b-16e-instruct";
 
+    // Step 1: Vision Analysis
     const visionMessages: any[] = [
       {
         role: "system",
@@ -175,6 +145,7 @@ Responda APENAS o JSON, sem markdown.`,
       visionAnalysis = { raw_response: visionText };
     }
 
+    // Step 2: Generate copies
     const creativeModel = aiConfig?.creative_model || "llama-3.3-70b-versatile";
     const businessName = aiConfig?.business_name || "Micro Empresa";
 
@@ -191,7 +162,7 @@ Responda APENAS o JSON, sem markdown.`,
             content: `Você é um copywriter especialista em anúncios para micro-empresas brasileiras.
 Com base na análise do produto, gere um JSON:
 {
-  "art_prompt": "prompt detalhado em inglês para gerar uma arte publicitária profissional com FLUX.1",
+  "art_prompt": "prompt detalhado em inglês para gerar uma arte publicitária profissional, estilo anúncio de Instagram, com cores vibrantes e texto legível",
   "copies": [
     { "headline": "título curto", "body": "texto do anúncio", "cta": "call to action" },
     { "headline": "...", "body": "...", "cta": "..." },
@@ -214,16 +185,17 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
+    // Step 3: Generate art via Lovable AI Gateway
     let generatedImageUrl = "";
-    if (falKey && creativeData.art_prompt) {
+    if (creativeData.art_prompt) {
       try {
-        const result = await generateFalImage(creativeData.art_prompt);
-        generatedImageUrl = result.imageUrl;
-      } catch (falErr) {
-        console.error("fal.ai call failed:", falErr);
+        generatedImageUrl = await generateImage(creativeData.art_prompt);
+      } catch (imgErr) {
+        console.error("image generation failed:", imgErr);
       }
     }
 
+    // Step 4: Save to database
     if (product_id) {
       await service
         .from("micro_biz_products")
@@ -259,6 +231,8 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
     }, 200, origin);
   } catch (e) {
     console.error("micro-biz-vision error:", e);
-    return corsResponse({ error: e instanceof Error ? e.message : "Unknown error" }, 500, origin);
+    const msg = e instanceof Error ? e.message : "Unknown error";
+    const status = msg === "rate_limited" ? 429 : msg === "credits_exhausted" ? 402 : 500;
+    return corsResponse({ error: msg }, status, origin);
   }
 });
