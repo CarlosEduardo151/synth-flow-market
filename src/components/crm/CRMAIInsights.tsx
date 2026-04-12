@@ -156,10 +156,18 @@ export const CRMAIInsights = ({ customers, opportunities, onNavigateToReports }:
           <Brain className="h-6 w-6 text-primary" />
           Insights Preditivos IA
         </h2>
-        <Button onClick={generateInsights} variant="outline" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          <span className="ml-2">Atualizar</span>
-        </Button>
+        <div className="flex gap-2">
+          {onNavigateToReports && (
+            <Button onClick={onNavigateToReports} variant="outline" disabled={loading}>
+              <FileText className="h-4 w-4" />
+              <span className="ml-2">Relatórios</span>
+            </Button>
+          )}
+          <Button onClick={generateInsights} variant="outline" disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="ml-2">Atualizar</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
