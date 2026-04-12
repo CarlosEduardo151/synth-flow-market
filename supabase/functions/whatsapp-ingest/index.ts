@@ -209,12 +209,14 @@ serve(async (req) => {
     // Authenticate webhook
     const { data: cp, error: cpErr } = await service
       .from("customer_products")
-      .select("id")
+      .select("id, product_slug")
       .eq("id", customerProductId)
       .eq("webhook_token", token)
       .maybeSingle();
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
+
+    const isCRM = cp.product_slug === "crm-simples";
 
     const bodyText = await req.text();
     if (bodyText.length > 250_000) {
