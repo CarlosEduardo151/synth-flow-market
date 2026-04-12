@@ -294,7 +294,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             </CardHeader>
             <CardContent className="pb-2 px-2">
               {leads.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS</div>
+                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS AINDA</div>
               ) : (
                 <ResponsiveContainer width="100%" height={80}>
                   <BarChart data={scoreDistribution} barSize={28}>
@@ -330,7 +330,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             </CardHeader>
             <CardContent className="pb-2 px-2">
               {sentimentData.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS</div>
+                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS AINDA</div>
               ) : (
                 <div className="flex items-center gap-4">
                   <ResponsiveContainer width={90} height={80}>
@@ -447,8 +447,8 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             {activityEntries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Wifi className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-muted-foreground text-xs font-mono">AGUARDANDO CONEXÃO WHATSAPP</p>
-                <p className="text-muted-foreground/60 text-[10px]">Conecte uma instância para ver a atividade em tempo real.</p>
+                <p className="text-muted-foreground text-xs font-mono">AGUARDANDO CONEXÃO COM WHATSAPP</p>
+                <p className="text-muted-foreground/60 text-[10px]">Conecte uma instância para acompanhar a atividade em tempo real.</p>
               </div>
             ) : (
               <div
