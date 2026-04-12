@@ -36,16 +36,14 @@ serve(async (req) => {
 
     // Validate model exists on Groq - fallback invalid ones
     const VALID_GROQ_MODELS = [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "gemma2-9b-it",
-      "mixtral-8x7b-32768",
-      "qwen-qwq-32b",
+      "gpt-oss-120b",
+      "gpt-oss-20b",
+      "llama-4-scout",
+      "llama-3.3-70b",
       "qwen-3-32b",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
-      "meta-llama/llama-4-maverick-17b-128e-instruct",
       "compound-beta",
       "compound-beta-mini",
+      "llama-3.3-70b-versatile",
     ];
     const rawModel = engineConfig?.model || "llama-3.3-70b-versatile";
     const configModel = VALID_GROQ_MODELS.includes(rawModel) ? rawModel : "llama-3.3-70b-versatile";
