@@ -10,6 +10,7 @@ import {
   Camera, Sparkles, Eye, Upload, ImagePlus, RefreshCw,
   Rocket, ArrowRight, Image as ImageIcon, Loader2
 } from "lucide-react";
+import { ArtStyleSelector, PRESET_STYLES } from "./ArtStyleSelector";
 
 interface Props {
   customerProductId: string;
@@ -19,13 +20,22 @@ export function MicroBizVision({ customerProductId }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [dragOver, setDragOver] = useState(false);
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [artStyle, setArtStyle] = useState<{ styleId: string | null; customPrompt: string }>({ styleId: null, customPrompt: "" });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const getStylePrompt = () => {
+    if (artStyle.customPrompt) return artStyle.customPrompt;
+    if (artStyle.styleId) {
+      return PRESET_STYLES.find((s) => s.id === artStyle.styleId)?.prompt || "";
+    }
+    return "";
+  };
 
   const analyzeImage = useMutation({
     mutationFn: async (payload: { image_url?: string; image_base64?: string; mime_type?: string }) => {
       const { data, error } = await supabase.functions.invoke("micro-biz-vision", {
-        body: { customer_product_id: customerProductId, ...payload },
+        body: { customer_product_id: customerProductId, style_prompt: getStylePrompt(), ...payload },
       });
       if (error) throw error;
       return data;
