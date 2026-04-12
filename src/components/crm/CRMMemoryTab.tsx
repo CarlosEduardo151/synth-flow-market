@@ -204,65 +204,6 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
             )}
             Sincronizar WhatsApp
           </Button>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-3.5 w-3.5" />
-                Nova Memória
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Registrar Nova Memória</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nome do Cliente *</Label>
-                  <Input
-                    value={addForm.clientName}
-                    onChange={(e) => setAddForm({ ...addForm, clientName: e.target.value })}
-                    placeholder="Ex: João Silva"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input
-                    value={addForm.clientPhone}
-                    onChange={(e) => setAddForm({ ...addForm, clientPhone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Resumo da Interação *</Label>
-                  <Textarea
-                    value={addForm.summary}
-                    onChange={(e) => setAddForm({ ...addForm, summary: e.target.value })}
-                    placeholder="Descreva o que aconteceu nessa interação..."
-                    rows={4}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sentimento</Label>
-                  <Select value={addForm.sentiment} onValueChange={(v) => setAddForm({ ...addForm, sentiment: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="positivo">😊 Positivo</SelectItem>
-                      <SelectItem value="neutro">😐 Neutro</SelectItem>
-                      <SelectItem value="negativo">😠 Negativo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleAddMemory} disabled={adding || !addForm.clientName || !addForm.summary}>
-                  {adding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
-                  Salvar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
