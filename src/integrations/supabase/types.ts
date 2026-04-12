@@ -715,6 +715,101 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_follow_up_logs: {
+        Row: {
+          attempt_number: number
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          message_sent: string
+          opportunity_id: string | null
+          rule_id: string | null
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempt_number?: number
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          message_sent: string
+          opportunity_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempt_number?: number
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          message_sent?: string
+          opportunity_id?: string | null
+          rule_id?: string | null
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_follow_up_logs_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "crm_follow_up_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_follow_up_rules: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_product_id: string
+          delay_hours: number
+          id: string
+          is_active: boolean
+          max_attempts: number
+          message_template: string
+          name: string
+          target_stage: string | null
+          trigger_type: string
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          customer_product_id: string
+          delay_hours?: number
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          message_template: string
+          name: string
+          target_stage?: string | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_product_id?: string
+          delay_hours?: number
+          id?: string
+          is_active?: boolean
+          max_attempts?: number
+          message_template?: string
+          name?: string
+          target_stage?: string | null
+          trigger_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_message_templates: {
         Row: {
           content: string
