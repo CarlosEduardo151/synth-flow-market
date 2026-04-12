@@ -481,6 +481,9 @@ const CRMSystem = () => {
               />
             </TabsContent>
 
+            <TabsContent value="follow-up" className="space-y-4">
+              {customerProductId && <CRMFollowUpTab customerProductId={customerProductId} />}
+            </TabsContent>
 
             <TabsContent value="whatsapp" className="space-y-4">
               {customerProductId && <CRMWhatsAppTab customerProductId={customerProductId} />}
