@@ -94,7 +94,7 @@ serve(async (req) => {
       .eq("customer_product_id", customer_product_id)
       .maybeSingle();
 
-    const visionModel = aiConfig?.vision_model || "llama-4-scout";
+    const visionModel = aiConfig?.vision_model || "meta-llama/llama-4-scout-17b-16e-instruct";
 
     // Step 1: Vision Analysis
     const visionMessages: any[] = [
