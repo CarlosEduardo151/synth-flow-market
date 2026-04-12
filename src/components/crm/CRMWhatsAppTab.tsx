@@ -223,7 +223,7 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
 
            <CRMWhatsAppActivityLog customerProductId={customerProductId} />
 
-          <WhatsAppMemoryChat customerProductId={customerProductId} />
+          
         </>
       )}
 

@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +27,7 @@ import { CRMAIPendingActions } from '@/components/crm/CRMAIPendingActions';
 import { CRMAIReports } from '@/components/crm/CRMAIReports';
 import { CRMWhatsAppTab } from '@/components/crm/CRMWhatsAppTab';
 
+import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { useProductAccess } from '@/hooks/useProductAccess';
 
 interface CRMCustomer {
@@ -79,7 +80,7 @@ const CRMSystem = () => {
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
       { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
       { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-      
+      { value: 'memoria', label: 'Memória IA', icon: Brain },
       { value: 'motor-ia', label: 'Motor IA', icon: Settings },
       { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
@@ -486,6 +487,10 @@ const CRMSystem = () => {
 
             <TabsContent value="whatsapp" className="space-y-4">
               {customerProductId && <CRMWhatsAppTab customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="memoria" className="space-y-4">
+              {customerProductId && <CRMMemoryTab customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="motor-ia" className="space-y-4">
