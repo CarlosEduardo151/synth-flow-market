@@ -18,7 +18,10 @@ interface CRMAIEngineProps {
 const NOVALINK_MODELS = [
   { value: "llama-3.3-70b-versatile", label: "Nova 3.3 Flash (Recomendado)", category: "Chat (Ultra-Rápido)" },
   { value: "qwen-3-32b", label: "Nova 2.0 Ultra", category: "Chat (Ultra-Rápido)" },
-  { value: "gpt-oss-20b", label: "Nova 1.8 Pro", category: "Ferramentas (Precisão)" },
+  { value: "meta-llama/llama-4-scout-17b-16e-instruct", label: "Nova Scout 4.0", category: "Chat (Ultra-Rápido)" },
+  { value: "meta-llama/llama-4-maverick-17b-128e-instruct", label: "Nova Maverick 4.0", category: "Chat (Ultra-Rápido)" },
+  { value: "compound-beta", label: "Nova Compound Beta", category: "Ferramentas (Precisão)" },
+  { value: "compound-beta-mini", label: "Nova Compound Mini", category: "Ferramentas (Precisão)" },
 ];
 
 export function CRMAIEngine({ customerProductId }: CRMAIEngineProps) {
