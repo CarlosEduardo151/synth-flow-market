@@ -1,14 +1,12 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
   Smartphone, Zap, QrCode, Wifi, WifiOff,
-  ArrowDownLeft, ArrowUpRight, Activity, UserPlus,
-  Brain, Send, Sparkles
+  ArrowDownLeft, ArrowUpRight, Activity, UserPlus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -223,7 +221,7 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
 
            <CRMWhatsAppActivityLog customerProductId={customerProductId} />
 
-          <WhatsAppMemoryChat customerProductId={customerProductId} />
+          
         </>
       )}
 
@@ -484,122 +482,3 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
   );
 }
 
-/* ── Componente de Memória IA integrado ao WhatsApp ── */
-interface MemoryChatMessage {
-  role: "user" | "assistant";
-  content: string;
-  memoriesUsed?: number;
-}
-
-function WhatsAppMemoryChat({ customerProductId }: { customerProductId: string }) {
-  const [chatMessages, setChatMessages] = useState<MemoryChatMessage[]>([]);
-  const [question, setQuestion] = useState("");
-  const [querying, setQuerying] = useState(false);
-  const [memoryCount, setMemoryCount] = useState(0);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
-
-  useEffect(() => {
-    supabase.functions.invoke("crm-memory", {
-      body: { action: "list", customerProductId },
-    }).then(({ data }) => {
-      setMemoryCount(data?.memories?.length || 0);
-    });
-  }, [customerProductId]);
-
-  const handleQuery = async () => {
-    if (!question.trim() || querying) return;
-    const userMsg: MemoryChatMessage = { role: "user", content: question };
-    setChatMessages((prev) => [...prev, userMsg]);
-    setQuestion("");
-    setQuerying(true);
-
-    try {
-      const { data, error } = await supabase.functions.invoke("crm-memory", {
-        body: { action: "query", customerProductId, question: userMsg.content },
-      });
-      if (error) throw error;
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.answer, memoriesUsed: data.memories_used },
-      ]);
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "Erro ao consultar memória. Tente novamente." },
-      ]);
-    } finally {
-      setQuerying(false);
-    }
-  };
-
-  return (
-    <div className="mt-6 space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Brain className="h-5 w-5 text-primary" />
-          <h3 className="font-semibold text-sm">Memória IA do WhatsApp</h3>
-        </div>
-        <Badge variant="outline" className="gap-1 text-xs">
-          <Sparkles className="h-3 w-3" />
-          {memoryCount} memórias
-        </Badge>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Pergunte sobre qualquer cliente — a IA busca todo o histórico de conversas do WhatsApp.
-      </p>
-
-      <div className="min-h-[150px] max-h-[300px] overflow-y-auto space-y-2 p-3 rounded-lg bg-muted/30 border">
-        {chatMessages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-[130px] text-muted-foreground text-xs gap-1">
-            <Brain className="h-6 w-6 opacity-40" />
-            <p>Pergunte algo como:</p>
-            <p className="italic">"O que o João conversou ontem?"</p>
-            <p className="italic">"Quais clientes demonstraram interesse?"</p>
-          </div>
-        )}
-        {chatMessages.map((msg, i) => (
-          <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-                msg.role === "user"
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-background border shadow-sm"
-              }`}
-            >
-              <p className="whitespace-pre-wrap">{msg.content}</p>
-              {msg.memoriesUsed !== undefined && msg.memoriesUsed > 0 && (
-                <p className="text-xs mt-1 opacity-60">{msg.memoriesUsed} memórias consultadas</p>
-              )}
-            </div>
-          </div>
-        ))}
-        {querying && (
-          <div className="flex justify-start">
-            <div className="bg-background border rounded-lg px-3 py-2 shadow-sm">
-              <Loader2 className="h-4 w-4 animate-spin text-primary" />
-            </div>
-          </div>
-        )}
-        <div ref={chatEndRef} />
-      </div>
-
-      <div className="flex gap-2">
-        <Input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleQuery()}
-          placeholder="Pergunte sobre um cliente..."
-          disabled={querying}
-          className="text-sm"
-        />
-        <Button onClick={handleQuery} disabled={querying || !question.trim()} size="icon">
-          <Send className="h-4 w-4" />
-        </Button>
-      </div>
-    </div>
-  );
-}
