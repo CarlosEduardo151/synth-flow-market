@@ -276,118 +276,189 @@ export function CRMFollowUpTab({ customerProductId }: CRMFollowUpTabProps) {
                 Nova Regra
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editingRule ? "Editar Regra" : "Nova Regra de Follow-Up"}</DialogTitle>
+            <DialogContent className="max-w-2xl w-[95vw]">
+              <DialogHeader className="pb-4 border-b border-border/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-primary/10">
+                    <Timer className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-lg">{editingRule ? "Editar Regra" : "Nova Regra de Follow-Up"}</DialogTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      {editingRule ? "Altere as configurações da regra existente" : "Configure uma nova automação de acompanhamento"}
+                    </p>
+                  </div>
+                </div>
               </DialogHeader>
-              <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                <div className="space-y-2">
-                  <Label>Nome da Regra *</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Ex: Lembrete 24h sem resposta"
-                  />
-                </div>
 
-                <div className="space-y-2">
-                  <Label>Tipo de Gatilho</Label>
-                  <Select value={form.trigger_type} onValueChange={(v) => setForm({ ...form, trigger_type: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {triggerTypes.map((t) => (
-                        <SelectItem key={t.value} value={t.value}>
-                          <div className="flex items-center gap-2">
-                            <t.icon className="h-3.5 w-3.5" />
-                            {t.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    {getTriggerInfo(form.trigger_type).description}
-                  </p>
-                </div>
-
-                {(form.trigger_type === "oportunidade_parada") && (
+              <div className="space-y-6 max-h-[65vh] overflow-y-auto pr-2 py-2">
+                {/* Informações Básicas */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                    Informações Básicas
+                  </h3>
                   <div className="space-y-2">
-                    <Label>Estágio Alvo (opcional)</Label>
-                    <Select value={form.target_stage} onValueChange={(v) => setForm({ ...form, target_stage: v })}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Qualquer estágio" />
+                    <Label>Nome da Regra *</Label>
+                    <Input
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="Ex: Lembrete 24h sem resposta"
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+
+                {/* Gatilho */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Zap className="h-3.5 w-3.5 text-muted-foreground" />
+                    Configuração do Gatilho
+                  </h3>
+                  <div className="space-y-2">
+                    <Label>Tipo de Gatilho</Label>
+                    <Select value={form.trigger_type} onValueChange={(v) => setForm({ ...form, trigger_type: v })}>
+                      <SelectTrigger className="h-11">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Qualquer estágio</SelectItem>
-                        {stages.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        {triggerTypes.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>
+                            <div className="flex items-center gap-2">
+                              <t.icon className="h-3.5 w-3.5" />
+                              {t.label}
+                            </div>
+                          </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border border-border/50">
+                      <AlertTriangle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        {getTriggerInfo(form.trigger_type).description}
+                      </p>
+                    </div>
                   </div>
-                )}
 
-                <div className="grid grid-cols-2 gap-4">
+                  {(form.trigger_type === "oportunidade_parada") && (
+                    <div className="space-y-2">
+                      <Label>Estágio Alvo (opcional)</Label>
+                      <Select value={form.target_stage} onValueChange={(v) => setForm({ ...form, target_stage: v })}>
+                        <SelectTrigger className="h-11">
+                          <SelectValue placeholder="Qualquer estágio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">Qualquer estágio</SelectItem>
+                          {stages.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Tempo de Espera</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={720}
+                          value={form.delay_hours}
+                          onChange={(e) => setForm({ ...form, delay_hours: parseInt(e.target.value) || 24 })}
+                          className="h-11 pr-16"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          horas
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {form.delay_hours >= 24 ? `${Math.floor(form.delay_hours / 24)} dia(s) e ${form.delay_hours % 24}h` : `${form.delay_hours} hora(s)`}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Máx. Tentativas</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={form.max_attempts}
+                        onChange={(e) => setForm({ ...form, max_attempts: parseInt(e.target.value) || 3 })}
+                        className="h-11"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Envios antes de parar
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mensagem */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <MessageCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    Mensagem
+                  </h3>
                   <div className="space-y-2">
-                    <Label>Espera (horas)</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={720}
-                      value={form.delay_hours}
-                      onChange={(e) => setForm({ ...form, delay_hours: parseInt(e.target.value) || 24 })}
+                    <Label>Template da Mensagem *</Label>
+                    <Textarea
+                      value={form.message_template}
+                      onChange={(e) => setForm({ ...form, message_template: e.target.value })}
+                      placeholder={`Olá {{nome}}, tudo bem?\n\nNotei que ainda não tivemos retorno sobre {{assunto}}.\n\nPosso ajudar em algo?`}
+                      rows={6}
+                      className="resize-none"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {form.delay_hours >= 24 ? `${Math.floor(form.delay_hours / 24)} dia(s)` : `${form.delay_hours}h`}
-                    </p>
+                    <div className="flex flex-wrap gap-1.5 mt-1">
+                      {["{{nome}}", "{{empresa}}", "{{assunto}}", "{{dias}}"].map((v) => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setForm({ ...form, message_template: form.message_template + v })}
+                          className="px-2 py-0.5 text-xs rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/20 cursor-pointer"
+                        >
+                          {v}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Máx. Tentativas</Label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10}
-                      value={form.max_attempts}
-                      onChange={(e) => setForm({ ...form, max_attempts: parseInt(e.target.value) || 3 })}
+                </div>
+
+                {/* Canal & Status */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
+                    Canal e Status
+                  </h3>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-green-500/5 border border-green-500/20">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-green-600" />
+                      <span className="text-sm font-medium text-foreground">WhatsApp</span>
+                    </div>
+                    <Badge variant="outline" className="text-green-700 border-green-500/30 bg-green-500/10 text-xs">
+                      Conectado
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg border border-border/50">
+                    <div>
+                      <Label className="text-sm">Ativar regra imediatamente</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">A regra começará a funcionar assim que for salva</p>
+                    </div>
+                    <Switch
+                      checked={form.is_active}
+                      onCheckedChange={(v) => setForm({ ...form, is_active: v })}
                     />
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Template da Mensagem *</Label>
-                  <Textarea
-                    value={form.message_template}
-                    onChange={(e) => setForm({ ...form, message_template: e.target.value })}
-                    placeholder={`Olá {{nome}}, tudo bem?\n\nNotei que ainda não tivemos retorno sobre {{assunto}}.\n\nPosso ajudar em algo?`}
-                    rows={5}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Variáveis disponíveis: {"{{nome}}"}, {"{{empresa}}"}, {"{{assunto}}"}, {"{{dias}}"}
-                  </p>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label>Canal de Envio</Label>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-green-600" />
-                    <span className="text-sm font-medium">WhatsApp</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Label>Ativar regra</Label>
-                  <Switch
-                    checked={form.is_active}
-                    onCheckedChange={(v) => setForm({ ...form, is_active: v })}
-                  />
                 </div>
               </div>
 
-              <DialogFooter>
-                <Button onClick={handleSaveRule} disabled={saving || !form.name || !form.message_template}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+              <DialogFooter className="pt-4 border-t border-border/50 gap-2 sm:gap-0">
+                <Button variant="outline" onClick={() => { setFormOpen(false); setEditingRule(null); setForm(emptyForm); }}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveRule} disabled={saving || !form.name || !form.message_template} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                   {editingRule ? "Salvar Alterações" : "Criar Regra"}
                 </Button>
               </DialogFooter>
