@@ -76,7 +76,6 @@ serve(async (req) => {
       throw new Error("fal_generation_timeout");
     }
 
-    // Action: generate-art — gera imagem via fal.ai com prompt existente
     if (action === "generate-art") {
       if (!prompt) return corsResponse({ error: "prompt required" }, 400, origin);
 
@@ -100,7 +99,6 @@ serve(async (req) => {
       }, 200, origin);
     }
 
-    // Default action: analyze product photo
     if (!customer_product_id) {
       return corsResponse({ error: "customer_product_id required" }, 400, origin);
     }
@@ -118,7 +116,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // Load AI config
     const { data: aiConfig } = await service
       .from("micro_biz_ai_config")
       .select("*")
@@ -127,7 +124,6 @@ serve(async (req) => {
 
     const visionModel = aiConfig?.vision_model || "meta-llama/llama-4-scout-17b-16e-instruct";
 
-    // Step 1: Vision Analysis
     const visionMessages: any[] = [
       {
         role: "system",
@@ -179,7 +175,6 @@ Responda APENAS o JSON, sem markdown.`,
       visionAnalysis = { raw_response: visionText };
     }
 
-    // Step 2: Generate creative prompt + 3 copy options
     const creativeModel = aiConfig?.creative_model || "llama-3.3-70b-versatile";
     const businessName = aiConfig?.business_name || "Micro Empresa";
 
@@ -219,7 +214,6 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
-    // Step 3: Generate art via fal.ai if key is available
     let generatedImageUrl = "";
     if (falKey && creativeData.art_prompt) {
       try {
@@ -230,7 +224,6 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       }
     }
 
-    // Step 4: Save to database
     if (product_id) {
       await service
         .from("micro_biz_products")
@@ -244,7 +237,6 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
         .eq("id", product_id);
     }
 
-    // Save creative draft
     const { data: creative } = await service
       .from("micro_biz_creatives")
       .insert({
