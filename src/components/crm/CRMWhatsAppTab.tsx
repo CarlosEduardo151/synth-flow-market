@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
   Smartphone, Zap, QrCode, Wifi, WifiOff,
-  ArrowDownLeft, ArrowUpRight, Activity
+  ArrowDownLeft, ArrowUpRight, Activity, UserPlus
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -318,6 +318,8 @@ interface LogEntry {
 function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: string }) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const { toast } = useToast();
 
   const fetchLogs = useCallback(async () => {
     setLoading(true);
@@ -332,6 +334,76 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [customerProductId]);
+
+  const syncLeadsToCRM = useCallback(async () => {
+    setSyncing(true);
+    try {
+      // Get unique inbound contacts from logs
+      const inboundLogs = logs.filter(l => l.direction === 'inbound' && l.phone);
+      const contactMap = new Map<string, { phone: string; name: string; lastMessage: string; lastDate: string }>();
+
+      for (const log of inboundLogs) {
+        const phone = log.phone!;
+        if (!contactMap.has(phone)) {
+          contactMap.set(phone, {
+            phone,
+            name: log.model || phone, // model stores senderName/pushName
+            lastMessage: log.message_text,
+            lastDate: log.created_at,
+          });
+        }
+      }
+
+      if (contactMap.size === 0) {
+        toast({ title: 'Nenhum contato para sincronizar', description: 'Não há mensagens recebidas com telefone válido.', variant: 'destructive' });
+        setSyncing(false);
+        return;
+      }
+
+      // Check which phones already exist in crm_customers
+      const phones = Array.from(contactMap.keys());
+      const { data: existing } = await (supabase as any)
+        .from('crm_customers')
+        .select('phone')
+        .eq('customer_product_id', customerProductId)
+        .in('phone', phones);
+
+      const existingPhones = new Set((existing || []).map((e: any) => e.phone));
+      const newContacts = Array.from(contactMap.values()).filter(c => !existingPhones.has(c.phone));
+
+      if (newContacts.length === 0) {
+        toast({ title: 'Todos os contatos já estão no CRM', description: `${existingPhones.size} contato(s) já cadastrado(s).` });
+        setSyncing(false);
+        return;
+      }
+
+      // Insert new contacts as leads
+      const toInsert = newContacts.map(c => ({
+        customer_product_id: customerProductId,
+        name: c.name,
+        phone: c.phone,
+        status: 'lead',
+        source: 'whatsapp',
+        last_contact_date: c.lastDate,
+        notes: `Última mensagem: ${c.lastMessage.substring(0, 200)}`,
+      }));
+
+      const { error } = await (supabase as any)
+        .from('crm_customers')
+        .insert(toInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: `✅ ${newContacts.length} lead(s) adicionado(s)!`,
+        description: `${existingPhones.size} já existiam. ${newContacts.length} novos cadastrados como Lead.`,
+      });
+    } catch (e: any) {
+      toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  }, [logs, customerProductId, toast]);
 
   useEffect(() => {
     fetchLogs();
@@ -383,6 +455,10 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] text-muted-foreground">LIVE</span>
             </div>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={syncLeadsToCRM} disabled={syncing || logs.length === 0}>
+              {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+              Sincronizar Leads
+            </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={fetchLogs} disabled={loading}>
               <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
