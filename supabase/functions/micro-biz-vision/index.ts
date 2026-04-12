@@ -5,30 +5,23 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { getCorsHeaders, handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
+import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
-    const { customer_product_id, product_id, image_url, image_base64, mime_type, action } = await req.json();
+    const body = await req.json();
+    const { customer_product_id, product_id, image_url, image_base64, mime_type, action, prompt, creative_id } = body;
 
-    // Action: generate-art — gera imagem via fal.ai com prompt existente
-    if (action === "generate-art") {
+    async function generateFalImage(artPrompt: string) {
       const falKey = Deno.env.get("FAL_AI_API_KEY") || "";
-      if (!falKey) return corsResponse({ error: "FAL_AI_API_KEY not configured" }, 500, origin);
+      if (!falKey) {
+        throw new Error("FAL_AI_API_KEY not configured");
+      }
 
-      const { prompt, creative_id } = await Promise.resolve({ prompt: arguments[0], creative_id: arguments[1] }).catch(() => ({ prompt: "", creative_id: "" }));
-      // Re-parse body for generate-art
-      const body = JSON.parse(await req.clone().text().catch(() => "{}"));
-      const artPrompt = body.prompt;
-      const artCreativeId = body.creative_id;
-
-      if (!artPrompt) return corsResponse({ error: "prompt required" }, 400, origin);
-
-      // Call fal.ai FLUX.1 schnell (fast)
-      const falResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
+      const submitResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -42,16 +35,54 @@ serve(async (req) => {
         }),
       });
 
-      const falData = await falResp.json();
-      if (!falResp.ok) {
-        console.error("fal.ai error:", falData);
-        return corsResponse({ error: "fal_ai_generation_failed", details: falData }, 500, origin);
+      const submitData = await submitResp.json();
+      if (!submitResp.ok) {
+        throw new Error(`fal_submit_failed:${JSON.stringify(submitData)}`);
       }
 
-      const generatedImageUrl = falData?.images?.[0]?.url || "";
+      const statusUrl = submitData?.status_url;
+      if (!statusUrl) {
+        throw new Error(`fal_missing_status_url:${JSON.stringify(submitData)}`);
+      }
 
-      // Update creative with generated image
-      if (artCreativeId) {
+      for (let i = 0; i < 20; i++) {
+        const statusResp = await fetch(statusUrl, {
+          headers: {
+            "Authorization": `Key ${falKey}`,
+          },
+        });
+
+        const statusData = await statusResp.json();
+        if (!statusResp.ok) {
+          throw new Error(`fal_status_failed:${JSON.stringify(statusData)}`);
+        }
+
+        const imageUrl = statusData?.response?.images?.[0]?.url || statusData?.images?.[0]?.url || "";
+        if (imageUrl) {
+          return { imageUrl, raw: statusData };
+        }
+
+        const status = statusData?.status;
+        if (status === "COMPLETED" && !imageUrl) {
+          throw new Error(`fal_completed_without_image:${JSON.stringify(statusData)}`);
+        }
+        if (status === "FAILED") {
+          throw new Error(`fal_generation_failed:${JSON.stringify(statusData)}`);
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+
+      throw new Error("fal_generation_timeout");
+    }
+
+    // Action: generate-art — gera imagem via fal.ai com prompt existente
+    if (action === "generate-art") {
+      if (!prompt) return corsResponse({ error: "prompt required" }, 400, origin);
+
+      const { imageUrl: generatedImageUrl, raw } = await generateFalImage(prompt);
+
+      if (creative_id) {
         const service = createClient(
           Deno.env.get("SUPABASE_URL") ?? "",
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -59,13 +90,13 @@ serve(async (req) => {
         await service
           .from("micro_biz_creatives")
           .update({ image_url: generatedImageUrl, status: "ready" })
-          .eq("id", artCreativeId);
+          .eq("id", creative_id);
       }
 
       return corsResponse({
         success: true,
         image_url: generatedImageUrl,
-        raw: falData,
+        raw,
       }, 200, origin);
     }
 
@@ -192,26 +223,8 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
     let generatedImageUrl = "";
     if (falKey && creativeData.art_prompt) {
       try {
-        const falResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Key ${falKey}`,
-          },
-          body: JSON.stringify({
-            prompt: creativeData.art_prompt,
-            image_size: "landscape_16_9",
-            num_images: 1,
-            enable_safety_checker: true,
-          }),
-        });
-
-        const falData = await falResp.json();
-        if (falResp.ok && falData?.images?.[0]?.url) {
-          generatedImageUrl = falData.images[0].url;
-        } else {
-          console.error("fal.ai generation error:", falData);
-        }
+        const result = await generateFalImage(creativeData.art_prompt);
+        generatedImageUrl = result.imageUrl;
       } catch (falErr) {
         console.error("fal.ai call failed:", falErr);
       }
