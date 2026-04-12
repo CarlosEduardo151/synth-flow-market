@@ -1,7 +1,7 @@
 /**
  * MICRO-BIZ VISION ENGINE
  * Analisa fotos de produtos via IA (Groq Vision) e gera descrições + prompts criativos.
- * Fluxo: Foto → Vision Analysis → AI Description → Creative Prompt + Copy Options
+ * Gera arte publicitária real via fal.ai FLUX.1.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -12,8 +12,64 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
-    const { customer_product_id, product_id, image_url, image_base64, mime_type } = await req.json();
+    const { customer_product_id, product_id, image_url, image_base64, mime_type, action } = await req.json();
 
+    // Action: generate-art — gera imagem via fal.ai com prompt existente
+    if (action === "generate-art") {
+      const falKey = Deno.env.get("FAL_AI_API_KEY") || "";
+      if (!falKey) return corsResponse({ error: "FAL_AI_API_KEY not configured" }, 500, origin);
+
+      const { prompt, creative_id } = await Promise.resolve({ prompt: arguments[0], creative_id: arguments[1] }).catch(() => ({ prompt: "", creative_id: "" }));
+      // Re-parse body for generate-art
+      const body = JSON.parse(await req.clone().text().catch(() => "{}"));
+      const artPrompt = body.prompt;
+      const artCreativeId = body.creative_id;
+
+      if (!artPrompt) return corsResponse({ error: "prompt required" }, 400, origin);
+
+      // Call fal.ai FLUX.1 schnell (fast)
+      const falResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Key ${falKey}`,
+        },
+        body: JSON.stringify({
+          prompt: artPrompt,
+          image_size: "landscape_16_9",
+          num_images: 1,
+          enable_safety_checker: true,
+        }),
+      });
+
+      const falData = await falResp.json();
+      if (!falResp.ok) {
+        console.error("fal.ai error:", falData);
+        return corsResponse({ error: "fal_ai_generation_failed", details: falData }, 500, origin);
+      }
+
+      const generatedImageUrl = falData?.images?.[0]?.url || "";
+
+      // Update creative with generated image
+      if (artCreativeId) {
+        const service = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        );
+        await service
+          .from("micro_biz_creatives")
+          .update({ image_url: generatedImageUrl, status: "ready" })
+          .eq("id", artCreativeId);
+      }
+
+      return corsResponse({
+        success: true,
+        image_url: generatedImageUrl,
+        raw: falData,
+      }, 200, origin);
+    }
+
+    // Default action: analyze product photo
     if (!customer_product_id) {
       return corsResponse({ error: "customer_product_id required" }, 400, origin);
     }
@@ -23,6 +79,8 @@ serve(async (req) => {
 
     const groqKey = Deno.env.get("GROQ_API_KEY") || "";
     if (!groqKey) return corsResponse({ error: "GROQ_API_KEY not configured" }, 500, origin);
+
+    const falKey = Deno.env.get("FAL_AI_API_KEY") || "";
 
     const service = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -38,7 +96,7 @@ serve(async (req) => {
 
     const visionModel = aiConfig?.vision_model || "llama-4-scout";
 
-    // Step 1: Vision Analysis — describe the product
+    // Step 1: Vision Analysis
     const visionMessages: any[] = [
       {
         role: "system",
@@ -130,7 +188,36 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
-    // Step 3: Save to database
+    // Step 3: Generate art via fal.ai if key is available
+    let generatedImageUrl = "";
+    if (falKey && creativeData.art_prompt) {
+      try {
+        const falResp = await fetch("https://queue.fal.run/fal-ai/flux/schnell", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Key ${falKey}`,
+          },
+          body: JSON.stringify({
+            prompt: creativeData.art_prompt,
+            image_size: "landscape_16_9",
+            num_images: 1,
+            enable_safety_checker: true,
+          }),
+        });
+
+        const falData = await falResp.json();
+        if (falResp.ok && falData?.images?.[0]?.url) {
+          generatedImageUrl = falData.images[0].url;
+        } else {
+          console.error("fal.ai generation error:", falData);
+        }
+      } catch (falErr) {
+        console.error("fal.ai call failed:", falErr);
+      }
+    }
+
+    // Step 4: Save to database
     if (product_id) {
       await service
         .from("micro_biz_products")
@@ -152,7 +239,8 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
         product_id: product_id || null,
         prompt_used: creativeData.art_prompt || "",
         copy_options: creativeData.copies || [],
-        status: "draft",
+        image_url: generatedImageUrl || null,
+        status: generatedImageUrl ? "ready" : "draft",
       })
       .select("id")
       .single();
@@ -162,6 +250,7 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       vision_analysis: visionAnalysis,
       creative: creativeData,
       creative_id: creative?.id,
+      generated_image_url: generatedImageUrl,
     }, 200, origin);
   } catch (e) {
     console.error("micro-biz-vision error:", e);
