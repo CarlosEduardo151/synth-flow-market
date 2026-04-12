@@ -35,18 +35,20 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         body: { action: 'status', context: 'crm' },
       });
       if (error) throw error;
-      if (data?.connected) {
+      const state = data?.state || '';
+      const connected = data?.connected === true || state === 'open';
+      if (connected) {
         setIsConnected(true);
         setQrCode(null);
         setInstanceName(data.instanceName || null);
-      } else if (data?.state === 'close' && instanceName) {
+      } else {
         setIsConnected(false);
       }
-      return data;
+      return { ...data, connected };
     } catch {
       return null;
     }
-  }, [instanceName]);
+  }, []);
 
   useEffect(() => {
     checkStatus().finally(() => setInitialLoading(false));
