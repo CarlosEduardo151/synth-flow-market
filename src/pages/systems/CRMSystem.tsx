@@ -78,11 +78,11 @@ const CRMSystem = () => {
       { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { value: 'clientes', label: 'Clientes', icon: Users },
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
-      { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
+      
       { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
       { value: 'memoria', label: 'Agente de IA', icon: Brain },
       { value: 'motor-ia', label: 'Motor IA', icon: Settings },
-      { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
+      
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
     ],
     []
@@ -481,9 +481,6 @@ const CRMSystem = () => {
               />
             </TabsContent>
 
-            <TabsContent value="mensagens" className="space-y-4">
-              {customerProductId && <CRMMessages customerProductId={customerProductId} />}
-            </TabsContent>
 
             <TabsContent value="whatsapp" className="space-y-4">
               {customerProductId && <CRMWhatsAppTab customerProductId={customerProductId} />}
@@ -497,9 +494,6 @@ const CRMSystem = () => {
               {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
             </TabsContent>
 
-            <TabsContent value="ai-actions" className="space-y-4">
-              <CRMAIPendingActions />
-            </TabsContent>
 
             <TabsContent value="ai-reports" className="space-y-4">
               <CRMAIReports customerProductId={customerProductId} />
