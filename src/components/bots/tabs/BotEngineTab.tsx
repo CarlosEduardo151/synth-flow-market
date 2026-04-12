@@ -176,10 +176,13 @@ export function BotEngineTab({
                       <SelectLabel className="bg-muted/50">💬 Chat (Ultra-Rápido)</SelectLabel>
                       <SelectItem value="llama-3.3-70b-versatile">⭐ Nova 3.3 Flash (Recomendado)</SelectItem>
                       <SelectItem value="qwen-3-32b">Nova 2.0 Ultra</SelectItem>
+                      <SelectItem value="meta-llama/llama-4-scout-17b-16e-instruct">Nova Scout 4.0</SelectItem>
+                      <SelectItem value="meta-llama/llama-4-maverick-17b-128e-instruct">Nova Maverick 4.0</SelectItem>
                     </SelectGroup>
                     <SelectGroup>
                       <SelectLabel className="bg-muted/50">🛠️ Ferramentas (Precisão)</SelectLabel>
-                      <SelectItem value="gpt-oss-20b">Nova 1.8 Pro</SelectItem>
+                      <SelectItem value="compound-beta">Nova Compound Beta</SelectItem>
+                      <SelectItem value="compound-beta-mini">Nova Compound Mini</SelectItem>
                     </SelectGroup>
                   </>
                 ) : provider === 'openai' ? (
