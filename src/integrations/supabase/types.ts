@@ -2381,6 +2381,405 @@ export type Database = {
         }
         Relationships: []
       }
+      micro_biz_ai_config: {
+        Row: {
+          audio_model: string | null
+          auto_publish_ads: boolean | null
+          business_name: string | null
+          business_type: string | null
+          chat_model: string | null
+          created_at: string
+          creative_model: string | null
+          customer_product_id: string
+          default_budget_cents: number | null
+          id: string
+          max_tokens: number | null
+          system_prompt: string | null
+          target_audience_template: Json | null
+          temperature: number | null
+          updated_at: string
+          vision_model: string | null
+        }
+        Insert: {
+          audio_model?: string | null
+          auto_publish_ads?: boolean | null
+          business_name?: string | null
+          business_type?: string | null
+          chat_model?: string | null
+          created_at?: string
+          creative_model?: string | null
+          customer_product_id: string
+          default_budget_cents?: number | null
+          id?: string
+          max_tokens?: number | null
+          system_prompt?: string | null
+          target_audience_template?: Json | null
+          temperature?: number | null
+          updated_at?: string
+          vision_model?: string | null
+        }
+        Update: {
+          audio_model?: string | null
+          auto_publish_ads?: boolean | null
+          business_name?: string | null
+          business_type?: string | null
+          chat_model?: string | null
+          created_at?: string
+          creative_model?: string | null
+          customer_product_id?: string
+          default_budget_cents?: number | null
+          id?: string
+          max_tokens?: number | null
+          system_prompt?: string | null
+          target_audience_template?: Json | null
+          temperature?: number | null
+          updated_at?: string
+          vision_model?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_ai_config_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      micro_biz_campaigns: {
+        Row: {
+          budget_cents: number
+          clicks: number | null
+          conversions: number | null
+          created_at: string
+          creative_id: string | null
+          customer_product_id: string
+          duration_days: number
+          ended_at: string | null
+          id: string
+          impressions: number | null
+          meta_ad_id: string | null
+          meta_adset_id: string | null
+          meta_campaign_id: string | null
+          platform: string
+          spend_cents: number | null
+          started_at: string | null
+          status: string
+          target_audience: Json | null
+          updated_at: string
+        }
+        Insert: {
+          budget_cents?: number
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string
+          creative_id?: string | null
+          customer_product_id: string
+          duration_days?: number
+          ended_at?: string | null
+          id?: string
+          impressions?: number | null
+          meta_ad_id?: string | null
+          meta_adset_id?: string | null
+          meta_campaign_id?: string | null
+          platform?: string
+          spend_cents?: number | null
+          started_at?: string | null
+          status?: string
+          target_audience?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          budget_cents?: number
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string
+          creative_id?: string | null
+          customer_product_id?: string
+          duration_days?: number
+          ended_at?: string | null
+          id?: string
+          impressions?: number | null
+          meta_ad_id?: string | null
+          meta_adset_id?: string | null
+          meta_campaign_id?: string | null
+          platform?: string
+          spend_cents?: number | null
+          started_at?: string | null
+          status?: string
+          target_audience?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_campaigns_creative_id_fkey"
+            columns: ["creative_id"]
+            isOneToOne: false
+            referencedRelation: "micro_biz_creatives"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "micro_biz_campaigns_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      micro_biz_conversations: {
+        Row: {
+          ai_extracted_data: Json | null
+          created_at: string
+          customer_product_id: string
+          direction: string
+          id: string
+          lead_id: string | null
+          message_text: string | null
+          message_type: string
+          model_used: string | null
+          phone: string | null
+          processing_ms: number | null
+          tokens_used: number | null
+        }
+        Insert: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          customer_product_id: string
+          direction?: string
+          id?: string
+          lead_id?: string | null
+          message_text?: string | null
+          message_type?: string
+          model_used?: string | null
+          phone?: string | null
+          processing_ms?: number | null
+          tokens_used?: number | null
+        }
+        Update: {
+          ai_extracted_data?: Json | null
+          created_at?: string
+          customer_product_id?: string
+          direction?: string
+          id?: string
+          lead_id?: string | null
+          message_text?: string | null
+          message_type?: string
+          model_used?: string | null
+          phone?: string | null
+          processing_ms?: number | null
+          tokens_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_conversations_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "micro_biz_conversations_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "micro_biz_leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      micro_biz_creatives: {
+        Row: {
+          copy_options: Json | null
+          created_at: string
+          customer_product_id: string
+          flux_model_used: string | null
+          id: string
+          image_storage_path: string | null
+          image_url: string | null
+          product_id: string | null
+          prompt_used: string | null
+          selected_copy: string | null
+          status: string
+          style_preset: string | null
+          updated_at: string
+        }
+        Insert: {
+          copy_options?: Json | null
+          created_at?: string
+          customer_product_id: string
+          flux_model_used?: string | null
+          id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
+          product_id?: string | null
+          prompt_used?: string | null
+          selected_copy?: string | null
+          status?: string
+          style_preset?: string | null
+          updated_at?: string
+        }
+        Update: {
+          copy_options?: Json | null
+          created_at?: string
+          customer_product_id?: string
+          flux_model_used?: string | null
+          id?: string
+          image_storage_path?: string | null
+          image_url?: string | null
+          product_id?: string | null
+          prompt_used?: string | null
+          selected_copy?: string | null
+          status?: string
+          style_preset?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_creatives_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "micro_biz_creatives_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "micro_biz_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      micro_biz_leads: {
+        Row: {
+          company: string | null
+          converted_at: string | null
+          created_at: string
+          customer_product_id: string
+          email: string | null
+          id: string
+          interest: string | null
+          is_converted: boolean | null
+          last_contact_at: string | null
+          name: string | null
+          next_step: string | null
+          phone: string | null
+          purchase_intent_score: number | null
+          raw_conversation_summary: string | null
+          sentiment: string | null
+          source: string
+          tags: string[] | null
+          total_interactions: number | null
+          updated_at: string
+        }
+        Insert: {
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          customer_product_id: string
+          email?: string | null
+          id?: string
+          interest?: string | null
+          is_converted?: boolean | null
+          last_contact_at?: string | null
+          name?: string | null
+          next_step?: string | null
+          phone?: string | null
+          purchase_intent_score?: number | null
+          raw_conversation_summary?: string | null
+          sentiment?: string | null
+          source?: string
+          tags?: string[] | null
+          total_interactions?: number | null
+          updated_at?: string
+        }
+        Update: {
+          company?: string | null
+          converted_at?: string | null
+          created_at?: string
+          customer_product_id?: string
+          email?: string | null
+          id?: string
+          interest?: string | null
+          is_converted?: boolean | null
+          last_contact_at?: string | null
+          name?: string | null
+          next_step?: string | null
+          phone?: string | null
+          purchase_intent_score?: number | null
+          raw_conversation_summary?: string | null
+          sentiment?: string | null
+          source?: string
+          tags?: string[] | null
+          total_interactions?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_leads_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      micro_biz_products: {
+        Row: {
+          ai_description: Json | null
+          ai_vision_analysis: Json | null
+          category: string | null
+          created_at: string
+          customer_product_id: string
+          description: string | null
+          id: string
+          name: string
+          photo_storage_path: string | null
+          photo_url: string | null
+          price: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          ai_description?: Json | null
+          ai_vision_analysis?: Json | null
+          category?: string | null
+          created_at?: string
+          customer_product_id: string
+          description?: string | null
+          id?: string
+          name: string
+          photo_storage_path?: string | null
+          photo_url?: string | null
+          price?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          ai_description?: Json | null
+          ai_vision_analysis?: Json | null
+          category?: string | null
+          created_at?: string
+          customer_product_id?: string
+          description?: string | null
+          id?: string
+          name?: string
+          photo_storage_path?: string | null
+          photo_url?: string | null
+          price?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "micro_biz_products_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_items: {
         Row: {
           created_at: string
