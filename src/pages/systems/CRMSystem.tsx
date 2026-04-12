@@ -497,7 +497,7 @@ const CRMSystem = () => {
             </TabsContent>
 
             <TabsContent value="ai-reports" className="space-y-4">
-              <CRMAIReports />
+              <CRMAIReports customerProductId={customerProductId} />
             </TabsContent>
 
             <TabsContent value="memoria" className="space-y-4">
