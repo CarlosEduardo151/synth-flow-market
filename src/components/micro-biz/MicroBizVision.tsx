@@ -157,6 +157,11 @@ export function MicroBizVision({ customerProductId }: Props) {
               <p className="text-xs text-muted-foreground font-mono">Vision IA analisando produto + gerando arte...</p>
             </div>
           )}
+
+          {/* Art Style Selector */}
+          <div className="pt-2 border-t">
+            <ArtStyleSelector value={artStyle} onChange={setArtStyle} />
+          </div>
         </CardContent>
       </Card>
 

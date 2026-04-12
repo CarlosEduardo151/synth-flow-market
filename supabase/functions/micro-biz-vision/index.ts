@@ -44,7 +44,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { customer_product_id, product_id, image_url, image_base64, mime_type, action, prompt, creative_id } = body;
+    const { customer_product_id, product_id, image_url, image_base64, mime_type, action, prompt, creative_id, style_prompt } = body;
 
     // Action: generate-art — gera imagem com prompt existente
     if (action === "generate-art") {
