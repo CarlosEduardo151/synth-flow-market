@@ -667,6 +667,54 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_customers: {
+        Row: {
+          business_type: string | null
+          company: string | null
+          created_at: string
+          customer_product_id: string
+          email: string | null
+          id: string
+          last_contact_date: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string
+          customer_product_id: string
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          business_type?: string | null
+          company?: string | null
+          created_at?: string
+          customer_product_id?: string
+          email?: string | null
+          id?: string
+          last_contact_date?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_message_templates: {
         Row: {
           content: string
