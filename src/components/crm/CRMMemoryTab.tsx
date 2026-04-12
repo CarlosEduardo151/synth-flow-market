@@ -315,21 +315,21 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
       </div>
 
       {/* Main Content - Two columns */}
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid gap-6 lg:grid-cols-2">
         {/* Left: Chat RAG */}
-        <div className="lg:col-span-2">
+        <div>
           <Card className="h-full flex flex-col">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-primary" />
-                <CardTitle className="text-sm font-semibold">Consulta Inteligente</CardTitle>
+                <Sparkles className="h-5 w-5 text-primary" />
+                <CardTitle className="text-base font-semibold">Consulta Inteligente</CardTitle>
               </div>
-              <CardDescription className="text-xs">
+              <CardDescription className="text-sm">
                 Pergunte sobre qualquer cliente — a IA busca no histórico do WhatsApp
               </CardDescription>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
-              <div className="flex-1 min-h-[300px] max-h-[500px] overflow-y-auto mb-3 space-y-2 p-3 rounded-lg bg-muted/30 border">
+              <div className="flex-1 min-h-[400px] max-h-[600px] overflow-y-auto mb-3 space-y-3 p-4 rounded-xl bg-muted/20">
                 {chatMessages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs gap-2 py-12">
                     <Brain className="h-10 w-10 opacity-30" />
@@ -389,7 +389,7 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
         </div>
 
         {/* Right: Memory List */}
-        <div className="lg:col-span-3 space-y-4">
+        <div className="space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -426,8 +426,7 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
                   </p>
                 </div>
               ) : (
-                <ScrollArea className="max-h-[500px]">
-                  <div className="divide-y divide-border/40">
+                <div className="divide-y divide-border/40">
                     {filteredMemories.map((mem) => (
                       <div key={mem.id} className="px-4 py-3 hover:bg-muted/20 transition-colors">
                         <div className="flex items-start justify-between gap-3">
@@ -471,7 +470,6 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
                       </div>
                     ))}
                   </div>
-                </ScrollArea>
               )}
             </CardContent>
           </Card>
