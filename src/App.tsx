@@ -75,6 +75,7 @@ import HowBotWorksPage from "./pages/HowBotWorksPage";
 import AdminAbandonedCartsPage from "./pages/admin/AdminAbandonedCartsPage";
 import AdminCustomMessagesPage from "./pages/admin/AdminCustomMessagesPage";
 import SniperHFTSystem from "./pages/systems/SniperHFTSystem";
+import MicroBusinessSystem from "./pages/systems/MicroBusinessSystem";
 
 import AdminEnginesPage from "./pages/admin/AdminEnginesPage";
 import AdminWorkshopReviewPage from "./pages/admin/AdminWorkshopReviewPage";
@@ -152,6 +153,7 @@ const App = () => (
               <Route path="/systems/SniperHFTSystem" element={<SystemThemeWrapper><SniperHFTSystem /></SystemThemeWrapper>} />
               <Route path="/sistema/gestao-frotas-oficinas" element={<SystemThemeWrapper><GestaoFrotasOficinasSystem /></SystemThemeWrapper>} />
               <Route path="/sistema/gestao-frotas-oficinas/onboarding" element={<SystemThemeWrapper><FleetOnboardingPage /></SystemThemeWrapper>} />
+              <Route path="/sistema/micro-business-suite" element={<SystemThemeWrapper><MicroBusinessSystem /></SystemThemeWrapper>} />
 
               {/* rotas do admin */}
               <Route path="/admin" element={<AdminDashboard />} />
