@@ -1,30 +1,27 @@
 /**
  * MICRO-BIZ VISION ENGINE
- * Analisa fotos via Groq Vision → gera copies → gera arte via Lovable AI Gateway (Gemini Image).
+ * Analisa fotos via Groq Vision → gera copies → gera arte via OpenAI DALL-E 3.
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
 async function generateImage(prompt: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const resp = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash-image",
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      modalities: ["image", "text"],
+      model: "dall-e-3",
+      prompt: prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "standard",
     }),
   });
 
@@ -32,11 +29,11 @@ async function generateImage(prompt: string): Promise<string> {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
     if (resp.status === 402) throw new Error("credits_exhausted");
-    throw new Error(`image_gen_failed[${resp.status}]:${errText}`);
+    throw new Error(`dalle3_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  const imageUrl = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url || "";
+  const imageUrl = data?.data?.[0]?.url || "";
   if (!imageUrl) throw new Error("no_image_in_response");
   return imageUrl;
 }
