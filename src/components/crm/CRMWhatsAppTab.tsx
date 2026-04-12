@@ -405,22 +405,22 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
           </div>
         ) : (
           <div className="border-t border-border/40">
-            <div className="grid grid-cols-[40px_1fr_100px_80px_80px_140px] gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 bg-muted/30">
+            <div className="grid grid-cols-[40px_1fr_120px_120px_140px] gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 bg-muted/30">
               <span></span>
               <span>Mensagem</span>
+              <span>Contato</span>
               <span>Telefone</span>
-              <span>Tokens</span>
-              <span>Tempo</span>
               <span className="text-right">Data</span>
             </div>
             <ScrollArea className="h-[400px]">
               <div className="divide-y divide-border/20">
                 {logs.map((l) => {
                   const isIn = l.direction === 'inbound';
+                  const senderName = l.model || '—';
                   return (
                     <div
                       key={l.id}
-                      className="grid grid-cols-[40px_1fr_100px_80px_80px_140px] gap-2 px-4 py-2.5 text-xs hover:bg-muted/20 transition-colors items-center"
+                      className="grid grid-cols-[40px_1fr_120px_120px_140px] gap-2 px-4 py-2.5 text-xs hover:bg-muted/20 transition-colors items-center"
                     >
                       <div className="flex justify-center">
                         {isIn
@@ -429,9 +429,8 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
                         }
                       </div>
                       <p className="truncate text-foreground">{l.message_text}</p>
+                      <span className="text-muted-foreground truncate">{senderName}</span>
                       <span className="text-muted-foreground font-mono text-[11px]">{maskPhone(l.phone)}</span>
-                      <span className="text-muted-foreground">{l.tokens_used ?? '—'}</span>
-                      <span className="text-muted-foreground">{l.processing_ms ? `${l.processing_ms}ms` : '—'}</span>
                       <span className="text-muted-foreground text-right text-[11px]">{fmtTime(l.created_at)}</span>
                     </div>
                   );
