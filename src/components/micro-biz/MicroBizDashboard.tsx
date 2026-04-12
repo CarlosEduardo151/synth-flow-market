@@ -3,37 +3,17 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Users, TrendingUp, Target, Megaphone, Clock, Zap,
-  Activity
+  Users, TrendingUp, Target, Megaphone, Activity, AlertCircle
 } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Area, AreaChart
+  ResponsiveContainer, Area, AreaChart, XAxis, YAxis, CartesianGrid, Tooltip
 } from "recharts";
-import { useState, useEffect, useRef } from "react";
 
 interface Props {
   customerProductId: string;
 }
 
-// Simulated AI activity entries
-const AI_ACTIONS = [
-  "Nova Nexus: Transcrevendo áudio de novo cliente...",
-  "Nova Vision: Identificando produto em foto recebida...",
-  "Nova Kernel: Classificando sentimento de lead #42...",
-  "Nova Logic: Calculando score de intenção de compra...",
-  "Nova Nexus: Respondendo WhatsApp — orçamento enviado",
-  "Nova Vision: Gerando criativo para Instagram Story...",
-  "Nova Kernel: Lead quente detectado — notificando dono",
-  "Nova Logic: Atualizando pipeline CRM automaticamente...",
-  "Nova Nexus: Processando follow-up automático...",
-  "Nova Vision: Analisando foto de catálogo recebida...",
-];
-
 export function MicroBizDashboard({ customerProductId }: Props) {
-  const [activityLog, setActivityLog] = useState<{ time: string; text: string }[]>([]);
-  const logRef = useRef<HTMLDivElement>(null);
-
   const { data: stats, isLoading } = useQuery({
     queryKey: ["micro-biz-stats", customerProductId],
     queryFn: async () => {
@@ -46,41 +26,67 @@ export function MicroBizDashboard({ customerProductId }: Props) {
     enabled: !!customerProductId,
   });
 
-  // Simulate real-time AI activity
-  useEffect(() => {
-    const initial = AI_ACTIONS.slice(0, 3).map((text, i) => ({
-      time: new Date(Date.now() - (3 - i) * 60000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-      text,
-    }));
-    setActivityLog(initial);
+  // Real leads data for chart
+  const { data: leadsHistory } = useQuery({
+    queryKey: ["micro-biz-leads-history", customerProductId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("micro_biz_leads" as any)
+        .select("created_at, purchase_intent_score")
+        .eq("customer_product_id", customerProductId)
+        .order("created_at", { ascending: true });
+      return data || [];
+    },
+    enabled: !!customerProductId,
+  });
 
-    const interval = setInterval(() => {
-      const action = AI_ACTIONS[Math.floor(Math.random() * AI_ACTIONS.length)];
-      const now = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      setActivityLog((prev) => [...prev.slice(-15), { time: now, text: action }]);
-    }, 8000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
-  }, [activityLog]);
+  // Real conversation logs for activity
+  const { data: recentLogs } = useQuery({
+    queryKey: ["micro-biz-activity", customerProductId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("micro_biz_conversations" as any)
+        .select("created_at, direction, channel")
+        .eq("customer_product_id", customerProductId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      return data || [];
+    },
+    enabled: !!customerProductId,
+  });
 
   if (isLoading) return <div className="text-center p-8 text-muted-foreground">Carregando...</div>;
 
   const s = stats?.stats || { totalLeads: 0, hotLeads: 0, converted: 0 };
 
-  // Generate weekly lead heat data
-  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
-  const heatData = days.map((day) => ({
-    day,
-    leads: Math.floor(Math.random() * 12) + (s.totalLeads > 0 ? 2 : 0),
-    quentes: Math.floor(Math.random() * 5) + (s.hotLeads > 0 ? 1 : 0),
-  }));
+  // Build chart from real leads data grouped by day
+  const chartData = (() => {
+    const leads = leadsHistory as any[] || [];
+    const dayMap: Record<string, { leads: number; quentes: number }> = {};
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = d.toLocaleDateString("pt-BR", { weekday: "short" });
+      dayMap[key] = { leads: 0, quentes: 0 };
+    }
+    leads.forEach((l: any) => {
+      const d = new Date(l.created_at);
+      const key = d.toLocaleDateString("pt-BR", { weekday: "short" });
+      if (dayMap[key]) {
+        dayMap[key].leads++;
+        if ((l.purchase_intent_score || 0) >= 7) dayMap[key].quentes++;
+      }
+    });
+    return Object.entries(dayMap).map(([day, v]) => ({ day, ...v }));
+  })();
 
-  // Hours saved calculation (simulated based on leads)
-  const hoursSaved = Math.max(s.totalLeads * 0.4 + s.converted * 1.2, 0).toFixed(1);
+  const activityEntries = (recentLogs as any[] || []).map((log: any) => ({
+    time: new Date(log.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+    text: log.direction === "inbound"
+      ? `Mensagem recebida via ${log.channel || "WhatsApp"}`
+      : `Resposta enviada via ${log.channel || "WhatsApp"}`,
+  })).reverse();
 
   return (
     <div className="space-y-6">
@@ -106,19 +112,23 @@ export function MicroBizDashboard({ customerProductId }: Props) {
         ))}
       </div>
 
-      {/* Heat Chart + Activity Log */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Lead Heat Chart */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Activity className="h-4 w-4 text-orange-400" />
-              Calor de Leads — Últimos 7 Dias
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+      {/* Lead Heat Chart */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4 text-orange-400" />
+            Leads Capturados — Últimos 7 Dias
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {chartData.every((d) => d.leads === 0) ? (
+            <div className="flex items-center justify-center gap-2 h-48 text-muted-foreground text-sm">
+              <AlertCircle className="h-4 w-4" />
+              Nenhum lead registrado nos últimos 7 dias.
+            </div>
+          ) : (
             <ResponsiveContainer width="100%" height={220}>
-              <AreaChart data={heatData}>
+              <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="leadGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
@@ -144,57 +154,33 @@ export function MicroBizDashboard({ customerProductId }: Props) {
                 <Area type="monotone" dataKey="quentes" stroke="#f97316" fill="url(#hotGrad)" strokeWidth={2} name="Quentes" />
               </AreaChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        {/* Hours Saved Widget */}
-        <Card className="flex flex-col">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Clock className="h-4 w-4 text-green-400" />
-              Economia de Tempo
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col items-center justify-center">
-            <div className="relative">
-              <div className="text-5xl font-bold text-primary tabular-nums">{hoursSaved}</div>
-              <Zap className="absolute -top-2 -right-5 h-5 w-5 text-yellow-400 animate-pulse" />
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">horas economizadas pela IA</p>
-            <p className="text-[11px] text-muted-foreground/60 mt-3 text-center">
-              Baseado em transcrição, classificação, resposta automática e geração de criativos.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Real-time AI Activity Terminal */}
+      {/* Real Activity Log */}
       <Card>
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base flex items-center gap-2">
-              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-              Atividade da IA em Tempo Real
-            </CardTitle>
-            <Badge variant="outline" className="text-[10px] font-mono">LIVE</Badge>
-          </div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Atividade Recente
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div
-            ref={logRef}
-            className="bg-background rounded-lg border p-3 h-48 overflow-y-auto font-mono text-xs space-y-1 scroll-smooth"
-            style={{ scrollbarWidth: "thin" }}
-          >
-            {activityLog.map((entry, i) => (
-              <div key={i} className="flex gap-2">
-                <span className="text-muted-foreground shrink-0">[{entry.time}]</span>
-                <span className={i === activityLog.length - 1 ? "text-primary" : "text-foreground/80"}>
-                  {entry.text}
-                </span>
-              </div>
-            ))}
-            <div className="text-muted-foreground/40 animate-pulse">▌</div>
-          </div>
+          {activityEntries.length === 0 ? (
+            <p className="text-muted-foreground text-sm text-center py-6">
+              Nenhuma atividade registrada ainda. Conecte o WhatsApp para começar.
+            </p>
+          ) : (
+            <div className="bg-background rounded-lg border p-3 max-h-48 overflow-y-auto font-mono text-xs space-y-1" style={{ scrollbarWidth: "thin" }}>
+              {activityEntries.map((entry, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-muted-foreground shrink-0">[{entry.time}]</span>
+                  <span className="text-foreground/80">{entry.text}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
