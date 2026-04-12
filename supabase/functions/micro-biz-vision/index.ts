@@ -146,27 +146,32 @@ Responda APENAS o JSON, sem markdown.`,
     const creativeModel = aiConfig?.creative_model || "llama-3.3-70b-versatile";
     const businessName = aiConfig?.business_name || "Micro Empresa";
 
+    const styleInstruction = style_prompt
+      ? `\n\nIMPORTANTE — O cliente escolheu o seguinte estilo visual para a arte. Você DEVE incorporar estas diretrizes no art_prompt gerado:\n${style_prompt}`
+      : "";
+
     const copyResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
       body: JSON.stringify({
         model: creativeModel,
         temperature: 0.8,
-        max_tokens: 1500,
+        max_tokens: 2000,
         messages: [
           {
             role: "system",
-            content: `Você é um copywriter especialista em anúncios para micro-empresas brasileiras.
+            content: `Você é um copywriter e diretor de arte especialista em anúncios para micro-empresas brasileiras.
 Com base na análise do produto, gere um JSON:
 {
-  "art_prompt": "prompt detalhado em inglês para gerar uma arte publicitária profissional, estilo anúncio de Instagram, com cores vibrantes e texto legível",
+  "art_prompt": "prompt EXTREMAMENTE detalhado em inglês para DALL-E 3 gerar uma arte publicitária profissional. Inclua: estilo visual, paleta de cores, iluminação, composição, tipografia sugerida, elementos de fundo, qualidade técnica (8k, photorealistic). O prompt deve focar no produto analisado e destacar seus pontos fortes visuais.",
   "copies": [
-    { "headline": "título curto", "body": "texto do anúncio", "cta": "call to action" },
+    { "headline": "título curto e impactante", "body": "texto do anúncio persuasivo", "cta": "call to action direto" },
     { "headline": "...", "body": "...", "cta": "..." },
     { "headline": "...", "body": "...", "cta": "..." }
   ]
 }
-Marca: ${businessName}. Responda APENAS o JSON.`,
+Marca: ${businessName}.${styleInstruction}
+Responda APENAS o JSON, sem markdown.`,
           },
           { role: "user", content: `Análise do produto: ${JSON.stringify(visionAnalysis)}` },
         ],
