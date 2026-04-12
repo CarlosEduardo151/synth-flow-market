@@ -182,7 +182,7 @@ Marca: ${businessName}. Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
-    // Step 3: Generate art via Lovable AI Gateway
+    // Step 3: Generate art via OpenAI DALL-E 3
     let generatedImageUrl = "";
     if (creativeData.art_prompt) {
       try {
