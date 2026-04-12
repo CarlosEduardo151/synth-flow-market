@@ -338,65 +338,25 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
   const syncLeadsToCRM = useCallback(async () => {
     setSyncing(true);
     try {
-      // Get unique inbound contacts from logs
       const inboundLogs = logs.filter(l => l.direction === 'inbound' && l.phone);
-      const contactMap = new Map<string, { phone: string; name: string; lastMessage: string; lastDate: string }>();
-
-      for (const log of inboundLogs) {
-        const phone = log.phone!;
-        if (!contactMap.has(phone)) {
-          contactMap.set(phone, {
-            phone,
-            name: log.model || phone, // model stores senderName/pushName
-            lastMessage: log.message_text,
-            lastDate: log.created_at,
-          });
-        }
-      }
-
-      if (contactMap.size === 0) {
+      if (inboundLogs.length === 0) {
         toast({ title: 'Nenhum contato para sincronizar', description: 'Não há mensagens recebidas com telefone válido.', variant: 'destructive' });
         setSyncing(false);
         return;
       }
 
-      // Check which phones already exist in crm_customers
-      const phones = Array.from(contactMap.keys());
-      const { data: existing } = await (supabase as any)
-        .from('crm_customers')
-        .select('phone')
-        .eq('customer_product_id', customerProductId)
-        .in('phone', phones);
+      toast({ title: '🤖 Analisando conversas com IA...', description: 'Extraindo dados dos contatos automaticamente.' });
 
-      const existingPhones = new Set((existing || []).map((e: any) => e.phone));
-      const newContacts = Array.from(contactMap.values()).filter(c => !existingPhones.has(c.phone));
-
-      if (newContacts.length === 0) {
-        toast({ title: 'Todos os contatos já estão no CRM', description: `${existingPhones.size} contato(s) já cadastrado(s).` });
-        setSyncing(false);
-        return;
-      }
-
-      // Insert new contacts as leads
-      const toInsert = newContacts.map(c => ({
-        customer_product_id: customerProductId,
-        name: c.name,
-        phone: c.phone,
-        status: 'lead',
-        source: 'whatsapp',
-        last_contact_date: c.lastDate,
-        notes: `Última mensagem: ${c.lastMessage.substring(0, 200)}`,
-      }));
-
-      const { error } = await (supabase as any)
-        .from('crm_customers')
-        .insert(toInsert);
+      const { data, error } = await supabase.functions.invoke('crm-extract-leads', {
+        body: { customer_product_id: customerProductId },
+      });
 
       if (error) throw error;
+      if (!data?.ok) throw new Error(data?.error || 'Erro na extração');
 
       toast({
-        title: `✅ ${newContacts.length} lead(s) adicionado(s)!`,
-        description: `${existingPhones.size} já existiam. ${newContacts.length} novos cadastrados como Lead.`,
+        title: `✅ ${data.extracted} lead(s) extraído(s) com IA!`,
+        description: data.message,
       });
     } catch (e: any) {
       toast({ title: 'Erro ao sincronizar', description: e.message, variant: 'destructive' });
