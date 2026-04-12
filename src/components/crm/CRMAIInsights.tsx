@@ -40,9 +40,10 @@ interface AIInsights {
 interface CRMAIInsightsProps {
   customers: CRMCustomer[];
   opportunities: any[];
+  onNavigateToReports?: () => void;
 }
 
-export const CRMAIInsights = ({ customers, opportunities }: CRMAIInsightsProps) => {
+export const CRMAIInsights = ({ customers, opportunities, onNavigateToReports }: CRMAIInsightsProps) => {
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
