@@ -85,7 +85,7 @@ Responda APENAS com JSON válido neste formato:
       });
     }
 
-    // ── QUERY: Search memories and synthesize answer via RAG ──
+    // ── QUERY: Search memories + WhatsApp logs and synthesize answer via RAG ──
     if (action === "query") {
       const { question } = body;
 
@@ -95,51 +95,133 @@ Responda APENAS com JSON válido neste formato:
         });
       }
 
-      // Use the RPC search function (full-text + trigram + ilike)
-      const { data: memories, error: searchError } = await supabase.rpc("search_crm_memories", {
+      // 1) Search structured memories via RPC
+      const { data: memories } = await supabase.rpc("search_crm_memories", {
         p_customer_product_id: customerProductId,
         p_query: question,
-        p_limit: 20,
+        p_limit: 15,
       });
 
-      if (searchError) {
-        console.error("Search error:", searchError);
-        throw searchError;
+      // 2) Also search raw WhatsApp conversation logs
+      const { data: whatsappLogs } = await supabase
+        .from("bot_conversation_logs")
+        .select("message_text, direction, phone, created_at, source")
+        .eq("customer_product_id", customerProductId)
+        .or(`message_text.ilike.%${question.split(" ").slice(0, 4).join("%")}%,phone.ilike.%${question}%`)
+        .order("created_at", { ascending: false })
+        .limit(30);
+
+      // 3) Also fetch recent WhatsApp activity for broader context
+      const { data: recentLogs } = await supabase
+        .from("bot_conversation_logs")
+        .select("message_text, direction, phone, created_at, source")
+        .eq("customer_product_id", customerProductId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      const memoryCount = memories?.length || 0;
+      const whatsappCount = whatsappLogs?.length || 0;
+      const recentCount = recentLogs?.length || 0;
+
+      // Build context from memories
+      let context = "";
+
+      if (memoryCount > 0) {
+        context += "=== MEMÓRIAS REGISTRADAS ===\n";
+        context += memories.slice(0, 15).map((m: any) =>
+          `[${new Date(m.mem_interaction_date).toLocaleDateString('pt-BR')}] Cliente: ${m.mem_client_name} | Resumo: ${m.mem_summary} | Sentimento: ${m.mem_sentiment} | Tópicos: ${(m.mem_topics || []).join(', ') || 'N/A'}`
+        ).join("\n");
+        context += "\n\n";
       }
 
-      if (!memories || memories.length === 0) {
+      if (whatsappCount > 0) {
+        context += "=== CONVERSAS WHATSAPP (busca relevante) ===\n";
+        context += whatsappLogs!.map((l: any) =>
+          `[${new Date(l.created_at).toLocaleDateString('pt-BR')} ${new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}] ${l.direction === 'inbound' ? `Cliente (${l.phone || 'desconhecido'})` : 'Atendente'}: ${l.message_text?.substring(0, 300)}`
+        ).join("\n");
+        context += "\n\n";
+      }
+
+      if (recentCount > 0 && memoryCount === 0 && whatsappCount === 0) {
+        // Fallback: show recent activity if no direct matches
+        context += "=== ATIVIDADE RECENTE WHATSAPP ===\n";
+        context += recentLogs!.slice(0, 25).map((l: any) =>
+          `[${new Date(l.created_at).toLocaleDateString('pt-BR')} ${new Date(l.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}] ${l.direction === 'inbound' ? `Cliente (${l.phone || 'desconhecido'})` : 'Atendente'}: ${l.message_text?.substring(0, 300)}`
+        ).join("\n");
+        context += "\n\n";
+      } else if (recentCount > 0) {
+        // Always add some recent context
+        context += "=== ATIVIDADE RECENTE (últimas mensagens) ===\n";
+        context += recentLogs!.slice(0, 10).map((l: any) =>
+          `[${new Date(l.created_at).toLocaleDateString('pt-BR')}] ${l.direction === 'inbound' ? `Cliente (${l.phone || 'desconhecido'})` : 'Atendente'}: ${l.message_text?.substring(0, 200)}`
+        ).join("\n");
+        context += "\n\n";
+      }
+
+      const totalSources = memoryCount + whatsappCount + recentCount;
+
+      if (totalSources === 0) {
         return new Response(JSON.stringify({
-          answer: "Não encontrei registros sobre isso na memória do CRM. Verifique se há interações registradas para esse cliente.",
+          answer: "Não encontrei registros sobre isso. O WhatsApp pode ainda não ter conversas capturadas ou nenhuma memória foi registrada para esse contexto.",
           memories_used: 0,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
 
-      // Build context from retrieved memories (token-efficient)
-      const context = memories.slice(0, 15).map((m: any) =>
-        `[${new Date(m.mem_interaction_date).toLocaleDateString('pt-BR')}] Cliente: ${m.mem_client_name} | Resumo: ${m.mem_summary} | Sentimento: ${m.mem_sentiment} | Tópicos: ${(m.mem_topics || []).join(', ') || 'N/A'}`
-      ).join("\n");
-
-      // RAG: Use memories as context for the answer
+      // RAG with tool-use capability for saving memories
       const answerResult = await groqChat(
         {
           apiKey: groqKey,
           model: "llama-3.3-70b-versatile",
-          systemPrompt: `Você é a Nova, assistente de CRM com memória contextual infinita.
-Você tem acesso a registros históricos de interações com clientes.
-Responda perguntas sobre clientes baseando-se APENAS nos registros de memória fornecidos.
+          systemPrompt: `Você é a Nova, assistente de CRM com memória contextual e acesso ao histórico do WhatsApp.
+Você tem acesso a registros de memórias estruturadas E conversas brutas do WhatsApp.
+Responda perguntas sobre clientes baseando-se nos dados fornecidos.
 Seja precisa com datas, nomes e detalhes. Responda em português brasileiro de forma profissional e direta.
+
+IMPORTANTE - SALVAR MEMÓRIAS:
+Se o usuário pedir para salvar, registrar ou adicionar algo como memória (ex: "salve isso como memória", "registre que o João...", "adicione na memória que..."), responda normalmente E inclua no FINAL da sua resposta um bloco JSON especial assim:
+<!--SAVE_MEMORY:{"client_name":"Nome do Cliente","summary":"Resumo do que deve ser salvo","sentiment":"positivo|neutro|negativo","topics":["tópico1"]}-->
+
+Se não houver pedido de salvar, NÃO inclua o bloco.
 Se não houver informação suficiente nos registros, diga claramente o que você sabe e o que não encontrou.`,
           temperature: 0.4,
           maxTokens: 1024,
         },
-        `Registros de memória do CRM (${memories.length} encontrados):\n${context}\n\nPergunta do gestor: ${question}`
+        `Dados disponíveis (${totalSources} fontes):\n${context}\nPergunta do gestor: ${question}`
       );
 
+      let responseText = answerResult.text;
+      let memorySaved = false;
+
+      // Check if the AI wants to save a memory
+      const saveMatch = responseText.match(/<!--SAVE_MEMORY:([\s\S]*?)-->/);
+      if (saveMatch) {
+        try {
+          const memData = JSON.parse(saveMatch[1]);
+          await supabase.from("crm_client_memories").insert({
+            customer_product_id: customerProductId,
+            client_name: memData.client_name,
+            client_phone: memData.client_phone || null,
+            summary: memData.summary,
+            topics: memData.topics || [],
+            sentiment: memData.sentiment || "neutro",
+            raw_message_count: 0,
+            interaction_date: new Date().toISOString(),
+          });
+          memorySaved = true;
+          // Remove the save block from the visible response
+          responseText = responseText.replace(/<!--SAVE_MEMORY:[\s\S]*?-->/, "").trim();
+          responseText += "\n\n✅ Memória registrada com sucesso!";
+        } catch (e) {
+          console.error("Failed to save memory from chat:", e);
+        }
+      }
+
       return new Response(JSON.stringify({
-        answer: answerResult.text,
-        memories_used: memories.length,
+        answer: responseText,
+        memories_used: totalSources,
+        memory_saved: memorySaved,
         tokens: { input: answerResult.tokensInput, output: answerResult.tokensOutput },
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
