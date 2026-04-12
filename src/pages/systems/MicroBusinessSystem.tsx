@@ -484,6 +484,5 @@ export default function MicroBusinessSystem() {
           </Tabs>
         )}
       </div>
-    </SystemSidebarLayout>
   );
 }
