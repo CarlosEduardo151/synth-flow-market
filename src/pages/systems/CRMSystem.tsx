@@ -80,7 +80,7 @@ const CRMSystem = () => {
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
       { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
       { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-      { value: 'memoria', label: 'Memória IA', icon: Brain },
+      { value: 'memoria', label: 'Agente de IA', icon: Brain },
       { value: 'motor-ia', label: 'Motor IA', icon: Settings },
       { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },

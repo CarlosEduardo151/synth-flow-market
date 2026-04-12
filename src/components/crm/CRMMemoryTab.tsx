@@ -188,9 +188,9 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
             <Brain className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold text-foreground">Memória IA</h2>
+            <h2 className="text-lg font-semibold text-foreground">Agente de IA</h2>
             <p className="text-sm text-muted-foreground">
-              Histórico inteligente baseado nas conversas do WhatsApp CRM
+              Memória contextual, consulta inteligente e criação de oportunidades via chat
             </p>
           </div>
         </div>
