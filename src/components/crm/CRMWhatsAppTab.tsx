@@ -320,12 +320,12 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
   const [loading, setLoading] = useState(true);
 
   const fetchLogs = useCallback(async () => {
+    setLoading(true);
     try {
       const { data } = await (supabase as any)
         .from('bot_conversation_logs')
         .select('id, direction, phone, message_text, created_at, processing_ms, tokens_used, provider, model')
         .eq('customer_product_id', customerProductId)
-        .eq('source', 'whatsapp')
         .order('created_at', { ascending: false })
         .limit(50);
       setLogs(data || []);
