@@ -78,11 +78,11 @@ const CRMSystem = () => {
       { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { value: 'clientes', label: 'Clientes', icon: Users },
       { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
-      { value: 'mensagens', label: 'Mensagens', icon: MessageSquare },
+      
       { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
       { value: 'memoria', label: 'Agente de IA', icon: Brain },
       { value: 'motor-ia', label: 'Motor IA', icon: Settings },
-      { value: 'ai-actions', label: 'Ações IA', icon: ClipboardList },
+      
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
     ],
     []
