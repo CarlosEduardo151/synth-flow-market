@@ -182,13 +182,13 @@ export function MicroBizDashboard({ customerProductId }: Props) {
           <div className="flex items-center gap-1.5">
             <div className={`h-2 w-2 rounded-full ${engineActive ? "bg-green-400 animate-pulse" : "bg-muted-foreground"}`} />
             <span className="text-[11px] font-mono text-muted-foreground">
-              ENGINE {engineActive ? "ONLINE" : "STANDBY"}
+              MOTOR {engineActive ? "ATIVO" : "EM ESPERA"}
             </span>
           </div>
           <div className="flex items-center gap-1.5">
             <Signal className="h-3 w-3 text-muted-foreground" />
             <span className="text-[11px] font-mono text-muted-foreground">
-              {modelsUsed.length} MODELO{modelsUsed.length !== 1 ? "S" : ""} ATIVO{modelsUsed.length !== 1 ? "S" : ""}
+              {modelsUsed.length} MODELO{modelsUsed.length !== 1 ? "S" : ""} EM USO
             </span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -199,7 +199,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
           </div>
         </div>
         <Badge variant="outline" className="text-[10px] font-mono gap-1">
-          <ShieldCheck className="h-3 w-3" /> SISTEMA SEGURO
+          <ShieldCheck className="h-3 w-3" /> SISTEMA PROTEGIDO
         </Badge>
       </div>
 
@@ -235,7 +235,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2 font-mono">
                 <Activity className="h-4 w-4 text-orange-400" />
-                LEAD ACQUISITION · 7D
+                CAPTAÇÃO DE LEADS · 7 DIAS
               </CardTitle>
               <div className="flex items-center gap-3 text-[10px]">
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-primary" /> Total</span>
@@ -247,7 +247,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             {chartData.every((d) => d.leads === 0) ? (
               <div className="flex items-center justify-center gap-2 h-44 text-muted-foreground text-xs font-mono">
                 <AlertCircle className="h-4 w-4" />
-                AGUARDANDO DADOS DE LEADS
+                AGUARDANDO DADOS DOS LEADS
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={180}>
@@ -289,12 +289,12 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <CardHeader className="pb-1 pt-3 px-4">
               <CardTitle className="text-sm flex items-center gap-2 font-mono">
                 <Gauge className="h-4 w-4 text-cyan-400" />
-                INTENT SCORE DISTRIBUTION
+                DISTRIBUIÇÃO DE INTENÇÃO
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-2 px-2">
               {leads.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS</div>
+                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS AINDA</div>
               ) : (
                 <ResponsiveContainer width="100%" height={80}>
                   <BarChart data={scoreDistribution} barSize={28}>
@@ -325,12 +325,12 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <CardHeader className="pb-1 pt-3 px-4">
               <CardTitle className="text-sm flex items-center gap-2 font-mono">
                 <Brain className="h-4 w-4 text-purple-400" />
-                SENTIMENT ANALYSIS
+                ANÁLISE DE SENTIMENTO
               </CardTitle>
             </CardHeader>
             <CardContent className="pb-2 px-2">
               {sentimentData.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS</div>
+                <div className="flex items-center justify-center h-20 text-muted-foreground text-xs font-mono">SEM DADOS AINDA</div>
               ) : (
                 <div className="flex items-center gap-4">
                   <ResponsiveContainer width={90} height={80}>
@@ -365,7 +365,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-sm flex items-center gap-2 font-mono">
               <Cpu className="h-4 w-4 text-cyan-400" />
-              ENGINE TELEMETRY
+              TELEMETRIA DO MOTOR
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 px-4 pb-3">
@@ -397,7 +397,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/30">
               <div className="flex items-center gap-2">
                 <MessageCircle className="h-3.5 w-3.5 text-green-400" />
-                <span className="text-[11px] font-mono text-muted-foreground">THROUGHPUT</span>
+                <span className="text-[11px] font-mono text-muted-foreground">FLUXO DE MSGS</span>
               </div>
               <div className="text-right">
                 <span className="text-sm font-mono font-bold tabular-nums">{inbound}</span>
@@ -423,7 +423,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/30">
               <div className="flex items-center gap-2">
                 <BarChart3 className="h-3.5 w-3.5 text-primary" />
-                <span className="text-[11px] font-mono text-muted-foreground">CONV. RATE</span>
+                <span className="text-[11px] font-mono text-muted-foreground">TX. CONVERSÃO</span>
               </div>
               <span className="text-lg font-mono font-bold tabular-nums text-primary">{conversionRate}%</span>
             </div>
@@ -436,7 +436,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             <div className="flex items-center justify-between">
               <CardTitle className="text-sm flex items-center gap-2 font-mono">
                 <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-                ACTIVITY STREAM
+                FLUXO DE ATIVIDADE
               </CardTitle>
               <Badge variant="outline" className="text-[9px] font-mono gap-1">
                 {activityEntries.length} EVENTOS
@@ -447,8 +447,8 @@ export function MicroBizDashboard({ customerProductId }: Props) {
             {activityEntries.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 gap-2">
                 <Wifi className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-muted-foreground text-xs font-mono">AGUARDANDO CONEXÃO WHATSAPP</p>
-                <p className="text-muted-foreground/60 text-[10px]">Conecte uma instância para ver a atividade em tempo real.</p>
+                <p className="text-muted-foreground text-xs font-mono">AGUARDANDO CONEXÃO COM WHATSAPP</p>
+                <p className="text-muted-foreground/60 text-[10px]">Conecte uma instância para acompanhar a atividade em tempo real.</p>
               </div>
             ) : (
               <div
@@ -480,7 +480,7 @@ export function MicroBizDashboard({ customerProductId }: Props) {
           <CardHeader className="pb-2 pt-3 px-4">
             <CardTitle className="text-sm flex items-center gap-2 font-mono">
               <Megaphone className="h-4 w-4 text-purple-400" />
-              CAMPAIGN CONTROL
+              CONTROLE DE CAMPANHAS
             </CardTitle>
           </CardHeader>
           <CardContent className="px-4 pb-3">
