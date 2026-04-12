@@ -15,9 +15,10 @@ interface CRMCustomer {
 interface CRMDashboardProps {
   customers: CRMCustomer[];
   opportunities: any[];
+  onNavigateToReports?: () => void;
 }
 
-export const CRMDashboard = ({ customers, opportunities }: CRMDashboardProps) => {
+export const CRMDashboard = ({ customers, opportunities, onNavigateToReports }: CRMDashboardProps) => {
   // Estatísticas gerais
   const totalClients = customers.length;
   const activeClients = customers.filter(c => c.status === 'customer').length;
@@ -82,7 +83,7 @@ export const CRMDashboard = ({ customers, opportunities }: CRMDashboardProps) =>
   return (
     <div className="space-y-6">
       {/* Análise Preditiva com IA */}
-      <CRMAIInsights customers={customers} opportunities={opportunities} />
+      <CRMAIInsights customers={customers} opportunities={opportunities} onNavigateToReports={onNavigateToReports} />
       {/* Cards de resumo */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>

@@ -13,7 +13,8 @@ import {
   Users,
   Zap,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,9 +41,10 @@ interface AIInsights {
 interface CRMAIInsightsProps {
   customers: CRMCustomer[];
   opportunities: any[];
+  onNavigateToReports?: () => void;
 }
 
-export const CRMAIInsights = ({ customers, opportunities }: CRMAIInsightsProps) => {
+export const CRMAIInsights = ({ customers, opportunities, onNavigateToReports }: CRMAIInsightsProps) => {
   const [insights, setInsights] = useState<AIInsights | null>(null);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -121,19 +123,27 @@ export const CRMAIInsights = ({ customers, opportunities }: CRMAIInsightsProps) 
             Use inteligência artificial para prever comportamentos de clientes, 
             identificar riscos e descobrir oportunidades ocultas.
           </p>
-          <Button onClick={generateInsights} disabled={loading} size="lg">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analisando dados...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-2 h-4 w-4" />
-                Gerar Insights com IA
-              </>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={generateInsights} disabled={loading} size="lg">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analisando dados...
+                </>
+              ) : (
+                <>
+                  <Brain className="mr-2 h-4 w-4" />
+                  Gerar Insights com IA
+                </>
+              )}
+            </Button>
+            {onNavigateToReports && (
+              <Button onClick={onNavigateToReports} variant="outline" size="lg">
+                <FileText className="mr-2 h-4 w-4" />
+                Ver Relatórios Completos
+              </Button>
             )}
-          </Button>
+          </div>
         </CardContent>
       </Card>
     );
@@ -146,10 +156,18 @@ export const CRMAIInsights = ({ customers, opportunities }: CRMAIInsightsProps) 
           <Brain className="h-6 w-6 text-primary" />
           Insights Preditivos IA
         </h2>
-        <Button onClick={generateInsights} variant="outline" disabled={loading}>
-          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          <span className="ml-2">Atualizar</span>
-        </Button>
+        <div className="flex gap-2">
+          {onNavigateToReports && (
+            <Button onClick={onNavigateToReports} variant="outline" disabled={loading}>
+              <FileText className="h-4 w-4" />
+              <span className="ml-2">Relatórios</span>
+            </Button>
+          )}
+          <Button onClick={generateInsights} variant="outline" disabled={loading}>
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="ml-2">Atualizar</span>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
