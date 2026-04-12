@@ -1,0 +1,1 @@
+GRANT ALL ON TABLE public.crm_ai_reports TO service_role;
