@@ -446,7 +446,7 @@ const CRMSystem = () => {
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsContent value="dashboard" className="space-y-4">
-              <CRMDashboard customers={customers} opportunities={opportunities} />
+              <CRMDashboard customers={customers} opportunities={opportunities} onNavigateToReports={() => setActiveTab('ai-reports')} />
             </TabsContent>
 
             <TabsContent value="clientes" className="space-y-4">
