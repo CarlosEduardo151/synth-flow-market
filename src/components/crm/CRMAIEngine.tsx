@@ -16,13 +16,9 @@ interface CRMAIEngineProps {
 }
 
 const NOVALINK_MODELS = [
-  { value: "gpt-oss-120b", label: "Nova Kernel Ultra v1.0", category: "Core Intelligence" },
-  { value: "gpt-oss-20b", label: "Nova Kernel Prime v1.2", category: "Core Intelligence" },
-  { value: "llama-4-scout", label: "Nova Nexus Flow v4.0", category: "Core Intelligence" },
-  { value: "llama-3.3-70b", label: "Nova Neural 70B v3.3", category: "Core Intelligence" },
-  { value: "qwen-3-32b", label: "Nova Logic Q v3.0", category: "Core Intelligence" },
-  { value: "compound-beta", label: "Nova Compound Beta", category: "Ferramentas (Precisão)" },
-  { value: "compound-beta-mini", label: "Nova Compound Mini", category: "Ferramentas (Precisão)" },
+  { value: "gpt-oss-120b", label: "Nova Kernel Ultra v1.0", category: "Raciocínio complexo, decisões críticas e análises estratégicas" },
+  { value: "llama-3.3-70b", label: "Nova Neural 70B v3.3", category: "Automação em larga escala e relatórios rápidos" },
+  { value: "compound-beta", label: "Nova Compound Beta", category: "Precisão com ferramentas e ações integradas" },
 ];
 
 export function CRMAIEngine({ customerProductId }: CRMAIEngineProps) {
