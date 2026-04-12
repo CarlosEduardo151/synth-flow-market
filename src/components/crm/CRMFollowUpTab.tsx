@@ -276,7 +276,7 @@ export function CRMFollowUpTab({ customerProductId }: CRMFollowUpTabProps) {
                 Nova Regra
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl w-[95vw]">
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh]">
               <DialogHeader className="pb-4 border-b border-border/50">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-primary/10">
