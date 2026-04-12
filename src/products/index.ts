@@ -13,6 +13,7 @@ export { automacaoNotasFiscais } from './micro-empresas/automacao-notas-fiscais'
 export { botsAutomacao } from './agentes-de-ia/bots-automacao';
 export { assistenteVendas } from './agentes-de-ia/assistente-vendas';
 export { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
+export { microBusinessSuite } from './agentes-de-ia/micro-business-suite';
 // export { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // export { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
@@ -35,6 +36,7 @@ import { automacaoNotasFiscais } from './micro-empresas/automacao-notas-fiscais'
 import { botsAutomacao } from './agentes-de-ia/bots-automacao';
 import { assistenteVendas } from './agentes-de-ia/assistente-vendas';
 import { agenteFinanceiro } from './agentes-de-ia/agente-financeiro';
+import { microBusinessSuite } from './agentes-de-ia/micro-business-suite';
 // import { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // import { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
@@ -53,10 +55,11 @@ export const allProducts: Product[] = [
   
   // IA Automatizada (removidos do catálogo)
   
-  // Agentes de IA (3 produtos - agenteSuporte e agenteRH desativados)
+  // Agentes de IA (4 produtos - agenteSuporte e agenteRH desativados)
   botsAutomacao,
   assistenteVendas,
   agenteFinanceiro,
+  microBusinessSuite,
   // agenteSuporte, // DESATIVADO TEMPORARIAMENTE
   // agenteRH, // DESATIVADO TEMPORARIAMENTE
 
