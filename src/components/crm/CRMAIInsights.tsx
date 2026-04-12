@@ -123,19 +123,27 @@ export const CRMAIInsights = ({ customers, opportunities, onNavigateToReports }:
             Use inteligência artificial para prever comportamentos de clientes, 
             identificar riscos e descobrir oportunidades ocultas.
           </p>
-          <Button onClick={generateInsights} disabled={loading} size="lg">
-            {loading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analisando dados...
-              </>
-            ) : (
-              <>
-                <Brain className="mr-2 h-4 w-4" />
-                Gerar Insights com IA
-              </>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Button onClick={generateInsights} disabled={loading} size="lg">
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Analisando dados...
+                </>
+              ) : (
+                <>
+                  <Brain className="mr-2 h-4 w-4" />
+                  Gerar Insights com IA
+                </>
+              )}
+            </Button>
+            {onNavigateToReports && (
+              <Button onClick={onNavigateToReports} variant="outline" size="lg">
+                <FileText className="mr-2 h-4 w-4" />
+                Ver Relatórios Completos
+              </Button>
             )}
-          </Button>
+          </div>
         </CardContent>
       </Card>
     );
