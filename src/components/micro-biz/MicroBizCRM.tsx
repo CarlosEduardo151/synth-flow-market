@@ -124,7 +124,7 @@ export function MicroBizCRM({ customerProductId }: Props) {
         .select("*")
         .eq("customer_product_id", customerProductId)
         .order("last_contact_at", { ascending: false });
-      return (data || []) as Lead[];
+      return (data || []) as unknown as Lead[];
     },
     enabled: !!customerProductId,
   });
