@@ -34,7 +34,19 @@ serve(async (req) => {
       .eq('is_active', true)
       .maybeSingle();
 
-    const configModel = engineConfig?.model || "llama-3.3-70b-versatile";
+    // Validate model exists on Groq - fallback invalid ones
+    const VALID_GROQ_MODELS = [
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "gemma2-9b-it",
+      "mixtral-8x7b-32768",
+      "qwen-qwq-32b",
+    ];
+    const rawModel = engineConfig?.model || "llama-3.3-70b-versatile";
+    const configModel = VALID_GROQ_MODELS.includes(rawModel) ? rawModel : "llama-3.3-70b-versatile";
+    if (rawModel !== configModel) {
+      console.warn(`[crm-predictive-report] model "${rawModel}" not available on Groq, falling back to "${configModel}"`);
+    }
     const configTemp = engineConfig?.temperature ?? 0.6;
     const configMaxTokens = engineConfig?.max_tokens ?? 4000;
 
