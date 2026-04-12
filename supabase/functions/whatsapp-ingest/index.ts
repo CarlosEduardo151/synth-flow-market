@@ -279,9 +279,51 @@ serve(async (req) => {
       }
     }
 
+    // ── CRM path: store message directly as a lead log ──
+    if (isCRM) {
+      // Skip messages sent by the connected number itself
+      if (normalized.fromMe) {
+        console.log("[ingest][CRM] skipping fromMe message");
+        return corsResponse({ ok: true, skipped: "from_me" }, 200, origin);
+      }
+
+      const messageText =
+        normalized.text?.message ||
+        normalized.image?.caption ||
+        normalized.video?.caption ||
+        normalized.document?.fileName ||
+        normalized.location?.name ||
+        normalized.contact?.displayName ||
+        "[mídia recebida]";
+
+      const phone = normalized.phone || "";
+      const senderName = normalized.senderName || "";
+
+      console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
+
+      // Store in bot_conversation_logs so the CRM activity log picks it up
+      const { error: logErr } = await service
+        .from("bot_conversation_logs")
+        .insert({
+          customer_product_id: cp.id,
+          direction: "inbound",
+          phone,
+          message_text: messageText,
+          source: "whatsapp",
+          provider: "crm_lead",
+          model: senderName || null,
+        });
+
+      if (logErr) {
+        console.error("[ingest][CRM] log insert error:", logErr.message);
+      }
+
+      return corsResponse({ ok: true, crm: true }, 200, origin);
+    }
+
+    // ── Bot path: forward to bot engine ──
     const normalizedBody = JSON.stringify(normalized);
 
-    // Forward to bot engine and wait for the result so execution is not dropped
     const engineUrl = `${supabaseUrl}/functions/v1/whatsapp-bot-engine?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
 
     const engineResp = await fetch(engineUrl, {
