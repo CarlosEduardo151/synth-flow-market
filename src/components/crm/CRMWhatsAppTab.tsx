@@ -455,6 +455,10 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] text-muted-foreground">LIVE</span>
             </div>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={syncLeadsToCRM} disabled={syncing || logs.length === 0}>
+              {syncing ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+              Sincronizar Leads
+            </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={fetchLogs} disabled={loading}>
               <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
