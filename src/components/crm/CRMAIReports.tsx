@@ -441,6 +441,17 @@ export function CRMAIReports({ customerProductId }: CRMAIReportsProps) {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // If the edge function failed to save to DB, save client-side
+      if (data?.saved_to_db === false && data?.report_content) {
+        await supabase.from("crm_ai_reports").insert({
+          user_id: user.id,
+          title: data.title || `Relatório Preditivo - ${new Date().toLocaleDateString('pt-BR')}`,
+          report_type: 'predictive_analysis',
+          content: data.report_content,
+        });
+      }
+
       toast.success("Relatório preditivo gerado com sucesso!");
       await fetchReports();
     } catch (err) {

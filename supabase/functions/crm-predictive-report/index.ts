@@ -29,11 +29,10 @@ serve(async (req) => {
     );
 
     // Fetch all CRM data for context
-    const [customersRes, messagesRes, memoriesRes, previousReports] = await Promise.all([
+    const [customersRes, messagesRes, memoriesRes] = await Promise.all([
       supabase.from('crm_customers').select('*').eq('customer_product_id', customer_product_id),
       supabase.from('bot_conversation_logs').select('*').eq('customer_product_id', customer_product_id).order('created_at', { ascending: false }).limit(200),
       supabase.from('crm_client_memories').select('*').eq('customer_product_id', customer_product_id).order('interaction_date', { ascending: false }).limit(50),
-      supabase.from('crm_ai_reports').select('id, title, report_type, generated_at').eq('user_id', user_id).order('generated_at', { ascending: false }).limit(5),
     ]);
 
     const customers = customersRes.data || [];
@@ -127,16 +126,28 @@ IMPORTANTE: Retorne APENAS JSON válido, sem markdown.`;
       report = { raw_response: content, parse_error: true };
     }
 
-    // Save report to DB
+    // Save report to DB with error checking
     const title = `Relatório Preditivo - ${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
-    await supabase.from('crm_ai_reports').insert({
+    const reportContent = JSON.stringify(report);
+    
+    const { error: insertError } = await supabase.from('crm_ai_reports').insert({
       user_id,
       title,
       report_type: 'predictive_analysis',
-      content: JSON.stringify(report),
+      content: reportContent,
     });
 
-    return new Response(JSON.stringify({ success: true, report, title }), {
+    if (insertError) {
+      console.error('Failed to save report to DB:', insertError);
+    }
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      report, 
+      title,
+      report_content: reportContent,
+      saved_to_db: !insertError,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
