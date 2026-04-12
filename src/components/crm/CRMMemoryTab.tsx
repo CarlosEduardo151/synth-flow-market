@@ -204,65 +204,6 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
             )}
             Sincronizar WhatsApp
           </Button>
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-3.5 w-3.5" />
-                Nova Memória
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Registrar Nova Memória</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nome do Cliente *</Label>
-                  <Input
-                    value={addForm.clientName}
-                    onChange={(e) => setAddForm({ ...addForm, clientName: e.target.value })}
-                    placeholder="Ex: João Silva"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Telefone</Label>
-                  <Input
-                    value={addForm.clientPhone}
-                    onChange={(e) => setAddForm({ ...addForm, clientPhone: e.target.value })}
-                    placeholder="(11) 99999-9999"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Resumo da Interação *</Label>
-                  <Textarea
-                    value={addForm.summary}
-                    onChange={(e) => setAddForm({ ...addForm, summary: e.target.value })}
-                    placeholder="Descreva o que aconteceu nessa interação..."
-                    rows={4}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Sentimento</Label>
-                  <Select value={addForm.sentiment} onValueChange={(v) => setAddForm({ ...addForm, sentiment: v })}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="positivo">😊 Positivo</SelectItem>
-                      <SelectItem value="neutro">😐 Neutro</SelectItem>
-                      <SelectItem value="negativo">😠 Negativo</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleAddMemory} disabled={adding || !addForm.clientName || !addForm.summary}>
-                  {adding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
-                  Salvar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       </div>
 
@@ -314,118 +255,172 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
         </Card>
       </div>
 
-      {/* Main Content - Two columns */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left: Chat RAG */}
-        <div>
-          <Card className="h-full flex flex-col">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <CardTitle className="text-base font-semibold">Consulta Inteligente</CardTitle>
+      {/* Consulta Inteligente - Full width */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <CardTitle className="text-base font-semibold">Consulta Inteligente</CardTitle>
+          </div>
+          <CardDescription className="text-sm">
+            Pergunte sobre qualquer cliente — a IA busca no histórico do WhatsApp
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col">
+          <div className="min-h-[350px] max-h-[500px] overflow-y-auto mb-3 space-y-3 p-4 rounded-xl bg-muted/20">
+            {chatMessages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs gap-2 py-16">
+                <Brain className="h-10 w-10 opacity-30" />
+                <p className="font-medium text-sm">Pergunte algo como:</p>
+                <p className="italic opacity-70">"Qual foi a última conversa com o João?"</p>
+                <p className="italic opacity-70">"Quais clientes demonstraram interesse?"</p>
+                <p className="italic opacity-70">"O que a Maria reclamou?"</p>
+                <div className="flex items-center gap-1 mt-3 text-[10px] opacity-50">
+                  <Smartphone className="h-3 w-3" />
+                  Dados baseados na atividade do WhatsApp CRM
+                </div>
               </div>
-              <CardDescription className="text-sm">
-                Pergunte sobre qualquer cliente — a IA busca no histórico do WhatsApp
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              <div className="flex-1 min-h-[400px] max-h-[600px] overflow-y-auto mb-3 space-y-3 p-4 rounded-xl bg-muted/20">
-                {chatMessages.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs gap-2 py-12">
-                    <Brain className="h-10 w-10 opacity-30" />
-                    <p className="font-medium text-sm">Pergunte algo como:</p>
-                    <p className="italic opacity-70">"Qual foi a última conversa com o João?"</p>
-                    <p className="italic opacity-70">"Quais clientes demonstraram interesse?"</p>
-                    <p className="italic opacity-70">"O que a Maria reclamou?"</p>
-                    <div className="flex items-center gap-1 mt-3 text-[10px] opacity-50">
-                      <Smartphone className="h-3 w-3" />
-                      Dados baseados na atividade do WhatsApp CRM
-                    </div>
-                  </div>
-                )}
-                {chatMessages.map((msg, i) => (
-                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                    <div
-                      className={`max-w-[90%] rounded-lg px-3 py-2 text-sm ${
-                        msg.role === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-background border shadow-sm"
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                      {msg.memoriesUsed !== undefined && msg.memoriesUsed > 0 && (
-                        <p className="text-[10px] mt-1 opacity-60">
-                          {msg.memoriesUsed} memória(s) consultada(s)
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {querying && (
-                  <div className="flex justify-start">
-                    <div className="bg-background border rounded-lg px-3 py-2 shadow-sm">
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
+            )}
+            {chatMessages.map((msg, i) => (
+              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-background border shadow-sm"
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                  {msg.memoriesUsed !== undefined && msg.memoriesUsed > 0 && (
+                    <p className="text-[10px] mt-1 opacity-60">
+                      {msg.memoriesUsed} memória(s) consultada(s)
+                    </p>
+                  )}
+                </div>
               </div>
+            ))}
+            {querying && (
+              <div className="flex justify-start">
+                <div className="bg-background border rounded-lg px-3 py-2 shadow-sm">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                </div>
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
 
-              <div className="flex gap-2">
-                <Input
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleQuery()}
-                  placeholder="Pergunte sobre um cliente..."
-                  disabled={querying}
-                  className="text-sm"
-                />
-                <Button onClick={handleQuery} disabled={querying || !question.trim()} size="icon">
-                  <Send className="h-4 w-4" />
+          <div className="flex gap-2">
+            <Input
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleQuery()}
+              placeholder="Pergunte sobre um cliente..."
+              disabled={querying}
+              className="text-sm"
+            />
+            <Button onClick={handleQuery} disabled={querying || !question.trim()} size="icon">
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Memórias Registradas - Full width below */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-semibold">Memórias Registradas</CardTitle>
+              <Badge variant="secondary" className="text-xs">{filteredMemories.length}</Badge>
+            </div>
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-2">
+                  <Plus className="h-3.5 w-3.5" />
+                  Nova Memória
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Right: Memory List */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-sm font-semibold">Memórias Registradas</CardTitle>
-                  <Badge variant="secondary" className="text-xs">{filteredMemories.length}</Badge>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Registrar Nova Memória</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Cliente *</Label>
+                    <Input
+                      value={addForm.clientName}
+                      onChange={(e) => setAddForm({ ...addForm, clientName: e.target.value })}
+                      placeholder="Ex: João Silva"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Telefone</Label>
+                    <Input
+                      value={addForm.clientPhone}
+                      onChange={(e) => setAddForm({ ...addForm, clientPhone: e.target.value })}
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Resumo da Interação *</Label>
+                    <Textarea
+                      value={addForm.summary}
+                      onChange={(e) => setAddForm({ ...addForm, summary: e.target.value })}
+                      placeholder="Descreva o que aconteceu nessa interação..."
+                      rows={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Sentimento</Label>
+                    <Select value={addForm.sentiment} onValueChange={(v) => setAddForm({ ...addForm, sentiment: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="positivo">😊 Positivo</SelectItem>
+                        <SelectItem value="neutro">😐 Neutro</SelectItem>
+                        <SelectItem value="negativo">😠 Negativo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </div>
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por cliente, assunto ou tópico..."
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  className="pl-9 text-sm h-9"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="p-0">
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : filteredMemories.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground px-6">
-                  <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium text-sm">Nenhuma memória encontrada</p>
-                  <p className="text-xs mt-1">
-                    {memories.length === 0
-                      ? "Conecte o WhatsApp e clique em \"Sincronizar WhatsApp\" para capturar memórias automaticamente."
-                      : "Nenhum resultado para o filtro atual."
-                    }
-                  </p>
-                </div>
-              ) : (
+                <DialogFooter>
+                  <Button onClick={handleAddMemory} disabled={adding || !addForm.clientName || !addForm.summary}>
+                    {adding ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="h-4 w-4 mr-1" />}
+                    Salvar
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por cliente, assunto ou tópico..."
+              value={searchFilter}
+              onChange={(e) => setSearchFilter(e.target.value)}
+              className="pl-9 text-sm h-9"
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : filteredMemories.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground px-6">
+              <Brain className="h-10 w-10 mx-auto mb-3 opacity-30" />
+              <p className="font-medium text-sm">Nenhuma memória encontrada</p>
+              <p className="text-xs mt-1">
+                {memories.length === 0
+                  ? "Conecte o WhatsApp e clique em \"Sincronizar WhatsApp\" para capturar memórias automaticamente."
+                  : "Nenhum resultado para o filtro atual."
+                }
+              </p>
+            </div>
+          ) : (
                 <div className="divide-y divide-border/40">
                     {filteredMemories.map((mem) => (
                       <div key={mem.id} className="px-4 py-3 hover:bg-muted/20 transition-colors">
@@ -482,8 +477,6 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
               Você também pode adicionar memórias manualmente.
             </span>
           </div>
-        </div>
-      </div>
     </div>
   );
 }
