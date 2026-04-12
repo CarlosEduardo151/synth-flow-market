@@ -174,8 +174,7 @@ Responda APENAS com JSON válido neste formato:
         {
           apiKey: groqKey,
           model: "llama-3.3-70b-versatile",
-          systemPrompt: `Você é a Nova, assistente de CRM com memória contextual e acesso ao histórico do WhatsApp.
-Você tem acesso a registros de memórias estruturadas E conversas brutas do WhatsApp.
+          systemPrompt: `Você é a Nova, agente de IA do CRM com memória contextual, acesso ao histórico do WhatsApp e capacidade de criar oportunidades de venda.
 Responda perguntas sobre clientes baseando-se nos dados fornecidos.
 Seja precisa com datas, nomes e detalhes. Responda em português brasileiro de forma profissional e direta.
 
@@ -183,7 +182,24 @@ IMPORTANTE - SALVAR MEMÓRIAS:
 Se o usuário pedir para salvar, registrar ou adicionar algo como memória (ex: "salve isso como memória", "registre que o João...", "adicione na memória que..."), responda normalmente E inclua no FINAL da sua resposta um bloco JSON especial assim:
 <!--SAVE_MEMORY:{"client_name":"Nome do Cliente","summary":"Resumo do que deve ser salvo","sentiment":"positivo|neutro|negativo","topics":["tópico1"]}-->
 
-Se não houver pedido de salvar, NÃO inclua o bloco.
+IMPORTANTE - CRIAR OPORTUNIDADES:
+Se o usuário pedir para criar uma oportunidade de venda, você DEVE coletar os seguintes dados obrigatórios antes de criar:
+- cliente (nome do cliente)
+- origem (whatsapp, indicacao, site, redes_sociais, cold_call, evento, outro)
+- titulo (título da oportunidade)
+- valor (valor em reais)
+- probabilidade (0 a 100)
+- obs (observações sobre a oportunidade)
+
+A prioridade (baixa, media, alta, urgente) você gera automaticamente com base na observação/contexto.
+
+Se o usuário fornecer TODOS os dados obrigatórios na mesma mensagem, crie a oportunidade diretamente.
+Se faltar algum dado obrigatório, pergunte o que falta de forma clara e objetiva.
+
+Quando tiver todos os dados, responda confirmando e inclua no FINAL da resposta:
+<!--CREATE_OPPORTUNITY:{"client_name":"Nome","title":"Título","value":5000,"probability":70,"source":"whatsapp","notes":"observações","priority":"alta","stage":"novo_lead"}-->
+
+Se não houver pedido de salvar memória ou criar oportunidade, NÃO inclua blocos especiais.
 Se não houver informação suficiente nos registros, diga claramente o que você sabe e o que não encontrou.`,
           temperature: 0.4,
           maxTokens: 1024,
@@ -193,6 +209,7 @@ Se não houver informação suficiente nos registros, diga claramente o que voc�
 
       let responseText = answerResult.text;
       let memorySaved = false;
+      let opportunityCreated = false;
 
       // Check if the AI wants to save a memory
       const saveMatch = responseText.match(/<!--SAVE_MEMORY:([\s\S]*?)-->/);
@@ -210,7 +227,6 @@ Se não houver informação suficiente nos registros, diga claramente o que voc�
             interaction_date: new Date().toISOString(),
           });
           memorySaved = true;
-          // Remove the save block from the visible response
           responseText = responseText.replace(/<!--SAVE_MEMORY:[\s\S]*?-->/, "").trim();
           responseText += "\n\n✅ Memória registrada com sucesso!";
         } catch (e) {
@@ -218,10 +234,64 @@ Se não houver informação suficiente nos registros, diga claramente o que voc�
         }
       }
 
+      // Check if the AI wants to create an opportunity
+      const oppMatch = responseText.match(/<!--CREATE_OPPORTUNITY:([\s\S]*?)-->/);
+      if (oppMatch) {
+        try {
+          const oppData = JSON.parse(oppMatch[1]);
+
+          // Try to find the customer by name
+          const { data: customerMatch } = await supabase
+            .from("crm_customers")
+            .select("id")
+            .eq("customer_product_id", customerProductId)
+            .ilike("name", `%${oppData.client_name}%`)
+            .limit(1);
+
+          let customerId = customerMatch?.[0]?.id;
+
+          // If customer not found, create one
+          if (!customerId) {
+            const { data: newCustomer } = await supabase
+              .from("crm_customers")
+              .insert({
+                customer_product_id: customerProductId,
+                name: oppData.client_name,
+                status: "ativo",
+                source: oppData.source || "outro",
+              })
+              .select("id")
+              .single();
+            customerId = newCustomer?.id;
+          }
+
+          if (customerId) {
+            await supabase.from("crm_opportunities").insert({
+              customer_id: customerId,
+              title: oppData.title,
+              value: oppData.value || 0,
+              probability: oppData.probability || 50,
+              source: oppData.source || "outro",
+              notes: oppData.notes || null,
+              priority: oppData.priority || "media",
+              stage: oppData.stage || "novo_lead",
+            });
+            opportunityCreated = true;
+            responseText = responseText.replace(/<!--CREATE_OPPORTUNITY:[\s\S]*?-->/, "").trim();
+            responseText += "\n\n✅ Oportunidade criada com sucesso no pipeline!";
+          }
+        } catch (e) {
+          console.error("Failed to create opportunity from chat:", e);
+          responseText = responseText.replace(/<!--CREATE_OPPORTUNITY:[\s\S]*?-->/, "").trim();
+          responseText += "\n\n⚠️ Não foi possível criar a oportunidade automaticamente.";
+        }
+      }
+
       return new Response(JSON.stringify({
         answer: responseText,
         memories_used: totalSources,
         memory_saved: memorySaved,
+        opportunity_created: opportunityCreated,
         tokens: { input: answerResult.tokensInput, output: answerResult.tokensOutput },
       }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
