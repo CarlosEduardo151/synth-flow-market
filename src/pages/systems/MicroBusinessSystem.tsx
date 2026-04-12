@@ -1,5 +1,5 @@
 import { useState } from "react";
-import SystemSidebarLayout from "@/components/layout/SystemSidebarLayout";
+import { SystemSidebarLayout } from "@/components/layout/SystemSidebarLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
