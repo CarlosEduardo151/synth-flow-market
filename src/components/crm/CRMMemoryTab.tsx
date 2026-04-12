@@ -106,6 +106,11 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
         ...prev,
         { role: "assistant", content: data.answer, memoriesUsed: data.memories_used },
       ]);
+
+      // If the AI saved a memory via chat, refresh the list
+      if (data.memory_saved) {
+        loadMemories();
+      }
     } catch {
       setChatMessages((prev) => [
         ...prev,
