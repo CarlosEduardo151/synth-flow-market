@@ -221,7 +221,9 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
             </div>
           </div>
 
-          <CRMWhatsAppActivityLog customerProductId={customerProductId} />
+           <CRMWhatsAppActivityLog customerProductId={customerProductId} />
+
+          <WhatsAppMemoryChat customerProductId={customerProductId} />
         </>
       )}
 
@@ -476,11 +478,6 @@ function CRMWhatsAppActivityLog({ customerProductId }: { customerProductId: stri
               </div>
             </ScrollArea>
           </div>
-        )}
-
-        {/* Memória IA baseada em WhatsApp */}
-        {isConnected && (
-          <WhatsAppMemoryChat customerProductId={customerProductId} />
         )}
       </CardContent>
     </Card>
