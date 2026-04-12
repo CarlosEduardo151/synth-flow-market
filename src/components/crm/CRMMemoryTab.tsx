@@ -267,9 +267,9 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
             <Sparkles className="h-5 w-5 text-primary" />
             <CardTitle className="text-base font-semibold">Consulta Inteligente</CardTitle>
           </div>
-          <CardDescription className="text-sm">
-            Pergunte sobre qualquer cliente — a IA busca no histórico do WhatsApp
-          </CardDescription>
+           <CardDescription className="text-sm">
+             Pergunte sobre clientes, histórico do WhatsApp ou peça para criar oportunidades
+           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col">
           <div className="min-h-[350px] max-h-[500px] overflow-y-auto mb-3 space-y-3 p-4 rounded-xl bg-muted/20">
@@ -278,7 +278,7 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
                 <Brain className="h-10 w-10 opacity-30" />
                 <p className="font-medium text-sm">Pergunte algo como:</p>
                 <p className="italic opacity-70">"Qual foi a última conversa com o João?"</p>
-                <p className="italic opacity-70">"Quais clientes demonstraram interesse?"</p>
+                <p className="italic opacity-70">"Crie uma oportunidade para a empresa X no valor de R$5.000"</p>
                 <p className="italic opacity-70">"O que a Maria reclamou?"</p>
                 <div className="flex items-center gap-1 mt-3 text-[10px] opacity-50">
                   <Smartphone className="h-3 w-3" />
