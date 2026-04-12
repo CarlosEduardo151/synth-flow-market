@@ -477,8 +477,6 @@ export function CRMMemoryTab({ customerProductId }: CRMMemoryTabProps) {
               Você também pode adicionar memórias manualmente.
             </span>
           </div>
-        </div>
-      </div>
     </div>
   );
 }
