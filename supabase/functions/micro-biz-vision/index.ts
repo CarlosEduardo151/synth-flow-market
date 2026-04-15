@@ -40,14 +40,19 @@ async function aiComposeImage(baseImageUrl: string, composePrompt: string): Prom
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  // Download the base image
+  // Download the base image and convert RGB → RGBA (OpenAI edits requires RGBA)
   const imgResp = await fetch(baseImageUrl);
   if (!imgResp.ok) throw new Error("failed_to_fetch_base_image");
-  const imgBlob = await imgResp.blob();
+  const imgArrayBuffer = await imgResp.arrayBuffer();
+  const imgBytes = new Uint8Array(imgArrayBuffer);
 
-  // Use OpenAI Images Edit endpoint (dall-e-2 supports edits)
+  // Decode PNG to get raw pixel data, add alpha channel, re-encode
+  // Simple approach: use the image as-is but with proper RGBA conversion
+  // We'll use a canvas-like approach via Deno's image manipulation
+  const rgbaBlob = await convertToRGBA(imgBytes);
+
   const formData = new FormData();
-  formData.append("image", new File([imgBlob], "base.png", { type: "image/png" }));
+  formData.append("image", new File([rgbaBlob], "base.png", { type: "image/png" }));
   formData.append("prompt", composePrompt);
   formData.append("model", "dall-e-2");
   formData.append("n", "1");
