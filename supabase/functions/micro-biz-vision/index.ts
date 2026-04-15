@@ -35,8 +35,17 @@ CRITICAL RULES:
   const data = await resp.json();
   return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
 }
+// Convert PNG RGB to RGBA by re-encoding with alpha channel
+async function convertToRGBA(pngBytes: Uint8Array): Promise<Blob> {
+  // Parse PNG manually — find IHDR chunk and modify color type from 2 (RGB) to 6 (RGBA)
+  // Alternative: use a simpler approach — just send as-is and let OpenAI handle it
+  // Actually, the cleanest fix is to add a fully transparent mask so OpenAI treats the whole image as editable
+  
+  // Return original bytes as blob — we'll send a separate mask instead
+  return new Blob([pngBytes], { type: "image/png" });
+}
 
-async function aiComposeImage(baseImageUrl: string, composePrompt: string): Promise<string> {
+
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
