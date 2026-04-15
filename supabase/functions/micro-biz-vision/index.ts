@@ -64,7 +64,6 @@ The image should maintain the original product and composition but add the reque
 
   const data = await resp.json();
   return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
-  return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
 }
 
 function buildCompositionMetadata(visionAnalysis: any, creativeData: any) {
@@ -104,7 +103,7 @@ serve(async (req) => {
     const body = await req.json();
     const {
       customer_product_id, product_id, image_url, image_base64, mime_type,
-      action, prompt, creative_id, style_prompt,
+      action, prompt, creative_id, style_prompt, brand_book,
       base_image_url, compose_prompt,
     } = body;
 
@@ -197,13 +196,21 @@ Responda APENAS o JSON, sem markdown.`,
       visionAnalysis = { raw_response: visionText };
     }
 
-    // ── ETAPA 1B: Copies + art_prompt que RECRIA o produto ──
+    // ── ETAPA 1B: Copies + art_prompt + VALIDAÇÃO DE COPY ──
     const creativeModel = aiConfig?.creative_model || "llama-3.3-70b-versatile";
     const businessName = aiConfig?.business_name || "Micro Empresa";
     const styleInstruction = style_prompt ? `\n\nEstilo visual escolhido:\n${style_prompt}` : "";
 
-    // Extrair a descrição visual detalhada para injetar no prompt
     const productVisualRef = visionAnalysis?.visual_description || visionAnalysis?.descricao_tecnica || "";
+
+    // Brand Book context for the creative AI
+    const brandContext = brand_book ? `
+BRAND BOOK (Manual de Identidade):
+- Fonte títulos: ${brand_book.headingFont || "Inter"}
+- Fonte corpo: ${brand_book.bodyFont || "Inter"}
+- Paleta de cores: ${(brand_book.colors || []).join(", ")}
+- Grid: ${brand_book.gridColumns || 12} colunas com margem de ${brand_book.gridMargin || 5}%
+USE estas cores e fontes na composição. Gere copies que respeitem o brand book.` : "";
 
     const copyResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -211,34 +218,49 @@ Responda APENAS o JSON, sem markdown.`,
       body: JSON.stringify({
         model: creativeModel,
         temperature: 0.7,
-        max_tokens: 2500,
+        max_tokens: 3000,
         messages: [
           {
             role: "system",
-            content: `Você é um copywriter e diretor de arte para anúncios de micro-empresas brasileiras.
+            content: `Você é um copywriter e diretor de arte de ELITE para anúncios de micro-empresas brasileiras.
+
+PROCESSO ANTI-ERRO OBRIGATÓRIO:
+1. Escreva copies impecáveis sem NENHUM erro ortográfico ou gramatical
+2. Revise cada headline e body verificando concordância, pontuação e digitação
+3. Leia mentalmente em voz alta para garantir fluência natural
+4. Valide que o texto soa profissional e vendedor
+
+${brandContext}
 
 REGRA CRÍTICA — O art_prompt DEVE:
-1. RECRIAR o produto EXATAMENTE como descrito na referência visual abaixo, mantendo forma, cores, texturas e proporções fiéis
-2. Colocar o produto em um CENÁRIO PUBLICITÁRIO profissional seguindo o estilo escolhido
+1. RECRIAR o produto EXATAMENTE como descrito na referência visual abaixo
+2. Colocar em CENÁRIO PUBLICITÁRIO profissional seguindo o estilo escolhido
 3. NÃO renderizar NENHUM texto, palavra ou tipografia
-4. Deixar ESPAÇO NEGATIVO estratégico para overlay de texto
+4. Deixar ESPAÇO NEGATIVO estratégico (design "respira" = autoridade e luxo)
 5. Descrever direção de luz principal para cálculo de sombras 3D
 
-REFERÊNCIA VISUAL DO PRODUTO (use isso para recriar fielmente):
+REFERÊNCIA VISUAL DO PRODUTO:
 ${productVisualRef}
 
 Gere um JSON:
 {
-  "art_prompt": "Prompt detalhado em inglês para DALL-E 3. DEVE começar descrevendo o produto exato (copiando da referência visual) posicionado em um cenário publicitário. Inclua: descrição fiel do produto, cenário, iluminação dramática com direção (ex: key light from top-left at 45 degrees), paleta de cores, texturas do ambiente, espaço negativo nas zonas superior e inferior, qualidade 8k photorealistic. SEM TEXTO na imagem.",
+  "art_prompt": "Prompt detalhado em inglês para DALL-E 3. DEVE começar descrevendo o produto exato. Inclua: descrição fiel, cenário, iluminação dramática com direção, paleta de cores, texturas, espaço negativo, qualidade 8k photorealistic. SEM TEXTO.",
   "copies": [
-    { "headline": "título curto", "body": "texto persuasivo", "cta": "call to action" },
+    { "headline": "título curto e impactante", "body": "texto persuasivo revisado", "cta": "call to action" },
     { "headline": "...", "body": "...", "cta": "..." },
     { "headline": "...", "body": "...", "cta": "..." }
   ],
+  "copy_validation": {
+    "spelling_checked": true,
+    "grammar_checked": true,
+    "readability_score": "alto/medio/baixo",
+    "issues_found": []
+  },
   "composition_hints": {
     "light_direction": "top-left",
     "negative_space_zones": ["top", "bottom"],
-    "mood": "dramatic"
+    "mood": "dramatic",
+    "suggested_colors_for_text": ["#FFFFFF", "#00D4FF"]
   }
 }
 Marca: ${businessName}.${styleInstruction}
