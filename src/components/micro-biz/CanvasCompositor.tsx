@@ -315,6 +315,17 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
         <CardContent className="space-y-4">
           {/* Canvas */}
           <div className="relative rounded-lg border overflow-hidden bg-black">
+            <div className="absolute top-2 right-2 z-10">
+              <Button
+                variant={showGrid ? "default" : "outline"}
+                size="sm"
+                className="text-[9px] font-mono h-6 bg-black/60 hover:bg-black/80"
+                onClick={() => setShowGrid(!showGrid)}
+              >
+                <Grid3X3 className="h-3 w-3 mr-1" />
+                {showGrid ? "Grid ON" : "Grid OFF"}
+              </Button>
+            </div>
             <canvas
               ref={canvasRef}
               className="w-full h-auto cursor-move"
