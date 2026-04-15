@@ -64,7 +64,6 @@ The image should maintain the original product and composition but add the reque
 
   const data = await resp.json();
   return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
-  return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
 }
 
 function buildCompositionMetadata(visionAnalysis: any, creativeData: any) {
