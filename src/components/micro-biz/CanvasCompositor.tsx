@@ -9,8 +9,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Download, Type, Plus, Trash2, Move,
-  Layers, Eye, EyeOff, Sparkles, Loader2, Wand2, Zap
+  Layers, Eye, EyeOff, Sparkles, Loader2, Wand2, Zap, Grid3X3
 } from "lucide-react";
+import type { BrandBook } from "./BrandBookConfig";
 
 export interface TextOverlay {
   id: string;
@@ -56,10 +57,11 @@ const AI_EFFECTS = [
 interface Props {
   baseImageUrl: string;
   suggestedTexts?: { headline?: string; cta?: string }[];
+  brandBook?: BrandBook;
   onExport?: (dataUrl: string) => void;
 }
 
-export function CanvasCompositor({ baseImageUrl, suggestedTexts, onExport }: Props) {
+export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onExport }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [overlays, setOverlays] = useState<TextOverlay[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
