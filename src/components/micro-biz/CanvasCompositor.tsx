@@ -72,6 +72,7 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
   const [currentBaseUrl, setCurrentBaseUrl] = useState(baseImageUrl);
   const [customAiPrompt, setCustomAiPrompt] = useState("");
   const [aiHistory, setAiHistory] = useState<string[]>([baseImageUrl]);
+  const [showGrid, setShowGrid] = useState(brandBook?.gridEnabled ?? true);
 
   // Load base image — handle CORS by proxying through a canvas-safe approach
   useEffect(() => {
@@ -107,6 +108,51 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
     canvas.height = baseImage.height;
     ctx.drawImage(baseImage, 0, 0);
 
+    // Grid overlay
+    if (showGrid && brandBook) {
+      const cols = brandBook.gridColumns || 12;
+      const marginPx = (brandBook.gridMargin / 100) * canvas.width;
+      const usableWidth = canvas.width - marginPx * 2;
+      const colWidth = usableWidth / cols;
+
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.strokeStyle = "#00D4FF";
+      ctx.lineWidth = 1;
+
+      // Margin guides
+      ctx.setLineDash([8, 4]);
+      ctx.strokeStyle = "#FF4444";
+      ctx.strokeRect(marginPx, marginPx, canvas.width - marginPx * 2, canvas.height - marginPx * 2);
+
+      // Column lines
+      ctx.strokeStyle = "#00D4FF";
+      ctx.setLineDash([4, 8]);
+      for (let i = 0; i <= cols; i++) {
+        const x = marginPx + i * colWidth;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+
+      // Center guides
+      ctx.strokeStyle = "#A855F7";
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, canvas.height / 2);
+      ctx.lineTo(canvas.width, canvas.height / 2);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    const headingFont = brandBook?.headingFont || "Inter";
+
     overlays.filter(o => o.visible).forEach(o => {
       ctx.save();
       const px = (o.x / 100) * canvas.width;
@@ -120,9 +166,12 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       }
 
       const scaledFontSize = (o.fontSize / 100) * canvas.width * 0.08;
-      ctx.font = `${o.fontWeight} ${scaledFontSize}px "Inter", "Segoe UI", sans-serif`;
+      ctx.font = `${o.fontWeight} ${scaledFontSize}px "${headingFont}", "Inter", sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      if (o.letterSpacing > 0) {
+        (ctx as any).letterSpacing = `${o.letterSpacing}px`;
+      }
 
       // Glow
       if (o.glowIntensity > 0) {
@@ -159,7 +208,7 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       ctx.globalAlpha = 1;
       ctx.restore();
     });
-  }, [baseImage, overlays]);
+  }, [baseImage, overlays, showGrid, brandBook]);
 
   useEffect(() => { render(); }, [render]);
 
