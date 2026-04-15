@@ -127,6 +127,93 @@ serve(async (req) => {
       return corsResponse({ success: true, image_url: composedUrl }, 200, origin);
     }
 
+    // ═══ ACTION: AI Layout — Groq Vision analisa imagem e retorna zonas inteligentes ═══
+    if (action === "ai-layout") {
+      if (!base_image_url) return corsResponse({ error: "base_image_url required" }, 400, origin);
+      const groqKey = Deno.env.get("GROQ_API_KEY") || "";
+      if (!groqKey) return corsResponse({ error: "GROQ_API_KEY not configured" }, 500, origin);
+
+      const layoutResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+        body: JSON.stringify({
+          model: "meta-llama/llama-4-scout-17b-16e-instruct",
+          temperature: 0.2,
+          max_tokens: 2000,
+          messages: [
+            {
+              role: "system",
+              content: `You are an expert art director and compositor for advertising. Analyze this advertisement image and identify the BEST zones for placing overlay elements (text, logos, effects, CTAs).
+
+Return a JSON with these exact fields:
+{
+  "zones": [
+    {
+      "id": "zone_1",
+      "label": "Headline Principal",
+      "purpose": "headline|cta|logo|badge|subtitle|effect",
+      "x_pct": 50,
+      "y_pct": 12,
+      "width_pct": 80,
+      "height_pct": 15,
+      "reason": "why this area is ideal",
+      "suggested_font_size": 64,
+      "suggested_color": "#FFFFFF",
+      "suggested_glow": "#00D4FF",
+      "alignment": "center|left|right",
+      "priority": 1
+    }
+  ],
+  "focal_point": { "x_pct": 50, "y_pct": 50, "description": "where the product/main subject is" },
+  "negative_space": [
+    { "x_pct": 50, "y_pct": 10, "width_pct": 90, "height_pct": 20, "quality": "high|medium|low" }
+  ],
+  "lighting": {
+    "direction": "top-left|top-right|center|bottom",
+    "intensity": "dramatic|soft|flat",
+    "key_color": "#hex"
+  },
+  "depth_layers": [
+    { "name": "foreground|midground|background", "y_start_pct": 0, "y_end_pct": 100, "blur_level": "none|slight|heavy" }
+  ]
+}
+
+Rules:
+- Identify 4-8 zones. At minimum: 1 headline, 1 CTA, 1 badge/logo spot, 1 subtitle.
+- NEVER place zones directly over the main product/subject (the focal point).
+- Prefer negative space, dark areas, or blurred backgrounds for text.
+- Consider visual hierarchy: headline biggest at top, CTA at bottom.
+- suggested_color should contrast well with the background in that zone.
+- Return ONLY the JSON, no markdown.`,
+            },
+            {
+              role: "user",
+              content: [
+                { type: "image_url", image_url: { url: base_image_url } },
+                { type: "text", text: "Analyze this advertising image and map all optimal zones for text, logos, and visual effects overlay. Be precise with percentages." },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const layoutJson = await layoutResp.json();
+      if (!layoutResp.ok) {
+        console.error("layout_vision_error:", layoutJson);
+        return corsResponse({ error: "layout_analysis_failed", details: layoutJson }, 500, origin);
+      }
+
+      const layoutText = layoutJson?.choices?.[0]?.message?.content?.trim() || "";
+      let layoutData: any;
+      try {
+        layoutData = JSON.parse(layoutText.replace(/```json\n?|```/g, "").trim());
+      } catch {
+        layoutData = { zones: [], raw: layoutText };
+      }
+
+      return corsResponse({ success: true, layout: layoutData }, 200, origin);
+    }
+
     // ═══ PIPELINE COMPLETO ═══
     if (!customer_product_id) return corsResponse({ error: "customer_product_id required" }, 400, origin);
     if (!image_url && !image_base64) return corsResponse({ error: "image_url or image_base64 required" }, 400, origin);

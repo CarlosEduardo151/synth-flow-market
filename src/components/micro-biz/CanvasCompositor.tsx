@@ -9,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Download, Type, Plus, Trash2, Move,
-  Layers, Eye, EyeOff, Sparkles, Loader2, Wand2, Zap, Grid3X3
+  Layers, Eye, EyeOff, Sparkles, Loader2, Wand2, Zap, Grid3X3, ScanEye, Target
 } from "lucide-react";
 import type { BrandBook } from "./BrandBookConfig";
 
@@ -33,6 +33,30 @@ export interface TextOverlay {
   visible: boolean;
 }
 
+interface LayoutZone {
+  id: string;
+  label: string;
+  purpose: string;
+  x_pct: number;
+  y_pct: number;
+  width_pct: number;
+  height_pct: number;
+  reason: string;
+  suggested_font_size: number;
+  suggested_color: string;
+  suggested_glow: string;
+  alignment: string;
+  priority: number;
+}
+
+interface AILayout {
+  zones: LayoutZone[];
+  focal_point?: { x_pct: number; y_pct: number; description: string };
+  negative_space?: { x_pct: number; y_pct: number; width_pct: number; height_pct: number; quality: string }[];
+  lighting?: { direction: string; intensity: string; key_color: string };
+  depth_layers?: { name: string; y_start_pct: number; y_end_pct: number; blur_level: string }[];
+}
+
 const DEFAULT_OVERLAY: Omit<TextOverlay, "id" | "text"> = {
   x: 50, y: 50, fontSize: 48, color: "#FFFFFF",
   shadowColor: "rgba(0,0,0,0.8)", shadowBlur: 12, shadowOffsetX: 4, shadowOffsetY: 4,
@@ -54,6 +78,15 @@ const AI_EFFECTS = [
   { label: "Splash & Explosão", prompt: "Add a dramatic paint splash and explosion effect behind the product with vibrant colors. Product stays intact in the center with dynamic debris." },
 ];
 
+const ZONE_COLORS: Record<string, string> = {
+  headline: "#FF4444",
+  cta: "#44FF44",
+  logo: "#4444FF",
+  badge: "#FFAA00",
+  subtitle: "#FF44FF",
+  effect: "#44FFFF",
+};
+
 interface Props {
   baseImageUrl: string;
   suggestedTexts?: { headline?: string; cta?: string }[];
@@ -73,15 +106,17 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
   const [customAiPrompt, setCustomAiPrompt] = useState("");
   const [aiHistory, setAiHistory] = useState<string[]>([baseImageUrl]);
   const [showGrid, setShowGrid] = useState(brandBook?.gridEnabled ?? true);
+  const [aiLayout, setAiLayout] = useState<AILayout | null>(null);
+  const [showZones, setShowZones] = useState(true);
+  const [layoutLoading, setLayoutLoading] = useState(false);
 
-  // Load base image — handle CORS by proxying through a canvas-safe approach
+  // Load base image
   useEffect(() => {
     if (!currentBaseUrl) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => setBaseImage(img);
     img.onerror = () => {
-      // Fallback: try without crossOrigin (won't export but will display)
       const img2 = new Image();
       img2.onload = () => setBaseImage(img2);
       img2.src = currentBaseUrl;
@@ -89,11 +124,11 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
     img.src = currentBaseUrl;
   }, [currentBaseUrl]);
 
-  // Sync when parent URL changes
   useEffect(() => {
     if (baseImageUrl !== currentBaseUrl) {
       setCurrentBaseUrl(baseImageUrl);
       setAiHistory(prev => [...prev, baseImageUrl]);
+      setAiLayout(null); // Reset layout on new image
     }
   }, [baseImageUrl]);
 
@@ -108,6 +143,98 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
     canvas.height = baseImage.height;
     ctx.drawImage(baseImage, 0, 0);
 
+    // AI Layout zones
+    if (showZones && aiLayout?.zones?.length) {
+      ctx.save();
+      for (const zone of aiLayout.zones) {
+        const zx = (zone.x_pct / 100) * canvas.width;
+        const zy = (zone.y_pct / 100) * canvas.height;
+        const zw = (zone.width_pct / 100) * canvas.width;
+        const zh = (zone.height_pct / 100) * canvas.height;
+        const color = ZONE_COLORS[zone.purpose] || "#FFFFFF";
+
+        // Zone rectangle
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = color;
+        ctx.fillRect(zx - zw / 2, zy - zh / 2, zw, zh);
+
+        ctx.globalAlpha = 0.7;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        ctx.strokeRect(zx - zw / 2, zy - zh / 2, zw, zh);
+
+        // Label
+        ctx.setLineDash([]);
+        const labelSize = Math.max(10, canvas.width * 0.012);
+        ctx.font = `bold ${labelSize}px "Inter", monospace`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "top";
+
+        const labelText = `${zone.priority}. ${zone.label} [${zone.purpose.toUpperCase()}]`;
+        const labelMetrics = ctx.measureText(labelText);
+        const labelX = zx - zw / 2 + 4;
+        const labelY = zy - zh / 2 + 3;
+
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = "#000000";
+        ctx.fillRect(labelX - 2, labelY - 2, labelMetrics.width + 8, labelSize + 6);
+        ctx.fillStyle = color;
+        ctx.globalAlpha = 1;
+        ctx.fillText(labelText, labelX + 2, labelY + 1);
+      }
+
+      // Focal point
+      if (aiLayout.focal_point) {
+        const fx = (aiLayout.focal_point.x_pct / 100) * canvas.width;
+        const fy = (aiLayout.focal_point.y_pct / 100) * canvas.height;
+        const r = canvas.width * 0.03;
+
+        ctx.globalAlpha = 0.6;
+        ctx.strokeStyle = "#FF0000";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(fx, fy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(fx - r * 1.5, fy);
+        ctx.lineTo(fx + r * 1.5, fy);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(fx, fy - r * 1.5);
+        ctx.lineTo(fx, fy + r * 1.5);
+        ctx.stroke();
+
+        ctx.globalAlpha = 0.85;
+        const fpSize = Math.max(9, canvas.width * 0.01);
+        ctx.font = `bold ${fpSize}px "Inter", monospace`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = "#FF0000";
+        ctx.fillText("FOCAL POINT", fx, fy + r + fpSize + 2);
+      }
+
+      // Negative space indicators
+      if (aiLayout.negative_space?.length) {
+        for (const ns of aiLayout.negative_space) {
+          const nx = ((ns.x_pct - ns.width_pct / 2) / 100) * canvas.width;
+          const ny = ((ns.y_pct - ns.height_pct / 2) / 100) * canvas.height;
+          const nw = (ns.width_pct / 100) * canvas.width;
+          const nh = (ns.height_pct / 100) * canvas.height;
+          ctx.globalAlpha = 0.08;
+          ctx.fillStyle = "#00FF88";
+          ctx.fillRect(nx, ny, nw, nh);
+          ctx.globalAlpha = 0.4;
+          ctx.strokeStyle = "#00FF88";
+          ctx.lineWidth = 1;
+          ctx.setLineDash([3, 6]);
+          ctx.strokeRect(nx, ny, nw, nh);
+        }
+      }
+
+      ctx.restore();
+    }
+
     // Grid overlay
     if (showGrid && brandBook) {
       const cols = brandBook.gridColumns || 12;
@@ -119,13 +246,9 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       ctx.globalAlpha = 0.12;
       ctx.strokeStyle = "#00D4FF";
       ctx.lineWidth = 1;
-
-      // Margin guides
       ctx.setLineDash([8, 4]);
       ctx.strokeStyle = "#FF4444";
       ctx.strokeRect(marginPx, marginPx, canvas.width - marginPx * 2, canvas.height - marginPx * 2);
-
-      // Column lines
       ctx.strokeStyle = "#00D4FF";
       ctx.setLineDash([4, 8]);
       for (let i = 0; i <= cols; i++) {
@@ -135,8 +258,6 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
         ctx.lineTo(x, canvas.height);
         ctx.stroke();
       }
-
-      // Center guides
       ctx.strokeStyle = "#A855F7";
       ctx.setLineDash([6, 6]);
       ctx.beginPath();
@@ -147,7 +268,6 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       ctx.moveTo(0, canvas.height / 2);
       ctx.lineTo(canvas.width, canvas.height / 2);
       ctx.stroke();
-
       ctx.restore();
     }
 
@@ -173,7 +293,6 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
         (ctx as any).letterSpacing = `${o.letterSpacing}px`;
       }
 
-      // Glow
       if (o.glowIntensity > 0) {
         ctx.shadowColor = o.glowColor;
         ctx.shadowBlur = o.glowIntensity * 3;
@@ -185,7 +304,6 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
         ctx.globalAlpha = 1;
       }
 
-      // 3D shadow layers
       for (let i = 6; i > 0; i--) {
         ctx.shadowColor = "transparent";
         ctx.fillStyle = `rgba(0,0,0,${0.15 * (i / 6)})`;
@@ -199,7 +317,6 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       ctx.fillStyle = o.color;
       ctx.fillText(o.text, 0, 0);
 
-      // Highlight
       ctx.shadowColor = "transparent";
       ctx.shadowBlur = 0;
       ctx.globalAlpha = 0.12;
@@ -208,7 +325,7 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       ctx.globalAlpha = 1;
       ctx.restore();
     });
-  }, [baseImage, overlays, showGrid, brandBook]);
+  }, [baseImage, overlays, showGrid, showZones, aiLayout, brandBook]);
 
   useEffect(() => { render(); }, [render]);
 
@@ -227,7 +344,46 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
     if (selectedId === id) setSelectedId(null);
   };
 
-  // ═══ AI COMPOSE — Envia imagem para OpenAI editar com efeitos ═══
+  // ═══ AI LAYOUT — Groq Vision mapeia zonas inteligentes ═══
+  const handleAiLayout = async () => {
+    if (!currentBaseUrl || layoutLoading) return;
+    setLayoutLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("micro-biz-vision", {
+        body: { action: "ai-layout", base_image_url: currentBaseUrl },
+      });
+      if (error) throw error;
+      if (data?.layout) {
+        setAiLayout(data.layout);
+        setShowZones(true);
+        toast.success(`Mapeamento concluído: ${data.layout.zones?.length || 0} zonas identificadas`);
+      }
+    } catch (e) {
+      toast.error("Erro no AI Layout: " + (e as Error).message);
+    } finally {
+      setLayoutLoading(false);
+    }
+  };
+
+  // Add text from a zone suggestion
+  const addFromZone = (zone: LayoutZone) => {
+    const placeholderText = zone.purpose === "headline" ? "HEADLINE" :
+      zone.purpose === "cta" ? "COMPRE AGORA" :
+      zone.purpose === "badge" ? "★ NOVO" :
+      zone.purpose === "subtitle" ? "Subtítulo aqui" :
+      zone.purpose === "logo" ? "LOGO" : "TEXTO";
+
+    addOverlay(placeholderText, {
+      x: zone.x_pct,
+      y: zone.y_pct,
+      fontSize: Math.min(120, Math.max(20, zone.suggested_font_size || 48)),
+      color: zone.suggested_color || "#FFFFFF",
+      glowColor: zone.suggested_glow || "#a855f7",
+      glowIntensity: zone.purpose === "headline" ? 15 : zone.purpose === "cta" ? 10 : 0,
+    });
+  };
+
+  // ═══ AI COMPOSE ═══
   const handleAiCompose = async (prompt: string) => {
     if (!currentBaseUrl || aiLoading) return;
     setAiLoading(true);
@@ -239,6 +395,7 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       if (data?.image_url) {
         setCurrentBaseUrl(data.image_url);
         setAiHistory(prev => [...prev, data.image_url]);
+        setAiLayout(null);
         toast.success("Efeito AI aplicado com sucesso!");
       }
     } catch (e) {
@@ -254,22 +411,32 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
       prev.pop();
       setAiHistory(prev);
       setCurrentBaseUrl(prev[prev.length - 1]);
+      setAiLayout(null);
     }
   };
 
   const handleExport = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    try {
-      const dataUrl = canvas.toDataURL("image/png");
-      onExport?.(dataUrl);
-      const link = document.createElement("a");
-      link.download = "arte-final-novalink.png";
-      link.href = dataUrl;
-      link.click();
-    } catch {
-      toast.error("Erro ao exportar. A imagem pode ter restrições de CORS. Tente aplicar um efeito AI primeiro.");
-    }
+    // Hide zones for export
+    const prevShowZones = showZones;
+    const prevShowGrid = showGrid;
+    setShowZones(false);
+    setShowGrid(false);
+    setTimeout(() => {
+      try {
+        const dataUrl = canvas.toDataURL("image/png");
+        onExport?.(dataUrl);
+        const link = document.createElement("a");
+        link.download = "arte-final-novalink.png";
+        link.href = dataUrl;
+        link.click();
+      } catch {
+        toast.error("Erro ao exportar. Tente aplicar um efeito AI primeiro.");
+      }
+      setShowZones(prevShowZones);
+      setShowGrid(prevShowGrid);
+    }, 100);
   };
 
   // Mouse drag
@@ -309,13 +476,24 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
             <Layers className="h-4 w-4" /> COMPOSITOR AI — ETAPA 2
           </CardTitle>
           <CardDescription className="text-[10px] font-mono">
-            Adicione efeitos visuais via IA + tipografia 3D com sombras e brilho. Arraste os textos no canvas.
+            Mapeie zonas inteligentes via IA, adicione efeitos visuais e tipografia 3D. Arraste os textos no canvas.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Canvas */}
           <div className="relative rounded-lg border overflow-hidden bg-black">
-            <div className="absolute top-2 right-2 z-10">
+            <div className="absolute top-2 right-2 z-10 flex gap-1">
+              {aiLayout && (
+                <Button
+                  variant={showZones ? "default" : "outline"}
+                  size="sm"
+                  className="text-[9px] font-mono h-6 bg-black/60 hover:bg-black/80"
+                  onClick={() => setShowZones(!showZones)}
+                >
+                  <Target className="h-3 w-3 mr-1" />
+                  {showZones ? "Zonas ON" : "Zonas OFF"}
+                </Button>
+              )}
               <Button
                 variant={showGrid ? "default" : "outline"}
                 size="sm"
@@ -340,21 +518,102 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
                 Carregando imagem base...
               </div>
             )}
-            {aiLoading && (
+            {(aiLoading || layoutLoading) && (
               <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
                 <div className="flex flex-col items-center gap-3">
                   <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                  <p className="text-xs font-mono text-white">AI processando efeitos visuais...</p>
+                  <p className="text-xs font-mono text-white">
+                    {layoutLoading ? "IA mapeando zonas de composição..." : "AI processando efeitos visuais..."}
+                  </p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* AI Effects — Like After Effects */}
+          {/* AI Layout Mapper */}
+          <div className="space-y-3 p-3 rounded-lg border bg-gradient-to-br from-blue-500/5 to-cyan-500/5">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">
+                🎯 MAPEAMENTO AI (AFTER EFFECTS)
+              </p>
+              <Button
+                variant="default"
+                size="sm"
+                className="text-[10px] font-mono h-7"
+                disabled={layoutLoading || !currentBaseUrl}
+                onClick={handleAiLayout}
+              >
+                {layoutLoading ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <ScanEye className="h-3 w-3 mr-1" />}
+                {aiLayout ? "Re-mapear Zonas" : "Mapear Zonas com IA"}
+              </Button>
+            </div>
+
+            {aiLayout && (
+              <div className="space-y-2">
+                {/* Zones list */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {aiLayout.zones.map(zone => (
+                    <div
+                      key={zone.id}
+                      className="flex items-center gap-2 p-2 rounded-md border bg-background/50 text-[10px] font-mono hover:border-primary/50 transition-colors"
+                    >
+                      <div
+                        className="w-3 h-3 rounded-sm shrink-0"
+                        style={{ backgroundColor: ZONE_COLORS[zone.purpose] || "#FFF" }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold truncate">{zone.label}</p>
+                        <p className="text-muted-foreground truncate">{zone.reason}</p>
+                      </div>
+                      <Badge variant="outline" className="text-[8px] shrink-0">
+                        {zone.purpose}
+                      </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-6 w-6 p-0 shrink-0"
+                        onClick={() => addFromZone(zone)}
+                        title="Adicionar texto nesta zona"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Layout info badges */}
+                <div className="flex flex-wrap gap-1">
+                  {aiLayout.focal_point && (
+                    <Badge variant="outline" className="text-[8px] font-mono">
+                      🎯 Foco: {aiLayout.focal_point.description?.slice(0, 30)}
+                    </Badge>
+                  )}
+                  {aiLayout.lighting && (
+                    <Badge variant="outline" className="text-[8px] font-mono">
+                      💡 Luz: {aiLayout.lighting.direction} ({aiLayout.lighting.intensity})
+                    </Badge>
+                  )}
+                  {aiLayout.negative_space?.length ? (
+                    <Badge variant="outline" className="text-[8px] font-mono">
+                      ⬜ {aiLayout.negative_space.length} zonas de espaço negativo
+                    </Badge>
+                  ) : null}
+                </div>
+              </div>
+            )}
+
+            {!aiLayout && (
+              <p className="text-[10px] font-mono text-muted-foreground text-center py-2">
+                Clique em "Mapear Zonas com IA" para a IA analisar a imagem e sugerir as melhores posições para textos, logos e efeitos — como guias inteligentes do After Effects.
+              </p>
+            )}
+          </div>
+
+          {/* AI Effects */}
           <div className="space-y-3 p-3 rounded-lg border bg-gradient-to-br from-primary/5 to-accent/5">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-mono font-bold text-muted-foreground uppercase tracking-widest">
-                🪄 EFEITOS AI (AFTER EFFECTS)
+                🪄 EFEITOS AI (PÓS-PRODUÇÃO)
               </p>
               {aiHistory.length > 1 && (
                 <Button variant="ghost" size="sm" className="text-[10px] font-mono h-6" onClick={handleUndo}>
@@ -499,6 +758,7 @@ export function CanvasCompositor({ baseImageUrl, suggestedTexts, brandBook, onEx
             </Button>
             <Badge variant="outline" className="text-[9px] font-mono">
               {overlays.length} camada{overlays.length !== 1 ? "s" : ""} · {aiHistory.length - 1} efeito{aiHistory.length - 1 !== 1 ? "s" : ""} AI
+              {aiLayout ? ` · ${aiLayout.zones.length} zonas` : ""}
             </Badge>
           </div>
         </CardContent>
