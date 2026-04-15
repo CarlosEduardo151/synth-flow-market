@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ArtStyleSelector, PRESET_STYLES } from "./ArtStyleSelector";
 import { CanvasCompositor } from "./CanvasCompositor";
+import { BrandBookConfig, DEFAULT_BRAND, type BrandBook } from "./BrandBookConfig";
 
 interface Props {
   customerProductId: string;
@@ -23,6 +24,7 @@ export function MicroBizVision({ customerProductId }: Props) {
   const [previewSrc, setPreviewSrc] = useState<string | null>(null);
   const [artStyle, setArtStyle] = useState<{ styleId: string | null; customPrompt: string }>({ styleId: null, customPrompt: "" });
   const [showCompositor, setShowCompositor] = useState(false);
+  const [brandBook, setBrandBook] = useState<BrandBook>(DEFAULT_BRAND);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
 
@@ -37,7 +39,12 @@ export function MicroBizVision({ customerProductId }: Props) {
   const analyzeImage = useMutation({
     mutationFn: async (payload: { image_url?: string; image_base64?: string; mime_type?: string }) => {
       const { data, error } = await supabase.functions.invoke("micro-biz-vision", {
-        body: { customer_product_id: customerProductId, style_prompt: getStylePrompt(), ...payload },
+        body: {
+          customer_product_id: customerProductId,
+          style_prompt: getStylePrompt(),
+          brand_book: brandBook,
+          ...payload,
+        },
       });
       if (error) throw error;
       return data;
@@ -145,6 +152,10 @@ export function MicroBizVision({ customerProductId }: Props) {
               </div>
             </div>
           )}
+
+          <div className="pt-2 border-t">
+            <BrandBookConfig value={brandBook} onChange={setBrandBook} />
+          </div>
 
           <div className="pt-2 border-t">
             <ArtStyleSelector value={artStyle} onChange={setArtStyle} />
@@ -271,6 +282,7 @@ export function MicroBizVision({ customerProductId }: Props) {
         <CanvasCompositor
           baseImageUrl={baseImageUrl}
           suggestedTexts={creative?.copies?.map((c: any) => ({ headline: c.headline, cta: c.cta }))}
+          brandBook={brandBook}
           onExport={(dataUrl) => toast.success("Arte final exportada com sucesso!")}
         />
       )}
