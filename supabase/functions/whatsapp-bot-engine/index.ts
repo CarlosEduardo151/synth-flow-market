@@ -192,8 +192,18 @@ serve(async (req) => {
 
     if (!phone) return corsResponse({ ok: true, skipped: "no_phone" }, 200, origin);
 
-    // Block fromMe messages (prevent echo loops)
-    if (fromMe) { setBlock(phone); return corsResponse({ ok: true, skipped: "from_me" }, 200, origin); }
+    // Block fromMe messages (prevent echo loops) but update handoff timer
+    if (fromMe) {
+      // When the human agent (business) sends a message, extend the handoff timer
+      await service.from("bot_handoff_sessions")
+        .update({ last_activity_at: new Date().toISOString() })
+        .eq("customer_product_id", cp.id)
+        .eq("phone", phone)
+        .eq("status", "active")
+        .then(() => {});
+      setBlock(phone);
+      return corsResponse({ ok: true, skipped: "from_me" }, 200, origin);
+    }
 
     // Cleanup + check blocks
     cleanupBlockMap();
