@@ -1,80 +1,47 @@
 /**
  * MICRO-BIZ VISION ENGINE — Pipeline de 2 Etapas
  * Etapa 1: Groq Vision analisa produto com descrição HIPER-detalhada → copies → DALL-E 3 recria o produto no cenário
- * Etapa 2: AI Compose → OpenAI edita a imagem base adicionando efeitos visuais de atenção
+ * Etapa 2: AI Compose → edita a imagem base adicionando efeitos visuais de atenção
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
 /**
- * Generate base image using Gemini API directly with reference image.
+ * Generate base image using DALL-E 3 via OpenAI API.
  */
-async function generateBaseImage(prompt: string, referenceImageUrl?: string): Promise<string> {
-  const apiKey = Deno.env.get("GEMINI_API_KEY");
-  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
+async function generateBaseImage(prompt: string): Promise<string> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  const parts: any[] = [];
-
-  // If we have a reference image, include it as inline data
-  if (referenceImageUrl) {
-    if (referenceImageUrl.startsWith("data:")) {
-      const [meta, b64] = referenceImageUrl.split(",");
-      const mimeMatch = meta.match(/data:(.*?);/);
-      parts.push({ inlineData: { mimeType: mimeMatch?.[1] || "image/jpeg", data: b64 } });
-    } else {
-      // Fetch external URL and convert to base64
-      try {
-        const imgResp = await fetch(referenceImageUrl);
-        const imgBuf = await imgResp.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
-        const ct = imgResp.headers.get("content-type") || "image/jpeg";
-        parts.push({ inlineData: { mimeType: ct, data: b64 } });
-      } catch (e) {
-        console.error("Failed to fetch reference image:", e);
-      }
-    }
-  }
-
-  parts.push({
-    text: `Recreate this exact product in a professional advertising setting. Use the reference image to copy the product EXACTLY as it appears — same shape, colors, materials, logos, brand marks, and all visual details.
-
-${prompt}
-
-CRITICAL RULES:
-- Reproduce the product FAITHFULLY from the reference image including any brand logos or marks visible.
-- DO NOT render ANY text, words, letters, numbers, or typography anywhere in the image.
-- Leave strategic NEGATIVE SPACE (empty areas) around the product for later text overlay.
-- Create dramatic, professional advertising lighting with a clear directional light source.
-- High-end, clean, minimal aesthetic suitable for paid traffic ads.
-- 8K photorealistic quality.`,
+  const resp = await fetch("https://api.openai.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size: "1024x1024",
+      quality: "hd",
+      response_format: "b64_json",
+    }),
   });
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${apiKey}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts }],
-        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
-      }),
-    }
-  );
 
   if (!resp.ok) {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
     if (resp.status === 402) throw new Error("credits_exhausted");
-    throw new Error(`gemini_failed[${resp.status}]:${errText}`);
+    throw new Error(`dalle_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  const candidate = data?.candidates?.[0]?.content?.parts || [];
-  const imgPart = candidate.find((p: any) => p.inlineData?.mimeType?.startsWith("image/"));
-  if (!imgPart) throw new Error("no_image_in_response");
+  const b64 = data?.data?.[0]?.b64_json;
+  if (!b64) throw new Error("no_image_in_response");
 
-  const dataUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+  const dataUrl = `data:image/png;base64,${b64}`;
   return await uploadBase64ToStorage(dataUrl);
 }
 
@@ -112,7 +79,6 @@ async function aiComposeImage(baseImageUrl: string, composePrompt: string): Prom
 
   const parts: any[] = [];
 
-  // Fetch and include the base image
   if (baseImageUrl.startsWith("data:")) {
     const [meta, b64] = baseImageUrl.split(",");
     const mimeMatch = meta.match(/data:(.*?);/);
@@ -334,17 +300,25 @@ Rules:
         role: "system",
         content: `Você é um especialista em análise visual de produtos. Sua análise será usada para RECRIAR o produto visualmente via IA generativa, então seja EXTREMAMENTE detalhado na descrição visual.
 
+REGRA CRÍTICA DE ANONIMIZAÇÃO:
+- NUNCA mencione nomes de marcas, logos ou empresas na visual_description
+- Em vez de dizer "Nike swoosh" diga "athletic brand logo mark, curved checkmark-like swoosh shape"
+- Em vez de dizer "Apple logo" diga "minimalist fruit silhouette logo, premium tech aesthetic"
+- Em vez de dizer "Adidas" diga "three parallel stripes motif"
+- Descreva APENAS as características visuais/estéticas do produto SEM nomear a marca
+- No campo nome_sugerido e descricao_tecnica, foque nas qualidades do produto
+
 Retorne um JSON:
 {
-  "nome_sugerido": "nome comercial",
-  "descricao_tecnica": "descrição detalhada do produto",
+  "nome_sugerido": "nome comercial genérico descritivo (SEM nome de marca)",
+  "descricao_tecnica": "descrição detalhada do produto (SEM nome de marca)",
   "categoria": "categoria",
   "pontos_venda": ["ponto 1", "ponto 2", "ponto 3"],
   "preco_sugerido_brl": "faixa de preço",
   "publico_alvo": "público ideal",
   "cores_dominantes": ["cor1", "cor2", "cor3"],
   "qualidade_foto": "boa/media/ruim",
-  "visual_description": "DESCRIÇÃO VISUAL ULTRA-DETALHADA EM INGLÊS do produto: formato exato, proporções, cores precisas (hex se possível), texturas (matte, glossy, metallic, fabric, etc), material aparente, detalhes visuais únicos, padrões, logo/marca visível, ângulo da foto, iluminação percebida, reflexos, sombras. Esta descrição será usada como referência para recriar o produto em DALL-E 3, então inclua TODOS os detalhes visuais possíveis."
+  "visual_description": "DESCRIÇÃO VISUAL ULTRA-DETALHADA EM INGLÊS do produto SEM MENCIONAR NENHUMA MARCA: formato exato, proporções, cores precisas (hex se possível), texturas (matte, glossy, metallic, fabric, etc), material aparente, detalhes visuais únicos, padrões, formas de logos/emblemas (descrever a FORMA sem nomear a marca), ângulo da foto, iluminação percebida, reflexos, sombras. Esta descrição será usada como referência para recriar o produto em DALL-E 3."
 }
 Responda APENAS o JSON, sem markdown.`,
       },
@@ -353,11 +327,11 @@ Responda APENAS o JSON, sem markdown.`,
         content: image_base64
           ? [
               { type: "image_url", image_url: { url: `data:${mime_type || "image/jpeg"};base64,${image_base64}` } },
-              { type: "text", text: "Analise este produto com máximo detalhe visual. A descrição visual em inglês será usada para recriar o produto via IA." },
+              { type: "text", text: "Analise este produto com máximo detalhe visual. NUNCA cite nomes de marcas — descreva apenas formas, cores, texturas e características visuais." },
             ]
           : [
               { type: "image_url", image_url: { url: image_url } },
-              { type: "text", text: "Analise este produto com máximo detalhe visual. A descrição visual em inglês será usada para recriar o produto via IA." },
+              { type: "text", text: "Analise este produto com máximo detalhe visual. NUNCA cite nomes de marcas — descreva apenas formas, cores, texturas e características visuais." },
             ],
       },
     ];
@@ -389,7 +363,6 @@ Responda APENAS o JSON, sem markdown.`,
 
     const productVisualRef = visionAnalysis?.visual_description || visionAnalysis?.descricao_tecnica || "";
 
-    // Brand Book context for the creative AI
     const brandContext = brand_book ? `
 BRAND BOOK (Manual de Identidade):
 - Fonte títulos: ${brand_book.headingFont || "Inter"}
@@ -418,8 +391,15 @@ PROCESSO ANTI-ERRO OBRIGATÓRIO:
 
 ${brandContext}
 
+REGRA CRÍTICA DE ANONIMIZAÇÃO DO ART_PROMPT:
+- O art_prompt NUNCA deve conter nomes de marcas (Nike, Adidas, Apple, Samsung, etc.)
+- Descreva o produto APENAS por suas características visuais: forma, cor, textura, material, proporção
+- Exemplo ERRADO: "A Nike Air Max sneaker with swoosh logo"
+- Exemplo CORRETO: "Premium athletic sneaker, aerodynamic silhouette, curved checkmark-shaped emblem on the side panel, breathable mesh upper with cushioned sole unit, sleek minimalist high-performance design"
+- Descreva logos como FORMAS GEOMÉTRICAS sem identificar a marca
+
 REGRA CRÍTICA — O art_prompt DEVE:
-1. RECRIAR o produto EXATAMENTE como descrito na referência visual abaixo
+1. RECRIAR o produto EXATAMENTE como descrito na referência visual (sem nomes de marcas)
 2. Colocar em CENÁRIO PUBLICITÁRIO profissional seguindo o estilo escolhido
 3. NÃO renderizar NENHUM texto, palavra ou tipografia
 4. Deixar ESPAÇO NEGATIVO estratégico (design "respira" = autoridade e luxo)
@@ -430,7 +410,7 @@ ${productVisualRef}
 
 Gere um JSON:
 {
-  "art_prompt": "Prompt detalhado em inglês para DALL-E 3. DEVE começar descrevendo o produto exato. Inclua: descrição fiel, cenário, iluminação dramática com direção, paleta de cores, texturas, espaço negativo, qualidade 8k photorealistic. SEM TEXTO.",
+  "art_prompt": "Prompt detalhado em inglês para DALL-E 3. NUNCA mencione marcas. Descreva o produto por forma, cor, textura e material. Inclua: descrição fiel visual, cenário, iluminação dramática com direção, paleta de cores, texturas, espaço negativo, qualidade 8k photorealistic. SEM TEXTO.",
   "copies": [
     { "headline": "título curto e impactante", "body": "texto persuasivo revisado", "cta": "call to action" },
     { "headline": "...", "body": "...", "cta": "..." },
@@ -466,14 +446,11 @@ Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
-    // ── ETAPA 1C: Gerar imagem BASE via Gemini (com referência do produto original) ──
+    // ── ETAPA 1C: Gerar imagem BASE via DALL-E 3 ──
     let generatedImageUrl = "";
-    const originalImageRef = image_base64
-      ? `data:${mime_type || "image/jpeg"};base64,${image_base64}`
-      : image_url;
     if (creativeData.art_prompt) {
       try {
-        generatedImageUrl = await generateBaseImage(creativeData.art_prompt, originalImageRef);
+        generatedImageUrl = await generateBaseImage(creativeData.art_prompt);
       } catch (imgErr) {
         console.error("base image generation failed:", imgErr);
       }
