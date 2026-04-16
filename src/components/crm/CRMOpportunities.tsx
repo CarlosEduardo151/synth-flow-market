@@ -119,10 +119,16 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
   const handleAddOpportunity = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    const customerId = formData.get('customer_id') as string;
+    
+    // Find the customer_product_id from the selected customer
+    const customer = customers.find(c => c.id === customerId);
+    if (!customer) return;
 
     try {
       const { error } = await (supabase.from('crm_opportunities' as any).insert({
-        customer_id: formData.get('customer_id') as string,
+        customer_product_id: (customer as any).customer_product_id || customers[0]?.customer_product_id,
+        customer_id: customerId,
         title: formData.get('title') as string,
         value: parseFloat(formData.get('value') as string) || 0,
         stage: formData.get('stage') as string || 'novo_lead',

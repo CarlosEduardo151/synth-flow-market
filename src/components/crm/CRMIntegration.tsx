@@ -17,7 +17,7 @@ export const CRMIntegration = ({ customerProductId }: CRMIntegrationProps) => {
   const [isActive, setIsActive] = useState(false);
   const [webhookToken, setWebhookToken] = useState('');
 
-  const projectId = 'agndhravgmcwpdjkozka';
+  const projectId = 'lqduauyrwwlrbtnxkiev';
   const endpointUrl = webhookToken 
     ? `https://${projectId}.supabase.co/functions/v1/crm-webhook?token=${webhookToken}`
     : "Carregando...";
