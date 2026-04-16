@@ -590,6 +590,10 @@ const WhatsAppBotConfigSystem = () => {
               />
             </TabsContent>
 
+            <TabsContent value="handoff">
+              {productId && <BotHandoffTab customerProductId={productId} />}
+            </TabsContent>
+
             <TabsContent value="logs">
               {productId && <BotConversationLogsTab customerProductId={productId} />}
             </TabsContent>
