@@ -508,6 +508,7 @@ const CRMSystem = () => {
               <CRMOpportunities
                 opportunities={opportunities}
                 customers={customers}
+                customerProductId={customerProductId || ''}
                 onRefresh={refreshData}
               />
             </TabsContent>
