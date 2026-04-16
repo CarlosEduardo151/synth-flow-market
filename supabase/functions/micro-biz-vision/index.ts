@@ -8,25 +8,35 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
 /**
- * Generate base image using Gemini Image via Lovable AI Gateway.
- * Accepts the original product image as reference so the AI recreates it faithfully.
+ * Generate base image using Gemini API directly with reference image.
  */
 async function generateBaseImage(prompt: string, referenceImageUrl?: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-  const userContent: any[] = [];
+  const parts: any[] = [];
 
-  // Pass the original product image as visual reference
+  // If we have a reference image, include it as inline data
   if (referenceImageUrl) {
-    userContent.push({
-      type: "image_url",
-      image_url: { url: referenceImageUrl },
-    });
+    if (referenceImageUrl.startsWith("data:")) {
+      const [meta, b64] = referenceImageUrl.split(",");
+      const mimeMatch = meta.match(/data:(.*?);/);
+      parts.push({ inlineData: { mimeType: mimeMatch?.[1] || "image/jpeg", data: b64 } });
+    } else {
+      // Fetch external URL and convert to base64
+      try {
+        const imgResp = await fetch(referenceImageUrl);
+        const imgBuf = await imgResp.arrayBuffer();
+        const b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+        const ct = imgResp.headers.get("content-type") || "image/jpeg";
+        parts.push({ inlineData: { mimeType: ct, data: b64 } });
+      } catch (e) {
+        console.error("Failed to fetch reference image:", e);
+      }
+    }
   }
 
-  userContent.push({
-    type: "text",
+  parts.push({
     text: `Recreate this exact product in a professional advertising setting. Use the reference image to copy the product EXACTLY as it appears — same shape, colors, materials, logos, brand marks, and all visual details.
 
 ${prompt}
@@ -40,32 +50,32 @@ CRITICAL RULES:
 - 8K photorealistic quality.`,
   });
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3-pro-image-preview",
-      messages: [{ role: "user", content: userContent }],
-      modalities: ["image", "text"],
-    }),
-  });
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+      }),
+    }
+  );
 
   if (!resp.ok) {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
     if (resp.status === 402) throw new Error("credits_exhausted");
-    throw new Error(`gemini_image_failed[${resp.status}]:${errText}`);
+    throw new Error(`gemini_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-  if (!imageData) throw new Error("no_image_in_response");
+  const candidate = data?.candidates?.[0]?.content?.parts || [];
+  const imgPart = candidate.find((p: any) => p.inlineData?.mimeType?.startsWith("image/"));
+  if (!imgPart) throw new Error("no_image_in_response");
 
-  // Upload the base64 image to Supabase Storage and return a public URL
-  return await uploadBase64ToStorage(imageData);
+  const dataUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+  return await uploadBase64ToStorage(dataUrl);
 }
 
 /**
@@ -76,19 +86,16 @@ async function uploadBase64ToStorage(dataUrl: string): Promise<string> {
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const service = createClient(supabaseUrl, serviceKey);
 
-  // Extract base64 data
   const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
   const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
-  
   const fileName = `vision-base/${crypto.randomUUID()}.png`;
 
   const { error } = await service.storage
-    .from("fleet_docs") // reuse existing public bucket
+    .from("fleet_docs")
     .upload(fileName, binaryData, { contentType: "image/png", upsert: true });
 
   if (error) {
     console.error("storage upload error:", error);
-    // Fallback: return the data URL directly (works but large)
     return dataUrl;
   }
 
@@ -97,50 +104,65 @@ async function uploadBase64ToStorage(dataUrl: string): Promise<string> {
 }
 
 /**
- * AI Compose: Edit the base image adding visual effects using Gemini.
+ * AI Compose: Edit the base image adding visual effects using Gemini directly.
  */
 async function aiComposeImage(baseImageUrl: string, composePrompt: string): Promise<string> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY not configured");
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-3-pro-image-preview",
-      messages: [{
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: baseImageUrl } },
-          {
-            type: "text",
-            text: `Edit this advertisement image by applying these visual effects:
+  const parts: any[] = [];
+
+  // Fetch and include the base image
+  if (baseImageUrl.startsWith("data:")) {
+    const [meta, b64] = baseImageUrl.split(",");
+    const mimeMatch = meta.match(/data:(.*?);/);
+    parts.push({ inlineData: { mimeType: mimeMatch?.[1] || "image/png", data: b64 } });
+  } else {
+    try {
+      const imgResp = await fetch(baseImageUrl);
+      const imgBuf = await imgResp.arrayBuffer();
+      const b64 = btoa(String.fromCharCode(...new Uint8Array(imgBuf)));
+      const ct = imgResp.headers.get("content-type") || "image/png";
+      parts.push({ inlineData: { mimeType: ct, data: b64 } });
+    } catch (e) {
+      console.error("Failed to fetch base image for compose:", e);
+      throw new Error("compose_image_fetch_failed");
+    }
+  }
+
+  parts.push({
+    text: `Edit this advertisement image by applying these visual effects:
 
 ${composePrompt}
 
 Keep the original product and composition intact. Add the effects seamlessly integrated with the scene lighting. Professional advertising quality, 8k. DO NOT add any text, words, or typography.`,
-          },
-        ],
-      }],
-      modalities: ["image", "text"],
-    }),
   });
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: { responseModalities: ["IMAGE", "TEXT"] },
+      }),
+    }
+  );
 
   if (!resp.ok) {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
-    if (resp.status === 402) throw new Error("credits_exhausted");
     throw new Error(`ai_compose_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-  if (!imageData) throw new Error("no_image_in_response");
+  const candidate = data?.candidates?.[0]?.content?.parts || [];
+  const imgPart = candidate.find((p: any) => p.inlineData?.mimeType?.startsWith("image/"));
+  if (!imgPart) throw new Error("no_image_in_response");
 
-  return await uploadBase64ToStorage(imageData);
+  const dataUrl = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+  return await uploadBase64ToStorage(dataUrl);
 }
 
 function buildCompositionMetadata(visionAnalysis: any, creativeData: any) {
