@@ -444,11 +444,14 @@ Responda APENAS o JSON.`,
       creativeData = { art_prompt: "", copies: [], raw: copyText };
     }
 
-    // ── ETAPA 1C: Gerar imagem BASE via DALL-E 3 ──
+    // ── ETAPA 1C: Gerar imagem BASE via Gemini (com referência do produto original) ──
     let generatedImageUrl = "";
+    const originalImageRef = image_base64
+      ? `data:${mime_type || "image/jpeg"};base64,${image_base64}`
+      : image_url;
     if (creativeData.art_prompt) {
       try {
-        generatedImageUrl = await generateBaseImage(creativeData.art_prompt);
+        generatedImageUrl = await generateBaseImage(creativeData.art_prompt, originalImageRef);
       } catch (imgErr) {
         console.error("base image generation failed:", imgErr);
       }
