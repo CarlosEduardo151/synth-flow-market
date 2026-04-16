@@ -7,17 +7,30 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
+function sanitizePromptForDalle(prompt: string): string {
+  // Remove brand names that trigger DALL-E content policy
+  const brandPatterns = /\b(Nike|Adidas|Puma|Reebok|Supreme|Gucci|Louis Vuitton|Chanel|Dior|Balenciaga|Versace|Prada|Fendi|Burberry|Hermès|Hermes|Apple|Samsung|Sony|Microsoft|Google|Amazon|Ferrari|Lamborghini|Porsche|BMW|Mercedes|Audi|Tesla|Rolex|Cartier|Tiffany|Coca[- ]?Cola|Pepsi|McDonald|Starbucks|Disney|Marvel|DC Comics|Warner|Netflix)\b/gi;
+  let cleaned = prompt.replace(brandPatterns, "premium brand");
+  // Also remove any "logo" references that could trigger policy
+  cleaned = cleaned.replace(/\b(logo|logotipo|trademark|marca registrada|swoosh|marca)\b/gi, "subtle emblem detail");
+  return cleaned;
+}
+
 async function generateBaseImage(prompt: string): Promise<string> {
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
 
-  const safePrompt = `${prompt}
+  const cleanPrompt = sanitizePromptForDalle(prompt);
+
+  const safePrompt = `Professional product photography: ${cleanPrompt}
 
 CRITICAL RULES:
-- DO NOT render ANY text, words, letters, numbers, or typography.
+- DO NOT render ANY text, words, letters, numbers, or typography anywhere.
+- DO NOT include any brand logos or trademarked symbols.
 - Leave strategic NEGATIVE SPACE for later text overlay.
 - Focus on: ambiance, lighting, scenery, product placement, textures.
-- Dramatic lighting with clear directional light source.`;
+- Dramatic lighting with clear directional light source.
+- Clean, minimal, high-end advertising aesthetic.`;
 
   const resp = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
