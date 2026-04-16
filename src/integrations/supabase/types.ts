@@ -233,6 +233,78 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_handoff_config: {
+        Row: {
+          auto_message: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_enabled: boolean
+          notification_message: string | null
+          notification_phone: string | null
+          pause_minutes: number
+          return_message: string | null
+          trigger_keywords: string[]
+          updated_at: string
+        }
+        Insert: {
+          auto_message?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_enabled?: boolean
+          notification_message?: string | null
+          notification_phone?: string | null
+          pause_minutes?: number
+          return_message?: string | null
+          trigger_keywords?: string[]
+          updated_at?: string
+        }
+        Update: {
+          auto_message?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_enabled?: boolean
+          notification_message?: string | null
+          notification_phone?: string | null
+          pause_minutes?: number
+          return_message?: string | null
+          trigger_keywords?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      bot_handoff_sessions: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          id: string
+          last_activity_at: string
+          phone: string
+          started_at: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          last_activity_at?: string
+          phone: string
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          last_activity_at?: string
+          phone?: string
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
       bot_instances: {
         Row: {
           created_at: string

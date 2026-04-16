@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import {
   Save, Bot, Brain, Plug, Pencil, Check,
   Loader2, MessageCircle, Smartphone, Database, ScrollText, BookOpen, HelpCircle, Mail, ChevronLeft, Menu,
-  Code, BarChart3
+  Code, BarChart3, UserCheck
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -35,6 +35,7 @@ import { BotFAQTab } from '@/components/bots/tabs/BotFAQTab';
 import { BotReportsTab } from '@/components/bots/tabs/BotReportsTab';
 import { BotWebEmbedTab } from '@/components/bots/tabs/BotWebEmbedTab';
 import { BotAnalyticsTab } from '@/components/bots/tabs/BotAnalyticsTab';
+import { BotHandoffTab } from '@/components/bots/tabs/BotHandoffTab';
 
 
 const supabase = supabaseClient as any;
@@ -131,6 +132,7 @@ const WhatsAppBotConfigSystem = () => {
     { value: 'faq', label: 'FAQ', icon: HelpCircle },
     { value: 'memory', label: 'Memória', icon: Database },
     { value: 'personality', label: 'Personalidade', icon: Bot },
+    { value: 'handoff', label: 'Atend. Humano', icon: UserCheck },
     { value: 'logs', label: 'Logs', icon: ScrollText },
     { value: 'analytics', label: 'Analytics', icon: BarChart3 },
     { value: 'reports', label: 'Relatórios', icon: Mail },
@@ -586,6 +588,10 @@ const WhatsAppBotConfigSystem = () => {
                 }))}
                 onVoiceConfigChange={(voiceConfig) => setConfig(prev => ({ ...prev, voiceConfig }))}
               />
+            </TabsContent>
+
+            <TabsContent value="handoff">
+              {productId && <BotHandoffTab customerProductId={productId} />}
             </TabsContent>
 
             <TabsContent value="logs">
