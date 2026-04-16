@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -26,6 +26,7 @@ import { CRMAIEngine } from '@/components/crm/CRMAIEngine';
 import { CRMAIPendingActions } from '@/components/crm/CRMAIPendingActions';
 import { CRMAIReports } from '@/components/crm/CRMAIReports';
 import { CRMWhatsAppTab } from '@/components/crm/CRMWhatsAppTab';
+import { CRMIntegration } from '@/components/crm/CRMIntegration';
 
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
@@ -83,6 +84,7 @@ const CRMSystem = () => {
       { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
       { value: 'memoria', label: 'Agente de IA', icon: Brain },
       { value: 'motor-ia', label: 'Motor IA', icon: Settings },
+      { value: 'integracao', label: 'Integração', icon: Link },
       { value: 'ai-reports', label: 'Relatórios', icon: FileText },
     ],
     []
@@ -190,8 +192,17 @@ const CRMSystem = () => {
   };
 
   const loadOpportunities = async (productId: string) => {
-    // Skip crm_opportunities - table doesn't exist
-    setOpportunities([]);
+    const { data, error } = await (supabase
+      .from('crm_opportunities' as any)
+      .select('*')
+      .eq('customer_product_id', productId)
+      .order('created_at', { ascending: false }) as any);
+
+    if (error) {
+      console.error('Erro ao carregar oportunidades:', error);
+      return;
+    }
+    setOpportunities(data || []);
   };
 
   const refreshData = () => {
@@ -207,8 +218,17 @@ const CRMSystem = () => {
   };
 
   const loadInteractions = async (customerId: string) => {
-    // Skip crm_interactions - table doesn't exist
-    setInteractions([]);
+    if (!customerProductId) return;
+    const { data, error } = await (supabase
+      .from('crm_interactions' as any)
+      .select('*')
+      .eq('customer_product_id', customerProductId)
+      .eq('customer_id', customerId)
+      .order('created_at', { ascending: false }) as any);
+
+    if (!error) {
+      setInteractions(data || []);
+    }
   };
 
   const handleSaveCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -316,15 +336,26 @@ const CRMSystem = () => {
 
   const handleAddInteraction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!selectedCustomer) return;
+    if (!selectedCustomer || !customerProductId) return;
 
-    // crm_interactions table doesn't exist - show message
-    toast({ 
-      title: "Tabela não configurada", 
-      description: "A tabela de interações ainda não foi criada no banco de dados.",
-      variant: "destructive" 
-    });
-    setIsAddingInteraction(false);
+    const formData = new FormData(e.currentTarget);
+    const { error } = await (supabase
+      .from('crm_interactions' as any)
+      .insert({
+        customer_product_id: customerProductId,
+        customer_id: selectedCustomer.id,
+        type: formData.get('type') as string,
+        subject: formData.get('subject') as string || null,
+        description: formData.get('description') as string,
+      }) as any);
+
+    if (!error) {
+      toast({ title: "Interação registrada!" });
+      setIsAddingInteraction(false);
+      loadInteractions(selectedCustomer.id);
+    } else {
+      toast({ title: "Erro ao registrar interação", variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -477,6 +508,7 @@ const CRMSystem = () => {
               <CRMOpportunities
                 opportunities={opportunities}
                 customers={customers}
+                customerProductId={customerProductId || ''}
                 onRefresh={refreshData}
               />
             </TabsContent>
@@ -497,6 +529,9 @@ const CRMSystem = () => {
               {customerProductId && <CRMAIEngine customerProductId={customerProductId} />}
             </TabsContent>
 
+            <TabsContent value="integracao" className="space-y-4">
+              {customerProductId && <CRMIntegration customerProductId={customerProductId} />}
+            </TabsContent>
 
             <TabsContent value="ai-reports" className="space-y-4">
               <CRMAIReports customerProductId={customerProductId} />
@@ -614,10 +649,10 @@ const CRMSystem = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Interações</CardTitle>
-                  <CardDescription>Em breve: ligações, mensagens e follow-ups por cliente.</CardDescription>
+                  <CardDescription>Ligações, mensagens e follow-ups por cliente.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <Button onClick={() => setIsAddingInteraction(true)} className="w-full" disabled>
+                  <Button onClick={() => setIsAddingInteraction(true)} className="w-full">
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Nova Interação
                   </Button>
@@ -651,7 +686,7 @@ const CRMSystem = () => {
             <form onSubmit={handleAddInteraction}>
               <DialogHeader>
                 <DialogTitle>Nova Interação</DialogTitle>
-                <DialogDescription>Funcionalidade em breve.</DialogDescription>
+                <DialogDescription>Registre uma interação com {selectedCustomer?.name}</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">

@@ -882,6 +882,51 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_interactions: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          customer_product_id: string
+          description: string
+          id: string
+          subject: string | null
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          customer_product_id: string
+          description: string
+          id?: string
+          subject?: string | null
+          type?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          customer_product_id?: string
+          description?: string
+          id?: string
+          subject?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_interactions_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_interactions_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_message_templates: {
         Row: {
           content: string
@@ -914,6 +959,72 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      crm_opportunities: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          customer_product_id: string
+          expected_close_date: string | null
+          id: string
+          lost_reason: string | null
+          notes: string | null
+          priority: string | null
+          probability: number | null
+          source: string | null
+          stage: string
+          title: string
+          updated_at: string
+          value: number
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          customer_product_id: string
+          expected_close_date?: string | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          stage?: string
+          title: string
+          updated_at?: string
+          value?: number
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          customer_product_id?: string
+          expected_close_date?: string | null
+          id?: string
+          lost_reason?: string | null
+          notes?: string | null
+          priority?: string | null
+          probability?: number | null
+          source?: string | null
+          stage?: string
+          title?: string
+          updated_at?: string
+          value?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_opportunities_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_opportunities_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_webhook_config: {
         Row: {

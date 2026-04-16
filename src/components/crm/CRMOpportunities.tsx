@@ -40,6 +40,7 @@ interface Opportunity {
 interface CRMOpportunitiesProps {
   opportunities: Opportunity[];
   customers: any[];
+  customerProductId: string;
   onRefresh: () => void;
 }
 
@@ -78,7 +79,7 @@ const sources = [
   { value: 'outro', label: 'Outro' },
 ];
 
-export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpportunitiesProps) => {
+export const CRMOpportunities = ({ opportunities, customers, customerProductId, onRefresh }: CRMOpportunitiesProps) => {
   const [isAddingOpportunity, setIsAddingOpportunity] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
@@ -119,9 +120,11 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
   const handleAddOpportunity = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
-
+    const customerId = formData.get('customer_id') as string;
+    
     try {
       const { error } = await (supabase.from('crm_opportunities' as any).insert({
+        customer_product_id: customerProductId,
         customer_id: formData.get('customer_id') as string,
         title: formData.get('title') as string,
         value: parseFloat(formData.get('value') as string) || 0,
