@@ -40,6 +40,7 @@ interface Opportunity {
 interface CRMOpportunitiesProps {
   opportunities: Opportunity[];
   customers: any[];
+  customerProductId: string;
   onRefresh: () => void;
 }
 
@@ -78,7 +79,7 @@ const sources = [
   { value: 'outro', label: 'Outro' },
 ];
 
-export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpportunitiesProps) => {
+export const CRMOpportunities = ({ opportunities, customers, customerProductId, onRefresh }: CRMOpportunitiesProps) => {
   const [isAddingOpportunity, setIsAddingOpportunity] = useState(false);
   const [draggedItem, setDraggedItem] = useState<string | null>(null);
   const [dragOverStage, setDragOverStage] = useState<string | null>(null);
@@ -121,14 +122,10 @@ export const CRMOpportunities = ({ opportunities, customers, onRefresh }: CRMOpp
     const formData = new FormData(e.currentTarget);
     const customerId = formData.get('customer_id') as string;
     
-    // Find the customer_product_id from the selected customer
-    const customer = customers.find(c => c.id === customerId);
-    if (!customer) return;
-
     try {
       const { error } = await (supabase.from('crm_opportunities' as any).insert({
-        customer_product_id: (customer as any).customer_product_id || customers[0]?.customer_product_id,
-        customer_id: customerId,
+        customer_product_id: customerProductId,
+        customer_id: formData.get('customer_id') as string,
         title: formData.get('title') as string,
         value: parseFloat(formData.get('value') as string) || 0,
         stage: formData.get('stage') as string || 'novo_lead',
