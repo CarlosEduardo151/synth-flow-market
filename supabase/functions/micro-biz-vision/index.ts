@@ -7,76 +7,140 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
 
-function sanitizePromptForDalle(prompt: string): string {
-  // Remove brand names that trigger DALL-E content policy
-  const brandPatterns = /\b(Nike|Adidas|Puma|Reebok|Supreme|Gucci|Louis Vuitton|Chanel|Dior|Balenciaga|Versace|Prada|Fendi|Burberry|Hermès|Hermes|Apple|Samsung|Sony|Microsoft|Google|Amazon|Ferrari|Lamborghini|Porsche|BMW|Mercedes|Audi|Tesla|Rolex|Cartier|Tiffany|Coca[- ]?Cola|Pepsi|McDonald|Starbucks|Disney|Marvel|DC Comics|Warner|Netflix)\b/gi;
-  let cleaned = prompt.replace(brandPatterns, "premium brand");
-  // Also remove any "logo" references that could trigger policy
-  cleaned = cleaned.replace(/\b(logo|logotipo|trademark|marca registrada|swoosh|marca)\b/gi, "subtle emblem detail");
-  return cleaned;
-}
+/**
+ * Generate base image using Gemini Image via Lovable AI Gateway.
+ * Accepts the original product image as reference so the AI recreates it faithfully.
+ */
+async function generateBaseImage(prompt: string, referenceImageUrl?: string): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
 
-async function generateBaseImage(prompt: string): Promise<string> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
+  const userContent: any[] = [];
 
-  const cleanPrompt = sanitizePromptForDalle(prompt);
+  // Pass the original product image as visual reference
+  if (referenceImageUrl) {
+    userContent.push({
+      type: "image_url",
+      image_url: { url: referenceImageUrl },
+    });
+  }
 
-  const safePrompt = `Professional product photography: ${cleanPrompt}
+  userContent.push({
+    type: "text",
+    text: `Recreate this exact product in a professional advertising setting. Use the reference image to copy the product EXACTLY as it appears — same shape, colors, materials, logos, brand marks, and all visual details.
+
+${prompt}
 
 CRITICAL RULES:
-- DO NOT render ANY text, words, letters, numbers, or typography anywhere.
-- DO NOT include any brand logos or trademarked symbols.
-- Leave strategic NEGATIVE SPACE for later text overlay.
-- Focus on: ambiance, lighting, scenery, product placement, textures.
-- Dramatic lighting with clear directional light source.
-- Clean, minimal, high-end advertising aesthetic.`;
+- Reproduce the product FAITHFULLY from the reference image including any brand logos or marks visible.
+- DO NOT render ANY text, words, letters, numbers, or typography anywhere in the image.
+- Leave strategic NEGATIVE SPACE (empty areas) around the product for later text overlay.
+- Create dramatic, professional advertising lighting with a clear directional light source.
+- High-end, clean, minimal aesthetic suitable for paid traffic ads.
+- 8K photorealistic quality.`,
+  });
 
-  const resp = await fetch("https://api.openai.com/v1/images/generations", {
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "dall-e-3", prompt: safePrompt, n: 1, size: "1024x1024", quality: "standard" }),
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-pro-image-preview",
+      messages: [{ role: "user", content: userContent }],
+      modalities: ["image", "text"],
+    }),
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
     if (resp.status === 402) throw new Error("credits_exhausted");
-    throw new Error(`dalle3_failed[${resp.status}]:${errText}`);
+    throw new Error(`gemini_image_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
-}
-async function aiComposeImage(baseImageUrl: string, composePrompt: string): Promise<string> {
-  const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
+  const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!imageData) throw new Error("no_image_in_response");
 
-  // Download image and create a proper RGBA PNG using OpenAI variations as workaround
-  // Actually — use dall-e-2 variations endpoint which accepts any PNG, then apply edits
-  // Simplest reliable approach: use DALL-E 3 generation with a detailed scene description
+  // Upload the base64 image to Supabase Storage and return a public URL
+  return await uploadBase64ToStorage(imageData);
+}
+
+/**
+ * Upload a base64 data URL to Supabase storage and return a public URL.
+ */
+async function uploadBase64ToStorage(dataUrl: string): Promise<string> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const service = createClient(supabaseUrl, serviceKey);
+
+  // Extract base64 data
+  const base64Data = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+  const binaryData = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
   
-  // Strategy: Generate a NEW image via DALL-E 3 that describes the original scene + requested effects
-  const enhancedPrompt = `Based on an existing professional advertisement image, create a new version with these additional visual effects applied:
+  const fileName = `vision-base/${crypto.randomUUID()}.png`;
+
+  const { error } = await service.storage
+    .from("fleet_docs") // reuse existing public bucket
+    .upload(fileName, binaryData, { contentType: "image/png", upsert: true });
+
+  if (error) {
+    console.error("storage upload error:", error);
+    // Fallback: return the data URL directly (works but large)
+    return dataUrl;
+  }
+
+  const { data: publicData } = service.storage.from("fleet_docs").getPublicUrl(fileName);
+  return publicData.publicUrl;
+}
+
+/**
+ * AI Compose: Edit the base image adding visual effects using Gemini.
+ */
+async function aiComposeImage(baseImageUrl: string, composePrompt: string): Promise<string> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) throw new Error("LOVABLE_API_KEY not configured");
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: "google/gemini-3-pro-image-preview",
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image_url", image_url: { url: baseImageUrl } },
+          {
+            type: "text",
+            text: `Edit this advertisement image by applying these visual effects:
 
 ${composePrompt}
 
-The image should maintain the original product and composition but add the requested visual effects seamlessly integrated with the scene lighting and atmosphere. Professional advertising quality, 8k, photorealistic. DO NOT add any text, words, or typography.`;
-
-  const resp = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model: "dall-e-3", prompt: enhancedPrompt, n: 1, size: "1024x1024", quality: "standard" }),
+Keep the original product and composition intact. Add the effects seamlessly integrated with the scene lighting. Professional advertising quality, 8k. DO NOT add any text, words, or typography.`,
+          },
+        ],
+      }],
+      modalities: ["image", "text"],
+    }),
   });
 
   if (!resp.ok) {
     const errText = await resp.text();
     if (resp.status === 429) throw new Error("rate_limited");
+    if (resp.status === 402) throw new Error("credits_exhausted");
     throw new Error(`ai_compose_failed[${resp.status}]:${errText}`);
   }
 
   const data = await resp.json();
-  return data?.data?.[0]?.url || (() => { throw new Error("no_image_in_response"); })();
+  const imageData = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!imageData) throw new Error("no_image_in_response");
+
+  return await uploadBase64ToStorage(imageData);
 }
 
 function buildCompositionMetadata(visionAnalysis: any, creativeData: any) {
