@@ -235,6 +235,98 @@ serve(async (req) => {
       }
     };
 
+    // ===== HUMAN HANDOFF CHECK =====
+    const { data: handoffConfig } = await service
+      .from("bot_handoff_config")
+      .select("*")
+      .eq("customer_product_id", cp.id)
+      .eq("is_enabled", true)
+      .maybeSingle();
+
+    if (handoffConfig) {
+      // Check for active handoff session
+      const { data: activeHandoff } = await service
+        .from("bot_handoff_sessions")
+        .select("id, last_activity_at")
+        .eq("customer_product_id", cp.id)
+        .eq("phone", phone)
+        .eq("status", "active")
+        .maybeSingle();
+
+      if (activeHandoff) {
+        const lastActivity = new Date(activeHandoff.last_activity_at).getTime();
+        const pauseMs = (handoffConfig.pause_minutes || 30) * 60 * 1000;
+        const elapsed = Date.now() - lastActivity;
+
+        if (elapsed < pauseMs) {
+          // Still in handoff — update last_activity_at (client message extends timer)
+          await service.from("bot_handoff_sessions")
+            .update({ last_activity_at: new Date().toISOString() })
+            .eq("id", activeHandoff.id);
+
+          // Log inbound but do NOT respond
+          service.from("bot_conversation_logs").insert({
+            customer_product_id: cp.id, source: "whatsapp", phone,
+            direction: "inbound", message_text: body?.text?.message || body?.text || "[handoff-paused]",
+          }).then(() => {});
+
+          console.log("[bot-engine] handoff active, bot paused for", phone, "remaining:", Math.round((pauseMs - elapsed) / 60000), "min");
+          return corsResponse({ ok: true, skipped: "handoff_active" }, 200, origin);
+        } else {
+          // Handoff expired — mark session as expired and send return message
+          await service.from("bot_handoff_sessions")
+            .update({ status: "expired" })
+            .eq("id", activeHandoff.id);
+
+          if (handoffConfig.return_message) {
+            await sendTextReply(phone, handoffConfig.return_message, messageId);
+          }
+          console.log("[bot-engine] handoff expired for", phone, "— bot resuming");
+        }
+      }
+
+      // Check if this message triggers handoff
+      const userText = (body?.text?.message || body?.text || "").toString().toLowerCase().trim();
+      if (userText) {
+        const triggers = (handoffConfig.trigger_keywords || []) as string[];
+        const triggered = triggers.some((kw: string) => userText.includes(kw.toLowerCase()));
+
+        if (triggered) {
+          // Create handoff session
+          await service.from("bot_handoff_sessions").insert({
+            customer_product_id: cp.id,
+            phone,
+            status: "active",
+          });
+
+          // Send auto message to customer
+          if (handoffConfig.auto_message) {
+            await sendTextReply(phone, handoffConfig.auto_message, messageId);
+          }
+
+          // Notify human agent if configured
+          if (handoffConfig.notification_phone) {
+            const notifMsg = `${handoffConfig.notification_message || "Solicitação de atendimento humano"}\n\n📱 Cliente: ${phone}\n💬 Mensagem: ${userText}`;
+            await sendTextReply(handoffConfig.notification_phone, notifMsg);
+          }
+
+          // Log
+          service.from("bot_conversation_logs").insert({
+            customer_product_id: cp.id, source: "whatsapp", phone,
+            direction: "inbound", message_text: userText,
+          }).then(() => {});
+          service.from("bot_conversation_logs").insert({
+            customer_product_id: cp.id, source: "whatsapp", phone,
+            direction: "outbound", message_text: `[HANDOFF] ${handoffConfig.auto_message || "Transferido para humano"}`,
+            tokens_used: 0, processing_ms: 0, provider: "handoff", model: "handoff",
+          }).then(() => {});
+
+          console.log("[bot-engine] handoff triggered for", phone, "pause:", handoffConfig.pause_minutes, "min");
+          return corsResponse({ ok: true, type: "handoff", triggered: true }, 200, origin);
+        }
+      }
+    }
+
     // 2. AI config (now includes personality + action_instructions + configuration)
     const { data: aiConfig } = await service
       .from("ai_control_config")
