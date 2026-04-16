@@ -8,9 +8,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, Eye, Download } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle, XCircle, Clock, Eye, Download, Package, RefreshCw, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+interface OrderItem {
+  id: string;
+  product_slug: string;
+  product_title: string;
+  unit_price: number;
+  quantity: number;
+}
 
 interface Order {
   id: string;
@@ -22,6 +30,7 @@ interface Order {
   payment_method: string;
   payment_receipt_url: string;
   created_at: string;
+  user_id: string;
 }
 
 export default function AdminOrdersPage() {
@@ -30,6 +39,8 @@ export default function AdminOrdersPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [orderItems, setOrderItems] = useState<Record<string, OrderItem[]>>({});
+  const [deliveredProducts, setDeliveredProducts] = useState<Record<string, string[]>>({});
   const [loadingOrders, setLoadingOrders] = useState(true);
 
   useEffect(() => {
@@ -59,6 +70,36 @@ export default function AdminOrdersPage() {
 
       if (error) throw error;
       setOrders(data || []);
+
+      // Fetch order items for all orders
+      if (data && data.length > 0) {
+        const orderIds = data.map((o: any) => o.id);
+        const { data: items } = await (supabase.from('order_items') as any)
+          .select('*')
+          .in('order_id', orderIds);
+
+        const itemsMap: Record<string, OrderItem[]> = {};
+        (items || []).forEach((item: any) => {
+          if (!itemsMap[item.order_id]) itemsMap[item.order_id] = [];
+          itemsMap[item.order_id].push(item);
+        });
+        setOrderItems(itemsMap);
+
+        // Fetch delivered products for all order users
+        const userIds = [...new Set(data.map((o: any) => o.user_id))];
+        const { data: cpData } = await supabase
+          .from('customer_products')
+          .select('user_id, product_slug')
+          .in('user_id', userIds)
+          .eq('is_active', true);
+
+        const deliveredMap: Record<string, string[]> = {};
+        (cpData || []).forEach((cp: any) => {
+          if (!deliveredMap[cp.user_id]) deliveredMap[cp.user_id] = [];
+          deliveredMap[cp.user_id].push(cp.product_slug);
+        });
+        setDeliveredProducts(deliveredMap);
+      }
     } catch (error) {
       console.error('Error fetching orders:', error);
       toast({
@@ -73,7 +114,6 @@ export default function AdminOrdersPage() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      // Atualizar status do pedido (e garantir que 1 linha foi afetada)
       const { data: updatedOrder, error } = await supabase
         .from('orders')
         .update({ status: newStatus })
@@ -83,31 +123,9 @@ export default function AdminOrdersPage() {
 
       if (error) throw error;
 
-      // Entrega automática via trigger (status approved/paid/completed).
-      // Chamamos a RPC também para garantir entrega imediata e idempotente.
+      // Entrega automática via RPC
       if (['approved', 'paid', 'completed'].includes(newStatus)) {
-        const { data: deliverResult, error: deliverError } = await supabase.rpc(
-          'deliver_order_products',
-          { order_id_param: orderId }
-        );
-
-        if (deliverError) {
-          console.error('Erro ao entregar produtos (RPC):', deliverError);
-          toast({
-            title: 'Atenção',
-            description:
-              'Status atualizado, mas a entrega automática falhou. Tente novamente em alguns segundos.',
-            variant: 'destructive',
-          });
-        } else if ((deliverResult as any)?.success === false) {
-          toast({
-            title: 'Atenção',
-            description:
-              (deliverResult as any)?.error ||
-              'Status atualizado, mas a entrega retornou um erro.',
-            variant: 'destructive',
-          });
-        }
+        await triggerDelivery(orderId);
       }
 
       setOrders(
@@ -120,7 +138,7 @@ export default function AdminOrdersPage() {
         title: 'Sucesso',
         description:
           newStatus === 'approved'
-            ? 'Pagamento aprovado e entrega iniciada!'
+            ? 'Pagamento aprovado!'
             : newStatus === 'completed'
               ? 'Pedido concluído!'
               : newStatus === 'cancelled'
@@ -135,6 +153,65 @@ export default function AdminOrdersPage() {
         variant: 'destructive',
       });
     }
+  };
+
+  const triggerDelivery = async (orderId: string) => {
+    try {
+      const items = orderItems[orderId];
+      if (!items || items.length === 0) {
+        toast({
+          title: 'Atenção',
+          description: 'Este pedido não possui itens. Nenhum produto foi entregue.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const { data: deliverResult, error: deliverError } = await supabase.rpc(
+        'deliver_order_products',
+        { order_id_param: orderId }
+      );
+
+      if (deliverError) {
+        console.error('Erro ao entregar produtos (RPC):', deliverError);
+        toast({
+          title: 'Atenção',
+          description: 'A entrega automática falhou. Tente re-entregar manualmente.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const result = deliverResult as any;
+      if (result?.ok === false) {
+        toast({
+          title: 'Atenção',
+          description: result?.error || 'Erro na entrega dos produtos.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const deliveredCount = result?.delivered_items || 0;
+      toast({
+        title: '✅ Produtos entregues!',
+        description: `${deliveredCount} produto(s) entregue(s) ao cliente com sucesso.`,
+      });
+
+      // Refresh delivered products
+      fetchOrders();
+    } catch (err: any) {
+      console.error('Delivery error:', err);
+      toast({
+        title: 'Erro na entrega',
+        description: err?.message || 'Falha ao entregar produtos.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const isProductDelivered = (userId: string, productSlug: string) => {
+    return deliveredProducts[userId]?.includes(productSlug) || false;
   };
 
   const getStatusBadge = (status: string) => {
@@ -200,7 +277,7 @@ export default function AdminOrdersPage() {
           <CardHeader className="bg-primary/5">
             <CardTitle className="text-2xl">Gerenciamento de Pedidos</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Visualize comprovantes e aprove pagamentos
+              Visualize comprovantes, aprove pagamentos e gerencie entregas
             </p>
           </CardHeader>
           <CardContent className="p-0">
@@ -221,6 +298,7 @@ export default function AdminOrdersPage() {
                     <TableRow className="bg-muted/50">
                       <TableHead className="font-semibold">Cliente</TableHead>
                       <TableHead className="font-semibold">Contato</TableHead>
+                      <TableHead className="font-semibold">Itens</TableHead>
                       <TableHead className="font-semibold">Valor</TableHead>
                       <TableHead className="font-semibold">Status</TableHead>
                       <TableHead className="font-semibold">Comprovante</TableHead>
@@ -229,212 +307,300 @@ export default function AdminOrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id} className="hover:bg-muted/30 transition-colors">
-                        <TableCell>
-                          <div className="font-medium">{order.customer_name}</div>
-                          <div className="text-xs text-muted-foreground">ID: {order.id.slice(0, 8)}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">{order.customer_email}</div>
-                          {order.customer_phone && (
-                            <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-semibold text-primary">
-                            R$ {(order.total_amount / 100).toFixed(2)}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{order.payment_method}</div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(order.status)}</TableCell>
-                        <TableCell>
-                          {order.payment_receipt_url ? (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2"
-                                >
-                                  <Eye className="w-4 h-4" />
-                                  Visualizar
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
-                                <DialogHeader>
-                                  <DialogTitle>Comprovante de Pagamento</DialogTitle>
-                                  <p className="text-sm text-muted-foreground">
-                                    Cliente: {order.customer_name}
-                                  </p>
-                                </DialogHeader>
-                                <div className="mt-4 space-y-4">
-                                  <div className="bg-muted p-4 rounded-lg">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                      <div>
-                                        <span className="text-muted-foreground">Pedido:</span>
-                                        <span className="font-medium ml-2">#{order.id.slice(0, 8)}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Valor:</span>
-                                        <span className="font-medium ml-2">R$ {(order.total_amount / 100).toFixed(2)}</span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Data:</span>
-                                        <span className="font-medium ml-2">
-                                          {new Date(order.created_at).toLocaleDateString('pt-BR', {
-                                            day: '2-digit',
-                                            month: '2-digit',
-                                            year: 'numeric',
-                                            hour: '2-digit',
-                                            minute: '2-digit'
-                                          })}
-                                        </span>
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">Email:</span>
-                                        <span className="font-medium ml-2">{order.customer_email}</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="border rounded-lg p-4 bg-white">
-                                    {order.payment_receipt_url.toLowerCase().endsWith('.pdf') ? (
-                                      <div className="text-center space-y-4">
-                                        <FileText className="w-16 h-16 mx-auto text-muted-foreground" />
-                                        <p className="text-sm text-muted-foreground">Arquivo PDF</p>
-                                        <Button
-                                          onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
-                                          className="gap-2"
-                                        >
-                                          <Download className="w-4 h-4" />
-                                          Abrir PDF
-                                        </Button>
-                                      </div>
+                    {orders.map((order) => {
+                      const items = orderItems[order.id] || [];
+                      const hasItems = items.length > 0;
+                      const allDelivered = hasItems && items.every(i => isProductDelivered(order.user_id, i.product_slug));
+                      const isCompleted = ['approved', 'paid', 'completed'].includes(order.status);
+
+                      return (
+                        <TableRow key={order.id} className="hover:bg-muted/30 transition-colors">
+                          <TableCell>
+                            <div className="font-medium">{order.customer_name}</div>
+                            <div className="text-xs text-muted-foreground">ID: {order.id.slice(0, 8)}</div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">{order.customer_email}</div>
+                            {order.customer_phone && (
+                              <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {hasItems ? (
+                              <div className="space-y-1">
+                                {items.map((item) => (
+                                  <div key={item.id} className="flex items-center gap-1 text-xs">
+                                    {isCompleted && isProductDelivered(order.user_id, item.product_slug) ? (
+                                      <CheckCircle className="w-3 h-3 text-green-600 shrink-0" />
+                                    ) : isCompleted ? (
+                                      <AlertTriangle className="w-3 h-3 text-yellow-600 shrink-0" />
                                     ) : (
-                                      <div className="space-y-2">
-                                        <img
-                                          src={getReceiptUrl(order.payment_receipt_url)}
-                                          alt="Comprovante de pagamento"
-                                          className="w-full h-auto rounded-lg shadow-md"
-                                          onError={(e) => {
-                                            e.currentTarget.style.display = 'none';
-                                            const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
-                                            if (errorDiv) errorDiv.style.display = 'block';
-                                          }}
-                                        />
-                                        <div className="hidden text-center py-8 bg-muted rounded-lg">
-                                          <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-                                          <p className="text-sm text-muted-foreground">Não foi possível carregar a imagem</p>
-                                          <Button
-                                            onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
-                                            variant="outline"
-                                            size="sm"
-                                            className="mt-2"
-                                          >
-                                            Abrir em nova aba
-                                          </Button>
+                                      <Package className="w-3 h-3 text-muted-foreground shrink-0" />
+                                    )}
+                                    <span className="truncate max-w-[120px]">{item.product_title || item.product_slug}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-xs text-destructive">
+                                <AlertTriangle className="w-3 h-3" />
+                                Sem itens
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-semibold text-primary">
+                              R$ {(order.total_amount / 100).toFixed(2)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">{order.payment_method}</div>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(order.status)}
+                            {isCompleted && (
+                              <div className="mt-1">
+                                {allDelivered ? (
+                                  <Badge variant="outline" className="text-[10px] bg-green-50 text-green-700 border-green-200">
+                                    <Package className="w-2.5 h-2.5 mr-0.5" />Entregue
+                                  </Badge>
+                                ) : !hasItems ? (
+                                  <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200">
+                                    Sem itens
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    Pendente entrega
+                                  </Badge>
+                                )}
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {order.payment_receipt_url ? (
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                    Visualizar
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                                  <DialogHeader>
+                                    <DialogTitle>Comprovante de Pagamento</DialogTitle>
+                                    <p className="text-sm text-muted-foreground">
+                                      Cliente: {order.customer_name}
+                                    </p>
+                                  </DialogHeader>
+                                  <div className="mt-4 space-y-4">
+                                    <div className="bg-muted p-4 rounded-lg">
+                                      <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                          <span className="text-muted-foreground">Pedido:</span>
+                                          <span className="font-medium ml-2">#{order.id.slice(0, 8)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Valor:</span>
+                                          <span className="font-medium ml-2">R$ {(order.total_amount / 100).toFixed(2)}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Data:</span>
+                                          <span className="font-medium ml-2">
+                                            {new Date(order.created_at).toLocaleDateString('pt-BR', {
+                                              day: '2-digit',
+                                              month: '2-digit',
+                                              year: 'numeric',
+                                              hour: '2-digit',
+                                              minute: '2-digit'
+                                            })}
+                                          </span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground">Email:</span>
+                                          <span className="font-medium ml-2">{order.customer_email}</span>
                                         </div>
                                       </div>
+                                    </div>
+
+                                    {/* Order Items */}
+                                    {items.length > 0 && (
+                                      <div className="bg-muted/50 p-4 rounded-lg">
+                                        <p className="text-sm font-medium mb-2">Produtos do pedido:</p>
+                                        {items.map((item) => (
+                                          <div key={item.id} className="flex items-center justify-between text-sm py-1">
+                                            <span className="flex items-center gap-2">
+                                              {isProductDelivered(order.user_id, item.product_slug) ? (
+                                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                              ) : (
+                                                <Package className="w-4 h-4 text-muted-foreground" />
+                                              )}
+                                              {item.product_title}
+                                            </span>
+                                            <span className="text-muted-foreground">
+                                              {item.quantity}x R$ {((item.unit_price || 0) / 100).toFixed(2)}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
+                                    
+                                    <div className="border rounded-lg p-4 bg-white">
+                                      {order.payment_receipt_url.toLowerCase().endsWith('.pdf') ? (
+                                        <div className="text-center space-y-4">
+                                          <FileText className="w-16 h-16 mx-auto text-muted-foreground" />
+                                          <p className="text-sm text-muted-foreground">Arquivo PDF</p>
+                                          <Button
+                                            onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
+                                            className="gap-2"
+                                          >
+                                            <Download className="w-4 h-4" />
+                                            Abrir PDF
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="space-y-2">
+                                          <img
+                                            src={getReceiptUrl(order.payment_receipt_url)}
+                                            alt="Comprovante de pagamento"
+                                            className="w-full h-auto rounded-lg shadow-md"
+                                            onError={(e) => {
+                                              e.currentTarget.style.display = 'none';
+                                              const errorDiv = e.currentTarget.nextElementSibling as HTMLElement;
+                                              if (errorDiv) errorDiv.style.display = 'block';
+                                            }}
+                                          />
+                                          <div className="hidden text-center py-8 bg-muted rounded-lg">
+                                            <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
+                                            <p className="text-sm text-muted-foreground">Não foi possível carregar a imagem</p>
+                                            <Button
+                                              onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
+                                              variant="outline"
+                                              size="sm"
+                                              className="mt-2"
+                                            >
+                                              Abrir em nova aba
+                                            </Button>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    <div className="flex gap-2 pt-4 border-t">
+                                      <Button
+                                        onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
+                                        variant="outline"
+                                        className="flex-1 gap-2"
+                                      >
+                                        <Download className="w-4 h-4" />
+                                        Baixar Arquivo
+                                      </Button>
+                                      {(order.status === 'pending' || order.status === 'processing') && (
+                                        <>
+                                          <Button
+                                            onClick={() => {
+                                              updateOrderStatus(order.id, 'approved');
+                                            }}
+                                            className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
+                                          >
+                                            <CheckCircle className="w-4 h-4" />
+                                            Aprovar Pagamento
+                                          </Button>
+                                          <Button
+                                            onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                            variant="destructive"
+                                            className="flex-1 gap-2"
+                                          >
+                                            <XCircle className="w-4 h-4" />
+                                            Recusar
+                                          </Button>
+                                        </>
+                                      )}
+                                    </div>
                                   </div>
-                                  
-                                  <div className="flex gap-2 pt-4 border-t">
-                                    <Button
-                                      onClick={() => window.open(getReceiptUrl(order.payment_receipt_url), '_blank')}
-                                      variant="outline"
-                                      className="flex-1 gap-2"
-                                    >
-                                      <Download className="w-4 h-4" />
-                                      Baixar Arquivo
-                                    </Button>
-                                    {(order.status === 'pending' || order.status === 'processing') && (
-                                      <>
-                                        <Button
-                                          onClick={() => {
-                                            updateOrderStatus(order.id, 'approved');
-                                          }}
-                                          className="flex-1 gap-2 bg-green-600 hover:bg-green-700"
-                                        >
-                                          <CheckCircle className="w-4 h-4" />
-                                          Aprovar Pagamento
-                                        </Button>
-                                        <Button
-                                          onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                          variant="destructive"
-                                          className="flex-1 gap-2"
-                                        >
-                                          <XCircle className="w-4 h-4" />
-                                          Recusar
-                                        </Button>
-                                      </>
-                                    )}
-                                  </div>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          ) : (
-                            <div className="text-sm text-muted-foreground flex items-center gap-1">
-                              <XCircle className="w-4 h-4 text-destructive" />
-                              Sem comprovante
+                                </DialogContent>
+                              </Dialog>
+                            ) : (
+                              <div className="text-sm text-muted-foreground flex items-center gap-1">
+                                <XCircle className="w-4 h-4 text-destructive" />
+                                Sem comprovante
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              {new Date(order.created_at).toLocaleDateString('pt-BR')}
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {new Date(order.created_at).toLocaleDateString('pt-BR')}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            {new Date(order.created_at).toLocaleTimeString('pt-BR', {
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col gap-2">
-                            {(order.status === 'pending' || order.status === 'processing') && (
-                              <>
+                            <div className="text-xs text-muted-foreground">
+                              {new Date(order.created_at).toLocaleTimeString('pt-BR', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-2">
+                              {(order.status === 'pending' || order.status === 'processing') && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={() => updateOrderStatus(order.id, 'approved')}
+                                    className="w-full bg-green-600 hover:bg-green-700 gap-1"
+                                  >
+                                    <CheckCircle className="w-3 h-3" />
+                                    Aprovar
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                                    className="w-full gap-1"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                    Recusar
+                                  </Button>
+                                </>
+                              )}
+                              {(order.status === 'approved' || order.status === 'paid') && (
                                 <Button
                                   size="sm"
-                                  variant="default"
-                                  onClick={() => updateOrderStatus(order.id, 'approved')}
-                                  className="w-full bg-green-600 hover:bg-green-700 gap-1"
+                                  variant="outline"
+                                  onClick={() => updateOrderStatus(order.id, 'completed')}
+                                  className="w-full text-blue-600 hover:bg-blue-50 border-blue-200"
                                 >
-                                  <CheckCircle className="w-3 h-3" />
-                                  Aprovar
+                                  ✓ Concluir
                                 </Button>
+                              )}
+                              {/* Re-deliver button for completed orders without full delivery */}
+                              {isCompleted && hasItems && !allDelivered && (
                                 <Button
                                   size="sm"
-                                  variant="destructive"
-                                  onClick={() => updateOrderStatus(order.id, 'cancelled')}
-                                  className="w-full gap-1"
+                                  variant="outline"
+                                  onClick={() => triggerDelivery(order.id)}
+                                  className="w-full text-orange-600 hover:bg-orange-50 border-orange-200 gap-1"
                                 >
-                                  <XCircle className="w-3 h-3" />
-                                  Recusar
+                                  <RefreshCw className="w-3 h-3" />
+                                  Re-entregar
                                 </Button>
-                              </>
-                            )}
-                            {(order.status === 'approved' || order.status === 'paid') && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => updateOrderStatus(order.id, 'completed')}
-                                className="w-full text-blue-600 hover:bg-blue-50 border-blue-200"
-                              >
-                                ✓ Concluir
-                              </Button>
-                            )
-                            }
-                            {(order.status === 'completed' || order.status === 'cancelled') && (
-                              <Badge variant="outline" className="justify-center">
-                                Finalizado
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                              )}
+                              {isCompleted && allDelivered && (
+                                <Badge variant="outline" className="justify-center bg-green-50 text-green-700 border-green-200">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Entregue
+                                </Badge>
+                              )}
+                              {(order.status === 'cancelled') && (
+                                <Badge variant="outline" className="justify-center">
+                                  Cancelado
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
