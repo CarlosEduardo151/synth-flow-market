@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown, Theater, Radio, AlertTriangle, HeartCrack, Activity } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +34,11 @@ import { SalesProspecting } from '@/components/crm/sales-assistant/SalesProspect
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
 import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
+import { SalesRolePlay } from '@/components/crm/sales-assistant/SalesRolePlay';
+import { SalesTriggerEvents } from '@/components/crm/sales-assistant/SalesTriggerEvents';
+import { SalesAntiChurn } from '@/components/crm/sales-assistant/SalesAntiChurn';
+import { SalesWinback } from '@/components/crm/sales-assistant/SalesWinback';
+import { SalesHealthScore } from '@/components/crm/sales-assistant/SalesHealthScore';
 import { useProductAccess } from '@/hooks/useProductAccess';
 
 interface CRMCustomer {
@@ -102,6 +107,11 @@ const CRMSystem = () => {
           { value: 'sales-cadences', label: 'Cadências', icon: Zap },
           { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
           { value: 'sales-copilot', label: 'Copiloto IA', icon: Bot },
+          { value: 'sales-roleplay', label: 'Role-play IA', icon: Theater },
+          { value: 'sales-triggers', label: 'Trigger Events', icon: Radio },
+          { value: 'sales-antichurn', label: 'Anti-Churn', icon: AlertTriangle },
+          { value: 'sales-winback', label: 'Win-back', icon: HeartCrack },
+          { value: 'sales-health', label: 'Health Score', icon: Activity },
         ],
       },
       {
@@ -585,6 +595,26 @@ const CRMSystem = () => {
 
             <TabsContent value="sales-copilot" className="space-y-4">
               {customerProductId && <SalesCopilot customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-roleplay" className="space-y-4">
+              {customerProductId && <SalesRolePlay customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-triggers" className="space-y-4">
+              {customerProductId && <SalesTriggerEvents customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-antichurn" className="space-y-4">
+              {customerProductId && <SalesAntiChurn customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-winback" className="space-y-4">
+              {customerProductId && <SalesWinback customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-health" className="space-y-4">
+              {customerProductId && <SalesHealthScore customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="whatsapp" className="space-y-4">
