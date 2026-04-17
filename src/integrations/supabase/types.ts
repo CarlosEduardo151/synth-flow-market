@@ -3432,6 +3432,673 @@ export type Database = {
         }
         Relationships: []
       }
+      sa_antichurn_alerts: {
+        Row: {
+          churn_probability: number
+          created_at: string
+          customer_product_id: string
+          detected_at: string
+          id: string
+          prospect_id: string | null
+          recommended_actions: Json
+          resolved_at: string | null
+          risk_level: string
+          signals: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          churn_probability?: number
+          created_at?: string
+          customer_product_id: string
+          detected_at?: string
+          id?: string
+          prospect_id?: string | null
+          recommended_actions?: Json
+          resolved_at?: string | null
+          risk_level?: string
+          signals?: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          churn_probability?: number
+          created_at?: string
+          customer_product_id?: string
+          detected_at?: string
+          id?: string
+          prospect_id?: string | null
+          recommended_actions?: Json
+          resolved_at?: string | null
+          risk_level?: string
+          signals?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_antichurn_alerts_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_antichurn_alerts_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_cadence_enrollments: {
+        Row: {
+          cadence_id: string
+          created_at: string
+          current_step: number
+          customer_product_id: string
+          history: Json | null
+          id: string
+          last_action_at: string | null
+          next_action_at: string | null
+          prospect_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cadence_id: string
+          created_at?: string
+          current_step?: number
+          customer_product_id: string
+          history?: Json | null
+          id?: string
+          last_action_at?: string | null
+          next_action_at?: string | null
+          prospect_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cadence_id?: string
+          created_at?: string
+          current_step?: number
+          customer_product_id?: string
+          history?: Json | null
+          id?: string
+          last_action_at?: string | null
+          next_action_at?: string | null
+          prospect_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_cadence_enrollments_cadence_id_fkey"
+            columns: ["cadence_id"]
+            isOneToOne: false
+            referencedRelation: "sa_cadences"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_cadence_enrollments_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_cadence_enrollments_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_cadences: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          steps: Json
+          total_steps: number
+          trigger_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          steps?: Json
+          total_steps?: number
+          trigger_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          steps?: Json
+          total_steps?: number
+          trigger_type?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_cadences_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_config: {
+        Row: {
+          ai_model: string | null
+          ai_provider: string | null
+          business_context: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_active: boolean
+          modules_enabled: Json
+          updated_at: string
+          voice_tone: string | null
+        }
+        Insert: {
+          ai_model?: string | null
+          ai_provider?: string | null
+          business_context?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_active?: boolean
+          modules_enabled?: Json
+          updated_at?: string
+          voice_tone?: string | null
+        }
+        Update: {
+          ai_model?: string | null
+          ai_provider?: string | null
+          business_context?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_active?: boolean
+          modules_enabled?: Json
+          updated_at?: string
+          voice_tone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_config_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_copilot_suggestions: {
+        Row: {
+          confidence: number | null
+          content: string
+          context: Json | null
+          created_at: string
+          customer_product_id: string
+          expires_at: string | null
+          id: string
+          prospect_id: string | null
+          status: string
+          suggestion_type: string
+          title: string
+        }
+        Insert: {
+          confidence?: number | null
+          content: string
+          context?: Json | null
+          created_at?: string
+          customer_product_id: string
+          expires_at?: string | null
+          id?: string
+          prospect_id?: string | null
+          status?: string
+          suggestion_type: string
+          title: string
+        }
+        Update: {
+          confidence?: number | null
+          content?: string
+          context?: Json | null
+          created_at?: string
+          customer_product_id?: string
+          expires_at?: string | null
+          id?: string
+          prospect_id?: string | null
+          status?: string
+          suggestion_type?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_copilot_suggestions_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_copilot_suggestions_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_deal_health_scores: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          health_score: number
+          id: string
+          last_calculated_at: string
+          opportunity_id: string | null
+          positive_factors: string[] | null
+          prospect_id: string | null
+          recommended_action: string | null
+          risk_factors: string[] | null
+          signals: Json
+          trend: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          health_score?: number
+          id?: string
+          last_calculated_at?: string
+          opportunity_id?: string | null
+          positive_factors?: string[] | null
+          prospect_id?: string | null
+          recommended_action?: string | null
+          risk_factors?: string[] | null
+          signals?: Json
+          trend?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          health_score?: number
+          id?: string
+          last_calculated_at?: string
+          opportunity_id?: string | null
+          positive_factors?: string[] | null
+          prospect_id?: string | null
+          recommended_action?: string | null
+          risk_factors?: string[] | null
+          signals?: Json
+          trend?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_deal_health_scores_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_deal_health_scores_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "crm_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_deal_health_scores_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_meetings: {
+        Row: {
+          ai_summary: string | null
+          calendar_event_id: string | null
+          calendar_provider: string | null
+          created_at: string
+          customer_product_id: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          meeting_link: string | null
+          prospect_id: string | null
+          scheduled_at: string
+          scheduled_by_ai: boolean
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_summary?: string | null
+          calendar_event_id?: string | null
+          calendar_provider?: string | null
+          created_at?: string
+          customer_product_id: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          meeting_link?: string | null
+          prospect_id?: string | null
+          scheduled_at: string
+          scheduled_by_ai?: boolean
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_summary?: string | null
+          calendar_event_id?: string | null
+          calendar_provider?: string | null
+          created_at?: string
+          customer_product_id?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          meeting_link?: string | null
+          prospect_id?: string | null
+          scheduled_at?: string
+          scheduled_by_ai?: boolean
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_meetings_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_meetings_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_prospects: {
+        Row: {
+          ai_analysis: Json | null
+          ai_score: number | null
+          company: string | null
+          created_at: string
+          customer_product_id: string
+          email: string | null
+          id: string
+          last_contact_at: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          position: string | null
+          qualification: string | null
+          source: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          ai_analysis?: Json | null
+          ai_score?: number | null
+          company?: string | null
+          created_at?: string
+          customer_product_id: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          qualification?: string | null
+          source?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          ai_analysis?: Json | null
+          ai_score?: number | null
+          company?: string | null
+          created_at?: string
+          customer_product_id?: string
+          email?: string | null
+          id?: string
+          last_contact_at?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          position?: string | null
+          qualification?: string | null
+          source?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_prospects_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_roleplay_sessions: {
+        Row: {
+          ai_feedback: string | null
+          ai_score: number | null
+          created_at: string
+          customer_product_id: string
+          duration_seconds: number | null
+          id: string
+          improvements: string[] | null
+          persona_name: string
+          persona_profile: Json
+          scenario: string | null
+          status: string
+          strengths: string[] | null
+          transcript: Json
+          updated_at: string
+        }
+        Insert: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          created_at?: string
+          customer_product_id: string
+          duration_seconds?: number | null
+          id?: string
+          improvements?: string[] | null
+          persona_name: string
+          persona_profile?: Json
+          scenario?: string | null
+          status?: string
+          strengths?: string[] | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Update: {
+          ai_feedback?: string | null
+          ai_score?: number | null
+          created_at?: string
+          customer_product_id?: string
+          duration_seconds?: number | null
+          id?: string
+          improvements?: string[] | null
+          persona_name?: string
+          persona_profile?: Json
+          scenario?: string | null
+          status?: string
+          strengths?: string[] | null
+          transcript?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_roleplay_sessions_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_trigger_events: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          description: string | null
+          detected_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          prospect_id: string | null
+          relevance_score: number | null
+          source: string | null
+          source_url: string | null
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          description?: string | null
+          detected_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          prospect_id?: string | null
+          relevance_score?: number | null
+          source?: string | null
+          source_url?: string | null
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          description?: string | null
+          detected_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          prospect_id?: string | null
+          relevance_score?: number | null
+          source?: string | null
+          source_url?: string | null
+          status?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_trigger_events_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_trigger_events_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sa_winback_campaigns: {
+        Row: {
+          campaign_name: string
+          channel: string | null
+          created_at: string
+          current_step: number
+          customer_product_id: string
+          id: string
+          message_sequence: Json
+          next_send_at: string | null
+          prospect_id: string | null
+          recovered: boolean
+          recovered_at: string | null
+          status: string
+          trigger_psychology: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          campaign_name: string
+          channel?: string | null
+          created_at?: string
+          current_step?: number
+          customer_product_id: string
+          id?: string
+          message_sequence?: Json
+          next_send_at?: string | null
+          prospect_id?: string | null
+          recovered?: boolean
+          recovered_at?: string | null
+          status?: string
+          trigger_psychology?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          campaign_name?: string
+          channel?: string | null
+          created_at?: string
+          current_step?: number
+          customer_product_id?: string
+          id?: string
+          message_sequence?: Json
+          next_send_at?: string | null
+          prospect_id?: string | null
+          recovered?: boolean
+          recovered_at?: string | null
+          status?: string
+          trigger_psychology?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sa_winback_campaigns_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sa_winback_campaigns_prospect_id_fkey"
+            columns: ["prospect_id"]
+            isOneToOne: false
+            referencedRelation: "sa_prospects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_ai_insights: {
         Row: {
           content: Json | null
