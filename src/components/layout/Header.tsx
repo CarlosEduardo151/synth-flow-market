@@ -104,12 +104,6 @@ export function Header() {
           >
             Para Micro-Empresas
           </Link>
-          <Link
-            to="/c/solucoes-automotivas"
-            className="text-foreground/80 hover:text-primary transition-colors"
-          >
-            Soluções Automotivas
-          </Link>
         </nav>
 
         {/* Busca e ações */}
