@@ -77,21 +77,50 @@ const CRMSystem = () => {
   const [isAddingInteraction, setIsAddingInteraction] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [salesGroupOpen, setSalesGroupOpen] = useState(true);
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
-  const sidebarItems: SidebarItem[] = useMemo(
+  type SidebarGroupDef = { label: string; items: SidebarItem[]; isCollapsible?: boolean; groupKey?: string };
+
+  const sidebarGroups: SidebarGroupDef[] = useMemo(
     () => [
-      { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { value: 'clientes', label: 'Clientes', icon: Users },
-      { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
-      { value: 'follow-up', label: 'Follow-Up', icon: Timer },
-      { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-      { value: 'memoria', label: 'Agente de IA', icon: Brain },
-      { value: 'motor-ia', label: 'Motor IA', icon: Settings },
-      { value: 'integracao', label: 'Integração', icon: Link },
-      { value: 'ai-reports', label: 'Relatórios', icon: FileText },
+      {
+        label: 'Geral',
+        items: [
+          { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { value: 'clientes', label: 'Clientes', icon: Users },
+          { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
+          { value: 'follow-up', label: 'Follow-Up', icon: Timer },
+        ],
+      },
+      {
+        label: 'Assistente de Vendas',
+        groupKey: 'sales',
+        isCollapsible: true,
+        items: [
+          { value: 'sales-prospecting', label: 'Prospecção IA', icon: Target },
+          { value: 'sales-cadences', label: 'Cadências', icon: Zap },
+          { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
+          { value: 'sales-copilot', label: 'Copiloto IA', icon: Bot },
+        ],
+      },
+      {
+        label: 'Canais & IA',
+        items: [
+          { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
+          { value: 'memoria', label: 'Agente de IA', icon: Brain },
+          { value: 'motor-ia', label: 'Motor IA', icon: Settings },
+          { value: 'integracao', label: 'Integração', icon: Link },
+          { value: 'ai-reports', label: 'Relatórios', icon: FileText },
+        ],
+      },
     ],
     []
+  );
+
+  const sidebarItems: SidebarItem[] = useMemo(
+    () => sidebarGroups.flatMap((g) => g.items),
+    [sidebarGroups]
   );
 
   useEffect(() => {
