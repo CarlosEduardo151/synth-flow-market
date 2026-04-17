@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import novalinkIcon from "@/assets/novalink-icon.png";
 import { ShoppingCart, User, Search, LogOut, Settings, Sun, Moon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -79,6 +80,7 @@ export function Header() {
           to="/"
           className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
         >
+          <img src={novalinkIcon} alt="NovaLink" className="h-8 w-8 object-contain" />
           <span className="font-bold text-lg gradient-text">NovaLink</span>
         </Link>
 
