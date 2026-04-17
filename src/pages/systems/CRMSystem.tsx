@@ -571,6 +571,22 @@ const CRMSystem = () => {
               {customerProductId && <CRMFollowUpTab customerProductId={customerProductId} />}
             </TabsContent>
 
+            <TabsContent value="sales-prospecting" className="space-y-4">
+              {customerProductId && <SalesProspecting customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-cadences" className="space-y-4">
+              {customerProductId && <SalesCadences customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-scheduling" className="space-y-4">
+              {customerProductId && <SalesScheduling customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-copilot" className="space-y-4">
+              {customerProductId && <SalesCopilot customerProductId={customerProductId} />}
+            </TabsContent>
+
             <TabsContent value="whatsapp" className="space-y-4">
               {customerProductId && <CRMWhatsAppTab customerProductId={customerProductId} />}
             </TabsContent>
