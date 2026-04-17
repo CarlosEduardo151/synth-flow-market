@@ -1,4 +1,4 @@
-import { Bot, Cpu, Building2, Nfc, Truck } from "lucide-react";
+import { Bot, Cpu, Building2, Nfc } from "lucide-react";
 
 export interface Category {
   title: string;
@@ -38,13 +38,16 @@ export const categories: Category[] = [
     summary: "Sistemas inteligentes com tecnologia NFC para identificação e automação.",
     order: 4
   },
-  {
-    title: "Soluções Automotivas",
-    slug: "solucoes-automotivas",
-    icon: Truck,
-    summary: "Gestão inteligente de frotas e oficinas com IA de auditoria, split de pagamento e pagamento D+1.",
-    order: 5
-  }
+  // Soluções Automotivas (Auditt) — DESATIVADA TEMPORARIAMENTE do catálogo público.
+  // Todo o sistema permanece intacto em src/products/solucoes-automotivas/ e nas rotas /auditt e /sistema/gestao-frotas-oficinas.
+  // Para reativar: descomente o objeto abaixo.
+  // {
+  //   title: "Soluções Automotivas",
+  //   slug: "solucoes-automotivas",
+  //   icon: Truck,
+  //   summary: "Gestão inteligente de frotas e oficinas com IA de auditoria, split de pagamento e pagamento D+1.",
+  //   order: 5
+  // }
 ];
 
 export function getCategories(): Category[] {

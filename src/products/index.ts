@@ -17,8 +17,8 @@ export { microBusinessSuite } from './agentes-de-ia/micro-business-suite';
 // export { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // export { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
-// Soluções Automotivas
-export { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas';
+// Soluções Automotivas (Auditt) — DESATIVADO do catálogo, sistema preservado em src/products/solucoes-automotivas/
+// export { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas';
 
 // NFC
 // (removidos do catálogo)
@@ -40,7 +40,7 @@ import { microBusinessSuite } from './agentes-de-ia/micro-business-suite';
 // import { agenteSuporte } from './agentes-de-ia/agente-suporte'; // DESATIVADO TEMPORARIAMENTE
 // import { agenteRH } from './agentes-de-ia/agente-rh'; // DESATIVADO TEMPORARIAMENTE
 
-import { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas';
+// import { gestaoFrotasOficinas } from './solucoes-automotivas/gestao-frotas-oficinas'; // DESATIVADO
 
 // NFC (removidos do catálogo)
 
@@ -63,8 +63,8 @@ export const allProducts: Product[] = [
   // agenteSuporte, // DESATIVADO TEMPORARIAMENTE
   // agenteRH, // DESATIVADO TEMPORARIAMENTE
 
-  // Soluções Automotivas
-  gestaoFrotasOficinas,
+  // Soluções Automotivas (Auditt) — DESATIVADO do catálogo
+  // gestaoFrotasOficinas,
   
   // NFC (removidos do catálogo)
 ];
