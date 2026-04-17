@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,10 @@ import { CRMIntegration } from '@/components/crm/CRMIntegration';
 
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
+import { SalesProspecting } from '@/components/crm/sales-assistant/SalesProspecting';
+import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
+import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
+import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
 import { useProductAccess } from '@/hooks/useProductAccess';
 
 interface CRMCustomer {
@@ -73,21 +77,50 @@ const CRMSystem = () => {
   const [isAddingInteraction, setIsAddingInteraction] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [salesGroupOpen, setSalesGroupOpen] = useState(true);
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
-  const sidebarItems: SidebarItem[] = useMemo(
+  type SidebarGroupDef = { label: string; items: SidebarItem[]; isCollapsible?: boolean; groupKey?: string };
+
+  const sidebarGroups: SidebarGroupDef[] = useMemo(
     () => [
-      { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { value: 'clientes', label: 'Clientes', icon: Users },
-      { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
-      { value: 'follow-up', label: 'Follow-Up', icon: Timer },
-      { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
-      { value: 'memoria', label: 'Agente de IA', icon: Brain },
-      { value: 'motor-ia', label: 'Motor IA', icon: Settings },
-      { value: 'integracao', label: 'Integração', icon: Link },
-      { value: 'ai-reports', label: 'Relatórios', icon: FileText },
+      {
+        label: 'Geral',
+        items: [
+          { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+          { value: 'clientes', label: 'Clientes', icon: Users },
+          { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
+          { value: 'follow-up', label: 'Follow-Up', icon: Timer },
+        ],
+      },
+      {
+        label: 'Assistente de Vendas',
+        groupKey: 'sales',
+        isCollapsible: true,
+        items: [
+          { value: 'sales-prospecting', label: 'Prospecção IA', icon: Target },
+          { value: 'sales-cadences', label: 'Cadências', icon: Zap },
+          { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
+          { value: 'sales-copilot', label: 'Copiloto IA', icon: Bot },
+        ],
+      },
+      {
+        label: 'Canais & IA',
+        items: [
+          { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
+          { value: 'memoria', label: 'Agente de IA', icon: Brain },
+          { value: 'motor-ia', label: 'Motor IA', icon: Settings },
+          { value: 'integracao', label: 'Integração', icon: Link },
+          { value: 'ai-reports', label: 'Relatórios', icon: FileText },
+        ],
+      },
     ],
     []
+  );
+
+  const sidebarItems: SidebarItem[] = useMemo(
+    () => sidebarGroups.flatMap((g) => g.items),
+    [sidebarGroups]
   );
 
   useEffect(() => {
@@ -379,20 +412,41 @@ const CRMSystem = () => {
           </div>
         </div>
       </div>
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {sidebarItems.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.value;
+      <nav className="flex-1 px-3 py-3 space-y-3 overflow-y-auto">
+        {sidebarGroups.map((group) => {
+          const isCollapsed = group.isCollapsible && group.groupKey === 'sales' && !salesGroupOpen;
           return (
-            <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors ${
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-              }`}>
-              <Icon className="w-[18px] h-[18px] shrink-0" />
-              <span className="flex-1 text-left">{tab.label}</span>
-            </button>
+            <div key={group.label} className="space-y-0.5">
+              {group.isCollapsible ? (
+                <button
+                  onClick={() => setSalesGroupOpen((v) => !v)}
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary/80 hover:text-primary transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                </button>
+              ) : (
+                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {group.label}
+                </p>
+              )}
+              {!isCollapsed && group.items.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.value;
+                return (
+                  <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
+                      active
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}>
+                    <Icon className="w-[18px] h-[18px] shrink-0" />
+                    <span className="flex-1 text-left">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
@@ -515,6 +569,22 @@ const CRMSystem = () => {
 
             <TabsContent value="follow-up" className="space-y-4">
               {customerProductId && <CRMFollowUpTab customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-prospecting" className="space-y-4">
+              {customerProductId && <SalesProspecting customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-cadences" className="space-y-4">
+              {customerProductId && <SalesCadences customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-scheduling" className="space-y-4">
+              {customerProductId && <SalesScheduling customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-copilot" className="space-y-4">
+              {customerProductId && <SalesCopilot customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="whatsapp" className="space-y-4">
