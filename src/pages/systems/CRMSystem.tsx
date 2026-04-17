@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -30,6 +30,10 @@ import { CRMIntegration } from '@/components/crm/CRMIntegration';
 
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
+import { SalesProspecting } from '@/components/crm/sales-assistant/SalesProspecting';
+import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
+import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
+import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
 import { useProductAccess } from '@/hooks/useProductAccess';
 
 interface CRMCustomer {
