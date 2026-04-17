@@ -412,20 +412,41 @@ const CRMSystem = () => {
           </div>
         </div>
       </div>
-      <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-        {sidebarItems.map((tab) => {
-          const Icon = tab.icon;
-          const active = activeTab === tab.value;
+      <nav className="flex-1 px-3 py-3 space-y-3 overflow-y-auto">
+        {sidebarGroups.map((group) => {
+          const isCollapsed = group.isCollapsible && group.groupKey === 'sales' && !salesGroupOpen;
           return (
-            <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-[13px] font-medium transition-colors ${
-                active
-                  ? 'bg-primary/10 text-primary'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-              }`}>
-              <Icon className="w-[18px] h-[18px] shrink-0" />
-              <span className="flex-1 text-left">{tab.label}</span>
-            </button>
+            <div key={group.label} className="space-y-0.5">
+              {group.isCollapsible ? (
+                <button
+                  onClick={() => setSalesGroupOpen((v) => !v)}
+                  className="w-full flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-primary/80 hover:text-primary transition-colors"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span className="flex-1 text-left">{group.label}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isCollapsed ? '-rotate-90' : ''}`} />
+                </button>
+              ) : (
+                <p className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {group.label}
+                </p>
+              )}
+              {!isCollapsed && group.items.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.value;
+                return (
+                  <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
+                      active
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                    }`}>
+                    <Icon className="w-[18px] h-[18px] shrink-0" />
+                    <span className="flex-1 text-left">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </nav>
