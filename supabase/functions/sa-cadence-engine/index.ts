@@ -6,7 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 interface CadenceStep {
   day: number;
@@ -27,15 +29,17 @@ async function generateAIMessage(opts: {
   const sys = `Você é um SDR sênior. Gere UMA mensagem (sem prefácios, sem marcadores) para um lead, no tom "${opts.tone}", canal "${opts.step.channel}". Objetivo da cadência: ${opts.cadenceGoal}. Regras: máx 600 caracteres, português BR, personalizada, com 1 CTA claro. Não use placeholders. Não inclua assinatura.`;
   const user = `Lead: ${opts.leadName}${opts.leadCompany ? " (" + opts.leadCompany + ")" : ""}\nContexto: ${opts.context || "primeiro contato"}\nInstrução do passo: ${opts.step.prompt}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch(GROQ_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: GROQ_MODEL,
       messages: [{ role: "system", content: sys }, { role: "user", content: user }],
+      temperature: 0.6,
+      max_tokens: 400,
     }),
   });
-  if (!res.ok) throw new Error(`AI ${res.status}`);
+  if (!res.ok) throw new Error(`Groq ${res.status}`);
   const data = await res.json();
   return (data.choices?.[0]?.message?.content ?? "").trim();
 }
@@ -52,16 +56,17 @@ Deno.serve(async (req) => {
     if (action === "create") {
       const { name, goal, audience, channel, tone, days } = body;
       const sys = `Você é um especialista em cadências de outbound. Gere uma sequência JSON de ${days || 7} passos para cadência "${name}". Objetivo: ${goal}. Público: ${audience}. Canal principal: ${channel}. Tom: ${tone}. Retorne SOMENTE JSON no formato: {"steps":[{"day":0,"channel":"whatsapp|email|call|linkedin","subject":"...(só email)","prompt":"instrução do que falar nesse passo","desc":"label curto 3-4 palavras"}]}`;
-      const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      const aiRes = await fetch(GROQ_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${LOVABLE_API_KEY}` },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${GROQ_API_KEY}` },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: GROQ_MODEL,
           messages: [{ role: "system", content: sys }, { role: "user", content: "Gere a cadência agora." }],
           response_format: { type: "json_object" },
+          temperature: 0.5,
         }),
       });
-      if (!aiRes.ok) throw new Error(`AI ${aiRes.status}`);
+      if (!aiRes.ok) throw new Error(`Groq ${aiRes.status}`);
       const aiData = await aiRes.json();
       const parsed = JSON.parse(aiData.choices[0].message.content);
       const steps: CadenceStep[] = parsed.steps || [];

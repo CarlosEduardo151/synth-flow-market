@@ -46,29 +46,29 @@ Regras:
 - Seja conservador e factual. Nada de inventar dados que não estão no input.`;
 
 async function callLovableAI(systemPrompt: string, userPrompt: string) {
-  const key = Deno.env.get("LOVABLE_API_KEY");
-  if (!key) throw new Error("LOVABLE_API_KEY não configurada");
+  const key = Deno.env.get("GROQ_API_KEY");
+  if (!key) throw new Error("GROQ_API_KEY não configurada");
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model: "llama-3.3-70b-versatile",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.3,
       max_tokens: 4000,
+      response_format: { type: "json_object" },
     }),
   });
 
   if (!resp.ok) {
     const txt = await resp.text();
-    console.error("Lovable AI error:", resp.status, txt);
-    if (resp.status === 429) throw new Error("Limite de IA atingido. Aguarde alguns minutos.");
-    if (resp.status === 402) throw new Error("Créditos de IA esgotados. Adicione créditos no workspace.");
-    throw new Error("Erro ao chamar IA");
+    console.error("Groq error:", resp.status, txt);
+    if (resp.status === 429) throw new Error("Limite Groq atingido. Aguarde alguns minutos.");
+    throw new Error("Erro ao chamar IA Groq");
   }
 
   const data = await resp.json();
