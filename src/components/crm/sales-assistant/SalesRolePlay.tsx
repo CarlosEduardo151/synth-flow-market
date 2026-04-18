@@ -132,7 +132,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
       if (error) throw error;
       const fb = (data as any)?.feedback;
       toast.success(`Avaliação concluída — ${fb?.score ?? 0}/100`);
-      const completed = { ...activeSession, status: 'completed', score: fb?.score, feedback: fb, transcript };
+      const completed = { ...activeSession, status: 'completed', ai_score: fb?.score, ai_feedback: JSON.stringify(fb), strengths: fb?.pontos_fortes || [], improvements: fb?.pontos_fracos || [], transcript };
       setActiveSession(null);
       setTranscript([]);
       setReviewSession(completed as any);
