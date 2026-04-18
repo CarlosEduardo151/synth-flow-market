@@ -150,13 +150,18 @@ Deno.serve(async (req) => {
 
       const { data: session } = await admin.from('sa_roleplay_sessions')
         .select('*').eq('id', session_id).maybeSingle();
-      if (!session || session.user_id !== userId) {
+      if (!session) {
         return new Response(JSON.stringify({ error: 'not found' }), { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+      // ownership check via customer_products
+      const { data: cp } = await admin.from('customer_products').select('user_id').eq('id', session.customer_product_id).maybeSingle();
+      if (!cp || cp.user_id !== userId) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
 
       const tx = (session.transcript as any[]) || [];
       const formatted = tx.map(m => `${m.role === 'vendedor' ? 'VENDEDOR' : 'LEAD'}: ${m.text}`).join('\n');
-      const personaLabel = PERSONAS[session.persona]?.label || session.persona;
+      const personaLabel = PERSONAS[session.persona_name]?.label || session.persona_name;
 
       const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
@@ -186,8 +191,10 @@ Deno.serve(async (req) => {
 
       await admin.from('sa_roleplay_sessions').update({
         status: 'completed',
-        score: feedback.score ?? null,
-        feedback,
+        ai_score: feedback.score ?? null,
+        ai_feedback: JSON.stringify(feedback),
+        strengths: feedback.pontos_fortes ?? null,
+        improvements: feedback.pontos_fracos ?? null,
       }).eq('id', session_id);
 
       return new Response(JSON.stringify({ feedback }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
