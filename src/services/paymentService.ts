@@ -9,9 +9,10 @@ export interface CreatePaymentData {
   customer_name: string;
   customer_email: string;
   customer_phone: string;
+  customer_cpf?: string;
   items: PaymentItem[];
   discount_amount?: number;
-  payment_type: 'automatic' | 'semi-auto' | 'mercadopago' | 'pix';
+  payment_type: 'automatic' | 'semi-auto' | 'pix' | 'efi';
   success_url?: string;
   failure_url?: string;
   pending_url?: string;
@@ -24,13 +25,15 @@ export interface PaymentResponse {
   data?: {
     order_id: string;
     payment_id: string;
-    preference_id?: string;
-    payment_link?: string;
-    sandbox_link?: string;
     total_amount: number;
-    pix_info?: {
-      key: string;
-      receiver_name: string;
+    provider?: 'efi';
+    environment?: string;
+    pix?: {
+      txid: string;
+      copia_e_cola: string;
+      qrcode_image: string | null;
+      qrcode_text: string;
+      expiration_seconds: number;
     };
   };
   message?: string;
@@ -38,40 +41,38 @@ export interface PaymentResponse {
 
 class PaymentService {
   /**
-   * Cria um pagamento automático via Mercado Pago
+   * Cria um pagamento PIX via Efí Bank (homologação)
    */
   async createAutomaticPayment(data: CreatePaymentData): Promise<PaymentResponse> {
-    try {
-      const { data: result, error } = await supabase.functions.invoke('mp-create-payment', {
-        body: {
-          ...data,
-          payment_type: 'automatic',
-        },
-      });
+    return this.createEfiPixPayment(data);
+  }
 
+  async createSemiAutoPayment(data: CreatePaymentData): Promise<PaymentResponse> {
+    return this.createEfiPixPayment(data);
+  }
+
+  async createEfiPixPayment(data: CreatePaymentData): Promise<PaymentResponse> {
+    try {
+      const { data: result, error } = await supabase.functions.invoke('efi-create-payment', {
+        body: data,
+      });
       if (error) throw error;
       return result;
     } catch (error) {
-      console.error('Erro ao criar pagamento automático:', error);
+      console.error('Erro ao criar pagamento Efí:', error);
       throw error;
     }
   }
 
   /**
-   * Cria um pagamento semi-automático (PIX)
+   * Verifica status de uma cobrança PIX na Efí
    */
-  async createSemiAutoPayment(data: CreatePaymentData): Promise<PaymentResponse> {
-    try {
-      const { data: result, error } = await supabase.functions.invoke('mp-semi-auto-payment', {
-        body: data,
-      });
-
-      if (error) throw error;
-      return result;
-    } catch (error) {
-      console.error('Erro ao criar pagamento semi-automático:', error);
-      throw error;
-    }
+  async checkEfiPayment(txid: string, payment_id?: string): Promise<any> {
+    const { data, error } = await supabase.functions.invoke('efi-check-payment', {
+      body: { txid, payment_id },
+    });
+    if (error) throw error;
+    return data;
   }
 
   /**
