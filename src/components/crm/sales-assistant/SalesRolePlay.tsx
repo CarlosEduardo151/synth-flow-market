@@ -15,10 +15,13 @@ interface Props { customerProductId: string; }
 
 interface Session {
   id: string;
-  persona: string;
+  persona_name: string;
+  persona_profile: any;
   scenario: string | null;
-  score: number | null;
-  feedback: any;
+  ai_score: number | null;
+  ai_feedback: string | null;
+  strengths: string[] | null;
+  improvements: string[] | null;
   transcript: any;
   status: string;
   created_at: string;
@@ -58,7 +61,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
     setLoading(true);
     const { data } = await (supabase as any)
       .from('sa_roleplay_sessions')
-      .select('id,persona,scenario,score,feedback,transcript,status,created_at')
+      .select('id,persona_name,persona_profile,scenario,ai_score,ai_feedback,strengths,improvements,transcript,status,created_at')
       .eq('customer_product_id', customerProductId)
       .order('created_at', { ascending: false }).limit(30);
     setSessions(data || []);
@@ -74,12 +77,20 @@ export function SalesRolePlay({ customerProductId }: Props) {
   const startSession = async () => {
     if (!user) return;
     setSaving(true);
+    const personaMeta = personas.find(p => p.id === persona);
     const { data, error } = await (supabase as any)
       .from('sa_roleplay_sessions')
-      .insert({ customer_product_id: customerProductId, user_id: user.id, persona, scenario, status: 'active', transcript: [] })
+      .insert({
+        customer_product_id: customerProductId,
+        persona_name: persona,
+        persona_profile: { id: persona, label: personaMeta?.label, emoji: personaMeta?.emoji, desc: personaMeta?.desc },
+        scenario,
+        status: 'active',
+        transcript: [],
+      })
       .select().single();
     setSaving(false);
-    if (error) { toast.error('Erro ao iniciar sessão'); return; }
+    if (error) { console.error('startSession error', error); toast.error('Erro ao iniciar sessão: ' + error.message); return; }
     setActiveSession(data);
     setTranscript([]);
     setReviewSession(null);
@@ -95,7 +106,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
 
     try {
       const { data, error } = await supabase.functions.invoke('sa-roleplay-chat', {
-        body: { mode: 'reply', persona: activeSession.persona, scenario: activeSession.scenario, transcript: next },
+        body: { mode: 'reply', persona: activeSession.persona_name, scenario: activeSession.scenario, transcript: next },
       });
       if (error) throw error;
       const reply = (data as any)?.reply || '...';
@@ -121,7 +132,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
       if (error) throw error;
       const fb = (data as any)?.feedback;
       toast.success(`Avaliação concluída — ${fb?.score ?? 0}/100`);
-      const completed = { ...activeSession, status: 'completed', score: fb?.score, feedback: fb, transcript };
+      const completed = { ...activeSession, status: 'completed', ai_score: fb?.score, ai_feedback: JSON.stringify(fb), strengths: fb?.pontos_fortes || [], improvements: fb?.pontos_fracos || [], transcript };
       setActiveSession(null);
       setTranscript([]);
       setReviewSession(completed as any);
@@ -142,16 +153,21 @@ export function SalesRolePlay({ customerProductId }: Props) {
   };
 
   const totalSessions = sessions.length;
-  const completed = sessions.filter(s => s.status === 'completed' && s.score != null);
-  const avgScore = completed.length ? Math.round(completed.reduce((s, x) => s + (x.score || 0), 0) / completed.length) : 0;
-  const bestScore = completed.length ? Math.max(...completed.map(s => s.score || 0)) : 0;
+  const completed = sessions.filter(s => s.status === 'completed' && s.ai_score != null);
+  const avgScore = completed.length ? Math.round(completed.reduce((s, x) => s + (x.ai_score || 0), 0) / completed.length) : 0;
+  const bestScore = completed.length ? Math.max(...completed.map(s => s.ai_score || 0)) : 0;
   const personaLabel = (id: string) => personas.find(p => p.id === id)?.label || id;
   const personaEmoji = (id: string) => personas.find(p => p.id === id)?.emoji || '🎭';
 
   /* ============ REVIEW VIEW ============ */
   if (reviewSession) {
-    const fb = reviewSession.feedback || {};
-    const m = fb.metricas || {};
+    const rawFb = reviewSession.ai_feedback;
+    let fb: any = {};
+    if (rawFb) { try { fb = typeof rawFb === 'string' ? JSON.parse(rawFb) : rawFb; } catch { fb = { veredito: String(rawFb) }; } }
+    if (reviewSession.ai_score != null && fb.score == null) fb.score = reviewSession.ai_score;
+    if (reviewSession.strengths?.length && !fb.pontos_fortes) fb.pontos_fortes = reviewSession.strengths;
+    if (reviewSession.improvements?.length && !fb.pontos_fracos) fb.pontos_fracos = reviewSession.improvements;
+    const m: any = fb.metricas || {};
     return (
       <div className="space-y-4">
         <Card className="border-primary/40 bg-gradient-to-br from-primary/5 to-transparent">
@@ -162,7 +178,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
                   <Award className="h-6 w-6 text-primary" /> Avaliação da Sessão
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {personaEmoji(reviewSession.persona)} {personaLabel(reviewSession.persona)} · {reviewSession.transcript?.length || 0} mensagens
+                  {personaEmoji(reviewSession.persona_name)} {personaLabel(reviewSession.persona_name)} · {reviewSession.transcript?.length || 0} mensagens
                 </CardDescription>
               </div>
               <div className="text-right">
@@ -240,9 +256,9 @@ export function SalesRolePlay({ customerProductId }: Props) {
           <CardHeader className="border-b py-3 px-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-lg">{personaEmoji(activeSession.persona)}</div>
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-lg">{personaEmoji(activeSession.persona_name)}</div>
                 <div>
-                  <p className="font-bold text-sm">{personaLabel(activeSession.persona)}</p>
+                  <p className="font-bold text-sm">{personaLabel(activeSession.persona_name)}</p>
                   <p className="text-[11px] text-muted-foreground">Lead simulado · IA Groq</p>
                 </div>
               </div>
@@ -396,19 +412,19 @@ export function SalesRolePlay({ customerProductId }: Props) {
                 ) : sessions.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">Nenhuma sessão ainda. Treine sua primeira!</p>
                 ) : sessions.map(s => (
-                  <button key={s.id} onClick={() => s.status === 'completed' && s.feedback ? setReviewSession(s) : null}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-colors ${s.feedback ? 'hover:border-primary/60 cursor-pointer' : 'cursor-default opacity-70'}`}>
+                  <button key={s.id} onClick={() => s.status === 'completed' && s.ai_feedback ? setReviewSession(s) : null}
+                    className={`w-full text-left p-2.5 rounded-lg border transition-colors ${s.ai_feedback ? 'hover:border-primary/60 cursor-pointer' : 'cursor-default opacity-70'}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base">{personaEmoji(s.persona)}</span>
+                        <span className="text-base">{personaEmoji(s.persona_name)}</span>
                         <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">{personaLabel(s.persona)}</p>
+                          <p className="text-xs font-medium truncate">{personaLabel(s.persona_name)}</p>
                           <p className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString('pt-BR')}</p>
                         </div>
                       </div>
-                      {s.score != null ? (
-                        <Badge className={s.score >= 70 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : s.score >= 40 ? 'bg-orange-500/15 text-orange-600 border-orange-500/30' : 'bg-destructive/15 text-destructive border-destructive/30'}>
-                          {s.score}
+                      {s.ai_score != null ? (
+                        <Badge className={s.ai_score >= 70 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : s.ai_score >= 40 ? 'bg-orange-500/15 text-orange-600 border-orange-500/30' : 'bg-destructive/15 text-destructive border-destructive/30'}>
+                          {s.ai_score}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[9px]">{s.status}</Badge>
