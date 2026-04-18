@@ -3657,6 +3657,63 @@ export type Database = {
           },
         ]
       }
+      sa_calendar_connections: {
+        Row: {
+          access_token: string | null
+          calendar_id: string | null
+          created_at: string
+          customer_product_id: string
+          default_buffer_min: number | null
+          default_duration_min: number | null
+          google_email: string | null
+          id: string
+          is_active: boolean
+          last_synced_at: string | null
+          provider: string
+          refresh_token: string | null
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string
+          working_hours: Json | null
+        }
+        Insert: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          customer_product_id: string
+          default_buffer_min?: number | null
+          default_duration_min?: number | null
+          google_email?: string | null
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          working_hours?: Json | null
+        }
+        Update: {
+          access_token?: string | null
+          calendar_id?: string | null
+          created_at?: string
+          customer_product_id?: string
+          default_buffer_min?: number | null
+          default_duration_min?: number | null
+          google_email?: string | null
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          provider?: string
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          working_hours?: Json | null
+        }
+        Relationships: []
+      }
       sa_config: {
         Row: {
           ai_model: string | null
@@ -3839,12 +3896,24 @@ export type Database = {
           created_at: string
           customer_product_id: string
           description: string | null
+          duration_min: number | null
           duration_minutes: number
+          google_calendar_id: string | null
+          google_event_id: string | null
           id: string
+          lead_email: string | null
+          lead_phone: string | null
           meeting_link: string | null
+          meeting_url: string | null
+          notes: string | null
+          opportunity_id: string | null
+          outcome: string | null
           prospect_id: string | null
+          reminder_sent: boolean | null
+          rescheduled_count: number | null
           scheduled_at: string
           scheduled_by_ai: boolean
+          source: string | null
           status: string
           title: string
           updated_at: string
@@ -3856,12 +3925,24 @@ export type Database = {
           created_at?: string
           customer_product_id: string
           description?: string | null
+          duration_min?: number | null
           duration_minutes?: number
+          google_calendar_id?: string | null
+          google_event_id?: string | null
           id?: string
+          lead_email?: string | null
+          lead_phone?: string | null
           meeting_link?: string | null
+          meeting_url?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
           prospect_id?: string | null
+          reminder_sent?: boolean | null
+          rescheduled_count?: number | null
           scheduled_at: string
           scheduled_by_ai?: boolean
+          source?: string | null
           status?: string
           title: string
           updated_at?: string
@@ -3873,12 +3954,24 @@ export type Database = {
           created_at?: string
           customer_product_id?: string
           description?: string | null
+          duration_min?: number | null
           duration_minutes?: number
+          google_calendar_id?: string | null
+          google_event_id?: string | null
           id?: string
+          lead_email?: string | null
+          lead_phone?: string | null
           meeting_link?: string | null
+          meeting_url?: string | null
+          notes?: string | null
+          opportunity_id?: string | null
+          outcome?: string | null
           prospect_id?: string | null
+          reminder_sent?: boolean | null
+          rescheduled_count?: number | null
           scheduled_at?: string
           scheduled_by_ai?: boolean
+          source?: string | null
           status?: string
           title?: string
           updated_at?: string
@@ -3899,6 +3992,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sa_oauth_states: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          expires_at: string
+          provider: string
+          redirect_to: string | null
+          state: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          expires_at?: string
+          provider?: string
+          redirect_to?: string | null
+          state: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          expires_at?: string
+          provider?: string
+          redirect_to?: string | null
+          state?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       sa_prospects: {
         Row: {
