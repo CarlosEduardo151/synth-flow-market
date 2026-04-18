@@ -408,7 +408,7 @@ export function SalesCopilot({ customerProductId }: Props) {
               )}
             </div>
             <p className="text-[10px] text-muted-foreground mt-1.5">
-              Enter para enviar · Shift+Enter para quebra de linha · Powered by Lovable AI
+              Enter para enviar · Shift+Enter para quebra de linha · Desenvolvido por NovaLink
             </p>
           </div>
         </Card>
