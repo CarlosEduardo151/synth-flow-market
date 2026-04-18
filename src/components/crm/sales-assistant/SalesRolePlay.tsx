@@ -161,8 +161,13 @@ export function SalesRolePlay({ customerProductId }: Props) {
 
   /* ============ REVIEW VIEW ============ */
   if (reviewSession) {
-    const fb = reviewSession.ai_feedback || {};
-    const m = fb.metricas || {};
+    const rawFb = reviewSession.ai_feedback;
+    let fb: any = {};
+    if (rawFb) { try { fb = typeof rawFb === 'string' ? JSON.parse(rawFb) : rawFb; } catch { fb = { veredito: String(rawFb) }; } }
+    if (reviewSession.ai_score != null && fb.score == null) fb.score = reviewSession.ai_score;
+    if (reviewSession.strengths?.length && !fb.pontos_fortes) fb.pontos_fortes = reviewSession.strengths;
+    if (reviewSession.improvements?.length && !fb.pontos_fracos) fb.pontos_fracos = reviewSession.improvements;
+    const m: any = fb.metricas || {};
     return (
       <div className="space-y-4">
         <Card className="border-primary/40 bg-gradient-to-br from-primary/5 to-transparent">
