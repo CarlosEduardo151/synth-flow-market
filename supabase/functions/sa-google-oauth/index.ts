@@ -27,12 +27,13 @@ const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
 function html(body: string, status = 200) {
   return new Response(
-    `<!doctype html><html><head><meta charset="utf-8"><title>Google Calendar</title>
+    `<!doctype html><html><head><meta charset="utf-8"><title>NovaLink CRM - Google Calendar</title>
     <style>body{font-family:system-ui;background:#0a0a0a;color:#fff;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;text-align:center;padding:24px}
     .card{max-width:420px;background:#151515;border:1px solid #2a2a2a;border-radius:16px;padding:32px}
+    .logo{font-size:24px;font-weight:700;background:linear-gradient(90deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
     h1{margin:0 0 12px;font-size:20px}p{color:#aaa;margin:0 0 20px}
     button{background:#10b981;color:#fff;border:0;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:600}</style></head>
-    <body><div class="card">${body}</div>
+    <body><div class="card"><div class="logo">NovaLink CRM</div>${body}</div>
     <script>setTimeout(()=>{window.opener&&window.opener.postMessage({type:'sa-google-oauth',ok:${status===200}},'*');window.close();},1500);</script>
     </body></html>`,
     { status, headers: { 'Content-Type': 'text/html; charset=utf-8' } },
