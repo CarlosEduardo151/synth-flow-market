@@ -15,10 +15,13 @@ interface Props { customerProductId: string; }
 
 interface Session {
   id: string;
-  persona: string;
+  persona_name: string;
+  persona_profile: any;
   scenario: string | null;
-  score: number | null;
-  feedback: any;
+  ai_score: number | null;
+  ai_feedback: string | null;
+  strengths: string[] | null;
+  improvements: string[] | null;
   transcript: any;
   status: string;
   created_at: string;
@@ -58,7 +61,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
     setLoading(true);
     const { data } = await (supabase as any)
       .from('sa_roleplay_sessions')
-      .select('id,persona,scenario,score,feedback,transcript,status,created_at')
+      .select('id,persona_name,persona_profile,scenario,ai_score,ai_feedback,strengths,improvements,transcript,status,created_at')
       .eq('customer_product_id', customerProductId)
       .order('created_at', { ascending: false }).limit(30);
     setSessions(data || []);
@@ -74,12 +77,20 @@ export function SalesRolePlay({ customerProductId }: Props) {
   const startSession = async () => {
     if (!user) return;
     setSaving(true);
+    const personaMeta = personas.find(p => p.id === persona);
     const { data, error } = await (supabase as any)
       .from('sa_roleplay_sessions')
-      .insert({ customer_product_id: customerProductId, user_id: user.id, persona, scenario, status: 'active', transcript: [] })
+      .insert({
+        customer_product_id: customerProductId,
+        persona_name: persona,
+        persona_profile: { id: persona, label: personaMeta?.label, emoji: personaMeta?.emoji, desc: personaMeta?.desc },
+        scenario,
+        status: 'active',
+        transcript: [],
+      })
       .select().single();
     setSaving(false);
-    if (error) { toast.error('Erro ao iniciar sessão'); return; }
+    if (error) { console.error('startSession error', error); toast.error('Erro ao iniciar sessão: ' + error.message); return; }
     setActiveSession(data);
     setTranscript([]);
     setReviewSession(null);
