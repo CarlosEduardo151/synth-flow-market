@@ -3495,40 +3495,58 @@ export type Database = {
       sa_cadence_enrollments: {
         Row: {
           cadence_id: string
+          converted: boolean | null
           created_at: string
           current_step: number
           customer_product_id: string
           history: Json | null
           id: string
           last_action_at: string | null
+          lead_email: string | null
+          lead_name: string | null
+          lead_phone: string | null
           next_action_at: string | null
+          opened_count: number | null
           prospect_id: string | null
+          replied: boolean | null
           status: string
           updated_at: string
         }
         Insert: {
           cadence_id: string
+          converted?: boolean | null
           created_at?: string
           current_step?: number
           customer_product_id: string
           history?: Json | null
           id?: string
           last_action_at?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
           next_action_at?: string | null
+          opened_count?: number | null
           prospect_id?: string | null
+          replied?: boolean | null
           status?: string
           updated_at?: string
         }
         Update: {
           cadence_id?: string
+          converted?: boolean | null
           created_at?: string
           current_step?: number
           customer_product_id?: string
           history?: Json | null
           id?: string
           last_action_at?: string | null
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
           next_action_at?: string | null
+          opened_count?: number | null
           prospect_id?: string | null
+          replied?: boolean | null
           status?: string
           updated_at?: string
         }
@@ -3558,37 +3576,73 @@ export type Database = {
       }
       sa_cadences: {
         Row: {
+          active_leads: number | null
+          ai_personalization: boolean | null
+          completed_leads: number | null
+          conversion_rate: number | null
           created_at: string
           customer_product_id: string
           description: string | null
+          goal: string | null
           id: string
           is_active: boolean
+          messages_replied: number | null
+          messages_sent: number | null
           name: string
+          open_rate: number | null
+          primary_channel: string | null
+          reply_rate: number | null
           steps: Json
+          target_audience: string | null
+          tone: string | null
           total_steps: number
           trigger_type: string | null
           updated_at: string
         }
         Insert: {
+          active_leads?: number | null
+          ai_personalization?: boolean | null
+          completed_leads?: number | null
+          conversion_rate?: number | null
           created_at?: string
           customer_product_id: string
           description?: string | null
+          goal?: string | null
           id?: string
           is_active?: boolean
+          messages_replied?: number | null
+          messages_sent?: number | null
           name: string
+          open_rate?: number | null
+          primary_channel?: string | null
+          reply_rate?: number | null
           steps?: Json
+          target_audience?: string | null
+          tone?: string | null
           total_steps?: number
           trigger_type?: string | null
           updated_at?: string
         }
         Update: {
+          active_leads?: number | null
+          ai_personalization?: boolean | null
+          completed_leads?: number | null
+          conversion_rate?: number | null
           created_at?: string
           customer_product_id?: string
           description?: string | null
+          goal?: string | null
           id?: string
           is_active?: boolean
+          messages_replied?: number | null
+          messages_sent?: number | null
           name?: string
+          open_rate?: number | null
+          primary_channel?: string | null
+          reply_rate?: number | null
           steps?: Json
+          target_audience?: string | null
+          tone?: string | null
           total_steps?: number
           trigger_type?: string | null
           updated_at?: string
