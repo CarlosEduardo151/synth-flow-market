@@ -10,7 +10,8 @@ const corsHeaders = {
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY')!;
+const GROQ_API_KEY = Deno.env.get('GROQ_API_KEY')!;
+const GROQ_MODEL = Deno.env.get('GROQ_MODEL') || 'llama-3.3-70b-versatile';
 
 const admin = createClient(SUPABASE_URL, SERVICE_KEY);
 
@@ -178,12 +179,18 @@ DADOS DISPONÍVEIS DO CRM (use APENAS isso como fonte de verdade):
 
 ${context}`;
 
-    const aiResp = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    if (!GROQ_API_KEY) {
+      return new Response(JSON.stringify({ error: 'GROQ_API_KEY não configurada' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    const aiResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: GROQ_MODEL,
         stream: true,
+        temperature: 0.6,
+        max_tokens: 2048,
         messages: [
           { role: 'system', content: systemContent },
           ...messages.map((m: any) => ({ role: m.role, content: m.content })),
@@ -193,14 +200,11 @@ ${context}`;
 
     if (!aiResp.ok) {
       if (aiResp.status === 429) {
-        return new Response(JSON.stringify({ error: 'Limite de uso atingido. Tente novamente em alguns instantes.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-      }
-      if (aiResp.status === 402) {
-        return new Response(JSON.stringify({ error: 'Créditos esgotados. Adicione créditos no workspace do Lovable.' }), { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return new Response(JSON.stringify({ error: 'Limite de uso da Groq atingido. Tente novamente em alguns instantes.' }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
       const t = await aiResp.text();
-      console.error('AI gateway error', aiResp.status, t);
-      return new Response(JSON.stringify({ error: 'Erro no gateway de IA' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      console.error('Groq API error', aiResp.status, t);
+      return new Response(JSON.stringify({ error: `Erro Groq (${aiResp.status})` }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(aiResp.body, {
