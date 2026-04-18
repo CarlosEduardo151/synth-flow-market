@@ -85,7 +85,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
         persona_name: persona,
         persona_profile: { id: persona, label: personaMeta?.label, emoji: personaMeta?.emoji, desc: personaMeta?.desc },
         scenario,
-        status: 'active',
+        status: 'in_progress',
         transcript: [],
       })
       .select().single();
@@ -146,7 +146,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
 
   const cancelSession = async () => {
     if (!activeSession) return;
-    await (supabase as any).from('sa_roleplay_sessions').update({ status: 'cancelled' }).eq('id', activeSession.id);
+    await (supabase as any).from('sa_roleplay_sessions').update({ status: 'abandoned' }).eq('id', activeSession.id);
     setActiveSession(null);
     setTranscript([]);
     loadSessions();
