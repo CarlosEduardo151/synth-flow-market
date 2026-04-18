@@ -106,7 +106,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
 
     try {
       const { data, error } = await supabase.functions.invoke('sa-roleplay-chat', {
-        body: { mode: 'reply', persona: activeSession.persona, scenario: activeSession.scenario, transcript: next },
+        body: { mode: 'reply', persona: activeSession.persona_name, scenario: activeSession.scenario, transcript: next },
       });
       if (error) throw error;
       const reply = (data as any)?.reply || '...';
@@ -153,15 +153,15 @@ export function SalesRolePlay({ customerProductId }: Props) {
   };
 
   const totalSessions = sessions.length;
-  const completed = sessions.filter(s => s.status === 'completed' && s.score != null);
-  const avgScore = completed.length ? Math.round(completed.reduce((s, x) => s + (x.score || 0), 0) / completed.length) : 0;
-  const bestScore = completed.length ? Math.max(...completed.map(s => s.score || 0)) : 0;
+  const completed = sessions.filter(s => s.status === 'completed' && s.ai_score != null);
+  const avgScore = completed.length ? Math.round(completed.reduce((s, x) => s + (x.ai_score || 0), 0) / completed.length) : 0;
+  const bestScore = completed.length ? Math.max(...completed.map(s => s.ai_score || 0)) : 0;
   const personaLabel = (id: string) => personas.find(p => p.id === id)?.label || id;
   const personaEmoji = (id: string) => personas.find(p => p.id === id)?.emoji || '🎭';
 
   /* ============ REVIEW VIEW ============ */
   if (reviewSession) {
-    const fb = reviewSession.feedback || {};
+    const fb = reviewSession.ai_feedback || {};
     const m = fb.metricas || {};
     return (
       <div className="space-y-4">
@@ -173,7 +173,7 @@ export function SalesRolePlay({ customerProductId }: Props) {
                   <Award className="h-6 w-6 text-primary" /> Avaliação da Sessão
                 </CardTitle>
                 <CardDescription className="mt-1">
-                  {personaEmoji(reviewSession.persona)} {personaLabel(reviewSession.persona)} · {reviewSession.transcript?.length || 0} mensagens
+                  {personaEmoji(reviewSession.persona_name)} {personaLabel(reviewSession.persona_name)} · {reviewSession.transcript?.length || 0} mensagens
                 </CardDescription>
               </div>
               <div className="text-right">
@@ -251,9 +251,9 @@ export function SalesRolePlay({ customerProductId }: Props) {
           <CardHeader className="border-b py-3 px-4">
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-lg">{personaEmoji(activeSession.persona)}</div>
+                <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-lg">{personaEmoji(activeSession.persona_name)}</div>
                 <div>
-                  <p className="font-bold text-sm">{personaLabel(activeSession.persona)}</p>
+                  <p className="font-bold text-sm">{personaLabel(activeSession.persona_name)}</p>
                   <p className="text-[11px] text-muted-foreground">Lead simulado · IA Groq</p>
                 </div>
               </div>
@@ -407,19 +407,19 @@ export function SalesRolePlay({ customerProductId }: Props) {
                 ) : sessions.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">Nenhuma sessão ainda. Treine sua primeira!</p>
                 ) : sessions.map(s => (
-                  <button key={s.id} onClick={() => s.status === 'completed' && s.feedback ? setReviewSession(s) : null}
-                    className={`w-full text-left p-2.5 rounded-lg border transition-colors ${s.feedback ? 'hover:border-primary/60 cursor-pointer' : 'cursor-default opacity-70'}`}>
+                  <button key={s.id} onClick={() => s.status === 'completed' && s.ai_feedback ? setReviewSession(s) : null}
+                    className={`w-full text-left p-2.5 rounded-lg border transition-colors ${s.ai_feedback ? 'hover:border-primary/60 cursor-pointer' : 'cursor-default opacity-70'}`}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-base">{personaEmoji(s.persona)}</span>
+                        <span className="text-base">{personaEmoji(s.persona_name)}</span>
                         <div className="min-w-0">
-                          <p className="text-xs font-medium truncate">{personaLabel(s.persona)}</p>
+                          <p className="text-xs font-medium truncate">{personaLabel(s.persona_name)}</p>
                           <p className="text-[10px] text-muted-foreground">{new Date(s.created_at).toLocaleDateString('pt-BR')}</p>
                         </div>
                       </div>
-                      {s.score != null ? (
-                        <Badge className={s.score >= 70 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : s.score >= 40 ? 'bg-orange-500/15 text-orange-600 border-orange-500/30' : 'bg-destructive/15 text-destructive border-destructive/30'}>
-                          {s.score}
+                      {s.ai_score != null ? (
+                        <Badge className={s.ai_score >= 70 ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' : s.ai_score >= 40 ? 'bg-orange-500/15 text-orange-600 border-orange-500/30' : 'bg-destructive/15 text-destructive border-destructive/30'}>
+                          {s.ai_score}
                         </Badge>
                       ) : (
                         <Badge variant="outline" className="text-[9px]">{s.status}</Badge>
