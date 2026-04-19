@@ -1108,17 +1108,41 @@ export function SalesLeads({ customerProductId }: Props) {
                   <div className="text-center py-6 rounded-lg border border-dashed">
                     <Brain className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
                     <p className="text-sm text-muted-foreground">Lead ainda não foi analisado pela IA.</p>
-                    <Button size="sm" className="mt-3" onClick={qualifyAll} disabled={qualifying}>
-                      {qualifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Qualificar agora
+                    <Button size="sm" className="mt-3" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
+                      {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Qualificar agora
                     </Button>
                   </div>
                 )}
-                {detailLead.notes && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notas</p>
-                    <p className="text-sm whitespace-pre-wrap p-3 rounded bg-muted/40">{detailLead.notes}</p>
-                  </div>
+                {detailLead._hasAI && (
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
+                    {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    Re-qualificar com IA
+                  </Button>
                 )}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notas</p>
+                    {notesDraft !== (detailLead.notes || '') && (
+                      <Badge variant="outline" className="text-[10px]">não salvo</Badge>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={5}
+                    placeholder="Anote contexto, próximos passos, objeções, decisor..."
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    className="resize-none"
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => saveLeadNotes(detailLead.id)}
+                    disabled={savingNotes || notesDraft === (detailLead.notes || '')}
+                  >
+                    {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Salvar notas
+                  </Button>
+                </div>
               </div>
             </>
           )}
