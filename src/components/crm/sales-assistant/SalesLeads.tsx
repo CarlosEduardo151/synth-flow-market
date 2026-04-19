@@ -281,6 +281,36 @@ export function SalesLeads({ customerProductId }: Props) {
     } finally { setQualifying(false); }
   };
 
+  const qualifySingleLead = async (leadId: string) => {
+    setQualifyingOne(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sa-prospect-ai', {
+        body: { customerProductId, leadIds: [leadId], icp: icp || undefined },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: '✨ Lead qualificado pela IA', description: 'Análise BANT + ICP atualizada.' });
+      await fetchInternal();
+    } catch (e: any) {
+      toast({ title: 'Erro na qualificação', description: e.message, variant: 'destructive' });
+    } finally { setQualifyingOne(false); }
+  };
+
+  const saveLeadNotes = async (leadId: string) => {
+    setSavingNotes(true);
+    const { error } = await (supabase as any)
+      .from('crm_customers')
+      .update({ notes: notesDraft || null, last_contact_date: new Date().toISOString() })
+      .eq('id', leadId);
+    setSavingNotes(false);
+    if (error) {
+      toast({ title: 'Erro ao salvar notas', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: '📝 Notas salvas' });
+    await fetchInternal();
+  };
+
   const saveManual = async () => {
     const parsed = leadSchema.safeParse(form);
     if (!parsed.success) {
