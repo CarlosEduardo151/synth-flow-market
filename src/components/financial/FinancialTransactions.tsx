@@ -228,6 +228,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="space-y-3">
