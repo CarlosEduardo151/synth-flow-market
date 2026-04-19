@@ -408,10 +408,52 @@ serve(async (req) => {
           }
 
           // Notify human agent if configured — DIRECT send (no anti-ban / no chunking / no markRead).
-          // The agent number is unrelated to the inbound message, so anti-ban behaviors don't apply
-          // and would actually break (markRead with wrong msgId, presence on wrong chat).
+          // Build a rich, contextual notification with client name + recent conversation history.
           if (handoffConfig.notification_phone) {
-            const notifMsg = `${handoffConfig.notification_message || "Solicitação de atendimento humano"}\n\n📱 Cliente: ${phone}\n💬 Mensagem: ${userText}`;
+            // Try to extract pushName from payload (Evolution sends this)
+            const pushName = sanitizeString(
+              body?.pushName || body?.senderName || payload?.data?.pushName || ""
+            );
+
+            // Fetch last 6 messages of conversation history for context
+            const { data: recentMsgs } = await service
+              .from("bot_conversation_logs")
+              .select("direction, message_text, created_at")
+              .eq("customer_product_id", cp.id)
+              .eq("phone", phone)
+              .order("created_at", { ascending: false })
+              .limit(6);
+
+            const history = (recentMsgs || [])
+              .reverse()
+              .map((m: any) => {
+                const who = m.direction === "inbound" ? "👤 Cliente" : "🤖 Bot";
+                const txt = (m.message_text || "").slice(0, 200);
+                return `${who}: ${txt}`;
+              })
+              .join("\n");
+
+            // Format phone for display: 5599999999999 -> +55 (99) 99999-9999
+            const formattedPhone = phone.length >= 12
+              ? `+${phone.slice(0, 2)} (${phone.slice(2, 4)}) ${phone.slice(4, 9)}-${phone.slice(9)}`
+              : phone;
+
+            const waLink = `https://wa.me/${phone}`;
+
+            const notifMsg = [
+              `🔔 *${handoffConfig.notification_message || "Novo atendimento humano solicitado"}*`,
+              ``,
+              `👤 *Cliente:* ${pushName || "Sem nome"}`,
+              `📱 *Telefone:* ${formattedPhone}`,
+              `💬 *Última mensagem:* ${userText}`,
+              ``,
+              history ? `📜 *Contexto recente da conversa:*\n${history}` : ``,
+              ``,
+              `▶️ Responder agora: ${waLink}`,
+              ``,
+              `_O bot foi pausado automaticamente. Ele só voltará a responder após ${handoffConfig.pause_minutes || 30} min de inatividade._`,
+            ].filter(Boolean).join("\n");
+
             try {
               if (evoCreds) {
                 await evolutionSendText(evoCreds, handoffConfig.notification_phone, notifMsg);
