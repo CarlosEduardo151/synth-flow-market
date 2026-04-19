@@ -18,7 +18,9 @@ import {
   Pie,
   Cell
 } from 'recharts';
-import { Download, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { Download, TrendingUp, TrendingDown, Wallet, FileText } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Props {
   customerProductId: string;
@@ -146,6 +148,65 @@ export function FinancialReports({ customerProductId, mode }: Props) {
     link.click();
   };
 
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const today = new Date().toLocaleDateString('pt-BR');
+    const totalIncome = getTotalIncome();
+    const totalExpenses = getTotalExpenses();
+    const balance = totalIncome - totalExpenses;
+
+    // Header
+    doc.setFillColor(16, 185, 129);
+    doc.rect(0, 0, 210, 30, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relatório Financeiro', 14, 18);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Gerado em ${today} • Período: ${period}`, 14, 25);
+
+    // Resumo
+    doc.setTextColor(20, 20, 20);
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Resumo Executivo', 14, 42);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Receitas: R$ ${totalIncome.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 50);
+    doc.text(`Despesas: R$ ${totalExpenses.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 56);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(balance >= 0 ? 16 : 239, balance >= 0 ? 185 : 68, balance >= 0 ? 129 : 68);
+    doc.text(`Saldo: R$ ${balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 14, 62);
+    doc.setTextColor(20, 20, 20);
+
+    // Tabela
+    autoTable(doc, {
+      startY: 72,
+      head: [['Data', 'Tipo', 'Valor (R$)', 'Descrição', 'Pagamento']],
+      body: transactions.map(t => [
+        new Date(t.date).toLocaleDateString('pt-BR'),
+        t.type === 'income' ? 'Receita' : 'Despesa',
+        Number(t.amount).toFixed(2),
+        (t.description || '').slice(0, 50),
+        t.payment_method || '-',
+      ]),
+      headStyles: { fillColor: [16, 185, 129], textColor: 255 },
+      styles: { fontSize: 8 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(120);
+      doc.text(`Agente Financeiro NovaLink • Página ${i}/${pageCount}`, 14, 290);
+    }
+
+    doc.save(`relatorio-financeiro-${new Date().toISOString().split('T')[0]}.pdf`);
+  };
+
   if (loading) {
     return <div className="animate-pulse space-y-4">
       {[...Array(3)].map((_, i) => <Card key={i} className="h-64 bg-muted/50" />)}
@@ -173,7 +234,10 @@ export function FinancialReports({ customerProductId, mode }: Props) {
             </SelectContent>
           </Select>
           <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+            <Download className="h-4 w-4 mr-2" /> CSV
+          </Button>
+          <Button onClick={handleExportPDF} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+            <FileText className="h-4 w-4 mr-2" /> PDF
           </Button>
         </div>
       </div>

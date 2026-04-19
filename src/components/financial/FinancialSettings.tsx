@@ -36,12 +36,45 @@ export function FinancialSettings({ customerProductId, mode, onModeChange }: Pro
   const [agentPermissions, setAgentPermissions] = useState<{ goals: { create: boolean; update: boolean; delete: boolean } }>(
     { goals: { create: true, update: true, delete: true } }
   );
+  const [require2FA, setRequire2FA] = useState(false);
+  const [saving2FA, setSaving2FA] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchConfig();
     fetchPermissions();
+    fetch2FA();
   }, [customerProductId]);
+
+  const fetch2FA = async () => {
+    const { data } = await (supabase
+      .from('financial_agent_security' as any)
+      .select('require_2fa')
+      .eq('customer_product_id', customerProductId)
+      .maybeSingle() as any);
+    setRequire2FA(Boolean(data?.require_2fa));
+  };
+
+  const handleToggle2FA = async (val: boolean) => {
+    setSaving2FA(true);
+    const { error } = await (supabase
+      .from('financial_agent_security' as any)
+      .upsert(
+        { customer_product_id: customerProductId, require_2fa: val },
+        { onConflict: 'customer_product_id' }
+      ) as any);
+    setSaving2FA(false);
+    if (error) {
+      toast({ title: 'Erro ao salvar 2FA', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setRequire2FA(val);
+    if (!val) {
+      // limpa session lock
+      sessionStorage.removeItem(`fin2fa_ok_${customerProductId}`);
+    }
+    toast({ title: val ? '2FA ativado' : '2FA desativado' });
+  };
 
   const fetchConfig = async () => {
     setLoading(true);
@@ -210,6 +243,25 @@ export function FinancialSettings({ customerProductId, mode, onModeChange }: Pro
           </div>
         </Card>
       )}
+
+      {/* Segurança 2FA */}
+      <Card className="p-6 bg-card/80 backdrop-blur-sm border-emerald-500/20">
+        <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-emerald-500" />
+          Verificação em 2 etapas (e-mail)
+        </h3>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1">
+            <p className="text-sm text-muted-foreground">
+              Quando ativada, ao abrir o Agente Financeiro será exigido um código de 5 dígitos enviado para o seu e-mail. Protege dados financeiros sensíveis caso seu dispositivo seja acessado por terceiros.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              <strong>Pré-requisito:</strong> seu 2FA por e-mail precisa estar habilitado nas configurações da sua conta.
+            </p>
+          </div>
+          <Switch checked={require2FA} disabled={saving2FA} onCheckedChange={handleToggle2FA} />
+        </div>
+      </Card>
 
       {/* Budget & Alerts */}
       <Card className="p-6 bg-card/80 backdrop-blur-sm">

@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, ArrowUpRight, ArrowDownRight, Trash2, Filter } from 'lucide-react';
+import { ImportStatementDialog } from './ImportStatementDialog';
 
 interface Props {
   customerProductId: string;
@@ -143,12 +144,14 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
           </div>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Plus className="h-4 w-4 mr-2" /> Nova Transação
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <ImportStatementDialog customerProductId={customerProductId} onImported={fetchTransactions} />
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90">
+                <Plus className="h-4 w-4 mr-2" /> Nova Transação
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Nova Transação</DialogTitle>
@@ -225,6 +228,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
             </div>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="space-y-3">
