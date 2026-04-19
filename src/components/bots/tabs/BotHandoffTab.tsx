@@ -5,11 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserCheck, Clock, MessageSquare, Bell, X, Plus, Save, Loader2, Phone, Users } from 'lucide-react';
+import { UserCheck, Clock, Bell, Save, Loader2, Phone, Users, Sparkles, MessageCircle, ShieldCheck } from 'lucide-react';
 
 interface BotHandoffTabProps {
   customerProductId: string;
@@ -18,7 +17,6 @@ interface BotHandoffTabProps {
 interface HandoffConfig {
   id?: string;
   is_enabled: boolean;
-  trigger_keywords: string[];
   pause_minutes: number;
   notification_phone: string;
   notification_message: string;
@@ -36,7 +34,6 @@ interface HandoffSession {
 
 const DEFAULT_CONFIG: HandoffConfig = {
   is_enabled: false,
-  trigger_keywords: ['atendente', 'humano', 'pessoa', 'atendimento humano', 'falar com alguém', 'falar com humano'],
   pause_minutes: 30,
   notification_phone: '',
   notification_message: 'Um cliente solicitou atendimento humano.',
@@ -50,7 +47,6 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
   const [sessions, setSessions] = useState<HandoffSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [newKeyword, setNewKeyword] = useState('');
 
   const sb = supabase as any;
 
@@ -61,7 +57,7 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
 
   const loadConfig = async () => {
     try {
-      const { data, error } = await sb
+      const { data } = await sb
         .from('bot_handoff_config')
         .select('*')
         .eq('customer_product_id', customerProductId)
@@ -71,7 +67,6 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
         setConfig({
           id: data.id,
           is_enabled: data.is_enabled,
-          trigger_keywords: data.trigger_keywords || DEFAULT_CONFIG.trigger_keywords,
           pause_minutes: data.pause_minutes,
           notification_phone: data.notification_phone || '',
           notification_message: data.notification_message || DEFAULT_CONFIG.notification_message,
@@ -107,12 +102,13 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
       const payload = {
         customer_product_id: customerProductId,
         is_enabled: config.is_enabled,
-        trigger_keywords: config.trigger_keywords,
         pause_minutes: config.pause_minutes,
         notification_phone: config.notification_phone || null,
         notification_message: config.notification_message,
         auto_message: config.auto_message,
         return_message: config.return_message,
+        // Keep DB column happy (it's NOT NULL with default). We send empty array since AI handles detection now.
+        trigger_keywords: [] as string[],
       };
 
       if (config.id) {
@@ -128,17 +124,6 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
     } finally {
       setSaving(false);
     }
-  };
-
-  const addKeyword = () => {
-    const kw = newKeyword.trim().toLowerCase();
-    if (!kw || config.trigger_keywords.includes(kw)) return;
-    setConfig(prev => ({ ...prev, trigger_keywords: [...prev.trigger_keywords, kw] }));
-    setNewKeyword('');
-  };
-
-  const removeKeyword = (kw: string) => {
-    setConfig(prev => ({ ...prev, trigger_keywords: prev.trigger_keywords.filter(k => k !== kw) }));
   };
 
   const endSession = async (sessionId: string) => {
@@ -178,23 +163,42 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
+          <div className="w-11 h-11 rounded-xl bg-orange-500/10 flex items-center justify-center ring-1 ring-orange-500/20">
             <UserCheck className="h-5 w-5 text-orange-500" />
           </div>
           <div>
             <h2 className="text-lg font-semibold">Atendimento Humano</h2>
             <p className="text-sm text-muted-foreground">
-              Transferência automática para atendente quando o cliente solicitar
+              A IA detecta automaticamente quando o cliente precisa falar com uma pessoa
             </p>
           </div>
         </div>
         <Button onClick={handleSave} disabled={saving} size="sm">
           {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          Salvar
+          Salvar alterações
         </Button>
       </div>
+
+      {/* AI Detection Highlight */}
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardContent className="pt-5 pb-5">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div className="space-y-1">
+              <p className="font-medium text-sm">Detecção inteligente por IA</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                A IA analisa cada mensagem e decide sozinha quando transferir para um humano —
+                identifica pedidos explícitos ("quero falar com um atendente"), reclamações sérias,
+                frustração ou situações delicadas que o bot não deve resolver. Sem precisar configurar palavras-chave.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Active Sessions */}
       {sessions.length > 0 && (
@@ -202,7 +206,7 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <Users className="h-4 w-4 text-orange-500" />
-              Atendimentos Ativos ({sessions.length})
+              Atendimentos ativos ({sessions.length})
             </CardTitle>
             <CardDescription>
               O bot está pausado para estes clientes. Você pode encerrar manualmente.
@@ -229,16 +233,18 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
         </Card>
       )}
 
-      {/* Enable/Disable */}
+      {/* Master Switch */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <UserCheck className="h-5 w-5 text-muted-foreground" />
+              <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5 text-muted-foreground" />
+              </div>
               <div>
                 <p className="font-medium">Ativar transferência para humano</p>
                 <p className="text-sm text-muted-foreground">
-                  O bot pausa quando o cliente pedir atendimento humano
+                  Enquanto desativado, o bot responde tudo sozinho
                 </p>
               </div>
             </div>
@@ -252,38 +258,39 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
 
       {config.is_enabled && (
         <>
-          {/* Trigger Keywords */}
+          {/* Notification — primary now */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
-                <MessageSquare className="h-4 w-4" />
-                Palavras-chave de Ativação
+                <Bell className="h-4 w-4 text-orange-500" />
+                Atendente que vai receber a notificação
               </CardTitle>
               <CardDescription>
-                Quando o cliente enviar uma mensagem contendo estas palavras, o bot transfere para humano
+                Quando a IA detectar que precisa transferir, este número recebe um WhatsApp avisando
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {config.trigger_keywords.map(kw => (
-                  <Badge key={kw} variant="secondary" className="px-3 py-1.5 gap-1.5">
-                    {kw}
-                    <button onClick={() => removeKeyword(kw)} className="hover:text-destructive">
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Telefone do atendente (com DDI + DDD)</Label>
                 <Input
-                  placeholder="Nova palavra-chave..."
-                  value={newKeyword}
-                  onChange={e => setNewKeyword(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addKeyword())}
+                  placeholder="5599999999999"
+                  value={config.notification_phone}
+                  onChange={e => setConfig(prev => ({ ...prev, notification_phone: e.target.value.replace(/\D/g, '') }))}
                 />
-                <Button variant="outline" size="icon" onClick={addKeyword}>
-                  <Plus className="h-4 w-4" />
-                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Formato: 55 (Brasil) + DDD + número, sem espaços ou símbolos. Ex: 5511988887777
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Mensagem que o atendente vai receber</Label>
+                <Textarea
+                  rows={2}
+                  value={config.notification_message}
+                  onChange={e => setConfig(prev => ({ ...prev, notification_message: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">
+                  O telefone do cliente e a mensagem dele são adicionados automaticamente ao final.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -293,11 +300,11 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <Clock className="h-4 w-4" />
-                Tempo de Pausa
+                Tempo de pausa do bot
               </CardTitle>
               <CardDescription>
-                O bot fica pausado por este tempo após a ÚLTIMA mensagem na conversa.
-                Se o atendente continuar conversando, o timer reinicia a cada mensagem.
+                O bot fica em silêncio por este tempo após a última mensagem da conversa.
+                Cada nova mensagem (cliente ou atendente) reinicia o cronômetro.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -308,44 +315,13 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
                   max={1440}
                   value={config.pause_minutes}
                   onChange={e => setConfig(prev => ({ ...prev, pause_minutes: Number(e.target.value) || 30 }))}
-                  className="w-24"
+                  className="w-28"
                 />
                 <span className="text-sm text-muted-foreground">minutos</span>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                Mínimo 5 min, máximo 24h (1440 min). Recomendado: 30 min.
+                Mínimo 5 min · Máximo 24h (1440 min) · Recomendado: 30 min
               </p>
-            </CardContent>
-          </Card>
-
-          {/* Notification */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Bell className="h-4 w-4" />
-                Notificação do Atendente
-              </CardTitle>
-              <CardDescription>
-                Número que receberá uma notificação quando o cliente pedir humano (opcional)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label>Telefone do atendente (com DDD)</Label>
-                <Input
-                  placeholder="5599999999999"
-                  value={config.notification_phone}
-                  onChange={e => setConfig(prev => ({ ...prev, notification_phone: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Mensagem de notificação</Label>
-                <Textarea
-                  rows={2}
-                  value={config.notification_message}
-                  onChange={e => setConfig(prev => ({ ...prev, notification_message: e.target.value }))}
-                />
-              </div>
             </CardContent>
           </Card>
 
@@ -354,28 +330,31 @@ export function BotHandoffTab({ customerProductId }: BotHandoffTabProps) {
           {/* Messages */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Mensagens Automáticas</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageCircle className="h-4 w-4" />
+                Mensagens automáticas
+              </CardTitle>
               <CardDescription>
-                Personalize as mensagens enviadas durante a transferência
+                Personalize o que o cliente vê durante e depois da transferência
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>Mensagem ao iniciar transferência</Label>
+              <div className="space-y-2">
+                <Label>Mensagem ao iniciar a transferência</Label>
                 <Textarea
                   rows={2}
                   value={config.auto_message}
                   onChange={e => setConfig(prev => ({ ...prev, auto_message: e.target.value }))}
-                  placeholder="Mensagem enviada quando o cliente pede atendimento humano"
+                  placeholder="Enviada para o cliente quando a IA decidir transferir"
                 />
               </div>
-              <div>
-                <Label>Mensagem ao retomar bot</Label>
+              <div className="space-y-2">
+                <Label>Mensagem ao retomar o bot</Label>
                 <Textarea
                   rows={2}
                   value={config.return_message}
                   onChange={e => setConfig(prev => ({ ...prev, return_message: e.target.value }))}
-                  placeholder="Mensagem enviada quando o bot volta a responder"
+                  placeholder="Enviada quando o tempo de pausa acabar e o bot voltar a responder"
                 />
               </div>
             </CardContent>
