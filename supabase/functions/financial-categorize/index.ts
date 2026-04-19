@@ -1,8 +1,9 @@
-// Categoriza transações financeiras automaticamente via Lovable AI
+// Categoriza transações financeiras automaticamente via Groq
 // Recebe lista de descrições e retorna categoria + subcategoria para cada uma
 import { corsHeaders } from "../_shared/cors.ts";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
+const GROQ_MODEL = Deno.env.get("GROQ_CATEGORIZE_MODEL") || "llama-3.3-70b-versatile";
 
 const CATEGORIES = [
   "Infraestrutura", "Marketing", "Folha de Pagamento", "Impostos",
