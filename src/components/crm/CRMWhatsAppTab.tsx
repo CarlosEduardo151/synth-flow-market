@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CRMLeadCapturePanel } from './CRMLeadCapturePanel';
 
 interface CRMWhatsAppTabProps {
   customerProductId: string;
