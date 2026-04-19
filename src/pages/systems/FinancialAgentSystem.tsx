@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProductAccess } from '@/hooks/useProductAccess';
 import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
 import { ScenariosTab } from '@/components/financial/cfo/ScenariosTab';
+import { InsightsTab } from '@/components/financial/cfo/InsightsTab';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
 import { FinancialInvoices } from '@/components/financial/FinancialInvoices';
 import { FinancialGoals } from '@/components/financial/FinancialGoals';
@@ -36,6 +37,7 @@ import {
   Settings,
   MessageSquare,
   Wand2,
+  Sparkles,
 } from 'lucide-react';
 
 export default function FinancialAgentSystem() {
@@ -55,6 +57,7 @@ export default function FinancialAgentSystem() {
     () => [
       { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { value: 'scenarios', label: 'Cenários', icon: Wand2 },
+      { value: 'insights', label: 'Insights', icon: Sparkles },
       { value: 'chatbot', label: 'Chat', icon: MessageSquare },
       { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
       { value: 'invoices', label: 'Faturas', icon: Receipt },
@@ -179,6 +182,10 @@ export default function FinancialAgentSystem() {
 
                       <TabsContent value="scenarios" className="space-y-4">
                         <ScenariosTab customerProductId={customerId} />
+                      </TabsContent>
+
+                      <TabsContent value="insights" className="space-y-4">
+                        <InsightsTab customerProductId={customerId} />
                       </TabsContent>
 
                       <TabsContent value="chatbot" className="space-y-4">
