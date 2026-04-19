@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useProductAccess } from '@/hooks/useProductAccess';
 import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
+import { ScenariosTab } from '@/components/financial/cfo/ScenariosTab';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
 import { FinancialInvoices } from '@/components/financial/FinancialInvoices';
 import { FinancialGoals } from '@/components/financial/FinancialGoals';
@@ -33,7 +34,8 @@ import {
   Target, 
   BarChart3, 
   Settings,
-  MessageSquare
+  MessageSquare,
+  Wand2,
 } from 'lucide-react';
 
 export default function FinancialAgentSystem() {
@@ -52,6 +54,7 @@ export default function FinancialAgentSystem() {
   const sidebarItems: SidebarItem[] = useMemo(
     () => [
       { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { value: 'scenarios', label: 'Cenários', icon: Wand2 },
       { value: 'chatbot', label: 'Chat', icon: MessageSquare },
       { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
       { value: 'invoices', label: 'Faturas', icon: Receipt },
@@ -172,6 +175,10 @@ export default function FinancialAgentSystem() {
                     <div className="p-4">
                       <TabsContent value="dashboard" className="space-y-4">
                         <CFODashboard customerProductId={customerId} mode={mode} />
+                      </TabsContent>
+
+                      <TabsContent value="scenarios" className="space-y-4">
+                        <ScenariosTab customerProductId={customerId} />
                       </TabsContent>
 
                       <TabsContent value="chatbot" className="space-y-4">
