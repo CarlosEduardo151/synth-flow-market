@@ -16,7 +16,8 @@ export const botsAutomacao: Product = {
     "Respostas inteligentes",
     "Aprendizado contínuo",
     "Análise de conversas",
-    "Dashboard unificado"
+    "Dashboard unificado",
+    "🛡️ Protocolos Anti-Ban (presença, delays humanos, variabilidade)"
   ],
   inStock: true,
   delivery: "Ativação em 3 dias úteis",
