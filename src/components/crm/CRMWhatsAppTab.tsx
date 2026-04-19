@@ -297,6 +297,9 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         </Card>
       )}
 
+      {/* Captura automática de leads */}
+      <CRMLeadCapturePanel customerProductId={customerProductId} />
+
       <p className="text-[11px] text-muted-foreground text-center px-4">
         💡 Esta instância é <strong>separada</strong> do bot de automação. 
         Você pode ter ambos conectados simultaneamente em números diferentes.
