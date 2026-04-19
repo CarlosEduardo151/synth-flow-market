@@ -318,6 +318,13 @@ serve(async (req) => {
         console.error("[ingest][CRM] log insert error:", logErr.message);
       }
 
+      // ── Captura automática de lead ──
+      try {
+        await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
+      } catch (e) {
+        console.error("[ingest][CRM] capture error:", e);
+      }
+
       return corsResponse({ ok: true, crm: true }, 200, origin);
     }
 
