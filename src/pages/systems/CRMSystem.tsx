@@ -32,6 +32,10 @@ import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
 import { CRMNotificationBell } from '@/components/crm/CRMNotificationBell';
 import { CRMMessageTemplates } from '@/components/crm/CRMMessageTemplates';
+import { CRMImportLeadsDialog } from '@/components/crm/CRMImportLeadsDialog';
+import { CRMWebhookDocs } from '@/components/crm/CRMWebhookDocs';
+import { CRMAutomationConfig } from '@/components/crm/CRMAutomationConfig';
+import { CRMCustomerTimeline } from '@/components/crm/CRMCustomerTimeline';
 import { CRMLeadsProvider, useCRMLeads } from '@/contexts/CRMLeadsContext';
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
@@ -85,6 +89,7 @@ const CRMSystem = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesGroupOpen, setSalesGroupOpen] = useState(true);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { stats: leadsStats } = useCRMLeads();
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
@@ -124,6 +129,8 @@ const CRMSystem = () => {
           { value: 'memoria', label: 'Agente de IA', icon: Brain },
           { value: 'motor-ia', label: 'Motor IA', icon: Settings },
           { value: 'integracao', label: 'Integração', icon: Link },
+          { value: 'webhooks', label: 'Webhooks', icon: Radio },
+          { value: 'automacao', label: 'Automação', icon: Bot },
           { value: 'ai-reports', label: 'Relatórios', icon: FileText },
         ],
       },
@@ -571,6 +578,12 @@ const CRMSystem = () => {
             </TabsContent>
 
             <TabsContent value="clientes" className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Importar CSV
+                </Button>
+              </div>
               <CRMClientsTable
                 customers={customers}
                 onRowClick={(customer) => {
@@ -662,9 +675,26 @@ const CRMSystem = () => {
               <CRMAIReports customerProductId={customerProductId} />
             </TabsContent>
 
+            <TabsContent value="webhooks" className="space-y-4">
+              {customerProductId && <CRMWebhookDocs customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="automacao" className="space-y-4">
+              {customerProductId && <CRMAutomationConfig customerProductId={customerProductId} />}
+            </TabsContent>
+
           </Tabs>
         </main>
       </div>
+
+      {customerProductId && (
+        <CRMImportLeadsDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          customerProductId={customerProductId}
+          onImported={refreshData}
+        />
+      )}
 
       {/* Dialog para adicionar/editar cliente */}
       <Dialog open={isAddingCustomer} onOpenChange={(open) => {
@@ -733,7 +763,7 @@ const CRMSystem = () => {
           }
         }}
       >
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
           <SheetHeader>
             <SheetTitle>{selectedCustomer?.name ?? 'Cliente'}</SheetTitle>
             <SheetDescription>Detalhes e ações rápidas</SheetDescription>
@@ -771,35 +801,18 @@ const CRMSystem = () => {
                 </Button>
               </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Interações</CardTitle>
-                  <CardDescription>Ligações, mensagens e follow-ups por cliente.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Button onClick={() => setIsAddingInteraction(true)} className="w-full">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Nova Interação
-                  </Button>
-                  {interactions.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">Nenhuma interação registrada ainda.</p>
-                  ) : (
-                    interactions.map((interaction) => (
-                      <Card key={interaction.id}>
-                        <CardHeader>
-                          <CardTitle className="text-sm">{interaction.subject}</CardTitle>
-                          <CardDescription className="text-xs">
-                            {new Date(interaction.created_at).toLocaleString('pt-BR')}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm">{interaction.description}</p>
-                        </CardContent>
-                      </Card>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
+              {customerProductId && (
+                <CRMCustomerTimeline
+                  customerProductId={customerProductId}
+                  customerId={selectedCustomer.id}
+                  customerPhone={selectedCustomer.phone}
+                />
+              )}
+
+              <Button onClick={() => setIsAddingInteraction(true)} className="w-full" variant="outline">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Nova Interação Manual
+              </Button>
             </div>
           )}
         </SheetContent>

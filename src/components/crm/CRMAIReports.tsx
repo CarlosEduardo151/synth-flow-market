@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
 import { Separator } from "@/components/ui/separator";
+import { generateCRMReportPDF } from "@/lib/generateCRMReportPDF";
+import { FileDown } from "lucide-react";
 
 interface Report {
   id: string;
@@ -492,6 +494,22 @@ export function CRMAIReports({ customerProductId }: CRMAIReportsProps) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = (report: Report) => {
+    try {
+      const parsed = JSON.parse(report.content || "{}");
+      generateCRMReportPDF({
+        title: report.title,
+        generatedAt: report.generated_at
+          ? format(new Date(report.generated_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+          : "—",
+        report: parsed,
+      });
+      toast.success("PDF gerado");
+    } catch (e) {
+      toast.error("Não foi possível gerar o PDF");
+    }
+  };
+
   if (loading) {
     return (
       <Card><CardContent className="py-8"><div className="flex justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div></CardContent></Card>
@@ -565,14 +583,17 @@ export function CRMAIReports({ customerProductId }: CRMAIReportsProps) {
                       </Badge>
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <Button variant="outline" size="sm" onClick={() => handleView(report)}>
+                      <Button variant="outline" size="sm" onClick={() => handleView(report)} title="Visualizar">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleExport(report)}>
+                      <Button variant="outline" size="sm" onClick={() => handleExportPDF(report)} title="Exportar PDF">
+                        <FileDown className="h-4 w-4" />
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => handleExport(report)} title="Exportar JSON">
                         <Download className="h-4 w-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDelete(report.id)}>
-                        <Trash2 className="h-4 w-4 text-red-500" />
+                      <Button variant="outline" size="sm" onClick={() => handleDelete(report.id)} title="Excluir">
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
                     </div>
                   </div>
@@ -596,6 +617,14 @@ export function CRMAIReports({ customerProductId }: CRMAIReportsProps) {
             </DialogDescription>
           </DialogHeader>
           {parsedReport && <ReportViewer report={parsedReport} />}
+          {selectedReport && parsedReport && !parsedReport.parse_error && (
+            <div className="pt-4 border-t flex justify-end">
+              <Button size="sm" onClick={() => handleExportPDF(selectedReport)}>
+                <FileDown className="h-4 w-4 mr-2" />
+                Baixar PDF
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>
