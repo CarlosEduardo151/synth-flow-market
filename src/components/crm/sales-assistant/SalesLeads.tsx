@@ -48,6 +48,7 @@ interface ProspectAI {
   qualification: string | null;
   ai_analysis: any;
   tags: string[] | null;
+  updated_at?: string | null;
 }
 
 // ---------------- helpers ----------------
