@@ -546,6 +546,8 @@ const WhatsAppBotConfigSystem = () => {
                 onModelChange={(model) => setConfig(prev => ({ ...prev, model }))}
                 onTemperatureChange={(temp) => setConfig(prev => ({ ...prev, temperature: temp }))}
                 onMaxTokensChange={(tokens) => setConfig(prev => ({ ...prev, maxTokens: tokens }))}
+                onSave={handleSave}
+                saving={loading}
               />
             </TabsContent>
 
@@ -563,6 +565,8 @@ const WhatsAppBotConfigSystem = () => {
                 retentionPolicy={config.retentionPolicy}
                 onContextWindowChange={(size) => setConfig(prev => ({ ...prev, contextWindowSize: size }))}
                 onRetentionChange={(p) => setConfig(prev => ({ ...prev, retentionPolicy: p }))}
+                onSave={handleSave}
+                saving={loading}
               />
             </TabsContent>
 
@@ -583,6 +587,8 @@ const WhatsAppBotConfigSystem = () => {
                   actionInstructions: prev.actionInstructions.filter(i => i.id !== id),
                 }))}
                 onVoiceConfigChange={(voiceConfig) => setConfig(prev => ({ ...prev, voiceConfig }))}
+                onSave={handleSave}
+                saving={loading}
               />
             </TabsContent>
 
