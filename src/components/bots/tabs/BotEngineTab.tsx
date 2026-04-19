@@ -68,6 +68,8 @@ interface BotEngineTabProps {
   onModelChange: (model: string) => void;
   onTemperatureChange: (temp: number) => void;
   onMaxTokensChange: (tokens: number) => void;
+  onSave?: () => void;
+  saving?: boolean;
 }
 
 export function BotEngineTab({
@@ -81,6 +83,8 @@ export function BotEngineTab({
   onModelChange,
   onTemperatureChange,
   onMaxTokensChange,
+  onSave,
+  saving,
 }: BotEngineTabProps) {
   const [showApiKey, setShowApiKey] = useState(false);
 
