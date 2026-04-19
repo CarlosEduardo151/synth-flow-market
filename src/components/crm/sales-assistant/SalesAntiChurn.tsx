@@ -243,10 +243,52 @@ export function SalesAntiChurn({ customerProductId }: Props) {
           {loading ? (
             <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
           ) : alerts.length === 0 ? (
-            <div className="text-center py-12 text-sm text-muted-foreground">
-              <Inbox className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              Nenhum alerta de churn ativo.<br />
-              Clique em <span className="font-semibold text-foreground">"Analisar com IA"</span> para escanear seus clientes.
+            <div className="space-y-3">
+              <div className="text-center py-6 text-sm text-muted-foreground border border-dashed rounded-lg">
+                <CheckCircle2 className="h-10 w-10 mx-auto mb-2 text-emerald-500 opacity-70" />
+                <p className="font-semibold text-foreground">Nenhum cliente em risco crítico</p>
+                <p className="text-xs mt-1">
+                  {monitored.length > 0
+                    ? `${monitored.length} cliente(s) analisados — todos com health score saudável`
+                    : 'Clique em "Analisar com IA" para escanear seus clientes'}
+                </p>
+              </div>
+
+              {monitored.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
+                    Clientes monitorados ({monitored.length})
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {monitored
+                      .sort((a, b) => a.health_score - b.health_score)
+                      .map((m) => (
+                        <div
+                          key={m.id}
+                          className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate">{m.name || 'Sem nome'}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {[
+                                m.company,
+                                m.sentiment_label,
+                                m.days_since_contact != null ? `${m.days_since_contact}d` : null,
+                                `${m.messages_analyzed} msgs`,
+                              ].filter(Boolean).join(' · ')}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className={`text-lg font-bold leading-none ${healthColor(m.health_score)}`}>
+                              {m.health_score}
+                            </div>
+                            <div className="text-[9px] text-muted-foreground uppercase tracking-wider">health</div>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : alerts.map((c) => {
             const signals: string[] = Array.isArray(c.signals) ? c.signals : [];
