@@ -48,6 +48,7 @@ interface ProspectAI {
   qualification: string | null;
   ai_analysis: any;
   tags: string[] | null;
+  updated_at?: string | null;
 }
 
 // ---------------- helpers ----------------
@@ -204,7 +205,7 @@ export function SalesLeads({ customerProductId }: Props) {
         .eq('customer_product_id', customerProductId)
         .order('created_at', { ascending: false }).limit(500),
       (supabase as any).from('sa_prospects')
-        .select('email,phone,ai_score,qualification,ai_analysis,tags')
+        .select('email,phone,ai_score,qualification,ai_analysis,tags,updated_at')
         .eq('customer_product_id', customerProductId).limit(500),
       (supabase as any).from('sa_config')
         .select('icp_description').eq('customer_product_id', customerProductId).maybeSingle(),
@@ -1056,8 +1057,9 @@ export function SalesLeads({ customerProductId }: Props) {
                         {stageIcon(detailLead._stage)} {detailLead._stage}
                       </Badge>
                       {detailLead._hasAI && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                          <Sparkles className="h-3 w-3 mr-1" />Analisado por IA
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Qualificado{detailLead._ai?.updated_at ? ` · ${timeAgo(detailLead._ai.updated_at)} atrás` : ''}
                         </Badge>
                       )}
                       {detailLead.source && (
@@ -1070,10 +1072,9 @@ export function SalesLeads({ customerProductId }: Props) {
                 </div>
               </SheetHeader>
 
-              {/* CONTENT — 2 columns, fills remaining height */}
-              <div className="flex-1 min-h-0 grid md:grid-cols-2 gap-0 divide-x">
-                {/* LEFT: contato + análise IA */}
-                <div className="overflow-y-auto p-5 space-y-5">
+              {/* CONTENT — single scrollable column */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="p-5 space-y-5">
                   {/* CONTATO */}
                   <section className="space-y-2">
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -1246,33 +1247,33 @@ export function SalesLeads({ customerProductId }: Props) {
                       </Button>
                     </section>
                   )}
-                </div>
 
-                {/* RIGHT: NOTAS — coluna grande dedicada */}
-                <div className="flex flex-col p-5 bg-muted/20 min-h-0">
-                  <div className="flex items-center justify-between mb-2 shrink-0">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <Newspaper className="h-3 w-3" /> Notas do cliente
-                    </p>
-                    {notesDraft !== (detailLead.notes || '') && (
-                      <Badge variant="outline" className="text-[10px]">não salvo</Badge>
-                    )}
-                  </div>
-                  <Textarea
-                    placeholder="Anote contexto, próximos passos, objeções, decisor, histórico..."
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    className="flex-1 min-h-0 resize-none text-sm leading-relaxed bg-background"
-                  />
-                  <Button
-                    size="sm"
-                    className="w-full mt-3 shrink-0"
-                    onClick={() => saveLeadNotes(detailLead.id)}
-                    disabled={savingNotes || notesDraft === (detailLead.notes || '')}
-                  >
-                    {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Salvar notas
-                  </Button>
+                  {/* NOTAS — embaixo de tudo */}
+                  <section className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Newspaper className="h-3 w-3" /> Notas do cliente
+                      </p>
+                      {notesDraft !== (detailLead.notes || '') && (
+                        <Badge variant="outline" className="text-[10px]">não salvo</Badge>
+                      )}
+                    </div>
+                    <Textarea
+                      placeholder="Anote contexto, próximos passos, objeções, decisor, histórico..."
+                      value={notesDraft}
+                      onChange={(e) => setNotesDraft(e.target.value)}
+                      className="min-h-[260px] resize-y text-sm leading-relaxed bg-background"
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => saveLeadNotes(detailLead.id)}
+                      disabled={savingNotes || notesDraft === (detailLead.notes || '')}
+                    >
+                      {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Salvar notas
+                    </Button>
+                  </section>
                 </div>
               </div>
             </>
