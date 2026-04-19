@@ -1033,109 +1033,240 @@ export function SalesLeads({ customerProductId }: Props) {
 
       {/* SHEET: Detalhe lead interno */}
       <Sheet open={!!detailLead} onOpenChange={(o) => !o && setDetailLead(null)}>
-        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-3xl p-0 flex flex-col h-full">
           {detailLead && (
             <>
-              <SheetHeader className="pb-4 border-b">
+              {/* HEADER */}
+              <SheetHeader className="px-6 py-4 border-b shrink-0">
                 <div className="flex items-start gap-4">
                   <div className={cn(
-                    'w-16 h-16 rounded-xl border-2 flex items-center justify-center bg-gradient-to-br',
+                    'w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center bg-gradient-to-br shrink-0',
                     scoreBgGradient(detailLead._score),
                     detailLead._stage === 'SQL' ? 'border-emerald-500' :
                     detailLead._stage === 'MQL' ? 'border-blue-500' :
                     detailLead._stage === 'Lead' ? 'border-amber-500' : 'border-border',
                   )}>
-                    <span className={cn('text-2xl font-bold', scoreColorClass(detailLead._score))}>{detailLead._score}</span>
+                    <span className={cn('text-2xl font-bold leading-none', scoreColorClass(detailLead._score))}>{detailLead._score}</span>
+                    <span className="text-[9px] text-muted-foreground uppercase tracking-wider mt-0.5">score</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <SheetTitle className="text-lg">{detailLead.name}</SheetTitle>
-                    <SheetDescription className="flex items-center gap-2 mt-1 flex-wrap">
+                    <SheetTitle className="text-xl truncate">{detailLead.name}</SheetTitle>
+                    <SheetDescription className="flex items-center gap-2 mt-1.5 flex-wrap">
                       <Badge variant="outline" className={cn('gap-1', stageBadgeClass(detailLead._stage))}>
                         {stageIcon(detailLead._stage)} {detailLead._stage}
                       </Badge>
                       {detailLead._hasAI && (
                         <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                          <Sparkles className="h-3 w-3 mr-1" />Analisado IA
+                          <Sparkles className="h-3 w-3 mr-1" />Analisado por IA
+                        </Badge>
+                      )}
+                      {detailLead.source && (
+                        <Badge variant="outline" className="text-[10px]">
+                          {sourceLabel[detailLead.source.toLowerCase()] || detailLead.source}
                         </Badge>
                       )}
                     </SheetDescription>
                   </div>
                 </div>
               </SheetHeader>
-              <div className="space-y-5 py-4">
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Contato</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {detailLead.company && <div className="flex items-center gap-2 p-2 rounded bg-muted/40"><Building2 className="h-3.5 w-3.5 text-muted-foreground" /><span className="truncate">{detailLead.company}</span></div>}
-                    {detailLead.business_type && <div className="flex items-center gap-2 p-2 rounded bg-muted/40"><Award className="h-3.5 w-3.5 text-muted-foreground" /><span className="truncate">{detailLead.business_type}</span></div>}
-                    {detailLead.phone && <div className="flex items-center gap-2 p-2 rounded bg-muted/40"><Phone className="h-3.5 w-3.5 text-muted-foreground" /><span className="truncate">{detailLead.phone}</span></div>}
-                    {detailLead.email && <div className="flex items-center gap-2 p-2 rounded bg-muted/40"><Mail className="h-3.5 w-3.5 text-muted-foreground" /><span className="truncate">{detailLead.email}</span></div>}
-                  </div>
-                </div>
-                {detailLead._ai?.ai_analysis ? (
-                  <div className="space-y-3">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles className="h-3 w-3" /> Análise IA
+
+              {/* CONTENT — 2 columns, fills remaining height */}
+              <div className="flex-1 min-h-0 grid md:grid-cols-2 gap-0 divide-x">
+                {/* LEFT: contato + análise IA */}
+                <div className="overflow-y-auto p-5 space-y-5">
+                  {/* CONTATO */}
+                  <section className="space-y-2">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <UserPlus className="h-3 w-3" /> Contato
                     </p>
-                    {detailLead._ai.ai_analysis.summary && (
-                      <p className="text-sm p-3 rounded-lg bg-primary/5 border border-primary/20">{detailLead._ai.ai_analysis.summary}</p>
-                    )}
-                    {detailLead._ai.ai_analysis.next_best_action && (
-                      <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                        <Wand2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1.5 text-sm">
+                      {detailLead.company && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40 border">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">{detailLead.company}</span>
+                        </div>
+                      )}
+                      {detailLead.business_type && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40 border">
+                          <Briefcase className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">{detailLead.business_type}</span>
+                        </div>
+                      )}
+                      {detailLead.phone && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40 border">
+                          <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">{detailLead.phone}</span>
+                        </div>
+                      )}
+                      {detailLead.email && (
+                        <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40 border">
+                          <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                          <span className="truncate">{detailLead.email}</span>
+                        </div>
+                      )}
+                      {!detailLead.company && !detailLead.business_type && !detailLead.phone && !detailLead.email && (
+                        <p className="text-xs text-muted-foreground italic p-2">Sem dados de contato cadastrados.</p>
+                      )}
+                    </div>
+                  </section>
+
+                  {/* ANÁLISE IA */}
+                  {detailLead._ai?.ai_analysis ? (
+                    <section className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles className="h-3 w-3" /> Análise IA
+                        </p>
+                        <Button
+                          size="sm" variant="ghost" className="h-6 px-2 text-[11px]"
+                          onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}
+                        >
+                          {qualifyingOne ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                          Re-qualificar
+                        </Button>
+                      </div>
+
+                      {detailLead._ai.ai_analysis.summary && (
+                        <p className="text-sm p-3 rounded-lg bg-primary/5 border border-primary/20 leading-relaxed">
+                          {detailLead._ai.ai_analysis.summary}
+                        </p>
+                      )}
+
+                      {detailLead._ai.ai_analysis.next_best_action && (
+                        <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                          <Wand2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-semibold uppercase text-emerald-600 tracking-wider">Próxima ação</p>
+                            <p className="text-sm mt-0.5 leading-snug">{detailLead._ai.ai_analysis.next_best_action}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {detailLead._ai.ai_analysis.icp_fit !== undefined && (
                         <div>
-                          <p className="text-[11px] font-semibold uppercase text-emerald-600">Próxima ação</p>
-                          <p className="text-sm mt-0.5">{detailLead._ai.ai_analysis.next_best_action}</p>
+                          <div className="flex items-center justify-between text-xs mb-1">
+                            <span className="text-muted-foreground flex items-center gap-1"><Target className="h-3 w-3" /> ICP Fit</span>
+                            <span className="font-semibold">{detailLead._ai.ai_analysis.icp_fit}%</span>
+                          </div>
+                          <Progress value={detailLead._ai.ai_analysis.icp_fit} className="h-2" />
                         </div>
-                      </div>
-                    )}
-                    {detailLead._ai.ai_analysis.icp_fit !== undefined && (
-                      <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-muted-foreground">ICP Fit</span>
-                          <span className="font-semibold">{detailLead._ai.ai_analysis.icp_fit}%</span>
+                      )}
+
+                      {/* BANT */}
+                      {detailLead._ai.ai_analysis.bant && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider mb-1.5">BANT</p>
+                          <div className="grid grid-cols-2 gap-1.5 text-[11px]">
+                            {(['budget', 'authority', 'need', 'timing'] as const).map((k) => {
+                              const v = detailLead._ai!.ai_analysis.bant?.[k];
+                              if (!v) return null;
+                              const labels = { budget: 'Orçamento', authority: 'Decisor', need: 'Necessidade', timing: 'Prazo' };
+                              return (
+                                <div key={k} className="p-1.5 rounded bg-muted/40 border">
+                                  <p className="text-muted-foreground">{labels[k]}</p>
+                                  <p className="font-medium capitalize">{v}</p>
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
-                        <Progress value={detailLead._ai.ai_analysis.icp_fit} className="h-2" />
+                      )}
+
+                      {/* Sinais de compra */}
+                      {Array.isArray(detailLead._ai.ai_analysis.buying_signals) && detailLead._ai.ai_analysis.buying_signals.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider mb-1.5 flex items-center gap-1">
+                            <Flame className="h-3 w-3 text-emerald-600" /> Sinais de compra
+                          </p>
+                          <ul className="space-y-1">
+                            {detailLead._ai.ai_analysis.buying_signals.map((s: string, i: number) => (
+                              <li key={i} className="text-xs flex items-start gap-1.5">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600 mt-0.5 shrink-0" />
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Objeções */}
+                      {Array.isArray(detailLead._ai.ai_analysis.objections_likely) && detailLead._ai.ai_analysis.objections_likely.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase text-muted-foreground tracking-wider mb-1.5 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3 text-amber-600" /> Objeções prováveis
+                          </p>
+                          <ul className="space-y-1">
+                            {detailLead._ai.ai_analysis.objections_likely.map((o: string, i: number) => (
+                              <li key={i} className="text-xs flex items-start gap-1.5">
+                                <span className="text-amber-600 mt-0.5">•</span>
+                                <span>{o}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Canal / horário / ticket */}
+                      <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                        {detailLead._ai.ai_analysis.best_channel && (
+                          <div className="p-1.5 rounded bg-muted/40 border">
+                            <p className="text-muted-foreground">Canal</p>
+                            <p className="font-medium capitalize">{detailLead._ai.ai_analysis.best_channel}</p>
+                          </div>
+                        )}
+                        {detailLead._ai.ai_analysis.best_time && (
+                          <div className="p-1.5 rounded bg-muted/40 border">
+                            <p className="text-muted-foreground">Horário</p>
+                            <p className="font-medium capitalize">{detailLead._ai.ai_analysis.best_time}</p>
+                          </div>
+                        )}
+                        {detailLead._ai.ai_analysis.estimated_ticket_brl && (
+                          <div className="p-1.5 rounded bg-muted/40 border">
+                            <p className="text-muted-foreground">Ticket</p>
+                            <p className="font-medium">{fmtBRL(Number(detailLead._ai.ai_analysis.estimated_ticket_brl))}</p>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {detailLead._ai.tags && detailLead._ai.tags.length > 0 && (
-                      <div className="flex gap-1.5 flex-wrap">
-                        {detailLead._ai.tags.map((t, i) => <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>)}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-center py-6 rounded-lg border border-dashed">
-                    <Brain className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
-                    <p className="text-sm text-muted-foreground">Lead ainda não foi analisado pela IA.</p>
-                    <Button size="sm" className="mt-3" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
-                      {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Qualificar agora
-                    </Button>
-                  </div>
-                )}
-                {detailLead._hasAI && (
-                  <Button size="sm" variant="outline" className="w-full" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
-                    {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-                    Re-qualificar com IA
-                  </Button>
-                )}
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notas</p>
+
+                      {detailLead._ai.tags && detailLead._ai.tags.length > 0 && (
+                        <div className="flex gap-1.5 flex-wrap pt-1">
+                          {detailLead._ai.tags.map((t, i) => (
+                            <Badge key={i} variant="secondary" className="text-[10px]">{t}</Badge>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  ) : (
+                    <section className="text-center py-8 rounded-lg border border-dashed">
+                      <Brain className="h-10 w-10 mx-auto text-muted-foreground/40 mb-2" />
+                      <p className="text-sm text-muted-foreground mb-3">Lead ainda não analisado pela IA</p>
+                      <Button size="sm" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
+                        {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+                        Qualificar agora
+                      </Button>
+                    </section>
+                  )}
+                </div>
+
+                {/* RIGHT: NOTAS — coluna grande dedicada */}
+                <div className="flex flex-col p-5 bg-muted/20 min-h-0">
+                  <div className="flex items-center justify-between mb-2 shrink-0">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Newspaper className="h-3 w-3" /> Notas do cliente
+                    </p>
                     {notesDraft !== (detailLead.notes || '') && (
                       <Badge variant="outline" className="text-[10px]">não salvo</Badge>
                     )}
                   </div>
                   <Textarea
-                    rows={5}
-                    placeholder="Anote contexto, próximos passos, objeções, decisor..."
+                    placeholder="Anote contexto, próximos passos, objeções, decisor, histórico..."
                     value={notesDraft}
                     onChange={(e) => setNotesDraft(e.target.value)}
-                    className="resize-none"
+                    className="flex-1 min-h-0 resize-none text-sm leading-relaxed bg-background"
                   />
                   <Button
                     size="sm"
-                    className="w-full"
+                    className="w-full mt-3 shrink-0"
                     onClick={() => saveLeadNotes(detailLead.id)}
                     disabled={savingNotes || notesDraft === (detailLead.notes || '')}
                   >
