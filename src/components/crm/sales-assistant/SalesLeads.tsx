@@ -1072,10 +1072,9 @@ export function SalesLeads({ customerProductId }: Props) {
                 </div>
               </SheetHeader>
 
-              {/* CONTENT — 2 columns, fills remaining height */}
-              <div className="flex-1 min-h-0 grid md:grid-cols-2 gap-0 divide-x">
-                {/* LEFT: contato + análise IA */}
-                <div className="overflow-y-auto p-5 space-y-5">
+              {/* CONTENT — single scrollable column */}
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="p-5 space-y-5">
                   {/* CONTATO */}
                   <section className="space-y-2">
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
