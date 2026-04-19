@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY missing");
+    if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY missing");
     const { items } = (await req.json()) as ReqBody;
     if (!Array.isArray(items) || items.length === 0) {
       return new Response(JSON.stringify({ results: [] }), {
@@ -32,14 +32,14 @@ Deno.serve(async (req) => {
       `Categorize cada transação financeira abaixo. Use APENAS uma destas categorias: ${CATEGORIES.join(", ")}.\n\n` +
       items.map((it, i) => `${i + 1}. [${it.type}] R$${it.amount} - ${it.description || "(sem descrição)"}`).join("\n");
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${GROQ_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: GROQ_MODEL,
         messages: [
           { role: "system", content: "Você é um classificador financeiro preciso. Sempre responda via tool call." },
           { role: "user", content: prompt },
