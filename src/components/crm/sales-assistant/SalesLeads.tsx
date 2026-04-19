@@ -222,6 +222,23 @@ export function SalesLeads({ customerProductId }: Props) {
 
   useEffect(() => { fetchInternal(); }, [fetchInternal]);
 
+  // Sync notes draft + reflect refreshes into the open detail sheet
+  useEffect(() => {
+    if (detailLead) {
+      const fresh = internalLeads.find((l) => l.id === detailLead.id);
+      if (fresh) {
+        const key = (fresh.email || fresh.phone || '').toLowerCase();
+        const ai = key ? aiMap.get(key) : undefined;
+        const score = ai?.ai_score ?? baseScore(fresh);
+        setDetailLead({ ...fresh, _score: score, _stage: stageOf(score, ai?.qualification), _ai: ai, _hasAI: !!ai });
+      }
+      setNotesDraft(detailLead.notes || '');
+    } else {
+      setNotesDraft('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailLead?.id, internalLeads, aiMap]);
+
   useEffect(() => {
     if (!customerProductId) return;
     const ch = (supabase as any)
