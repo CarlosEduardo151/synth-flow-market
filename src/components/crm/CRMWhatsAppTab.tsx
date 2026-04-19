@@ -429,8 +429,15 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
               <Loader2 className="h-3 w-3 animate-spin" />
               Aguardando leitura do QR Code...
             </div>
+            {qrSecondsLeft > 0 && (
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                QR expira em <span className={`font-mono font-semibold ${qrSecondsLeft < 15 ? 'text-orange-500' : 'text-foreground'}`}>{qrSecondsLeft}s</span>
+                <span className="text-muted-foreground/60">— atualiza automaticamente</span>
+              </div>
+            )}
             <div className="flex justify-center">
-              <Button variant="outline" size="sm" className="gap-2" onClick={handleRefreshQr} disabled={checking}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => handleRefreshQr(false)} disabled={checking}>
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 Gerar novo QR Code
               </Button>
