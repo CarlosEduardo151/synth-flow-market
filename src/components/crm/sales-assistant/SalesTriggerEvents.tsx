@@ -95,6 +95,15 @@ export function SalesTriggerEvents({ customerProductId }: Props) {
   const [tLinkedin, setTLinkedin] = useState('');
   const [tWebsite, setTWebsite] = useState('');
 
+  // Mass scan
+  const [icp, setIcp] = useState('');
+  const [icpSaving, setIcpSaving] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [scanSources, setScanSources] = useState<Record<string, boolean>>({
+    news_br: true, tech_intl: true, reviews: true,
+  });
+
   const load = async () => {
     setLoading(true);
     const [{ data: ev }, { data: cfg }, { data: pr }, { data: tg }] = await Promise.all([
