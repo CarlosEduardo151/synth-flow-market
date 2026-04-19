@@ -1247,33 +1247,33 @@ export function SalesLeads({ customerProductId }: Props) {
                       </Button>
                     </section>
                   )}
-                </div>
 
-                {/* RIGHT: NOTAS — coluna grande dedicada */}
-                <div className="flex flex-col p-5 bg-muted/20 min-h-0">
-                  <div className="flex items-center justify-between mb-2 shrink-0">
-                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                      <Newspaper className="h-3 w-3" /> Notas do cliente
-                    </p>
-                    {notesDraft !== (detailLead.notes || '') && (
-                      <Badge variant="outline" className="text-[10px]">não salvo</Badge>
-                    )}
-                  </div>
-                  <Textarea
-                    placeholder="Anote contexto, próximos passos, objeções, decisor, histórico..."
-                    value={notesDraft}
-                    onChange={(e) => setNotesDraft(e.target.value)}
-                    className="flex-1 min-h-0 resize-none text-sm leading-relaxed bg-background"
-                  />
-                  <Button
-                    size="sm"
-                    className="w-full mt-3 shrink-0"
-                    onClick={() => saveLeadNotes(detailLead.id)}
-                    disabled={savingNotes || notesDraft === (detailLead.notes || '')}
-                  >
-                    {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                    Salvar notas
-                  </Button>
+                  {/* NOTAS — embaixo de tudo */}
+                  <section className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <Newspaper className="h-3 w-3" /> Notas do cliente
+                      </p>
+                      {notesDraft !== (detailLead.notes || '') && (
+                        <Badge variant="outline" className="text-[10px]">não salvo</Badge>
+                      )}
+                    </div>
+                    <Textarea
+                      placeholder="Anote contexto, próximos passos, objeções, decisor, histórico..."
+                      value={notesDraft}
+                      onChange={(e) => setNotesDraft(e.target.value)}
+                      className="min-h-[260px] resize-y text-sm leading-relaxed bg-background"
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full"
+                      onClick={() => saveLeadNotes(detailLead.id)}
+                      disabled={savingNotes || notesDraft === (detailLead.notes || '')}
+                    >
+                      {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                      Salvar notas
+                    </Button>
+                  </section>
                 </div>
               </div>
             </>
