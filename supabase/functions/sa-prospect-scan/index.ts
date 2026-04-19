@@ -288,8 +288,8 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
         status: "error", error_message: e.message, finished_at: new Date().toISOString(),
       }).eq("id", scanId);
     }
-    return new Response(JSON.stringify({ error: true, message: e.message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({ ok: false, error: true, message: e.message }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
