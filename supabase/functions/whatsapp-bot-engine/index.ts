@@ -227,7 +227,7 @@ serve(async (req) => {
     // 1. Evolution API credentials (preferred) or Z-API (legacy fallback)
     let evoCreds: EvolutionCredentials | null = null;
     const zapiCreds = await loadZAPICredentials(service, cp.user_id);
-    evoCreds = await loadEvolutionCredentials(service, cp.user_id);
+    evoCreds = await loadEvolutionCredentials(service, cp.user_id, cp.id);
 
     if (!evoCreds && !zapiCreds) {
       console.error("No messaging creds (Evolution or Z-API) for user", cp.user_id);

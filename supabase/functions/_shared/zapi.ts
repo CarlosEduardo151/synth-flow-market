@@ -273,13 +273,24 @@ export async function evolutionSendAudio(
 export async function loadEvolutionCredentials(
   service: any,
   userId: string,
+  customerProductId?: string,
 ): Promise<EvolutionCredentials | null> {
   // First try evolution_instances table (primary source)
-  const { data: evoInstance } = await service
+  // When customerProductId is provided, filter by it to avoid picking the wrong instance
+  // (e.g. CRM instance vs bot instance for the same user).
+  let query = service
     .from("evolution_instances")
     .select("instance_name, evolution_url, evolution_apikey")
     .eq("user_id", userId)
-    .eq("is_active", true)
+    .eq("is_active", true);
+
+  if (customerProductId) {
+    query = query.eq("customer_product_id", customerProductId);
+  }
+
+  const { data: evoInstance } = await query
+    .order("created_at", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (evoInstance?.instance_name) {
