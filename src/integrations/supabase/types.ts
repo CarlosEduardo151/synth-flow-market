@@ -1365,6 +1365,45 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_agent_imports: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          error_message: string | null
+          file_name: string | null
+          id: string
+          imported_rows: number
+          skipped_rows: number
+          source_format: string
+          status: string
+          total_rows: number
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          imported_rows?: number
+          skipped_rows?: number
+          source_format: string
+          status?: string
+          total_rows?: number
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          error_message?: string | null
+          file_name?: string | null
+          id?: string
+          imported_rows?: number
+          skipped_rows?: number
+          source_format?: string
+          status?: string
+          total_rows?: number
+        }
+        Relationships: []
+      }
       financial_agent_invoices: {
         Row: {
           amount: number
@@ -1404,6 +1443,30 @@ export type Database = {
           source?: string | null
           status?: string | null
           title?: string
+        }
+        Relationships: []
+      }
+      financial_agent_security: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          id: string
+          require_2fa: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          require_2fa?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          require_2fa?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
