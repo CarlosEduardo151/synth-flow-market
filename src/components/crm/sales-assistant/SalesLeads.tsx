@@ -797,6 +797,51 @@ export function SalesLeads({ customerProductId }: Props) {
             </TabsContent>
 
             <TabsContent value="web" className="space-y-4 mt-0">
+              {/* Painel de controle dedicado da Prospecção Web */}
+              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4 flex-wrap">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shrink-0">
+                      <Radio className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-[240px]">
+                      <h3 className="font-bold text-base flex items-center gap-2">
+                        Prospecção Web Automática
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">IA</Badge>
+                      </h3>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Varre notícias, reviews e portais de tecnologia para detectar empresas alinhadas ao seu ICP.
+                      </p>
+                      <div className="flex items-center gap-3 mt-3 flex-wrap text-[11px]">
+                        <span className="inline-flex items-center gap-1">
+                          <span className={cn('h-1.5 w-1.5 rounded-full', icp.trim() ? 'bg-emerald-500' : 'bg-amber-500')} />
+                          {icp.trim() ? 'ICP configurado' : 'ICP não definido'}
+                        </span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground">{webStats.total} prospects coletados</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-red-600 font-medium">{webStats.hot} 🔥 quentes</span>
+                        <span className="text-muted-foreground">·</span>
+                        <span className="text-muted-foreground">{webStats.today} hoje</span>
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <Button
+                        size="sm" onClick={() => setScanOpen(true)} disabled={scanning}
+                        className="bg-gradient-to-r from-primary to-primary/80"
+                      >
+                        {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Radio className="h-4 w-4 mr-2" />}
+                        Buscar prospects
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setIcpDialogOpen(true)}>
+                        <Brain className="h-4 w-4 mr-2" />
+                        {icp.trim() ? 'Editar ICP' : 'Definir ICP'}
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Tabs value={webFilter} onValueChange={setWebFilter}>
                 <TabsList className="flex-wrap h-auto">
                   <TabsTrigger value="all">Todos ({webStats.total})</TabsTrigger>
@@ -808,10 +853,7 @@ export function SalesLeads({ customerProductId }: Props) {
                 <div className="text-center py-16 text-sm text-muted-foreground">
                   <Globe2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p className="font-medium">Nenhum prospect web ainda</p>
-                  <p className="text-xs mt-1">Configure seu ICP e clique em "Buscar prospects na web" para varrer notícias e detectar oportunidades.</p>
-                  <Button size="sm" className="mt-4" onClick={() => setScanOpen(true)}>
-                    <Radio className="h-4 w-4 mr-2" /> Iniciar varredura
-                  </Button>
+                  <p className="text-xs mt-1">Configure seu ICP e clique em "Buscar prospects" no painel acima para iniciar a varredura.</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
