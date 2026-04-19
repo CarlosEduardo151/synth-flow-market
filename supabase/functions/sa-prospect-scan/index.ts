@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { processText, type ResolvedProvider } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,51 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+
+// Resolves provider + apiKey + model from the customer's "Motor IA" (ai_control_config).
+// Falls back to Groq (NovaLink default) if nothing configured.
+async function resolveEngine(supabase: any, customerProductId: string) {
+  const { data: cfg } = await supabase
+    .from("ai_control_config")
+    .select("provider, model, temperature, max_tokens")
+    .eq("customer_product_id", customerProductId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const rawProvider = (cfg?.provider || "lovable").toLowerCase();
+  let provider: ResolvedProvider = "groq";
+  let apiKey = "";
+  let model = cfg?.model || "";
+
+  if (rawProvider === "openai") {
+    provider = "openai";
+    apiKey = Deno.env.get("OPENAI_API_KEY") || "";
+    if (!model) model = "gpt-4o-mini";
+  } else if (rawProvider === "gemini" || rawProvider === "google") {
+    provider = "google";
+    apiKey = Deno.env.get("GEMINI_API_KEY") || "";
+    if (!model) model = "gemini-2.5-flash";
+  } else {
+    // "lovable" / "novalink" / default → Groq
+    provider = "groq";
+    apiKey = Deno.env.get("GROQ_API_KEY") || "";
+    if (!model || model.startsWith("nova-") || model.startsWith("gemini") || model.startsWith("gpt")) {
+      model = "llama-3.3-70b-versatile";
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error(`Motor de IA "${rawProvider}" sem chave configurada. Verifique em Canais → Motor IA.`);
+  }
+
+  return {
+    provider,
+    apiKey,
+    model,
+    temperature: cfg?.temperature ?? 0.3,
+    maxTokens: cfg?.max_tokens ?? 2048,
+  };
+}
 
 const FEEDS: Record<string, { name: string; url: string; category: string }[]> = {
   news_br: [
