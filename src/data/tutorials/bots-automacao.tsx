@@ -50,4 +50,37 @@ export const botsAutomacaoTutorial: TutorialStep[] = [
       </div>
     ),
   },
+  {
+    title: "🛡️ Protocolos Anti-Ban ativos",
+    description:
+      "Este produto aplica automaticamente protocolos de segurança para reduzir risco de banimento pela Meta.",
+    content: (
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Toda resposta enviada pelo bot passa por um pipeline humanizado:
+        </p>
+        <ul className="list-disc pl-5 text-sm text-muted-foreground space-y-1">
+          <li>
+            <strong>Simulação de presença:</strong> a conversa é marcada como lida e o status
+            "digitando..." é exibido antes da resposta.
+          </li>
+          <li>
+            <strong>Delays aleatórios:</strong> tempo de resposta proporcional ao tamanho do
+            texto (1s a cada 20 caracteres) + jitter de 2 a 5 segundos.
+          </li>
+          <li>
+            <strong>Variabilidade:</strong> saudações curtas ("Olá!", "Oi", "Ok") são
+            sorteadas entre múltiplas variantes para evitar padrão de bot.
+          </li>
+          <li>
+            <strong>Step-by-step:</strong> respostas longas são quebradas em até 3 mensagens
+            com pequenas pausas entre elas, em vez de enviar tudo de uma vez.
+          </li>
+        </ul>
+        <p className="text-xs text-muted-foreground">
+          Esses protocolos são ativados automaticamente — não exigem configuração.
+        </p>
+      </div>
+    ),
+  },
 ];

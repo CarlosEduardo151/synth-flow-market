@@ -15,8 +15,16 @@ import {
   type AIUsageResult,
   type ConversationMessage,
 } from "../_shared/ai-providers.ts";
-import { zapiSendText, loadZAPICredentials, evolutionSendText, evolutionSendAudio, loadEvolutionCredentials, type EvolutionCredentials } from "../_shared/zapi.ts";
+import { zapiSendText, loadZAPICredentials, evolutionSendText, evolutionSendAudio, evolutionSendPresence, evolutionMarkRead, loadEvolutionCredentials, type EvolutionCredentials } from "../_shared/zapi.ts";
 import { platformLog } from "../_shared/platform-logger.ts";
+import {
+  isAntiBanEnabled,
+  computeHumanDelayMs,
+  computeInterChunkDelayMs,
+  splitMessageIntoChunks,
+  applyResponseVariability,
+  sleep,
+} from "../_shared/anti-ban.ts";
 
 /**
  * WhatsApp Bot Engine — motor nativo (sem n8n, sem Lovable AI Gateway).
@@ -226,8 +234,47 @@ serve(async (req) => {
       return corsResponse({ ok: true, skipped: "no_messaging_creds" }, 200, origin);
     }
 
-    // Helper to send text via whichever provider is available
+    // Detect if anti-ban protocols apply (only for "bots-automacao" product)
+    const antiBan = await isAntiBanEnabled(service, cp.id);
+    if (antiBan) console.log("[anti-ban] protocols ENABLED for", cp.id);
+
+    // Helper to send text via whichever provider is available.
+    // When anti-ban is on (Evolution only), it simulates human behavior:
+    //   markRead → composing → delay → split into chunks → variability → send
     const sendTextReply = async (toPhone: string, text: string, msgId?: string) => {
+      if (evoCreds && antiBan) {
+        try {
+          // 1. Marca como lida (humano abre a conversa antes de digitar)
+          await evolutionMarkRead(evoCreds, toPhone, msgId);
+
+          // 2. Aplica variabilidade leve em respostas curtas / saudações
+          const variedText = applyResponseVariability(text);
+
+          // 3. Quebra em pedaços (step-by-step) para respostas longas
+          const chunks = splitMessageIntoChunks(variedText, 3);
+
+          for (let i = 0; i < chunks.length; i++) {
+            const chunk = chunks[i];
+            const delayMs = computeHumanDelayMs(chunk);
+
+            // 4. Sinaliza "digitando..." e espera o delay humanizado
+            await evolutionSendPresence(evoCreds, toPhone, "composing", delayMs);
+            await sleep(delayMs);
+            await evolutionSendPresence(evoCreds, toPhone, "paused");
+
+            await evolutionSendText(evoCreds, toPhone, chunk);
+
+            if (i < chunks.length - 1) {
+              await sleep(computeInterChunkDelayMs());
+            }
+          }
+          return;
+        } catch (e) {
+          console.warn("[anti-ban] failed, falling back to direct send:", e instanceof Error ? e.message : e);
+          // fall-through para envio direto
+        }
+      }
+
       if (evoCreds) {
         await evolutionSendText(evoCreds, toPhone, text);
       } else if (zapiCreds) {

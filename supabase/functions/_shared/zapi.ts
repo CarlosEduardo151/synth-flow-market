@@ -115,6 +115,77 @@ export async function evolutionSendText(
 }
 
 /**
+ * Send presence indicator (composing / recording / paused / available) via Evolution API.
+ * Used for anti-ban protocols to simulate human typing behavior.
+ */
+export async function evolutionSendPresence(
+  creds: EvolutionCredentials,
+  phone: string,
+  presence: "composing" | "recording" | "paused" | "available" | "unavailable" = "composing",
+  delayMs?: number,
+): Promise<void> {
+  const number = phone.replace(/@.*$/, "");
+  const url = `${creds.apiUrl}/chat/sendPresence/${encodeURIComponent(creds.instanceName)}`;
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: creds.apiKey },
+      body: JSON.stringify({
+        number,
+        presence,
+        ...(delayMs ? { delay: delayMs } : {}),
+      }),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      console.warn(`evolution_send_presence_warn:${resp.status}:${txt.slice(0, 200)}`);
+    }
+  } catch (e) {
+    // Non-fatal — presence is a best-effort signal
+    console.warn("evolution_send_presence_failed:", e instanceof Error ? e.message : e);
+  }
+}
+
+/**
+ * Mark a chat / message as read via Evolution API.
+ * Used for anti-ban protocols to simulate the user opening the conversation
+ * before responding (a human reads first, then types).
+ */
+export async function evolutionMarkRead(
+  creds: EvolutionCredentials,
+  phone: string,
+  messageId?: string,
+  remoteJid?: string,
+): Promise<void> {
+  const number = phone.replace(/@.*$/, "");
+  const jid = remoteJid || `${number}@s.whatsapp.net`;
+  const url = `${creds.apiUrl}/chat/markMessageAsRead/${encodeURIComponent(creds.instanceName)}`;
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: creds.apiKey },
+      body: JSON.stringify({
+        readMessages: [
+          {
+            remoteJid: jid,
+            fromMe: false,
+            id: messageId || "",
+          },
+        ],
+      }),
+    });
+    if (!resp.ok) {
+      const txt = await resp.text().catch(() => "");
+      console.warn(`evolution_mark_read_warn:${resp.status}:${txt.slice(0, 200)}`);
+    }
+  } catch (e) {
+    console.warn("evolution_mark_read_failed:", e instanceof Error ? e.message : e);
+  }
+}
+
+/**
  * Send an audio message via Evolution API using base64
  */
 export async function evolutionSendAudio(
