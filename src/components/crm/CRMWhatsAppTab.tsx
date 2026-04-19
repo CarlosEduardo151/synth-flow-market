@@ -267,17 +267,38 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
             </p>
           </div>
         </div>
-        <Badge
-          variant="outline"
-          className={isConnected
-            ? 'border-green-500/30 bg-green-500/5 text-green-600 gap-1.5 px-3 py-1'
-            : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
-          }
-        >
-          {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {isConnected ? 'Conectado' : 'Desconectado'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className={isConnected
+              ? 'border-green-500/30 bg-green-500/5 text-green-600 gap-1.5 px-3 py-1'
+              : qrCode
+                ? 'border-blue-500/30 bg-blue-500/5 text-blue-600 gap-1.5 px-3 py-1'
+                : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
+            }
+          >
+            {isConnected ? <Wifi className="h-3 w-3" /> : qrCode ? <QrCode className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+            {isConnected ? 'Conectado' : qrCode ? 'Aguardando QR' : 'Desconectado'}
+          </Badge>
+          {lastChecked && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1" title={lastChecked.toLocaleString('pt-BR')}>
+              <Clock className="h-2.5 w-2.5" />
+              {fmtLastChecked()}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Error banner */}
+      {lastError && !isConnected && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <span className="text-sm text-destructive flex-1">{lastError}</span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setLastError(null)}>
+            Fechar
+          </Button>
+        </div>
+      )}
 
       {/* Info card */}
       <Card className="border-blue-500/20 bg-blue-500/5">
