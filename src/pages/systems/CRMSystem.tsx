@@ -106,8 +106,7 @@ const CRMSystem = () => {
         groupKey: 'sales',
         isCollapsible: true,
         items: [
-          { value: 'sales-leads', label: 'Leads', icon: Inbox },
-          { value: 'sales-prospecting', label: 'Prospecção IA', icon: Target },
+          { value: 'sales-leads', label: 'Leads', icon: Target },
           { value: 'sales-cadences', label: 'Cadências', icon: Zap },
           { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
           { value: 'sales-copilot', label: 'Copiloto IA', icon: Bot },
