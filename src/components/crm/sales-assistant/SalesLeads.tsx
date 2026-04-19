@@ -1057,8 +1057,9 @@ export function SalesLeads({ customerProductId }: Props) {
                         {stageIcon(detailLead._stage)} {detailLead._stage}
                       </Badge>
                       {detailLead._hasAI && (
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                          <Sparkles className="h-3 w-3 mr-1" />Analisado por IA
+                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          Qualificado{detailLead._ai?.updated_at ? ` · ${timeAgo(detailLead._ai.updated_at)} atrás` : ''}
                         </Badge>
                       )}
                       {detailLead.source && (
