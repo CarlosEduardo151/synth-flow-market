@@ -191,13 +191,21 @@ serve(async (req) => {
     }
 
     // Pontuação via Groq em batch
-    const sys = `Você é um analista B2B sênior de prospecção. Receberá:
-1) ICP (perfil de cliente ideal do usuário)
-2) Lista de notícias/sinais
+    const sys = `Você é um analista B2B sênior de prospecção focado em SMB e mid-market.
+Receberá: 1) ICP do usuário  2) Lista de notícias/sinais.
 
-Sua tarefa: para cada item, identificar empresa/pessoa mencionada e pontuar de 0-100 a aderência ao ICP.
-Score >=75 = lead quente. Extraia nome da empresa, setor sugerido e o motivo do match.
-Responda APENAS JSON: {"prospects":[{"index":N,"company":"","sector":"","relevance_score":N,"reason":"","suggested_action":"","event_type":"news|funding|hiring|expansion|job_change"}]}
+Para cada item, identifique a empresa/pessoa mencionada e pontue 0-100 a aderência ao ICP.
+
+🎯 FILTRO CRÍTICO DE PORTE (regra obrigatória):
+- O cliente vende produtos/serviços simples e de baixo/médio ticket (chatbots, CRMs leves, automações).
+- PRIORIZE PEQUENO e MÉDIO porte: startups early-stage (seed/Série A/B), PMEs, MEIs, agências, franquias regionais, lojas, prestadores, clínicas, escritórios, e-commerces independentes, indústrias locais, SaaS emergentes.
+- PENALIZE PESADO (score máx 30) gigantes/enterprise: receita >R$500M/ano, listadas em bolsa, multinacionais (Google, Itaú, Vale, Ambev, Magalu, Americanas, Petrobras, etc), unicórnios consolidados, big techs, bancos top-10, conglomerados. Eles NÃO compram produtos simples.
+- Se o sinal for sobre uma empresa grande mas cita um parceiro/fornecedor pequeno, foque no pequeno.
+- Empresas regionais/locais com porte desconhecido → trate como médio (elegíveis).
+
+Score >=75 = lead quente (porte adequado + alinhamento ao ICP).
+
+Responda APENAS JSON: {"prospects":[{"index":N,"company":"","sector":"","company_size":"micro|pequena|media|grande","relevance_score":N,"reason":"","suggested_action":"","event_type":"news|funding|hiring|expansion|job_change"}]}
 Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados por score desc.`;
 
     const usr = `ICP DO CLIENTE:\n${icp}\n\nSINAIS COLETADOS (${items.length}):\n${
@@ -241,6 +249,7 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
       return {
         company: p.company || "Empresa não identificada",
         sector: p.sector || null,
+        company_size: p.company_size || null,
         relevance_score: Math.min(100, Math.max(0, Number(p.relevance_score) || 0)),
         reason: p.reason || "",
         suggested_action: p.suggested_action || "",
