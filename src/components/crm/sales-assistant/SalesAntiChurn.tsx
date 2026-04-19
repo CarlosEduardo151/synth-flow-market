@@ -4,13 +4,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { AlertTriangle, TrendingDown, Activity, Shield, Zap, Clock, Eye, Loader2, Inbox } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertTriangle, TrendingDown, Activity, Shield, Zap, Clock, Eye,
+  Loader2, Inbox, Sparkles, CheckCircle2, XCircle,
+} from 'lucide-react';
 
 interface Props { customerProductId: string; }
 
 interface Alert {
   id: string;
-  customer_name: string;
+  customer_name: string | null;
   company: string | null;
   churn_probability: number;
   days_since_contact: number | null;
@@ -18,6 +22,7 @@ interface Alert {
   suggested_action: string | null;
   monthly_value: number | null;
   status: string;
+  crm_customer_id: string | null;
 }
 
 const churnColor = (p: number) => {
@@ -26,37 +31,96 @@ const churnColor = (p: number) => {
   return 'text-yellow-500 bg-yellow-500/10 border-yellow-500/30';
 };
 
-const fmtMoney = (n: number | null) => n ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) + '/mês' : '—';
+const fmtMoney = (n: number | null) =>
+  n ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'R$ 0';
 
 export function SalesAntiChurn({ customerProductId }: Props) {
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
+  const [scanning, setScanning] = useState(false);
+  const [actingId, setActingId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [recovered, setRecovered] = useState(0);
   const [recoveredValue, setRecoveredValue] = useState(0);
 
+  const fetchData = async () => {
+    setLoading(true);
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const [{ data: act }, { data: rec }] = await Promise.all([
+      (supabase as any).from('sa_antichurn_alerts')
+        .select('id,customer_name,company,churn_probability,days_since_contact,signals,suggested_action,monthly_value,status,crm_customer_id')
+        .eq('customer_product_id', customerProductId)
+        .in('status', ['open', 'active'])
+        .order('churn_probability', { ascending: false }),
+      (supabase as any).from('sa_antichurn_alerts')
+        .select('monthly_value')
+        .eq('customer_product_id', customerProductId)
+        .eq('status', 'recovered')
+        .gte('updated_at', since),
+    ]);
+    setAlerts(act || []);
+    setRecovered((rec || []).length);
+    setRecoveredValue((rec || []).reduce((s: number, r: any) => s + Number(r.monthly_value || 0), 0));
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!customerProductId) return;
-    let active = true;
-    (async () => {
-      setLoading(true);
-      const since = new Date(Date.now() - 30 * 86400000).toISOString();
-      const [{ data: act }, { data: rec }] = await Promise.all([
-        (supabase as any).from('sa_antichurn_alerts')
-          .select('id,customer_name,company,churn_probability,days_since_contact,signals,suggested_action,monthly_value,status')
-          .eq('customer_product_id', customerProductId).eq('status', 'active')
-          .order('churn_probability', { ascending: false }),
-        (supabase as any).from('sa_antichurn_alerts')
-          .select('monthly_value').eq('customer_product_id', customerProductId)
-          .eq('status', 'recovered').gte('updated_at', since),
-      ]);
-      if (!active) return;
-      setAlerts(act || []);
-      setRecovered((rec || []).length);
-      setRecoveredValue((rec || []).reduce((s: number, r: any) => s + Number(r.monthly_value || 0), 0));
-      setLoading(false);
-    })();
-    return () => { active = false; };
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerProductId]);
+
+  const runScan = async () => {
+    setScanning(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sa-antichurn-scan', {
+        body: { customerProductId },
+      });
+      if (error) throw error;
+      const created = data?.alerts_created || 0;
+      const updated = data?.alerts_updated || 0;
+      const scanned = data?.scanned || 0;
+      toast({
+        title: 'Análise concluída',
+        description: `${scanned} clientes analisados · ${created} novos alertas · ${updated} atualizados`,
+      });
+      await fetchData();
+    } catch (e: any) {
+      toast({
+        title: 'Erro na análise',
+        description: e?.message || 'Tente novamente em alguns instantes',
+        variant: 'destructive',
+      });
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const applyAction = async (alertId: string, action: 'acted' | 'recovered' | 'false_positive' | 'dismissed') => {
+    setActingId(alertId);
+    try {
+      const { error } = await supabase.functions.invoke('sa-antichurn-action', {
+        body: { alertId, action },
+      });
+      if (error) throw error;
+      toast({
+        title:
+          action === 'acted' ? 'Ação registrada'
+          : action === 'recovered' ? 'Cliente recuperado!'
+          : action === 'false_positive' ? 'Alerta marcado como falso positivo'
+          : 'Alerta dispensado',
+      });
+      await fetchData();
+    } catch (e: any) {
+      toast({
+        title: 'Erro',
+        description: e?.message || 'Falha ao registrar ação',
+        variant: 'destructive',
+      });
+    } finally {
+      setActingId(null);
+    }
+  };
 
   const critical = alerts.filter(a => a.churn_probability >= 75);
   const medium = alerts.filter(a => a.churn_probability >= 50 && a.churn_probability < 75);
@@ -65,31 +129,61 @@ export function SalesAntiChurn({ customerProductId }: Props) {
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-4">
-        <Card className="border-red-500/30 bg-red-500/5"><CardContent className="p-4"><div className="flex items-center justify-between"><div>
-          <p className="text-xs text-muted-foreground">Risco crítico</p>
-          <p className="text-2xl font-bold text-red-500">{critical.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(valueAtRisk).replace('/mês', '')} em risco</p>
-        </div><AlertTriangle className="h-7 w-7 text-red-500 opacity-60" /></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center justify-between"><div>
-          <p className="text-xs text-muted-foreground">Risco médio</p>
-          <p className="text-2xl font-bold text-orange-500">{medium.length}</p>
-        </div><TrendingDown className="h-7 w-7 text-orange-500 opacity-60" /></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center justify-between"><div>
-          <p className="text-xs text-muted-foreground">Recuperados (30d)</p>
-          <p className="text-2xl font-bold text-emerald-500">{recovered}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(recoveredValue).replace('/mês', '')} salvos</p>
-        </div><Shield className="h-7 w-7 text-emerald-500 opacity-60" /></div></CardContent></Card>
-        <Card><CardContent className="p-4"><div className="flex items-center justify-between"><div>
-          <p className="text-xs text-muted-foreground">Total monitorado</p>
-          <p className="text-2xl font-bold">{alerts.length}</p>
-          <p className="text-[10px] text-muted-foreground mt-1">clientes ativos</p>
-        </div><Activity className="h-7 w-7 text-primary opacity-60" /></div></CardContent></Card>
+        <Card className="border-red-500/30 bg-red-500/5">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Risco crítico</p>
+              <p className="text-2xl font-bold text-red-500">{critical.length}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(valueAtRisk)} em risco/mês</p>
+            </div>
+            <AlertTriangle className="h-7 w-7 text-red-500 opacity-60" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Risco médio</p>
+              <p className="text-2xl font-bold text-orange-500">{medium.length}</p>
+            </div>
+            <TrendingDown className="h-7 w-7 text-orange-500 opacity-60" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Recuperados (30d)</p>
+              <p className="text-2xl font-bold text-emerald-500">{recovered}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(recoveredValue)} salvos</p>
+            </div>
+            <Shield className="h-7 w-7 text-emerald-500 opacity-60" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Total monitorado</p>
+              <p className="text-2xl font-bold">{alerts.length}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">alertas ativos</p>
+            </div>
+            <Activity className="h-7 w-7 text-primary opacity-60" />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><AlertTriangle className="h-5 w-5 text-red-500" />Anti-Churn Preditivo</CardTitle>
-          <CardDescription>IA analisa comportamento dos últimos 30 dias e identifica clientes prestes a cancelar — antes deles sumirem</CardDescription>
+        <CardHeader className="flex flex-row items-start justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-red-500" />Anti-Churn Preditivo
+            </CardTitle>
+            <CardDescription>
+              IA analisa comportamento dos clientes do CRM e identifica quem está prestes a cancelar — antes deles sumirem
+            </CardDescription>
+          </div>
+          <Button onClick={runScan} disabled={scanning} className="gap-2 shrink-0">
+            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {scanning ? 'Analisando...' : 'Analisar com IA'}
+          </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
@@ -97,21 +191,29 @@ export function SalesAntiChurn({ customerProductId }: Props) {
           ) : alerts.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
               <Inbox className="h-10 w-10 mx-auto mb-2 opacity-40" />
-              Nenhum alerta de churn ativo. A IA monitora seus clientes em tempo real.
+              Nenhum alerta de churn ativo.<br />
+              Clique em <span className="font-semibold text-foreground">"Analisar com IA"</span> para escanear seus clientes.
             </div>
           ) : alerts.map((c) => {
             const signals: string[] = Array.isArray(c.signals) ? c.signals : [];
+            const isActing = actingId === c.id;
             return (
               <Card key={c.id} className={c.churn_probability >= 75 ? 'border-red-500/30' : ''}>
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-start justify-between flex-wrap gap-3">
                     <div className="flex-1 min-w-[200px]">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold">{c.customer_name}</p>
-                        <Badge variant="outline" className={churnColor(c.churn_probability)}>{c.churn_probability}% prob. churn</Badge>
+                        <p className="font-semibold">{c.customer_name || 'Cliente sem nome'}</p>
+                        <Badge variant="outline" className={churnColor(c.churn_probability)}>
+                          {c.churn_probability}% prob. churn
+                        </Badge>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {[c.company, fmtMoney(c.monthly_value), c.days_since_contact != null && `Sem contato há ${c.days_since_contact} dias`].filter(Boolean).join(' · ')}
+                        {[
+                          c.company,
+                          c.monthly_value ? `${fmtMoney(c.monthly_value)}/mês` : null,
+                          c.days_since_contact != null ? `Sem contato há ${c.days_since_contact} dias` : null,
+                        ].filter(Boolean).join(' · ')}
                       </p>
                     </div>
                     <div className="min-w-[160px]"><Progress value={c.churn_probability} className="h-2" /></div>
@@ -119,10 +221,14 @@ export function SalesAntiChurn({ customerProductId }: Props) {
 
                   {signals.length > 0 && (
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Sinais detectados</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        Sinais detectados
+                      </p>
                       <div className="flex flex-wrap gap-1.5">
                         {signals.map((s, j) => (
-                          <Badge key={j} variant="secondary" className="text-[10px] gap-1"><Eye className="h-2.5 w-2.5" />{s}</Badge>
+                          <Badge key={j} variant="secondary" className="text-[10px] gap-1">
+                            <Eye className="h-2.5 w-2.5" />{s}
+                          </Badge>
                         ))}
                       </div>
                     </div>
@@ -132,12 +238,45 @@ export function SalesAntiChurn({ customerProductId }: Props) {
                     <div className="flex items-start gap-2 p-2.5 rounded bg-primary/5 border border-primary/20">
                       <Zap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                       <div className="flex-1">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Ação recomendada IA</p>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">
+                          Ação recomendada IA
+                        </p>
                         <p className="text-xs mt-0.5">{c.suggested_action}</p>
                       </div>
-                      <Button size="sm">Executar</Button>
                     </div>
                   )}
+
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => applyAction(c.id, 'acted')}
+                      disabled={isActing}
+                      className="gap-1.5"
+                    >
+                      {isActing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                      Executar ação
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => applyAction(c.id, 'recovered')}
+                      disabled={isActing}
+                      className="gap-1.5 text-emerald-600 hover:text-emerald-700 border-emerald-500/30"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      Recuperado
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => applyAction(c.id, 'false_positive')}
+                      disabled={isActing}
+                      className="gap-1.5 text-muted-foreground"
+                    >
+                      <XCircle className="h-3 w-3" />
+                      Falso positivo
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
@@ -151,7 +290,8 @@ export function SalesAntiChurn({ customerProductId }: Props) {
           <div className="flex-1">
             <p className="font-semibold text-sm">Por que isso muda o jogo</p>
             <p className="text-xs text-muted-foreground mt-1">
-              99% das ferramentas só te avisam que o cliente CANCELOU. Aqui você recebe alerta dias/semanas antes — com tempo pra agir e salvar a receita.
+              99% das ferramentas só te avisam que o cliente CANCELOU. Aqui você recebe alerta dias/semanas antes —
+              com tempo pra agir e salvar a receita.
             </p>
           </div>
         </CardContent>
