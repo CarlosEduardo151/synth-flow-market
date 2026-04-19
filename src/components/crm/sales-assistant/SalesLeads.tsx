@@ -176,9 +176,12 @@ export function SalesLeads({ customerProductId }: Props) {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [qualifying, setQualifying] = useState(false);
+  const [qualifyingOne, setQualifyingOne] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [icpSaving, setIcpSaving] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
@@ -218,6 +221,23 @@ export function SalesLeads({ customerProductId }: Props) {
   }, [customerProductId]);
 
   useEffect(() => { fetchInternal(); }, [fetchInternal]);
+
+  // Sync notes draft + reflect refreshes into the open detail sheet
+  useEffect(() => {
+    if (detailLead) {
+      const fresh = internalLeads.find((l) => l.id === detailLead.id);
+      if (fresh) {
+        const key = (fresh.email || fresh.phone || '').toLowerCase();
+        const ai = key ? aiMap.get(key) : undefined;
+        const score = ai?.ai_score ?? baseScore(fresh);
+        setDetailLead({ ...fresh, _score: score, _stage: stageOf(score, ai?.qualification), _ai: ai, _hasAI: !!ai });
+      }
+      setNotesDraft(detailLead.notes || '');
+    } else {
+      setNotesDraft('');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailLead?.id, internalLeads, aiMap]);
 
   useEffect(() => {
     if (!customerProductId) return;
@@ -276,6 +296,36 @@ export function SalesLeads({ customerProductId }: Props) {
     } catch (e: any) {
       toast({ title: 'Erro na qualificação IA', description: e.message, variant: 'destructive' });
     } finally { setQualifying(false); }
+  };
+
+  const qualifySingleLead = async (leadId: string) => {
+    setQualifyingOne(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('sa-prospect-ai', {
+        body: { customerProductId, leadIds: [leadId], icp: icp || undefined },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast({ title: '✨ Lead qualificado pela IA', description: 'Análise BANT + ICP atualizada.' });
+      await fetchInternal();
+    } catch (e: any) {
+      toast({ title: 'Erro na qualificação', description: e.message, variant: 'destructive' });
+    } finally { setQualifyingOne(false); }
+  };
+
+  const saveLeadNotes = async (leadId: string) => {
+    setSavingNotes(true);
+    const { error } = await (supabase as any)
+      .from('crm_customers')
+      .update({ notes: notesDraft || null, last_contact_date: new Date().toISOString() })
+      .eq('id', leadId);
+    setSavingNotes(false);
+    if (error) {
+      toast({ title: 'Erro ao salvar notas', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({ title: '📝 Notas salvas' });
+    await fetchInternal();
   };
 
   const saveManual = async () => {
@@ -1058,17 +1108,41 @@ export function SalesLeads({ customerProductId }: Props) {
                   <div className="text-center py-6 rounded-lg border border-dashed">
                     <Brain className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
                     <p className="text-sm text-muted-foreground">Lead ainda não foi analisado pela IA.</p>
-                    <Button size="sm" className="mt-3" onClick={qualifyAll} disabled={qualifying}>
-                      {qualifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Qualificar agora
+                    <Button size="sm" className="mt-3" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
+                      {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}Qualificar agora
                     </Button>
                   </div>
                 )}
-                {detailLead.notes && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notas</p>
-                    <p className="text-sm whitespace-pre-wrap p-3 rounded bg-muted/40">{detailLead.notes}</p>
-                  </div>
+                {detailLead._hasAI && (
+                  <Button size="sm" variant="outline" className="w-full" onClick={() => qualifySingleLead(detailLead.id)} disabled={qualifyingOne}>
+                    {qualifyingOne ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                    Re-qualificar com IA
+                  </Button>
                 )}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Notas</p>
+                    {notesDraft !== (detailLead.notes || '') && (
+                      <Badge variant="outline" className="text-[10px]">não salvo</Badge>
+                    )}
+                  </div>
+                  <Textarea
+                    rows={5}
+                    placeholder="Anote contexto, próximos passos, objeções, decisor..."
+                    value={notesDraft}
+                    onChange={(e) => setNotesDraft(e.target.value)}
+                    className="resize-none"
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    onClick={() => saveLeadNotes(detailLead.id)}
+                    disabled={savingNotes || notesDraft === (detailLead.notes || '')}
+                  >
+                    {savingNotes ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+                    Salvar notas
+                  </Button>
+                </div>
               </div>
             </>
           )}
