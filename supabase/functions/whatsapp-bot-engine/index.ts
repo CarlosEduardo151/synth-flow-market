@@ -332,11 +332,10 @@ serve(async (req) => {
         }
       }
 
-      // Check if this message triggers handoff
-      const userText = (body?.text?.message || body?.text || "").toString().toLowerCase().trim();
-      if (userText) {
-        const triggers = (handoffConfig.trigger_keywords || []) as string[];
-        const triggered = triggers.some((kw: string) => userText.includes(kw.toLowerCase()));
+      // Check if this message triggers handoff (AI-based intent detection)
+      const userText = (body?.text?.message || body?.text || "").toString().trim();
+      if (userText && userText.length > 0) {
+        const triggered = await detectHandoffIntent(userText);
 
         if (triggered) {
           // Create handoff session
