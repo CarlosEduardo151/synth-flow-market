@@ -404,6 +404,119 @@ export function SalesTriggerEvents({ customerProductId }: Props) {
         </CardContent>
       </Card>
 
+      {/* Mass Scan Card */}
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Search className="h-5 w-5 text-primary" />
+            Busca Massiva de Prospects
+            <Badge variant="outline" className="ml-2 text-[10px]">Até 15 leads · Sem custo extra</Badge>
+          </CardTitle>
+          <CardDescription>
+            A IA varre 5+ fontes públicas (notícias, tech, reviews), identifica empresas em destaque e pontua contra o seu Cliente Ideal (ICP). Leads quentes (score ≥75) viram trigger events automaticamente.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* ICP */}
+          <div>
+            <Label className="flex items-center gap-2 mb-1.5">
+              <Target className="h-3.5 w-3.5 text-primary" />
+              Perfil do Cliente Ideal (ICP)
+            </Label>
+            <Textarea
+              value={icp}
+              onChange={(e) => setIcp(e.target.value)}
+              placeholder="Ex: Agências de marketing digital com 10-50 funcionários no Sudeste, faturamento R$1-10M/ano, focadas em e-commerce. Procuram automatizar prospecção e atendimento via WhatsApp."
+              rows={3}
+              className="resize-none"
+            />
+            <div className="flex justify-between items-center mt-1.5">
+              <p className="text-[11px] text-muted-foreground">{icp.length} caracteres · seja específico (setor, porte, região, dor)</p>
+              <Button size="sm" variant="outline" onClick={saveIcp} disabled={icpSaving}>
+                {icpSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <><Save className="h-3.5 w-3.5 mr-1.5" />Salvar ICP</>}
+              </Button>
+            </div>
+          </div>
+
+          {/* Sources */}
+          <div>
+            <Label className="flex items-center gap-2 mb-2">
+              <Globe2 className="h-3.5 w-3.5 text-primary" />
+              Fontes a varrer
+            </Label>
+            <div className="grid gap-2 sm:grid-cols-3">
+              {[
+                { id: 'news_br', label: 'Notícias BR', desc: 'G1, Valor, Exame, InfoMoney, Startups' },
+                { id: 'tech_intl', label: 'Tech Internacional', desc: 'TechCrunch, Crunchbase, VentureBeat' },
+                { id: 'reviews', label: 'Reviews/Reclamações', desc: 'Trustpilot — empresas com dores' },
+              ].map((src) => (
+                <label key={src.id} className="flex items-start gap-2 p-3 rounded-lg border hover:bg-muted/30 cursor-pointer transition">
+                  <Switch
+                    checked={!!scanSources[src.id]}
+                    onCheckedChange={(v) => setScanSources(prev => ({ ...prev, [src.id]: v }))}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{src.label}</p>
+                    <p className="text-[11px] text-muted-foreground">{src.desc}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Action */}
+          <div className="flex items-center justify-between gap-3 pt-2 border-t">
+            <p className="text-xs text-muted-foreground">
+              {scanResult ? (
+                <>Última busca: <span className="font-semibold text-foreground">{scanResult.total_fetched}</span> sinais analisados · <span className="font-semibold text-foreground">{scanResult.total_scored}</span> prospects · <span className="font-semibold text-red-500">{scanResult.total_hot}</span> quentes</>
+              ) : 'Nenhuma busca executada nesta sessão.'}
+            </p>
+            <Button onClick={runScan} disabled={scanning || !icp.trim()}>
+              {scanning ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Varrendo fontes...</>
+              ) : (
+                <><Search className="h-4 w-4 mr-2" />Buscar prospects agora</>
+              )}
+            </Button>
+          </div>
+
+          {/* Results preview */}
+          {scanResult?.prospects?.length > 0 && (
+            <div className="space-y-2 pt-2 border-t">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Top resultados ({scanResult.prospects.length})</p>
+              <div className="grid gap-2 max-h-80 overflow-auto">
+                {scanResult.prospects.map((p: any, i: number) => (
+                  <div key={i} className={`p-3 rounded-lg border ${p.relevance_score >= 75 ? 'border-red-500/30 bg-red-500/5' : 'bg-muted/20'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-sm">{p.company}</p>
+                          {p.sector && <Badge variant="outline" className="text-[10px]">{p.sector}</Badge>}
+                          {p.relevance_score >= 75 && <Badge className="bg-red-500/10 text-red-500 border-red-500/30 text-[10px] gap-1"><Flame className="h-3 w-3" />QUENTE</Badge>}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{p.source_title} · via {p.source_name}</p>
+                        {p.reason && <p className="text-xs mt-1 text-foreground/80">{p.reason}</p>}
+                        {p.suggested_action && (
+                          <p className="text-xs mt-1 text-primary"><Zap className="h-3 w-3 inline mr-1" />{p.suggested_action}</p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-1 shrink-0">
+                        <p className={`text-2xl font-bold ${scoreColor(p.relevance_score)}`}>{p.relevance_score}</p>
+                        {p.source_url && (
+                          <Button size="sm" variant="ghost" asChild className="h-6 px-2">
+                            <a href={p.source_url} target="_blank" rel="noreferrer"><ExternalLink className="h-3 w-3" /></a>
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Main feed */}
       <Card>
         <CardHeader className="pb-3">
