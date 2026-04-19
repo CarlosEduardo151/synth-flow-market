@@ -28,6 +28,7 @@ import { FinancialGoals } from '@/components/financial/FinancialGoals';
 import { FinancialReports } from '@/components/financial/FinancialReports';
 import { FinancialSettings } from '@/components/financial/FinancialSettings';
 import { FinancialChatbot } from '@/components/financial/FinancialChatbot';
+import { Financial2FAGate } from '@/components/financial/Financial2FAGate';
 import { 
   LayoutDashboard, 
   ArrowUpDown, 
@@ -90,7 +91,8 @@ export default function FinancialAgentSystem() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
+      <Financial2FAGate customerProductId={customerId}>
       <main className="container mx-auto px-4 py-8">
           <div className="mb-8 flex items-center justify-between">
             <div>
@@ -218,6 +220,7 @@ export default function FinancialAgentSystem() {
             </Tabs>
           </Card>
         </main>
+      </Financial2FAGate>
 
         <Footer />
     </div>
