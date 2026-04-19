@@ -3435,47 +3435,72 @@ export type Database = {
       sa_antichurn_alerts: {
         Row: {
           churn_probability: number
+          company: string | null
           created_at: string
+          crm_customer_id: string | null
+          customer_name: string | null
           customer_product_id: string
+          days_since_contact: number | null
           detected_at: string
           id: string
+          monthly_value: number | null
           prospect_id: string | null
           recommended_actions: Json
           resolved_at: string | null
           risk_level: string
           signals: Json
           status: string
+          suggested_action: string | null
           updated_at: string
         }
         Insert: {
           churn_probability?: number
+          company?: string | null
           created_at?: string
+          crm_customer_id?: string | null
+          customer_name?: string | null
           customer_product_id: string
+          days_since_contact?: number | null
           detected_at?: string
           id?: string
+          monthly_value?: number | null
           prospect_id?: string | null
           recommended_actions?: Json
           resolved_at?: string | null
           risk_level?: string
           signals?: Json
           status?: string
+          suggested_action?: string | null
           updated_at?: string
         }
         Update: {
           churn_probability?: number
+          company?: string | null
           created_at?: string
+          crm_customer_id?: string | null
+          customer_name?: string | null
           customer_product_id?: string
+          days_since_contact?: number | null
           detected_at?: string
           id?: string
+          monthly_value?: number | null
           prospect_id?: string | null
           recommended_actions?: Json
           resolved_at?: string | null
           risk_level?: string
           signals?: Json
           status?: string
+          suggested_action?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sa_antichurn_alerts_crm_customer_id_fkey"
+            columns: ["crm_customer_id"]
+            isOneToOne: false
+            referencedRelation: "crm_customers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sa_antichurn_alerts_customer_product_id_fkey"
             columns: ["customer_product_id"]
