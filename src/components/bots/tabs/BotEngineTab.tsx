@@ -271,6 +271,7 @@ export function BotEngineTab({
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
