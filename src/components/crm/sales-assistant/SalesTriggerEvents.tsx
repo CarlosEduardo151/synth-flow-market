@@ -15,6 +15,7 @@ import {
   Radio, Briefcase, TrendingUp, DollarSign, Users, Newspaper, Bell, Zap,
   ArrowUpRight, Loader2, Inbox, Flame, Sparkles, ExternalLink,
   CheckCircle2, Clock, Filter, Link2, Plus, Target, Trash2, Building2,
+  Search, Save, Globe2,
 } from 'lucide-react';
 
 interface Props { customerProductId: string; }
