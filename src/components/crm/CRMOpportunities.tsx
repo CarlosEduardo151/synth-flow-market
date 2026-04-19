@@ -645,3 +645,191 @@ export const CRMOpportunities = ({ opportunities, customers, customerProductId, 
     </div>
   );
 };
+
+// ============= Drag & Drop subcomponents =============
+
+interface KanbanColumnProps {
+  stage: typeof stages[number];
+  opps: Opportunity[];
+  customers: any[];
+  onDetail: (o: Opportunity) => void;
+  onDelete: (id: string) => void;
+  formatCurrency: (n: number) => string;
+  getCustomerName: (id: string) => string;
+  getDaysInStage: (createdAt: string) => number;
+  isOverdue: (date: string | null) => boolean;
+  getPriorityInfo: (p?: string) => { label: string; color: string };
+  activeId: string | null;
+}
+
+const KanbanColumn = ({
+  stage, opps, onDetail, onDelete, formatCurrency,
+  getCustomerName, getDaysInStage, isOverdue, getPriorityInfo, activeId,
+}: KanbanColumnProps) => {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.value });
+  const StageIcon = stage.icon;
+  const stageTotal = opps.reduce((s, o) => s + Number(o.value || 0), 0);
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-lg border bg-gradient-to-b ${stage.gradient} ${stage.border} transition-all ${
+        isOver ? 'ring-2 ring-primary scale-[1.01] shadow-lg' : ''
+      }`}
+    >
+      <div className="px-3 py-2.5 border-b border-border/40 sticky top-0 backdrop-blur-sm">
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className={`w-1.5 h-1.5 rounded-full ${stage.dot} shrink-0`} />
+            <StageIcon className={`w-3.5 h-3.5 ${stage.text} shrink-0`} />
+            <span className="text-xs font-semibold truncate">{stage.label}</span>
+          </div>
+          <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4">{opps.length}</Badge>
+        </div>
+        <p className="text-[10px] text-muted-foreground">{formatCurrency(stageTotal)}</p>
+      </div>
+
+      <div className="p-2 space-y-2 min-h-[120px] max-h-[60vh] overflow-y-auto">
+        {opps.length === 0 ? (
+          <div className="text-center py-6 text-[11px] text-muted-foreground/60 border border-dashed rounded-md">
+            Solte aqui
+          </div>
+        ) : (
+          opps.map(opp => (
+            <DraggableOpportunityCard
+              key={opp.id}
+              opp={opp}
+              isDragging={activeId === opp.id}
+              onDetail={onDetail}
+              onDelete={onDelete}
+              formatCurrency={formatCurrency}
+              getCustomerName={getCustomerName}
+              getDaysInStage={getDaysInStage}
+              isOverdue={isOverdue}
+              getPriorityInfo={getPriorityInfo}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface DraggableCardProps {
+  opp: Opportunity;
+  isDragging: boolean;
+  onDetail: (o: Opportunity) => void;
+  onDelete: (id: string) => void;
+  formatCurrency: (n: number) => string;
+  getCustomerName: (id: string) => string;
+  getDaysInStage: (createdAt: string) => number;
+  isOverdue: (date: string | null) => boolean;
+  getPriorityInfo: (p?: string) => { label: string; color: string };
+}
+
+const DraggableOpportunityCard = ({
+  opp, isDragging, onDetail, onDelete, formatCurrency,
+  getCustomerName, getDaysInStage, isOverdue, getPriorityInfo,
+}: DraggableCardProps) => {
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: opp.id });
+  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+  const overdue = isOverdue(opp.expected_close_date);
+  const priority = getPriorityInfo(opp.priority);
+  const days = getDaysInStage(opp.created_at);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group rounded-md border bg-card p-2.5 hover:shadow-md transition-all ${
+        isDragging ? 'opacity-30' : ''
+      } ${overdue ? 'border-red-500/40' : ''}`}
+    >
+      <div className="flex items-start gap-1.5 mb-1.5">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground touch-none"
+          aria-label="Arrastar"
+        >
+          <GripVertical className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => onDetail(opp)}
+          className="flex-1 text-left min-w-0"
+        >
+          <p className="text-xs font-semibold line-clamp-2 leading-tight">{opp.title}</p>
+        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="text-muted-foreground/60 hover:text-foreground opacity-0 group-hover:opacity-100">
+              <MoreHorizontal className="w-3.5 h-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-36">
+            <DropdownMenuItem onClick={() => onDetail(opp)}>
+              <Eye className="w-3.5 h-3.5 mr-2" /> Detalhes
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => onDelete(opp.id)} className="text-red-500">
+              <Trash2 className="w-3.5 h-3.5 mr-2" /> Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground truncate mb-1.5">
+        <User className="w-2.5 h-2.5 inline mr-1" />
+        {getCustomerName(opp.customer_id)}
+      </p>
+
+      <div className="flex items-center justify-between gap-1">
+        <span className="text-xs font-bold text-foreground">{formatCurrency(opp.value)}</span>
+        <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${priority.color}`}>
+          {priority.label}
+        </Badge>
+      </div>
+
+      {(opp.probability !== undefined && opp.probability !== null) && (
+        <div className="mt-1.5">
+          <Progress value={opp.probability} className="h-1" />
+          <p className="text-[9px] text-muted-foreground mt-0.5">{opp.probability}% prob.</p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2 mt-1.5 text-[9px] text-muted-foreground">
+        <span><Clock className="w-2.5 h-2.5 inline mr-0.5" />{days}d</span>
+        {overdue && (
+          <span className="text-red-500 font-medium">
+            <AlertTriangle className="w-2.5 h-2.5 inline mr-0.5" />Atrasada
+          </span>
+        )}
+      </div>
+    </div>
+  );
+};
+
+interface OverlayProps {
+  opp: Opportunity;
+  getCustomerName: (id: string) => string;
+  formatCurrency: (n: number) => string;
+  getPriorityInfo: (p?: string) => { label: string; color: string };
+}
+
+const OpportunityCardOverlay = ({ opp, getCustomerName, formatCurrency, getPriorityInfo }: OverlayProps) => {
+  const priority = getPriorityInfo(opp.priority);
+  return (
+    <div className="rounded-md border-2 border-primary bg-card p-2.5 shadow-2xl rotate-2 cursor-grabbing w-64">
+      <p className="text-xs font-semibold line-clamp-2 mb-1">{opp.title}</p>
+      <p className="text-[10px] text-muted-foreground truncate mb-1.5">
+        {getCustomerName(opp.customer_id)}
+      </p>
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold">{formatCurrency(opp.value)}</span>
+        <Badge variant="outline" className={`text-[9px] px-1 py-0 h-4 ${priority.color}`}>
+          {priority.label}
+        </Badge>
+      </div>
+    </div>
+  );
+};
