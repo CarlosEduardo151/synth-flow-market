@@ -85,6 +85,7 @@ const CRMSystem = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesGroupOpen, setSalesGroupOpen] = useState(true);
+  const { stats: leadsStats } = useCRMLeads();
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
   type SidebarGroupDef = { label: string; items: SidebarItem[]; isCollapsible?: boolean; groupKey?: string };
@@ -844,4 +845,13 @@ const CRMSystem = () => {
   );
 };
 
-export default CRMSystem;
+const CRMSystemWithProvider = () => {
+  const access = useProductAccess('crm-simples');
+  return (
+    <CRMLeadsProvider customerProductId={access.customerId}>
+      <CRMSystem />
+    </CRMLeadsProvider>
+  );
+};
+
+export default CRMSystemWithProvider;
