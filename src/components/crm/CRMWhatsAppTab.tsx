@@ -6,7 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
   Smartphone, Zap, QrCode, Wifi, WifiOff,
-  ArrowDownLeft, ArrowUpRight, Activity, UserPlus
+  ArrowDownLeft, ArrowUpRight, Activity, UserPlus,
+  AlertTriangle, Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,15 +21,39 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrGeneratedAt, setQrGeneratedAt] = useState<number | null>(null);
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(0);
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [checking, setChecking] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const QR_LIFETIME_SEC = 55;
 
   const invokeInstance = (action: string) =>
     supabase.functions.invoke('whatsapp-instance', {
       body: { action, context: 'crm' },
     });
+
+  const friendlyError = (raw: any): string => {
+    const msg = (raw?.message || raw?.error || String(raw || '')).toLowerCase();
+    if (msg.includes('apikey') || msg.includes('unauthor') || msg.includes('401')) {
+      return 'Credenciais da Evolution API inválidas. Contate o suporte.';
+    }
+    if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('fetch')) {
+      return 'Servidor WhatsApp fora do ar. Tente novamente em instantes.';
+    }
+    if (msg.includes('already exists') || msg.includes('exists')) {
+      return 'Instância já existe — sincronizando status atual...';
+    }
+    if (msg.includes('not found') || msg.includes('404')) {
+      return 'Instância não encontrada. Clique em "Ativar" para recriar.';
+    }
+    return raw?.message || raw?.error || 'Erro desconhecido. Tente novamente.';
+  };
 
   const checkStatus = useCallback(async () => {
     try {
@@ -38,15 +63,20 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       if (error) throw error;
       const state = data?.state || '';
       const connected = data?.connected === true || state === 'open';
+      setLastChecked(new Date());
+      setLastError(null);
       if (connected) {
         setIsConnected(true);
         setQrCode(null);
+        setQrGeneratedAt(null);
         setInstanceName(data.instanceName || null);
       } else {
         setIsConnected(false);
+        if (data?.instanceName) setInstanceName(data.instanceName);
       }
       return { ...data, connected };
-    } catch {
+    } catch (e: any) {
+      setLastError(friendlyError(e));
       return null;
     }
   }, []);
@@ -55,6 +85,16 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     checkStatus().finally(() => setInitialLoading(false));
   }, []);
 
+  // Background polling when connected — detects drops every 30s
+  useEffect(() => {
+    if (!isConnected) return;
+    const interval = setInterval(() => {
+      checkStatus();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [isConnected, checkStatus]);
+
+  // Fast polling while QR is shown — detects scan
   useEffect(() => {
     if (!qrCode) return;
     const interval = setInterval(async () => {
@@ -67,8 +107,45 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     return () => clearInterval(interval);
   }, [qrCode, checkStatus, toast]);
 
+  const handleRefreshQr = useCallback(async (silent = false) => {
+    if (!silent) setChecking(true);
+    try {
+      const { data, error } = await invokeInstance('qrcode');
+      if (error) throw error;
+      if (data?.qrcode) {
+        setQrCode(data.qrcode);
+        setQrGeneratedAt(Date.now());
+        if (!silent) toast({ title: 'QR Code atualizado!' });
+      } else {
+        if (!silent) toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      const msg = friendlyError(e);
+      setLastError(msg);
+      if (!silent) toast({ title: 'Erro', description: msg, variant: 'destructive' });
+    } finally {
+      if (!silent) setChecking(false);
+    }
+  }, [toast]);
+
+  // QR countdown + auto-refresh before expiry
+  useEffect(() => {
+    if (!qrCode || !qrGeneratedAt) return;
+    const tick = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - qrGeneratedAt) / 1000);
+      const left = Math.max(0, QR_LIFETIME_SEC - elapsed);
+      setQrSecondsLeft(left);
+      if (left === 0) {
+        clearInterval(tick);
+        handleRefreshQr(true);
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [qrCode, qrGeneratedAt, handleRefreshQr]);
+
   const handleActivate = async () => {
     setCreating(true);
+    setLastError(null);
     try {
       const { data, error } = await invokeInstance('create');
       if (error) throw error;
@@ -78,10 +155,12 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
 
       if (data.qrcode) {
         setQrCode(data.qrcode);
+        setQrGeneratedAt(Date.now());
       } else {
         const qrResp = await invokeInstance('qrcode');
         if (qrResp.data?.qrcode) {
           setQrCode(qrResp.data.qrcode);
+          setQrGeneratedAt(Date.now());
         }
       }
 
@@ -92,27 +171,33 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp do CRM para conectar.' });
       }
     } catch (e: any) {
-      toast({ title: 'Erro ao ativar', description: e.message || 'Tente novamente.', variant: 'destructive' });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: 'Erro ao ativar', description: msg, variant: 'destructive' });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleRefreshQr = async () => {
-    setChecking(true);
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    setLastError(null);
     try {
       const { data, error } = await invokeInstance('qrcode');
       if (error) throw error;
       if (data?.qrcode) {
         setQrCode(data.qrcode);
-        toast({ title: 'QR Code atualizado!' });
+        setQrGeneratedAt(Date.now());
+        toast({ title: '🔄 Reconectando...', description: 'Escaneie o novo QR Code para reconectar.' });
       } else {
-        toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
+        await handleActivate();
       }
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: 'Erro ao reconectar', description: msg, variant: 'destructive' });
     } finally {
-      setChecking(false);
+      setReconnecting(false);
     }
   };
 
@@ -121,9 +206,10 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       await invokeInstance('disconnect');
       setIsConnected(false);
       setQrCode(null);
+      setQrGeneratedAt(null);
       toast({ title: 'Desconectado', description: 'WhatsApp CRM desconectado.' });
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: friendlyError(e), variant: 'destructive' });
     }
   };
 
@@ -133,7 +219,7 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       await invokeInstance('reconfigure_webhook');
       toast({ title: '✅ Webhook reconfigurado!' });
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: friendlyError(e), variant: 'destructive' });
     } finally {
       setChecking(false);
     }
@@ -148,6 +234,14 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     } else {
       toast({ title: 'Não conectado', description: 'Escaneie o QR Code para conectar.', variant: 'destructive' });
     }
+  };
+
+  const fmtLastChecked = () => {
+    if (!lastChecked) return '—';
+    const diff = Math.floor((Date.now() - lastChecked.getTime()) / 1000);
+    if (diff < 5) return 'agora';
+    if (diff < 60) return `há ${diff}s`;
+    return `há ${Math.floor(diff / 60)}min`;
   };
 
   if (initialLoading) {
@@ -173,17 +267,38 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
             </p>
           </div>
         </div>
-        <Badge
-          variant="outline"
-          className={isConnected
-            ? 'border-green-500/30 bg-green-500/5 text-green-600 gap-1.5 px-3 py-1'
-            : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
-          }
-        >
-          {isConnected ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {isConnected ? 'Conectado' : 'Desconectado'}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge
+            variant="outline"
+            className={isConnected
+              ? 'border-green-500/30 bg-green-500/5 text-green-600 gap-1.5 px-3 py-1'
+              : qrCode
+                ? 'border-blue-500/30 bg-blue-500/5 text-blue-600 gap-1.5 px-3 py-1'
+                : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
+            }
+          >
+            {isConnected ? <Wifi className="h-3 w-3" /> : qrCode ? <QrCode className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+            {isConnected ? 'Conectado' : qrCode ? 'Aguardando QR' : 'Desconectado'}
+          </Badge>
+          {lastChecked && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1" title={lastChecked.toLocaleString('pt-BR')}>
+              <Clock className="h-2.5 w-2.5" />
+              {fmtLastChecked()}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Error banner */}
+      {lastError && !isConnected && (
+        <div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+          <span className="text-sm text-destructive flex-1">{lastError}</span>
+          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setLastError(null)}>
+            Fechar
+          </Button>
+        </div>
+      )}
 
       {/* Info card */}
       <Card className="border-blue-500/20 bg-blue-500/5">
@@ -226,37 +341,64 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         </>
       )}
 
-      {/* Not connected - Activate */}
+      {/* Not connected - Activate or Reconnect */}
       {!isConnected && !qrCode && (
         <Card className="border-primary/20 max-w-xl mx-auto">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary" />
-              Ativar WhatsApp CRM
+              {instanceName ? 'Reconectar WhatsApp CRM' : 'Ativar WhatsApp CRM'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Conecte um número WhatsApp exclusivo para o CRM. A IA irá analisar as conversas e 
-              cadastrar automaticamente os clientes em potencial.
-            </p>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
-                <span>Clique em <strong>"Ativar WhatsApp CRM"</strong></span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
-                <span>Escaneie o <strong>QR Code</strong> com o WhatsApp da empresa</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
-                <span><strong>Pronto!</strong> Leads serão capturados automaticamente</span>
-              </li>
-            </ol>
-            <Button onClick={handleActivate} disabled={creating} className="w-full gap-2" size="lg">
-              {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando...</> : <><Smartphone className="h-4 w-4" />Ativar WhatsApp CRM</>}
-            </Button>
+            {instanceName ? (
+              <>
+                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
+                  <p className="text-sm text-orange-700 dark:text-orange-400 flex items-start gap-2">
+                    <WifiOff className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Instância existe mas está desconectada.</strong> Pode ter caído porque o celular ficou sem internet,
+                      foi desligado ou a sessão expirou. Clique em <strong>Reconectar</strong> para gerar um novo QR Code.
+                    </span>
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Instância: <code className="bg-muted px-1.5 py-0.5 rounded">{instanceName}</code>
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleReconnect} disabled={reconnecting} className="flex-1 gap-2" size="lg">
+                    {reconnecting ? <><Loader2 className="h-4 w-4 animate-spin" />Reconectando...</> : <><RefreshCw className="h-4 w-4" />Reconectar agora</>}
+                  </Button>
+                  <Button onClick={handleCheckStatus} variant="outline" size="lg" disabled={checking}>
+                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Conecte um número WhatsApp exclusivo para o CRM. A IA irá analisar as conversas e
+                  cadastrar automaticamente os clientes em potencial.
+                </p>
+                <ol className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+                    <span>Clique em <strong>"Ativar WhatsApp CRM"</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+                    <span>Escaneie o <strong>QR Code</strong> com o WhatsApp da empresa</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
+                    <span><strong>Pronto!</strong> Leads serão capturados automaticamente</span>
+                  </li>
+                </ol>
+                <Button onClick={handleActivate} disabled={creating} className="w-full gap-2" size="lg">
+                  {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando...</> : <><Smartphone className="h-4 w-4" />Ativar WhatsApp CRM</>}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
@@ -287,8 +429,15 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
               <Loader2 className="h-3 w-3 animate-spin" />
               Aguardando leitura do QR Code...
             </div>
+            {qrSecondsLeft > 0 && (
+              <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                QR expira em <span className={`font-mono font-semibold ${qrSecondsLeft < 15 ? 'text-orange-500' : 'text-foreground'}`}>{qrSecondsLeft}s</span>
+                <span className="text-muted-foreground/60">— atualiza automaticamente</span>
+              </div>
+            )}
             <div className="flex justify-center">
-              <Button variant="outline" size="sm" className="gap-2" onClick={handleRefreshQr} disabled={checking}>
+              <Button variant="outline" size="sm" className="gap-2" onClick={() => handleRefreshQr(false)} disabled={checking}>
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 Gerar novo QR Code
               </Button>
