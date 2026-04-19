@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { processText, type ResolvedProvider } from "../_shared/ai-providers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,51 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
+
+// Resolves provider + apiKey + model from the customer's "Motor IA" (ai_control_config).
+// Falls back to Groq (NovaLink default) if nothing configured.
+async function resolveEngine(supabase: any, customerProductId: string) {
+  const { data: cfg } = await supabase
+    .from("ai_control_config")
+    .select("provider, model, temperature, max_tokens")
+    .eq("customer_product_id", customerProductId)
+    .eq("is_active", true)
+    .maybeSingle();
+
+  const rawProvider = (cfg?.provider || "lovable").toLowerCase();
+  let provider: ResolvedProvider = "groq";
+  let apiKey = "";
+  let model = cfg?.model || "";
+
+  if (rawProvider === "openai") {
+    provider = "openai";
+    apiKey = Deno.env.get("OPENAI_API_KEY") || "";
+    if (!model) model = "gpt-4o-mini";
+  } else if (rawProvider === "gemini" || rawProvider === "google") {
+    provider = "google";
+    apiKey = Deno.env.get("GEMINI_API_KEY") || "";
+    if (!model) model = "gemini-2.5-flash";
+  } else {
+    // "lovable" / "novalink" / default → Groq
+    provider = "groq";
+    apiKey = Deno.env.get("GROQ_API_KEY") || "";
+    if (!model || model.startsWith("nova-") || model.startsWith("gemini") || model.startsWith("gpt")) {
+      model = "llama-3.3-70b-versatile";
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error(`Motor de IA "${rawProvider}" sem chave configurada. Verifique em Canais → Motor IA.`);
+  }
+
+  return {
+    provider,
+    apiKey,
+    model,
+    temperature: cfg?.temperature ?? 0.3,
+    maxTokens: cfg?.max_tokens ?? 2048,
+  };
+}
 
 const FEEDS: Record<string, { name: string; url: string; category: string }[]> = {
   news_br: [
@@ -150,26 +195,36 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
       items.map((it, i) => `[${i}] (${it.source}) ${it.title}${it.description ? " — " + it.description.slice(0, 200) : ""}`).join("\n")
     }`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: sys }, { role: "user", content: usr }],
-        response_format: { type: "json_object" },
-      }),
-    });
+    // Resolve customer's configured AI engine (same as "Canais → Motor IA")
+    const engine = await resolveEngine(supabase, customer_product_id);
+    console.log(`[sa-prospect-scan] engine: provider=${engine.provider} model=${engine.model}`);
 
-    if (!aiRes.ok) {
-      const t = await aiRes.text();
-      if (aiRes.status === 429) throw new Error("Limite de requisições atingido. Tente novamente em alguns minutos.");
-      if (aiRes.status === 402) throw new Error("Créditos esgotados. Adicione créditos no workspace Lovable.");
-      throw new Error(`IA falhou: ${aiRes.status} ${t.slice(0, 200)}`);
+    let content = "{}";
+    try {
+      const aiResult = await processText(
+        engine.provider,
+        {
+          apiKey: engine.apiKey,
+          model: engine.model,
+          systemPrompt: sys,
+          temperature: engine.temperature,
+          maxTokens: engine.maxTokens,
+        },
+        usr,
+      );
+      content = aiResult.text || "{}";
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.includes("429")) throw new Error("Limite de requisições do motor de IA atingido. Tente em alguns minutos.");
+      if (msg.includes("401") || msg.includes("403")) throw new Error("Chave do motor de IA inválida. Verifique em Canais → Motor IA.");
+      throw new Error(`Motor de IA falhou: ${msg.slice(0, 200)}`);
     }
-    const groqJson = await aiRes.json();
-    const content = groqJson.choices?.[0]?.message?.content || "{}";
+
+    // Strip code fences if present
+    const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) content = fenceMatch[1];
     let parsed: any = {};
-    try { parsed = JSON.parse(content); } catch { parsed = { prospects: [] }; }
+    try { parsed = JSON.parse(content.trim()); } catch { parsed = { prospects: [] }; }
 
     const ranked: any[] = (parsed.prospects || []).slice(0, max_results);
     const enriched = ranked.map((p) => {
