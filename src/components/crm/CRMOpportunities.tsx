@@ -86,11 +86,15 @@ const sources = [
 
 export const CRMOpportunities = ({ opportunities, customers, customerProductId, onRefresh }: CRMOpportunitiesProps) => {
   const [isAddingOpportunity, setIsAddingOpportunity] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [detailOpp, setDetailOpp] = useState<Opportunity | null>(null);
   const [filterPriority, setFilterPriority] = useState<string>('all');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
 
   // Normalize stages
   const normalizedOpps = useMemo(() =>
