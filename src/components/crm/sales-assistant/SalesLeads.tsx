@@ -705,143 +705,119 @@ export function SalesLeads({ customerProductId }: Props) {
         </Card>
       )}
 
-      {/* TABS PRINCIPAIS: Internos | Web */}
+      {/* CENTRAL DE LEADS - TUDO INTEGRADO */}
       <Card>
-        <CardContent className="p-4 space-y-4">
-          <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as 'internos' | 'web')}>
-            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+        <CardContent className="p-4 space-y-6">
+          {/* Tabs de classificação dos leads internos */}
+          <Tabs value={stageTab} onValueChange={(v) => setStageTab(v as any)}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <TabsList>
-                <TabsTrigger value="internos" className="gap-1.5">
-                  <Users className="h-3.5 w-3.5" /> Internos
-                  <Badge variant="secondary" className="h-4 text-[10px]">{total}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="web" className="gap-1.5">
-                  <Globe2 className="h-3.5 w-3.5" /> Web (varredura)
-                  <Badge variant="secondary" className="h-4 text-[10px]">{webStats.total}</Badge>
-                </TabsTrigger>
+                <TabsTrigger value="todos" className="gap-1.5">Todos <Badge variant="secondary" className="h-4 text-[10px]">{total}</Badge></TabsTrigger>
+                <TabsTrigger value="sql" className="gap-1.5"><Flame className="h-3 w-3" />SQL <Badge variant="secondary" className="h-4 text-[10px]">{sqls.length}</Badge></TabsTrigger>
+                <TabsTrigger value="mql" className="gap-1.5"><TrendingUp className="h-3 w-3" />MQL <Badge variant="secondary" className="h-4 text-[10px]">{mqls.length}</Badge></TabsTrigger>
+                <TabsTrigger value="frio" className="gap-1.5"><Snowflake className="h-3 w-3" />Frios <Badge variant="secondary" className="h-4 text-[10px]">{cold.length}</Badge></TabsTrigger>
+                <TabsTrigger value="lixo" className="gap-1.5"><Inbox className="h-3 w-3" />Descartar <Badge variant="secondary" className="h-4 text-[10px]">{trash.length}</Badge></TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar..."
+                    placeholder="Buscar leads..."
                     className="pl-8 h-9 w-56"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-                {mainTab === 'internos' ? (
-                  <>
-                    <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                      <SelectTrigger className="h-9 w-36">
-                        <FilterIcon className="h-3 w-3 mr-1" /><SelectValue placeholder="Origem" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todas origens</SelectItem>
-                        {sources.map((s) => <SelectItem key={s} value={s}>{sourceLabel[s] || s}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
-                      <SelectTrigger className="h-9 w-36">
-                        <BarChart3 className="h-3 w-3 mr-1" /><SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="score">Maior score</SelectItem>
-                        <SelectItem value="recent">Mais recente</SelectItem>
-                        <SelectItem value="name">Nome A-Z</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </>
-                ) : (
-                  <>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-9 w-36"><FilterIcon className="h-3 w-3 mr-1" /><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos status</SelectItem>
-                        {STATUS_OPTS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Select value={sizeFilter} onValueChange={setSizeFilter}>
-                      <SelectTrigger className="h-9 w-32"><Building2 className="h-3 w-3 mr-1" /><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Todos portes</SelectItem>
-                        <SelectItem value="micro">Micro</SelectItem>
-                        <SelectItem value="pequena">Pequena</SelectItem>
-                        <SelectItem value="media">Média</SelectItem>
-                        <SelectItem value="grande">Grande</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </>
-                )}
+                <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                  <SelectTrigger className="h-9 w-36">
+                    <FilterIcon className="h-3 w-3 mr-1" /><SelectValue placeholder="Origem" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas origens</SelectItem>
+                    {sources.map((s) => <SelectItem key={s} value={s}>{sourceLabel[s] || s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+                  <SelectTrigger className="h-9 w-36">
+                    <BarChart3 className="h-3 w-3 mr-1" /><SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="score">Maior score</SelectItem>
+                    <SelectItem value="recent">Mais recente</SelectItem>
+                    <SelectItem value="name">Nome A-Z</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <TabsContent value="internos" className="space-y-4 mt-0">
-              <Tabs value={stageTab} onValueChange={(v) => setStageTab(v as any)}>
-                <TabsList>
-                  <TabsTrigger value="todos" className="gap-1.5">Todos <Badge variant="secondary" className="h-4 text-[10px]">{total}</Badge></TabsTrigger>
-                  <TabsTrigger value="sql" className="gap-1.5"><Flame className="h-3 w-3" />SQL <Badge variant="secondary" className="h-4 text-[10px]">{sqls.length}</Badge></TabsTrigger>
-                  <TabsTrigger value="mql" className="gap-1.5"><TrendingUp className="h-3 w-3" />MQL <Badge variant="secondary" className="h-4 text-[10px]">{mqls.length}</Badge></TabsTrigger>
-                  <TabsTrigger value="frio" className="gap-1.5"><Snowflake className="h-3 w-3" />Frios <Badge variant="secondary" className="h-4 text-[10px]">{cold.length}</Badge></TabsTrigger>
-                  <TabsTrigger value="lixo" className="gap-1.5"><Inbox className="h-3 w-3" />Descartar <Badge variant="secondary" className="h-4 text-[10px]">{trash.length}</Badge></TabsTrigger>
-                </TabsList>
-                <div className="mt-4">
-                  <TabsContent value="todos">{renderInternalList(enriched)}</TabsContent>
-                  <TabsContent value="sql">{renderInternalList(sqls)}</TabsContent>
-                  <TabsContent value="mql">{renderInternalList(mqls)}</TabsContent>
-                  <TabsContent value="frio">{renderInternalList(cold)}</TabsContent>
-                  <TabsContent value="lixo">{renderInternalList(trash)}</TabsContent>
-                </div>
-              </Tabs>
-            </TabsContent>
+            <div className="mt-4">
+              <TabsContent value="todos">{renderInternalList(enriched)}</TabsContent>
+              <TabsContent value="sql">{renderInternalList(sqls)}</TabsContent>
+              <TabsContent value="mql">{renderInternalList(mqls)}</TabsContent>
+              <TabsContent value="frio">{renderInternalList(cold)}</TabsContent>
+              <TabsContent value="lixo">{renderInternalList(trash)}</TabsContent>
+            </div>
+          </Tabs>
 
-            <TabsContent value="web" className="space-y-4 mt-0">
-              {/* Painel de controle dedicado da Prospecção Web */}
-              <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background overflow-hidden">
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-4 flex-wrap">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shrink-0">
-                      <Radio className="h-6 w-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-[240px]">
-                      <h3 className="font-bold text-base flex items-center gap-2">
-                        Prospecção Web Automática
-                        <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">IA</Badge>
-                      </h3>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Varre notícias, reviews e portais de tecnologia para detectar empresas alinhadas ao seu ICP.
-                      </p>
-                      <div className="flex items-center gap-3 mt-3 flex-wrap text-[11px]">
-                        <span className="inline-flex items-center gap-1">
-                          <span className={cn('h-1.5 w-1.5 rounded-full', icp.trim() ? 'bg-emerald-500' : 'bg-amber-500')} />
-                          {icp.trim() ? 'ICP configurado' : 'ICP não definido'}
-                        </span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-muted-foreground">{webStats.total} prospects coletados</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-red-600 font-medium">{webStats.hot} 🔥 quentes</span>
-                        <span className="text-muted-foreground">·</span>
-                        <span className="text-muted-foreground">{webStats.today} hoje</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-2 shrink-0">
-                      <Button
-                        size="sm" onClick={() => setScanOpen(true)} disabled={scanning}
-                        className="bg-gradient-to-r from-primary to-primary/80"
-                      >
-                        {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Radio className="h-4 w-4 mr-2" />}
-                        Buscar prospects
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => setIcpDialogOpen(true)}>
-                        <Brain className="h-4 w-4 mr-2" />
-                        {icp.trim() ? 'Editar ICP' : 'Definir ICP'}
-                      </Button>
+          {/* SEPARADOR VISUAL */}
+          <div className="relative py-2">
+            <Separator className="my-4" />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-3">
+              <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                <Globe2 className="h-3 w-3 mr-1" /> Prospecção Web Automática
+              </Badge>
+            </div>
+          </div>
+
+          {/* PAINEL DE CONTROLE DA PROSPECÇÃO WEB */}
+          <div className="space-y-4">
+            <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4 flex-wrap">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 shrink-0">
+                    <Radio className="h-6 w-6 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-[240px]">
+                    <h3 className="font-bold text-base flex items-center gap-2">
+                      Prospecção Web Automática
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 text-[10px]">IA</Badge>
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Varre notícias, reviews e portais de tecnologia para detectar empresas alinhadas ao seu ICP.
+                    </p>
+                    <div className="flex items-center gap-3 mt-3 flex-wrap text-[11px]">
+                      <span className="inline-flex items-center gap-1">
+                        <span className={cn('h-1.5 w-1.5 rounded-full', icp.trim() ? 'bg-emerald-500' : 'bg-amber-500')} />
+                        {icp.trim() ? 'ICP configurado' : 'ICP não definido'}
+                      </span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">{webStats.total} prospects coletados</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-red-600 font-medium">{webStats.hot} 🔥 quentes</span>
+                      <span className="text-muted-foreground">·</span>
+                      <span className="text-muted-foreground">{webStats.today} hoje</span>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <Button
+                      size="sm" onClick={() => setScanOpen(true)} disabled={scanning}
+                      className="bg-gradient-to-r from-primary to-primary/80"
+                    >
+                      {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Radio className="h-4 w-4 mr-2" />}
+                      Buscar prospects
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => setIcpDialogOpen(true)}>
+                      <Brain className="h-4 w-4 mr-2" />
+                      {icp.trim() ? 'Editar ICP' : 'Definir ICP'}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
 
+            {/* FILTROS DOS PROSPECTS WEB */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <Tabs value={webFilter} onValueChange={setWebFilter}>
                 <TabsList className="flex-wrap h-auto">
                   <TabsTrigger value="all">Todos ({webStats.total})</TabsTrigger>
@@ -849,19 +825,41 @@ export function SalesLeads({ customerProductId }: Props) {
                   <TabsTrigger value="warm">🟠 Mornos</TabsTrigger>
                 </TabsList>
               </Tabs>
-              {filteredWeb.length === 0 ? (
-                <div className="text-center py-16 text-sm text-muted-foreground">
-                  <Globe2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p className="font-medium">Nenhum prospect web ainda</p>
-                  <p className="text-xs mt-1">Configure seu ICP e clique em "Buscar prospects" no painel acima para iniciar a varredura.</p>
-                </div>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {filteredWeb.map(renderWebCard)}
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-9 w-36"><FilterIcon className="h-3 w-3 mr-1" /><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos status</SelectItem>
+                    {STATUS_OPTS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={sizeFilter} onValueChange={setSizeFilter}>
+                  <SelectTrigger className="h-9 w-32"><Building2 className="h-3 w-3 mr-1" /><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos portes</SelectItem>
+                    <SelectItem value="micro">Micro</SelectItem>
+                    <SelectItem value="pequena">Pequena</SelectItem>
+                    <SelectItem value="media">Média</SelectItem>
+                    <SelectItem value="grande">Grande</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* GRID DOS PROSPECTS WEB */}
+            {filteredWeb.length === 0 ? (
+              <div className="text-center py-12 text-sm text-muted-foreground border border-dashed rounded-xl bg-muted/20">
+                <Globe2 className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Nenhum prospect web ainda</p>
+                <p className="text-xs mt-1 max-w-sm mx-auto">Configure seu ICP e clique em "Buscar prospects" para iniciar a varredura automática.</p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {filteredWeb.map(renderWebCard)}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
