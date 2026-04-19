@@ -10,6 +10,7 @@ import {
   Loader2, Inbox, Sparkles, CheckCircle2, XCircle, Heart, MessageSquare,
   Volume2, VolumeX, Frown, Smile, Meh,
 } from 'lucide-react';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 
@@ -181,63 +182,69 @@ export function SalesAntiChurn({ customerProductId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-4">
+      <SalesSectionHeader
+        icon={AlertTriangle}
+        iconColor="text-red-500"
+        title="Anti-Churn Preditivo"
+        description="IA cruza WhatsApp + CRM + oportunidades. Detecta sentimento, palavras de risco, queda de engajamento e silêncio negativo"
+        actions={
+          <Button onClick={runScan} disabled={scanning} size="lg" className="gap-2 shadow-lg">
+            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {scanning ? 'Analisando...' : 'Analisar com IA'}
+          </Button>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-red-500/30 bg-red-500/5">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Risco crítico</p>
-              <p className="text-2xl font-bold text-red-500">{critical.length}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Risco crítico</p>
+              <p className="text-3xl font-bold text-red-500">{critical.length}</p>
               <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(valueAtRisk)} em risco/mês</p>
             </div>
-            <AlertTriangle className="h-7 w-7 text-red-500 opacity-60" />
+            <AlertTriangle className="h-8 w-8 text-red-500 opacity-60 animate-pulse" />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Health score médio</p>
-              <p className={`text-2xl font-bold ${healthColor(avgHealth)}`}>{avgHealth}<span className="text-sm text-muted-foreground">/100</span></p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Health médio</p>
+              <p className={`text-3xl font-bold ${healthColor(avgHealth)}`}>{avgHealth}<span className="text-sm text-muted-foreground font-normal">/100</span></p>
               <p className="text-[10px] text-muted-foreground mt-1">{medium.length} risco médio</p>
             </div>
-            <Heart className={`h-7 w-7 opacity-60 ${healthColor(avgHealth)}`} />
+            <Heart className={`h-8 w-8 opacity-60 ${healthColor(avgHealth)}`} />
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-emerald-500/20">
           <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Recuperados (30d)</p>
-              <p className="text-2xl font-bold text-emerald-500">{recovered}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Recuperados (30d)</p>
+              <p className="text-3xl font-bold text-emerald-500">{recovered}</p>
               <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(recoveredValue)} salvos</p>
             </div>
-            <Shield className="h-7 w-7 text-emerald-500 opacity-60" />
+            <Shield className="h-8 w-8 text-emerald-500 opacity-60" />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-4 flex items-center justify-between">
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+          <CardContent className="p-4 relative flex items-center justify-between">
             <div>
-              <p className="text-xs text-muted-foreground">Total monitorado</p>
-              <p className="text-2xl font-bold">{alerts.length}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Monitorados</p>
+              <p className="text-3xl font-bold">{alerts.length}</p>
               <p className="text-[10px] text-muted-foreground mt-1">alertas ativos</p>
             </div>
-            <Activity className="h-7 w-7 text-primary opacity-60" />
+            <Activity className="h-8 w-8 text-primary opacity-60" />
           </CardContent>
         </Card>
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-start justify-between gap-3">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-red-500" />Anti-Churn Preditivo
-            </CardTitle>
-            <CardDescription>
-              IA cruza WhatsApp + CRM + oportunidades. Detecta sentimento, palavras de risco, queda de engajamento e silêncio negativo
-            </CardDescription>
-          </div>
-          <Button onClick={runScan} disabled={scanning} className="gap-2 shrink-0">
-            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {scanning ? 'Analisando...' : 'Analisar com IA'}
-          </Button>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <AlertTriangle className="h-4 w-4 text-red-500" />Clientes em risco
+          </CardTitle>
+          <CardDescription className="text-xs">Ordenados por probabilidade de churn</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
