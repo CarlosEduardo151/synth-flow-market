@@ -244,8 +244,6 @@ export function FinancialSettings({ customerProductId, mode, onModeChange }: Pro
         </Card>
       )}
 
-      </Card>
-
       {/* Segurança 2FA */}
       <Card className="p-6 bg-card/80 backdrop-blur-sm border-emerald-500/20">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
