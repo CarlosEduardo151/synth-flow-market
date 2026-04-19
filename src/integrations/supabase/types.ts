@@ -3877,9 +3877,11 @@ export type Database = {
         Row: {
           created_at: string
           customer_product_id: string
+          entity_type: string
           health_score: number
           id: string
           last_calculated_at: string
+          lead_id: string | null
           opportunity_id: string | null
           positive_factors: string[] | null
           prospect_id: string | null
@@ -3892,9 +3894,11 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_product_id: string
+          entity_type?: string
           health_score?: number
           id?: string
           last_calculated_at?: string
+          lead_id?: string | null
           opportunity_id?: string | null
           positive_factors?: string[] | null
           prospect_id?: string | null
@@ -3907,9 +3911,11 @@ export type Database = {
         Update: {
           created_at?: string
           customer_product_id?: string
+          entity_type?: string
           health_score?: number
           id?: string
           last_calculated_at?: string
+          lead_id?: string | null
           opportunity_id?: string | null
           positive_factors?: string[] | null
           prospect_id?: string | null
