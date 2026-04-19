@@ -30,6 +30,8 @@ import { CRMIntegration } from '@/components/crm/CRMIntegration';
 
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
+import { CRMNotificationBell } from '@/components/crm/CRMNotificationBell';
+import { CRMMessageTemplates } from '@/components/crm/CRMMessageTemplates';
 import { CRMLeadsProvider, useCRMLeads } from '@/contexts/CRMLeadsContext';
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
@@ -97,6 +99,7 @@ const CRMSystem = () => {
           { value: 'clientes', label: 'Clientes', icon: Users },
           { value: 'oportunidades', label: 'Oportunidades', icon: BarChart3 },
           { value: 'follow-up', label: 'Follow-Up', icon: Timer },
+          { value: 'templates', label: 'Templates', icon: FileText },
         ],
       },
       {
@@ -516,6 +519,15 @@ const CRMSystem = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {customerProductId && (
+              <CRMNotificationBell
+                customerProductId={customerProductId}
+                onNavigate={(path) => {
+                  const tab = new URLSearchParams(path.replace(/^\?/, '')).get('tab');
+                  if (tab) setActiveTab(tab);
+                }}
+              />
+            )}
           </div>
         </header>
 
@@ -592,6 +604,10 @@ const CRMSystem = () => {
 
             <TabsContent value="follow-up" className="space-y-4">
               {customerProductId && <CRMFollowUpTab customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="templates" className="space-y-4">
+              {customerProductId && <CRMMessageTemplates customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="sales-leads" className="space-y-4">
