@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown, Theater, Radio, AlertTriangle, HeartCrack, Activity } from 'lucide-react';
+import { Users, UserPlus, Settings, ClipboardList, FileText, LayoutDashboard, BarChart3, MessageSquare, ChevronLeft, Menu, Smartphone, Brain, Timer, Link, Sparkles, Target, Zap, CalendarCheck, Bot, ChevronDown, Theater, Radio, AlertTriangle, HeartCrack, Activity, Inbox } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,7 @@ import { SalesScheduling } from '@/components/crm/sales-assistant/SalesSchedulin
 import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
 import { SalesRolePlay } from '@/components/crm/sales-assistant/SalesRolePlay';
 import { SalesTriggerEvents } from '@/components/crm/sales-assistant/SalesTriggerEvents';
+import { SalesLeads } from '@/components/crm/sales-assistant/SalesLeads';
 import { SalesAntiChurn } from '@/components/crm/sales-assistant/SalesAntiChurn';
 import { SalesWinback } from '@/components/crm/sales-assistant/SalesWinback';
 import { SalesHealthScore } from '@/components/crm/sales-assistant/SalesHealthScore';
@@ -103,6 +104,7 @@ const CRMSystem = () => {
         groupKey: 'sales',
         isCollapsible: true,
         items: [
+          { value: 'sales-leads', label: 'Leads', icon: Inbox },
           { value: 'sales-prospecting', label: 'Prospecção IA', icon: Target },
           { value: 'sales-cadences', label: 'Cadências', icon: Zap },
           { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
@@ -579,6 +581,10 @@ const CRMSystem = () => {
 
             <TabsContent value="follow-up" className="space-y-4">
               {customerProductId && <CRMFollowUpTab customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="sales-leads" className="space-y-4">
+              {customerProductId && <SalesLeads customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="sales-prospecting" className="space-y-4">

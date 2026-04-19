@@ -262,9 +262,10 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
 
     const hot = enriched.filter((e) => e.relevance_score >= 75);
 
-    // Cria trigger events para os quentes
-    if (hot.length > 0) {
-      const rows = hot.map((h) => ({
+    // Cria trigger events para TODOS os prospects da varredura (não só os quentes)
+    // Isso permite ao usuário gerenciar todos os leads encontrados em um único lugar.
+    if (enriched.length > 0) {
+      const rows = enriched.map((h) => ({
         customer_product_id,
         event_type: h.event_type,
         title: `${h.company}: ${h.source_title}`.slice(0, 200),
@@ -273,7 +274,15 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
         source_url: h.source_url,
         relevance_score: h.relevance_score,
         status: "new",
-        metadata: { suggested_action: h.suggested_action, sector: h.sector, scan_id: scanId, auto_scan: true },
+        metadata: {
+          suggested_action: h.suggested_action,
+          sector: h.sector,
+          company_size: h.company_size,
+          company: h.company,
+          scan_id: scanId,
+          auto_scan: true,
+          is_hot: h.relevance_score >= 75,
+        },
       }));
       await supabase.from("sa_trigger_events").insert(rows);
     }
