@@ -8,13 +8,17 @@ import { toast } from 'sonner';
 import {
   Heart, Activity, TrendingUp, TrendingDown, Minus, AlertCircle,
   CheckCircle2, Clock, Loader2, Inbox, Sparkles, RefreshCw, Target,
+  Users, Briefcase, Flame,
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface Props { customerProductId: string; }
 
 interface DealScore {
   id: string;
   opportunity_id: string | null;
+  lead_id: string | null;
+  entity_type: 'opportunity' | 'lead';
   deal_name: string;
   contact_name: string | null;
   monthly_value: number | null;
