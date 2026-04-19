@@ -398,15 +398,30 @@ serve(async (req) => {
             status: "active",
           });
 
-          // Send auto message to customer
+          // Send auto message to customer (best-effort, non-blocking on failure)
           if (handoffConfig.auto_message) {
-            await sendTextReply(phone, handoffConfig.auto_message, messageId);
+            try {
+              await sendTextReply(phone, handoffConfig.auto_message, messageId);
+            } catch (e) {
+              console.error("[bot-engine] handoff auto_message send failed:", e instanceof Error ? e.message : e);
+            }
           }
 
-          // Notify human agent if configured
+          // Notify human agent if configured — DIRECT send (no anti-ban / no chunking / no markRead).
+          // The agent number is unrelated to the inbound message, so anti-ban behaviors don't apply
+          // and would actually break (markRead with wrong msgId, presence on wrong chat).
           if (handoffConfig.notification_phone) {
             const notifMsg = `${handoffConfig.notification_message || "Solicitação de atendimento humano"}\n\n📱 Cliente: ${phone}\n💬 Mensagem: ${userText}`;
-            await sendTextReply(handoffConfig.notification_phone, notifMsg);
+            try {
+              if (evoCreds) {
+                await evolutionSendText(evoCreds, handoffConfig.notification_phone, notifMsg);
+              } else if (zapiCreds) {
+                await zapiSendText(zapiCreds, handoffConfig.notification_phone, notifMsg);
+              }
+              console.log("[bot-engine] handoff notification sent to agent", handoffConfig.notification_phone);
+            } catch (e) {
+              console.error("[bot-engine] handoff notification FAILED to", handoffConfig.notification_phone, ":", e instanceof Error ? e.message : e);
+            }
           }
 
           // Log
