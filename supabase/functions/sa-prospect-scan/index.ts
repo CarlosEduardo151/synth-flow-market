@@ -285,6 +285,87 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
         },
       }));
       await supabase.from("sa_trigger_events").insert(rows);
+
+      // 🔥 AUTO-SAVE: salvar cada prospect na Central de Leads (crm_customers)
+      // evitando duplicatas pelo nome da empresa.
+      try {
+        const { data: existing } = await supabase
+          .from("crm_customers")
+          .select("name, company")
+          .eq("customer_product_id", customer_product_id);
+
+        const existingKeys = new Set(
+          (existing || []).map((c: any) =>
+            (c.company || c.name || "").toLowerCase().trim()
+          ).filter(Boolean)
+        );
+
+        const customerRows = enriched
+          .filter((h) => {
+            const key = (h.company || "").toLowerCase().trim();
+            if (!key || key === "empresa não identificada") return false;
+            if (existingKeys.has(key)) return false;
+            existingKeys.add(key);
+            return true;
+          })
+          .map((h) => ({
+            customer_product_id,
+            name: h.company,
+            company: h.company,
+            business_type: h.sector,
+            status: h.relevance_score >= 75 ? "qualified" : "novo",
+            source: `web-scan · ${h.source_name}`,
+            notes: [
+              `🎯 Score IA: ${h.relevance_score}/100`,
+              h.company_size ? `📊 Porte: ${h.company_size}` : null,
+              h.reason ? `💡 Motivo: ${h.reason}` : null,
+              h.suggested_action ? `⚡ Ação sugerida: ${h.suggested_action}` : null,
+              h.source_url ? `🔗 Fonte: ${h.source_url}` : null,
+            ].filter(Boolean).join("\n"),
+            last_contact_date: new Date().toISOString(),
+          }));
+
+        if (customerRows.length > 0) {
+          const { error: insErr } = await supabase
+            .from("crm_customers")
+            .insert(customerRows);
+          if (insErr) {
+            console.warn("[sa-prospect-scan] auto-save customers falhou:", insErr.message);
+          } else {
+            console.log(`[sa-prospect-scan] ✅ ${customerRows.length} prospects auto-salvos em crm_customers`);
+          }
+
+          // Também grava em sa_prospects para alimentar o aiMap (score/qualificação na UI)
+          const aiRows = enriched
+            .filter((h) => {
+              const key = (h.company || "").toLowerCase().trim();
+              return key && key !== "empresa não identificada";
+            })
+            .map((h) => ({
+              customer_product_id,
+              email: null,
+              phone: null,
+              ai_score: h.relevance_score,
+              qualification: h.relevance_score >= 75 ? "SQL" : h.relevance_score >= 50 ? "MQL" : "Lead",
+              ai_analysis: {
+                summary: h.reason,
+                next_best_action: h.suggested_action,
+                intent: h.relevance_score >= 75 ? "alto" : h.relevance_score >= 50 ? "medio" : "baixo",
+                source: "web-scan",
+                company: h.company,
+                sector: h.sector,
+                company_size: h.company_size,
+              },
+              tags: [h.event_type, h.sector].filter(Boolean),
+            }));
+
+          if (aiRows.length > 0) {
+            await supabase.from("sa_prospects").insert(aiRows);
+          }
+        }
+      } catch (saveErr: any) {
+        console.warn("[sa-prospect-scan] auto-save erro:", saveErr.message);
+      }
     }
 
     await supabase.from("sa_prospect_scans").update({
