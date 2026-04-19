@@ -89,7 +89,16 @@ export function BotEngineTab({
   const [showApiKey, setShowApiKey] = useState(false);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-6">
+      {onSave && (
+        <div className="flex justify-end">
+          <Button onClick={onSave} disabled={saving} size="sm" className="rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </div>
+      )}
+      <div className="grid gap-6 lg:grid-cols-2">
       {/* Provider & Model */}
       <Card className="border-border/50">
         <CardHeader className="pb-4">
