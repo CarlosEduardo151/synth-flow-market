@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { handleCorsPreflightRequest, corsResponse } from "../_shared/cors.ts";
+import { checkSaRateLimit, rateLimitResponse, SA_RATE_LIMITS } from "../_shared/sa-rate-limit.ts";
 
 // ============= Heurísticas locais (rápidas, sem IA) =============
 
@@ -180,6 +181,16 @@ serve(async (req) => {
 
     const { customerProductId } = await req.json();
     if (!customerProductId) return corsResponse({ error: "customerProductId obrigatório" }, 400, origin);
+
+    const auth = req.headers.get("Authorization") || "";
+    const isService = auth.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "__none__");
+    if (!isService) {
+      const rl = await checkSaRateLimit(`antichurn:${customerProductId}`, {
+        endpoint: "sa-antichurn-scan",
+        ...SA_RATE_LIMITS.ANTICHURN_SCAN,
+      });
+      if (rl.limited) return rateLimitResponse(rl.retryAfterSeconds || 60, origin);
+    }
 
     const { data: cp } = await supabase
       .from("customer_products")

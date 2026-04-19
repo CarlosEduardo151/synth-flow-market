@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { checkSaRateLimit, rateLimitResponse, SA_RATE_LIMITS } from "../_shared/sa-rate-limit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,6 +60,16 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "customerProductId obrigatório" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const auth = req.headers.get("Authorization") || "";
+    const isService = auth.includes(Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "__none__");
+    if (!isService) {
+      const rl = await checkSaRateLimit(`winback:${customerProductId}`, {
+        endpoint: "sa-winback-scan",
+        ...SA_RATE_LIMITS.WINBACK_SCAN,
+      });
+      if (rl.limited) return rateLimitResponse(rl.retryAfterSeconds || 60);
     }
 
     const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
