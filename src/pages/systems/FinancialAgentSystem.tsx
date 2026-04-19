@@ -19,7 +19,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { useProductAccess } from '@/hooks/useProductAccess';
-import { FinancialDashboard } from '@/components/financial/FinancialDashboard';
+import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
 import { FinancialInvoices } from '@/components/financial/FinancialInvoices';
 import { FinancialGoals } from '@/components/financial/FinancialGoals';
@@ -171,7 +171,7 @@ export default function FinancialAgentSystem() {
                     ) : null}
                     <div className="p-4">
                       <TabsContent value="dashboard" className="space-y-4">
-                        <FinancialDashboard customerProductId={customerId} mode={mode} />
+                        <CFODashboard customerProductId={customerId} mode={mode} />
                       </TabsContent>
 
                       <TabsContent value="chatbot" className="space-y-4">
