@@ -249,6 +249,7 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
       return {
         company: p.company || "Empresa não identificada",
         sector: p.sector || null,
+        company_size: p.company_size || null,
         relevance_score: Math.min(100, Math.max(0, Number(p.relevance_score) || 0)),
         reason: p.reason || "",
         suggested_action: p.suggested_action || "",
