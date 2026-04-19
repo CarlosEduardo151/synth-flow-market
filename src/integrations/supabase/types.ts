@@ -3631,6 +3631,39 @@ export type Database = {
           },
         ]
       }
+      sa_automation_config: {
+        Row: {
+          antichurn_auto_send: boolean
+          created_at: string
+          customer_product_id: string
+          health_scan_enabled: boolean
+          id: string
+          updated_at: string
+          winback_auto_send: boolean
+          winback_min_probability: number
+        }
+        Insert: {
+          antichurn_auto_send?: boolean
+          created_at?: string
+          customer_product_id: string
+          health_scan_enabled?: boolean
+          id?: string
+          updated_at?: string
+          winback_auto_send?: boolean
+          winback_min_probability?: number
+        }
+        Update: {
+          antichurn_auto_send?: boolean
+          created_at?: string
+          customer_product_id?: string
+          health_scan_enabled?: boolean
+          id?: string
+          updated_at?: string
+          winback_auto_send?: boolean
+          winback_min_probability?: number
+        }
+        Relationships: []
+      }
       sa_cadence_enrollments: {
         Row: {
           cadence_id: string
@@ -4295,6 +4328,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      sa_rate_limit: {
+        Row: {
+          endpoint: string
+          id: string
+          identifier: string
+          request_count: number
+          window_start: string
+        }
+        Insert: {
+          endpoint: string
+          id?: string
+          identifier: string
+          request_count?: number
+          window_start?: string
+        }
+        Update: {
+          endpoint?: string
+          id?: string
+          identifier?: string
+          request_count?: number
+          window_start?: string
+        }
+        Relationships: []
       }
       sa_roleplay_sessions: {
         Row: {
