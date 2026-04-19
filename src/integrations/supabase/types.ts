@@ -3434,6 +3434,7 @@ export type Database = {
       }
       sa_antichurn_alerts: {
         Row: {
+          churn_keywords: string[] | null
           churn_probability: number
           company: string | null
           created_at: string
@@ -3442,18 +3443,27 @@ export type Database = {
           customer_product_id: string
           days_since_contact: number | null
           detected_at: string
+          emotional_markers: string[] | null
+          engagement_drop_pct: number | null
+          executive_summary: string | null
+          health_score: number | null
           id: string
+          messages_analyzed: number | null
           monthly_value: number | null
           prospect_id: string | null
           recommended_actions: Json
           resolved_at: string | null
           risk_level: string
+          sentiment_label: string | null
+          sentiment_score: number | null
           signals: Json
+          silent_negative: boolean | null
           status: string
           suggested_action: string | null
           updated_at: string
         }
         Insert: {
+          churn_keywords?: string[] | null
           churn_probability?: number
           company?: string | null
           created_at?: string
@@ -3462,18 +3472,27 @@ export type Database = {
           customer_product_id: string
           days_since_contact?: number | null
           detected_at?: string
+          emotional_markers?: string[] | null
+          engagement_drop_pct?: number | null
+          executive_summary?: string | null
+          health_score?: number | null
           id?: string
+          messages_analyzed?: number | null
           monthly_value?: number | null
           prospect_id?: string | null
           recommended_actions?: Json
           resolved_at?: string | null
           risk_level?: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
           signals?: Json
+          silent_negative?: boolean | null
           status?: string
           suggested_action?: string | null
           updated_at?: string
         }
         Update: {
+          churn_keywords?: string[] | null
           churn_probability?: number
           company?: string | null
           created_at?: string
@@ -3482,13 +3501,21 @@ export type Database = {
           customer_product_id?: string
           days_since_contact?: number | null
           detected_at?: string
+          emotional_markers?: string[] | null
+          engagement_drop_pct?: number | null
+          executive_summary?: string | null
+          health_score?: number | null
           id?: string
+          messages_analyzed?: number | null
           monthly_value?: number | null
           prospect_id?: string | null
           recommended_actions?: Json
           resolved_at?: string | null
           risk_level?: string
+          sentiment_label?: string | null
+          sentiment_score?: number | null
           signals?: Json
+          silent_negative?: boolean | null
           status?: string
           suggested_action?: string | null
           updated_at?: string
