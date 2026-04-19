@@ -1,4 +1,4 @@
-import { Bot, Brain, Shield, Plus, Trash2, Sparkles, Eye, MessageSquare } from 'lucide-react';
+import { Bot, Brain, Shield, Plus, Trash2, Sparkles, Eye, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
