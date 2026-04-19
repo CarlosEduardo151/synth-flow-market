@@ -1008,6 +1008,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_notifications: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_read: boolean
+          link_path: string | null
+          message: string | null
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_read?: boolean
+          link_path?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_read?: boolean
+          link_path?: string | null
+          message?: string | null
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       crm_opportunities: {
         Row: {
           created_at: string
@@ -4004,11 +4043,13 @@ export type Database = {
           calendar_provider: string | null
           created_at: string
           customer_product_id: string
+          deleted_in_google: boolean
           description: string | null
           duration_min: number | null
           duration_minutes: number
           google_calendar_id: string | null
           google_event_id: string | null
+          google_synced_at: string | null
           id: string
           lead_email: string | null
           lead_phone: string | null
@@ -4018,7 +4059,10 @@ export type Database = {
           opportunity_id: string | null
           outcome: string | null
           prospect_id: string | null
+          reminder_email_1h_sent: boolean
+          reminder_email_24h_sent: boolean
           reminder_sent: boolean | null
+          reminder_whatsapp_1h_sent: boolean
           rescheduled_count: number | null
           scheduled_at: string
           scheduled_by_ai: boolean
@@ -4033,11 +4077,13 @@ export type Database = {
           calendar_provider?: string | null
           created_at?: string
           customer_product_id: string
+          deleted_in_google?: boolean
           description?: string | null
           duration_min?: number | null
           duration_minutes?: number
           google_calendar_id?: string | null
           google_event_id?: string | null
+          google_synced_at?: string | null
           id?: string
           lead_email?: string | null
           lead_phone?: string | null
@@ -4047,7 +4093,10 @@ export type Database = {
           opportunity_id?: string | null
           outcome?: string | null
           prospect_id?: string | null
+          reminder_email_1h_sent?: boolean
+          reminder_email_24h_sent?: boolean
           reminder_sent?: boolean | null
+          reminder_whatsapp_1h_sent?: boolean
           rescheduled_count?: number | null
           scheduled_at: string
           scheduled_by_ai?: boolean
@@ -4062,11 +4111,13 @@ export type Database = {
           calendar_provider?: string | null
           created_at?: string
           customer_product_id?: string
+          deleted_in_google?: boolean
           description?: string | null
           duration_min?: number | null
           duration_minutes?: number
           google_calendar_id?: string | null
           google_event_id?: string | null
+          google_synced_at?: string | null
           id?: string
           lead_email?: string | null
           lead_phone?: string | null
@@ -4076,7 +4127,10 @@ export type Database = {
           opportunity_id?: string | null
           outcome?: string | null
           prospect_id?: string | null
+          reminder_email_1h_sent?: boolean
+          reminder_email_24h_sent?: boolean
           reminder_sent?: boolean | null
+          reminder_whatsapp_1h_sent?: boolean
           rescheduled_count?: number | null
           scheduled_at?: string
           scheduled_by_ai?: boolean
