@@ -336,6 +336,8 @@ export function SalesLeads({ customerProductId }: Props) {
       });
       setScanOpen(false);
       refreshWebLeads();
+      // Refresca a Central de Leads (crm_customers) — os prospects foram auto-salvos pela edge function
+      await fetchInternal();
     } catch (e: any) {
       toast({ title: 'Falha na busca', description: e.message, variant: 'destructive' });
     } finally { setScanning(false); }
