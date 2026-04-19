@@ -31,12 +31,10 @@ import { CRMIntegration } from '@/components/crm/CRMIntegration';
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
 import { CRMLeadsProvider, useCRMLeads } from '@/contexts/CRMLeadsContext';
-import { SalesProspecting } from '@/components/crm/sales-assistant/SalesProspecting';
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
 import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
 import { SalesRolePlay } from '@/components/crm/sales-assistant/SalesRolePlay';
-import { SalesTriggerEvents } from '@/components/crm/sales-assistant/SalesTriggerEvents';
 import { SalesLeads } from '@/components/crm/sales-assistant/SalesLeads';
 import { SalesAntiChurn } from '@/components/crm/sales-assistant/SalesAntiChurn';
 import { SalesWinback } from '@/components/crm/sales-assistant/SalesWinback';
@@ -111,7 +109,6 @@ const CRMSystem = () => {
           { value: 'sales-scheduling', label: 'Agendamento', icon: CalendarCheck },
           { value: 'sales-copilot', label: 'Copiloto IA', icon: Bot },
           { value: 'sales-roleplay', label: 'Role-play IA', icon: Theater },
-          { value: 'sales-triggers', label: 'Trigger Events', icon: Radio },
           { value: 'sales-antichurn', label: 'Anti-Churn', icon: AlertTriangle },
           { value: 'sales-winback', label: 'Win-back', icon: HeartCrack },
           { value: 'sales-health', label: 'Health Score', icon: Activity },
@@ -601,10 +598,6 @@ const CRMSystem = () => {
               {customerProductId && <SalesLeads customerProductId={customerProductId} />}
             </TabsContent>
 
-            <TabsContent value="sales-leads" className="space-y-4">
-              {customerProductId && <SalesLeads customerProductId={customerProductId} />}
-            </TabsContent>
-
             <TabsContent value="sales-cadences" className="space-y-4">
               {customerProductId && <SalesCadences customerProductId={customerProductId} />}
             </TabsContent>
@@ -619,10 +612,6 @@ const CRMSystem = () => {
 
             <TabsContent value="sales-roleplay" className="space-y-4">
               {customerProductId && <SalesRolePlay customerProductId={customerProductId} />}
-            </TabsContent>
-
-            <TabsContent value="sales-triggers" className="space-y-4">
-              {customerProductId && <SalesTriggerEvents customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="sales-antichurn" className="space-y-4">
