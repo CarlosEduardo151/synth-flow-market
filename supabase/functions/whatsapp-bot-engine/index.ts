@@ -568,18 +568,26 @@ serve(async (req) => {
         }
       }
 
-      // Check if this message triggers handoff (AI-based intent detection)
+      // Check if this message triggers handoff (regex + AI fallback)
       const userText = (body?.text?.message || body?.text || "").toString().trim();
       if (userText && userText.length > 0) {
-        const triggered = await detectHandoffIntent(userText);
+        console.log("[bot-engine] handoff: evaluating message from", phone, "text:", userText.slice(0, 120));
+        const handoffResult = await detectHandoffIntent(userText);
+        console.log("[bot-engine] handoff: result", JSON.stringify(handoffResult));
 
-        if (triggered) {
+        if (handoffResult.triggered) {
           // Create handoff session
-          await service.from("bot_handoff_sessions").insert({
+          const { data: newSession, error: sessErr } = await service.from("bot_handoff_sessions").insert({
             customer_product_id: cp.id,
             phone,
             status: "active",
-          });
+          }).select("id").maybeSingle();
+
+          if (sessErr) {
+            console.error("[bot-engine] handoff: session insert FAILED", sessErr);
+          } else {
+            console.log("[bot-engine] handoff: session created", newSession?.id);
+          }
 
           // Send auto message to customer (best-effort, non-blocking on failure)
           if (handoffConfig.auto_message) {
