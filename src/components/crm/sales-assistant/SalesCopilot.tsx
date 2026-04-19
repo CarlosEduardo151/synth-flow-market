@@ -13,6 +13,7 @@ import {
   Bot, Send, Sparkles, Target, MessageSquare, FileText, User2, Loader2,
   Copy, Trash2, RefreshCw, Zap, TrendingUp, AlertTriangle, DollarSign,
 } from 'lucide-react';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 

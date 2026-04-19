@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Theater, Send, RotateCcw, Trophy, Brain, User, Bot, Loader2, Sparkles, TrendingUp, Target, Award, BarChart3, History, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 
