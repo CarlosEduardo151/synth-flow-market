@@ -18,6 +18,8 @@ interface BotMemoryTabProps {
   retentionPolicy: string;
   onContextWindowChange: (size: number) => void;
   onRetentionChange: (policy: string) => void;
+  onSave?: () => void;
+  saving?: boolean;
 }
 
 export function BotMemoryTab({
@@ -25,9 +27,19 @@ export function BotMemoryTab({
   retentionPolicy,
   onContextWindowChange,
   onRetentionChange,
+  onSave,
+  saving,
 }: BotMemoryTabProps) {
   return (
     <div className="space-y-6">
+      {onSave && (
+        <div className="flex justify-end">
+          <Button onClick={onSave} disabled={saving} size="sm" className="rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </div>
+      )}
       {/* Banner informativo */}
       <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-3">
         <CheckCircle2 className="h-5 w-5 text-primary mt-0.5 flex-shrink-0" />
