@@ -21,15 +21,39 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
   const { toast } = useToast();
   const [creating, setCreating] = useState(false);
   const [qrCode, setQrCode] = useState<string | null>(null);
+  const [qrGeneratedAt, setQrGeneratedAt] = useState<number | null>(null);
+  const [qrSecondsLeft, setQrSecondsLeft] = useState<number>(0);
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [checking, setChecking] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [lastChecked, setLastChecked] = useState<Date | null>(null);
+  const [lastError, setLastError] = useState<string | null>(null);
+  const [reconnecting, setReconnecting] = useState(false);
+
+  const QR_LIFETIME_SEC = 55;
 
   const invokeInstance = (action: string) =>
     supabase.functions.invoke('whatsapp-instance', {
       body: { action, context: 'crm' },
     });
+
+  const friendlyError = (raw: any): string => {
+    const msg = (raw?.message || raw?.error || String(raw || '')).toLowerCase();
+    if (msg.includes('apikey') || msg.includes('unauthor') || msg.includes('401')) {
+      return 'Credenciais da Evolution API inválidas. Contate o suporte.';
+    }
+    if (msg.includes('timeout') || msg.includes('econnrefused') || msg.includes('fetch')) {
+      return 'Servidor WhatsApp fora do ar. Tente novamente em instantes.';
+    }
+    if (msg.includes('already exists') || msg.includes('exists')) {
+      return 'Instância já existe — sincronizando status atual...';
+    }
+    if (msg.includes('not found') || msg.includes('404')) {
+      return 'Instância não encontrada. Clique em "Ativar" para recriar.';
+    }
+    return raw?.message || raw?.error || 'Erro desconhecido. Tente novamente.';
+  };
 
   const checkStatus = useCallback(async () => {
     try {
@@ -39,15 +63,20 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       if (error) throw error;
       const state = data?.state || '';
       const connected = data?.connected === true || state === 'open';
+      setLastChecked(new Date());
+      setLastError(null);
       if (connected) {
         setIsConnected(true);
         setQrCode(null);
+        setQrGeneratedAt(null);
         setInstanceName(data.instanceName || null);
       } else {
         setIsConnected(false);
+        if (data?.instanceName) setInstanceName(data.instanceName);
       }
       return { ...data, connected };
-    } catch {
+    } catch (e: any) {
+      setLastError(friendlyError(e));
       return null;
     }
   }, []);
@@ -56,6 +85,16 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     checkStatus().finally(() => setInitialLoading(false));
   }, []);
 
+  // Background polling when connected — detects drops every 30s
+  useEffect(() => {
+    if (!isConnected) return;
+    const interval = setInterval(() => {
+      checkStatus();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [isConnected, checkStatus]);
+
+  // Fast polling while QR is shown — detects scan
   useEffect(() => {
     if (!qrCode) return;
     const interval = setInterval(async () => {
@@ -68,8 +107,45 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     return () => clearInterval(interval);
   }, [qrCode, checkStatus, toast]);
 
+  const handleRefreshQr = useCallback(async (silent = false) => {
+    if (!silent) setChecking(true);
+    try {
+      const { data, error } = await invokeInstance('qrcode');
+      if (error) throw error;
+      if (data?.qrcode) {
+        setQrCode(data.qrcode);
+        setQrGeneratedAt(Date.now());
+        if (!silent) toast({ title: 'QR Code atualizado!' });
+      } else {
+        if (!silent) toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
+      }
+    } catch (e: any) {
+      const msg = friendlyError(e);
+      setLastError(msg);
+      if (!silent) toast({ title: 'Erro', description: msg, variant: 'destructive' });
+    } finally {
+      if (!silent) setChecking(false);
+    }
+  }, [toast]);
+
+  // QR countdown + auto-refresh before expiry
+  useEffect(() => {
+    if (!qrCode || !qrGeneratedAt) return;
+    const tick = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - qrGeneratedAt) / 1000);
+      const left = Math.max(0, QR_LIFETIME_SEC - elapsed);
+      setQrSecondsLeft(left);
+      if (left === 0) {
+        clearInterval(tick);
+        handleRefreshQr(true);
+      }
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [qrCode, qrGeneratedAt, handleRefreshQr]);
+
   const handleActivate = async () => {
     setCreating(true);
+    setLastError(null);
     try {
       const { data, error } = await invokeInstance('create');
       if (error) throw error;
@@ -79,10 +155,12 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
 
       if (data.qrcode) {
         setQrCode(data.qrcode);
+        setQrGeneratedAt(Date.now());
       } else {
         const qrResp = await invokeInstance('qrcode');
         if (qrResp.data?.qrcode) {
           setQrCode(qrResp.data.qrcode);
+          setQrGeneratedAt(Date.now());
         }
       }
 
@@ -93,27 +171,33 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp do CRM para conectar.' });
       }
     } catch (e: any) {
-      toast({ title: 'Erro ao ativar', description: e.message || 'Tente novamente.', variant: 'destructive' });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: 'Erro ao ativar', description: msg, variant: 'destructive' });
     } finally {
       setCreating(false);
     }
   };
 
-  const handleRefreshQr = async () => {
-    setChecking(true);
+  const handleReconnect = async () => {
+    setReconnecting(true);
+    setLastError(null);
     try {
       const { data, error } = await invokeInstance('qrcode');
       if (error) throw error;
       if (data?.qrcode) {
         setQrCode(data.qrcode);
-        toast({ title: 'QR Code atualizado!' });
+        setQrGeneratedAt(Date.now());
+        toast({ title: '🔄 Reconectando...', description: 'Escaneie o novo QR Code para reconectar.' });
       } else {
-        toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
+        await handleActivate();
       }
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      const msg = friendlyError(e);
+      setLastError(msg);
+      toast({ title: 'Erro ao reconectar', description: msg, variant: 'destructive' });
     } finally {
-      setChecking(false);
+      setReconnecting(false);
     }
   };
 
@@ -122,9 +206,10 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       await invokeInstance('disconnect');
       setIsConnected(false);
       setQrCode(null);
+      setQrGeneratedAt(null);
       toast({ title: 'Desconectado', description: 'WhatsApp CRM desconectado.' });
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: friendlyError(e), variant: 'destructive' });
     }
   };
 
@@ -134,7 +219,7 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
       await invokeInstance('reconfigure_webhook');
       toast({ title: '✅ Webhook reconfigurado!' });
     } catch (e: any) {
-      toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      toast({ title: 'Erro', description: friendlyError(e), variant: 'destructive' });
     } finally {
       setChecking(false);
     }
@@ -149,6 +234,14 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
     } else {
       toast({ title: 'Não conectado', description: 'Escaneie o QR Code para conectar.', variant: 'destructive' });
     }
+  };
+
+  const fmtLastChecked = () => {
+    if (!lastChecked) return '—';
+    const diff = Math.floor((Date.now() - lastChecked.getTime()) / 1000);
+    if (diff < 5) return 'agora';
+    if (diff < 60) return `há ${diff}s`;
+    return `há ${Math.floor(diff / 60)}min`;
   };
 
   if (initialLoading) {
