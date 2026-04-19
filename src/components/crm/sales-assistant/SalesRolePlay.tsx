@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Progress } from '@/components/ui/progress';
 import { Theater, Send, RotateCcw, Trophy, Brain, User, Bot, Loader2, Sparkles, TrendingUp, Target, Award, BarChart3, History, Play } from 'lucide-react';
 import { toast } from 'sonner';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 
@@ -337,23 +338,56 @@ export function SalesRolePlay({ customerProductId }: Props) {
   /* ============ SETUP / DASHBOARD VIEW ============ */
   return (
     <div className="space-y-4">
+      <SalesSectionHeader
+        icon={Theater}
+        title="Role-Play com IA"
+        description="Treine pitch e quebra de objeções com leads simulados pela IA Groq"
+        actions={
+          <Button onClick={startSession} size="lg" disabled={saving} className="gap-2 shadow-lg">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Nova simulação
+          </Button>
+        }
+      />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card><CardContent className="p-4">
-          <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Sessões treinadas</p><Theater className="h-4 w-4 text-muted-foreground" /></div>
-          <p className="text-2xl font-bold mt-1">{totalSessions}</p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Score médio</p><BarChart3 className="h-4 w-4 text-muted-foreground" /></div>
-          <p className="text-2xl font-bold mt-1 text-primary">{avgScore}<span className="text-xs text-muted-foreground">/100</span></p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Melhor score</p><Trophy className="h-4 w-4 text-muted-foreground" /></div>
-          <p className="text-2xl font-bold mt-1 text-emerald-500">{bestScore}<span className="text-xs text-muted-foreground">/100</span></p>
-        </CardContent></Card>
-        <Card><CardContent className="p-4">
-          <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Concluídas</p><Award className="h-4 w-4 text-muted-foreground" /></div>
-          <p className="text-2xl font-bold mt-1">{completed.length}</p>
-        </CardContent></Card>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+          <CardContent className="p-4 relative flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Sessões</p>
+              <p className="text-3xl font-bold">{totalSessions}</p>
+            </div>
+            <Theater className="h-8 w-8 text-primary opacity-60" />
+          </CardContent>
+        </Card>
+        <Card className="border-primary/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Score médio</p>
+              <p className="text-3xl font-bold text-primary">{avgScore}<span className="text-sm text-muted-foreground font-normal">/100</span></p>
+            </div>
+            <BarChart3 className="h-8 w-8 text-primary opacity-60" />
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-500/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Melhor</p>
+              <p className="text-3xl font-bold text-emerald-500">{bestScore}<span className="text-sm text-muted-foreground font-normal">/100</span></p>
+            </div>
+            <Trophy className="h-8 w-8 text-emerald-500 opacity-60" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Concluídas</p>
+              <p className="text-3xl font-bold">{completed.length}</p>
+            </div>
+            <Award className="h-8 w-8 text-muted-foreground opacity-60" />
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid lg:grid-cols-[1fr_360px] gap-4">

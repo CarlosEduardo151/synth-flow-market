@@ -13,6 +13,7 @@ import {
   Bot, Send, Sparkles, Target, MessageSquare, FileText, User2, Loader2,
   Copy, Trash2, RefreshCw, Zap, TrendingUp, AlertTriangle, DollarSign,
 } from 'lucide-react';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 
@@ -173,30 +174,55 @@ export function SalesCopilot({ customerProductId }: Props) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] min-h-[600px] gap-3">
+      <SalesSectionHeader
+        icon={Bot}
+        title="Copiloto IA de Vendas"
+        description="Pergunte ao seu pipeline, gere mensagens e descubra a próxima ação para cada lead"
+        actions={
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border bg-card">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-medium">{streaming ? 'Pensando…' : 'IA online'}</span>
+          </div>
+        }
+      />
+
       {/* Stats top bar */}
-      <div className="grid gap-3 md:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card className="border-emerald-500/30 bg-emerald-500/5">
-          <CardContent className="p-3 flex items-center gap-3">
-            <DollarSign className="h-5 w-5 text-emerald-500" />
-            <div><p className="text-[10px] text-muted-foreground uppercase tracking-wide">Forecast</p><p className="text-lg font-bold text-emerald-500">{fmtMoney(stats.forecast)}</p></div>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Forecast</p>
+              <p className="text-2xl font-bold text-emerald-500">{fmtMoney(stats.forecast)}</p>
+            </div>
+            <DollarSign className="h-7 w-7 text-emerald-500 opacity-60" />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 flex items-center gap-3">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            <div><p className="text-[10px] text-muted-foreground uppercase tracking-wide">Em aberto</p><p className="text-lg font-bold">{stats.open}</p></div>
+        <Card className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+          <CardContent className="p-4 relative flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Em aberto</p>
+              <p className="text-2xl font-bold">{stats.open}</p>
+            </div>
+            <TrendingUp className="h-7 w-7 text-primary opacity-60" />
           </CardContent>
         </Card>
-        <Card>
-          <CardContent className="p-3 flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            <div><p className="text-[10px] text-muted-foreground uppercase tracking-wide">Em risco</p><p className="text-lg font-bold text-red-500">{stats.atRisk}</p></div>
+        <Card className="border-red-500/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Em risco</p>
+              <p className="text-2xl font-bold text-red-500">{stats.atRisk}</p>
+            </div>
+            <AlertTriangle className="h-7 w-7 text-red-500 opacity-60" />
           </CardContent>
         </Card>
         <Card className="border-primary/30 bg-primary/5">
-          <CardContent className="p-3 flex items-center gap-3">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <div><p className="text-[10px] text-muted-foreground uppercase tracking-wide">IA</p><p className="text-lg font-bold text-primary">Online</p></div>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">IA</p>
+              <p className="text-2xl font-bold text-primary">Ativa</p>
+            </div>
+            <Sparkles className="h-7 w-7 text-primary opacity-60" />
           </CardContent>
         </Card>
       </div>

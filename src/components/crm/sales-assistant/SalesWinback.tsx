@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { HeartCrack, Sparkles, Send, Clock, TrendingUp, RefreshCw, Brain, Loader2, Inbox, CheckCircle2, X } from 'lucide-react';
+import { HeartCrack, Sparkles, Send, Clock, TrendingUp, RefreshCw, Brain, Loader2, Inbox, CheckCircle2, X, AlertCircle, Award } from 'lucide-react';
+import { SalesSectionHeader } from './SalesSectionHeader';
 
 interface Props { customerProductId: string; }
 
@@ -111,25 +112,68 @@ export function SalesWinback({ customerProductId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-4">
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Deals perdidos (90d)</p><p className="text-2xl font-bold">{totalLost90}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Recuperáveis (IA)</p><p className="text-2xl font-bold text-primary">{campaigns.length}</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Recuperados</p><p className="text-2xl font-bold text-emerald-500">{recovered}</p><p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(recoveredMrr).replace('/mês', '')} MRR</p></CardContent></Card>
-        <Card><CardContent className="p-4"><p className="text-xs text-muted-foreground">Taxa win-back</p><p className="text-2xl font-bold">{winRate}%</p></CardContent></Card>
+      <SalesSectionHeader
+        icon={HeartCrack}
+        iconColor="text-pink-500"
+        title="Win-back Automático"
+        description="IA Groq analisa seus leads perdidos e gera mensagens psicologicamente otimizadas"
+        actions={
+          <Button size="lg" onClick={handleScan} disabled={scanning} className="gap-2 shadow-lg">
+            {scanning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {scanning ? 'Analisando com IA...' : 'Analisar com IA'}
+          </Button>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card className="border-red-500/20">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Perdidos (90d)</p>
+              <p className="text-3xl font-bold text-red-500">{totalLost90}</p>
+            </div>
+            <AlertCircle className="h-8 w-8 text-red-500 opacity-60" />
+          </CardContent>
+        </Card>
+        <Card className="relative overflow-hidden border-primary/20">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent pointer-events-none" />
+          <CardContent className="p-4 relative flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Recuperáveis IA</p>
+              <p className="text-3xl font-bold text-primary">{campaigns.length}</p>
+            </div>
+            <Sparkles className="h-8 w-8 text-primary opacity-60" />
+          </CardContent>
+        </Card>
+        <Card className="border-emerald-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Recuperados</p>
+                <p className="text-3xl font-bold text-emerald-500">{recovered}</p>
+              </div>
+              <Award className="h-8 w-8 text-emerald-500 opacity-60" />
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">{fmtMoney(recoveredMrr).replace('/mês', '')} MRR</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">Taxa win-back</p>
+              <p className="text-3xl font-bold">{winRate}%</p>
+            </div>
+            <TrendingUp className="h-8 w-8 text-primary opacity-60" />
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <CardTitle className="flex items-center gap-2"><HeartCrack className="h-5 w-5 text-pink-500" />Win-back Automático</CardTitle>
-              <CardDescription>IA Groq analisa seus leads perdidos e gera mensagens psicologicamente otimizadas</CardDescription>
-            </div>
-            <Button size="sm" variant="outline" onClick={handleScan} disabled={scanning}>
-              {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-              {scanning ? 'Analisando com IA...' : 'Analisar com IA'}
-            </Button>
-          </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <HeartCrack className="h-4 w-4 text-pink-500" />Campanhas ativas
+          </CardTitle>
+          <CardDescription className="text-xs">Ordenadas por probabilidade de recuperação</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
