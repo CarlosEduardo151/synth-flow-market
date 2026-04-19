@@ -4161,6 +4161,7 @@ export type Database = {
           source: string | null
           source_url: string | null
           status: string
+          target_id: string | null
           title: string
         }
         Insert: {
@@ -4176,6 +4177,7 @@ export type Database = {
           source?: string | null
           source_url?: string | null
           status?: string
+          target_id?: string | null
           title: string
         }
         Update: {
@@ -4191,6 +4193,7 @@ export type Database = {
           source?: string | null
           source_url?: string | null
           status?: string
+          target_id?: string | null
           title?: string
         }
         Relationships: [
@@ -4208,7 +4211,56 @@ export type Database = {
             referencedRelation: "sa_prospects"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sa_trigger_events_target_id_fkey"
+            columns: ["target_id"]
+            isOneToOne: false
+            referencedRelation: "sa_trigger_targets"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      sa_trigger_targets: {
+        Row: {
+          company: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_active: boolean
+          linkedin_url: string | null
+          name: string
+          notes: string | null
+          position: string | null
+          updated_at: string
+          website_url: string | null
+        }
+        Insert: {
+          company?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_active?: boolean
+          linkedin_url?: string | null
+          name: string
+          notes?: string | null
+          position?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Update: {
+          company?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_active?: boolean
+          linkedin_url?: string | null
+          name?: string
+          notes?: string | null
+          position?: string | null
+          updated_at?: string
+          website_url?: string | null
+        }
+        Relationships: []
       }
       sa_winback_campaigns: {
         Row: {
