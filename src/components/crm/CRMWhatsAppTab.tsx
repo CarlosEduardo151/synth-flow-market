@@ -6,7 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
   Smartphone, Zap, QrCode, Wifi, WifiOff,
-  ArrowDownLeft, ArrowUpRight, Activity, UserPlus
+  ArrowDownLeft, ArrowUpRight, Activity, UserPlus,
+  AlertTriangle, Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
