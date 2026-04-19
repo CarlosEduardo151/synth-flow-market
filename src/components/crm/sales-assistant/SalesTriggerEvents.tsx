@@ -111,7 +111,7 @@ export function SalesTriggerEvents({ customerProductId }: Props) {
         .select('id,prospect_id,target_id,event_type,title,description,source,source_url,detected_at,relevance_score,status,metadata,sa_prospects(name,company,position),sa_trigger_targets(name,company,position)')
         .eq('customer_product_id', customerProductId)
         .order('detected_at', { ascending: false }).limit(100),
-      (supabase as any).from('sa_config').select('modules_enabled')
+      (supabase as any).from('sa_config').select('modules_enabled,icp_description')
         .eq('customer_product_id', customerProductId).maybeSingle(),
       (supabase as any).from('sa_prospects')
         .select('id,name,company,position')
@@ -128,6 +128,7 @@ export function SalesTriggerEvents({ customerProductId }: Props) {
     setTargets(tg || []);
     const triggerCfg = cfg?.modules_enabled?.trigger_types;
     if (triggerCfg) setEnabledTypes(prev => ({ ...prev, ...triggerCfg }));
+    if (cfg?.icp_description) setIcp(cfg.icp_description);
     setLoading(false);
   };
 
