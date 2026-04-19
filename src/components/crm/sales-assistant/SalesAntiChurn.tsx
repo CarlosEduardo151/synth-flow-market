@@ -68,12 +68,26 @@ const sentimentColor = (label: string | null) => {
 const fmtMoney = (n: number | null) =>
   n ? n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }) : 'R$ 0';
 
+interface MonitoredClient {
+  id: string;
+  name: string | null;
+  company: string | null;
+  health_score: number;
+  churn_probability: number;
+  risk_level: string;
+  sentiment_label: string | null;
+  days_since_contact: number | null;
+  messages_analyzed: number;
+  signals: string[];
+}
+
 export function SalesAntiChurn({ customerProductId }: Props) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [scanning, setScanning] = useState(false);
   const [actingId, setActingId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [monitored, setMonitored] = useState<MonitoredClient[]>([]);
   const [recovered, setRecovered] = useState(0);
   const [recoveredValue, setRecoveredValue] = useState(0);
 
