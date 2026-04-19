@@ -3721,6 +3721,7 @@ export type Database = {
           business_context: string | null
           created_at: string
           customer_product_id: string
+          icp_description: string | null
           id: string
           is_active: boolean
           modules_enabled: Json
@@ -3733,6 +3734,7 @@ export type Database = {
           business_context?: string | null
           created_at?: string
           customer_product_id: string
+          icp_description?: string | null
           id?: string
           is_active?: boolean
           modules_enabled?: Json
@@ -3745,6 +3747,7 @@ export type Database = {
           business_context?: string | null
           created_at?: string
           customer_product_id?: string
+          icp_description?: string | null
           id?: string
           is_active?: boolean
           modules_enabled?: Json
@@ -4020,6 +4023,51 @@ export type Database = {
           redirect_to?: string | null
           state?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      sa_prospect_scans: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          error_message: string | null
+          finished_at: string | null
+          icp_snapshot: string | null
+          id: string
+          results: Json | null
+          sources_used: string[] | null
+          status: string
+          total_fetched: number | null
+          total_hot: number | null
+          total_scored: number | null
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          error_message?: string | null
+          finished_at?: string | null
+          icp_snapshot?: string | null
+          id?: string
+          results?: Json | null
+          sources_used?: string[] | null
+          status?: string
+          total_fetched?: number | null
+          total_hot?: number | null
+          total_scored?: number | null
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          error_message?: string | null
+          finished_at?: string | null
+          icp_snapshot?: string | null
+          id?: string
+          results?: Json | null
+          sources_used?: string[] | null
+          status?: string
+          total_fetched?: number | null
+          total_hot?: number | null
+          total_scored?: number | null
         }
         Relationships: []
       }
