@@ -501,10 +501,6 @@ const WhatsAppBotConfigSystem = () => {
 
           <div className="flex items-center gap-2">
             {autoSaving && <span className="text-xs text-muted-foreground animate-pulse">Salvando...</span>}
-            <Button onClick={handleSave} disabled={loading} size="sm" className="rounded-xl">
-              <Save className="h-4 w-4 mr-2" />
-              {loading ? 'Salvando...' : 'Salvar'}
-            </Button>
           </div>
         </header>
 
