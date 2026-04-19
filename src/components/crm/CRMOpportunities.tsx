@@ -157,32 +157,46 @@ export const CRMOpportunities = ({ opportunities, customers, customerProductId, 
     }
   };
 
-  const handleDragStart = (opportunityId: string) => setDraggedItem(opportunityId);
-  const handleDragOver = (e: React.DragEvent, stage: string) => {
-    e.preventDefault();
-    setDragOverStage(stage);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
   };
-  const handleDragLeave = () => setDragOverStage(null);
 
-  const handleDrop = async (newStage: string) => {
-    setDragOverStage(null);
-    if (!draggedItem) return;
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const oppId = String(active.id);
+    const newStage = String(over.id);
+    const opp = normalizedOpps.find(o => o.id === oppId);
+    if (!opp || opp.stage === newStage) return;
+
+    // Optimistic toast
+    const stageInfo = stages.find(s => s.value === newStage);
+    toast({ title: `Movido para ${stageInfo?.label || newStage}` });
 
     try {
       const { error } = await (supabase
         .from('crm_opportunities' as any)
         .update({ stage: newStage })
-        .eq('id', draggedItem) as any);
+        .eq('id', oppId) as any);
 
       if (!error) {
-        toast({ title: "Oportunidade movida!" });
+        onRefresh();
+      } else {
+        toast({ title: "Erro ao mover oportunidade", variant: "destructive" });
         onRefresh();
       }
     } catch {
-      console.error('Error updating opportunity');
+      toast({ title: "Erro ao mover oportunidade", variant: "destructive" });
+      onRefresh();
     }
-    setDraggedItem(null);
   };
+
+  const activeOpp = useMemo(
+    () => activeId ? normalizedOpps.find(o => o.id === activeId) : null,
+    [activeId, normalizedOpps]
+  );
 
   const handleDelete = async (id: string) => {
     try {
