@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { CRMLeadCapturePanel } from './CRMLeadCapturePanel';
 
 interface CRMWhatsAppTabProps {
   customerProductId: string;
@@ -295,6 +296,9 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Captura automática de leads */}
+      <CRMLeadCapturePanel customerProductId={customerProductId} />
 
       <p className="text-[11px] text-muted-foreground text-center px-4">
         💡 Esta instância é <strong>separada</strong> do bot de automação. 

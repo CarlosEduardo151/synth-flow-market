@@ -6,6 +6,211 @@ import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rat
 import { batchValidate, sanitizeString, validateStringLength, validateUUID } from "../_shared/validation.ts";
 
 /**
+ * Verifica se o horário atual (no fuso configurado) está dentro do expediente
+ * e do dia da semana ativo definido em crm_capture_settings.
+ */
+function isWithinBusinessHours(settings: {
+  business_hours_start: string;
+  business_hours_end: string;
+  active_weekdays: number[];
+  timezone: string;
+}): boolean {
+  try {
+    const now = new Date();
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: settings.timezone || "America/Sao_Paulo",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      weekday: "short",
+    });
+    const parts = fmt.formatToParts(now);
+    const hour = parseInt(parts.find((p) => p.type === "hour")?.value || "0", 10);
+    const minute = parseInt(parts.find((p) => p.type === "minute")?.value || "0", 10);
+    const wd = parts.find((p) => p.type === "weekday")?.value || "";
+    const wdMap: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    const today = wdMap[wd] ?? new Date().getDay();
+
+    if (!settings.active_weekdays.includes(today)) return false;
+
+    const [sh, sm] = settings.business_hours_start.split(":").map((n) => parseInt(n, 10));
+    const [eh, em] = settings.business_hours_end.split(":").map((n) => parseInt(n, 10));
+    const cur = hour * 60 + minute;
+    const start = sh * 60 + (sm || 0);
+    const end = eh * 60 + (em || 0);
+    return cur >= start && cur <= end;
+  } catch (e) {
+    console.error("[capture] business-hours check failed:", e);
+    return true; // fail-open
+  }
+}
+
+/**
+ * Usa Lovable AI para extrair nome / empresa / interesse a partir
+ * da primeira mensagem + nome do perfil WhatsApp.
+ */
+async function enrichLeadWithAI(
+  senderName: string,
+  phone: string,
+  message: string,
+): Promise<{ name?: string; company?: string; business_type?: string; notes?: string }> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) return {};
+
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content:
+              "Você extrai dados de contato a partir de mensagens recebidas no WhatsApp de empresas. Responda apenas via tool calling.",
+          },
+          {
+            role: "user",
+            content: `Nome do perfil WhatsApp: "${senderName}"\nTelefone: "${phone}"\nPrimeira mensagem recebida: """${message.slice(0, 500)}"""\n\nExtraia o que conseguir identificar.`,
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "extract_lead",
+              description: "Retorna informações estruturadas do lead.",
+              parameters: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "Nome real do contato (preferir o nome do perfil se realista)" },
+                  company: { type: "string", description: "Empresa mencionada, se houver" },
+                  business_type: { type: "string", description: "Segmento/tipo de negócio inferido" },
+                  interest: { type: "string", description: "Resumo curto do que o lead procura (1 frase)" },
+                },
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+        tool_choice: { type: "function", function: { name: "extract_lead" } },
+      }),
+    });
+
+    if (!resp.ok) {
+      console.warn("[capture] AI enrichment failed:", resp.status);
+      return {};
+    }
+    const data = await resp.json();
+    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) return {};
+    const parsed = JSON.parse(args);
+    return {
+      name: parsed.name?.trim() || undefined,
+      company: parsed.company?.trim() || undefined,
+      business_type: parsed.business_type?.trim() || undefined,
+      notes: parsed.interest?.trim() ? `Interesse: ${parsed.interest.trim()}` : undefined,
+    };
+  } catch (e) {
+    console.error("[capture] AI enrichment error:", e);
+    return {};
+  }
+}
+
+/**
+ * Captura automática: cria/atualiza lead em crm_customers respeitando
+ * horário comercial e configurações do produto.
+ */
+async function captureLeadIfNeeded(
+  service: any,
+  customerProductId: string,
+  phone: string,
+  senderName: string,
+  message: string,
+): Promise<void> {
+  if (!phone) return;
+
+  // Carrega config (cria default se não existir)
+  let { data: settings } = await service
+    .from("crm_capture_settings")
+    .select("*")
+    .eq("customer_product_id", customerProductId)
+    .maybeSingle();
+
+  if (!settings) {
+    const { data: created } = await service
+      .from("crm_capture_settings")
+      .insert({ customer_product_id: customerProductId })
+      .select("*")
+      .maybeSingle();
+    settings = created;
+    if (!settings) return;
+  }
+
+  if (!settings.is_enabled) {
+    console.log("[capture] disabled for product", customerProductId);
+    return;
+  }
+
+  const within = isWithinBusinessHours(settings);
+  if (!within && settings.ignore_outside_hours) {
+    console.log("[capture] outside business hours, skipping");
+    return;
+  }
+
+  // Já existe?
+  const { data: existing } = await service
+    .from("crm_customers")
+    .select("id")
+    .eq("customer_product_id", customerProductId)
+    .eq("phone", phone)
+    .maybeSingle();
+
+  if (existing?.id) {
+    // Atualiza last_contact_date apenas
+    await service
+      .from("crm_customers")
+      .update({ last_contact_date: new Date().toISOString() })
+      .eq("id", existing.id);
+    console.log("[capture] existing lead updated:", existing.id);
+    return;
+  }
+
+  // Enriquecer (opcional)
+  let enriched: { name?: string; company?: string; business_type?: string; notes?: string } = {};
+  if (settings.ai_enrichment_enabled) {
+    enriched = await enrichLeadWithAI(senderName, phone, message);
+  }
+
+  const finalName = enriched.name || senderName || phone;
+
+  const { data: inserted, error: insErr } = await service
+    .from("crm_customers")
+    .insert({
+      customer_product_id: customerProductId,
+      name: finalName,
+      phone,
+      company: enriched.company || null,
+      business_type: enriched.business_type || null,
+      notes: enriched.notes || `Capturado automaticamente do WhatsApp em ${new Date().toLocaleString("pt-BR")}`,
+      status: settings.default_status || "lead",
+      source: settings.default_source || "whatsapp",
+      last_contact_date: new Date().toISOString(),
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (insErr) {
+    console.error("[capture] insert error:", insErr.message);
+    return;
+  }
+  console.log("[capture] new lead created:", inserted?.id, finalName);
+}
+
+/**
  * Fetch media as base64 from Evolution API using the message key ID.
  * This is the reliable fallback when webhookBase64 doesn't deliver inline data.
  */
@@ -316,6 +521,13 @@ serve(async (req) => {
 
       if (logErr) {
         console.error("[ingest][CRM] log insert error:", logErr.message);
+      }
+
+      // ── Captura automática de lead ──
+      try {
+        await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
+      } catch (e) {
+        console.error("[ingest][CRM] capture error:", e);
       }
 
       return corsResponse({ ok: true, crm: true }, 200, origin);

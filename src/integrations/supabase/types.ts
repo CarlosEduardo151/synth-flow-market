@@ -697,6 +697,54 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_capture_settings: {
+        Row: {
+          active_weekdays: number[]
+          ai_enrichment_enabled: boolean
+          business_hours_end: string
+          business_hours_start: string
+          created_at: string
+          customer_product_id: string
+          default_source: string
+          default_status: string
+          id: string
+          ignore_outside_hours: boolean
+          is_enabled: boolean
+          timezone: string
+          updated_at: string
+        }
+        Insert: {
+          active_weekdays?: number[]
+          ai_enrichment_enabled?: boolean
+          business_hours_end?: string
+          business_hours_start?: string
+          created_at?: string
+          customer_product_id: string
+          default_source?: string
+          default_status?: string
+          id?: string
+          ignore_outside_hours?: boolean
+          is_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Update: {
+          active_weekdays?: number[]
+          ai_enrichment_enabled?: boolean
+          business_hours_end?: string
+          business_hours_start?: string
+          created_at?: string
+          customer_product_id?: string
+          default_source?: string
+          default_status?: string
+          id?: string
+          ignore_outside_hours?: boolean
+          is_enabled?: boolean
+          timezone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_client_memories: {
         Row: {
           client_name: string
