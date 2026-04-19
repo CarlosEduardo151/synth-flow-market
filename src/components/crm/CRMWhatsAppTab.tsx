@@ -341,37 +341,64 @@ export function CRMWhatsAppTab({ customerProductId }: CRMWhatsAppTabProps) {
         </>
       )}
 
-      {/* Not connected - Activate */}
+      {/* Not connected - Activate or Reconnect */}
       {!isConnected && !qrCode && (
         <Card className="border-primary/20 max-w-xl mx-auto">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Zap className="h-4 w-4 text-primary" />
-              Ativar WhatsApp CRM
+              {instanceName ? 'Reconectar WhatsApp CRM' : 'Ativar WhatsApp CRM'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Conecte um número WhatsApp exclusivo para o CRM. A IA irá analisar as conversas e 
-              cadastrar automaticamente os clientes em potencial.
-            </p>
-            <ol className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
-                <span>Clique em <strong>"Ativar WhatsApp CRM"</strong></span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
-                <span>Escaneie o <strong>QR Code</strong> com o WhatsApp da empresa</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
-                <span><strong>Pronto!</strong> Leads serão capturados automaticamente</span>
-              </li>
-            </ol>
-            <Button onClick={handleActivate} disabled={creating} className="w-full gap-2" size="lg">
-              {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando...</> : <><Smartphone className="h-4 w-4" />Ativar WhatsApp CRM</>}
-            </Button>
+            {instanceName ? (
+              <>
+                <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
+                  <p className="text-sm text-orange-700 dark:text-orange-400 flex items-start gap-2">
+                    <WifiOff className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Instância existe mas está desconectada.</strong> Pode ter caído porque o celular ficou sem internet,
+                      foi desligado ou a sessão expirou. Clique em <strong>Reconectar</strong> para gerar um novo QR Code.
+                    </span>
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Instância: <code className="bg-muted px-1.5 py-0.5 rounded">{instanceName}</code>
+                </p>
+                <div className="flex gap-2">
+                  <Button onClick={handleReconnect} disabled={reconnecting} className="flex-1 gap-2" size="lg">
+                    {reconnecting ? <><Loader2 className="h-4 w-4 animate-spin" />Reconectando...</> : <><RefreshCw className="h-4 w-4" />Reconectar agora</>}
+                  </Button>
+                  <Button onClick={handleCheckStatus} variant="outline" size="lg" disabled={checking}>
+                    {checking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wifi className="h-4 w-4" />}
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Conecte um número WhatsApp exclusivo para o CRM. A IA irá analisar as conversas e
+                  cadastrar automaticamente os clientes em potencial.
+                </p>
+                <ol className="space-y-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
+                    <span>Clique em <strong>"Ativar WhatsApp CRM"</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
+                    <span>Escaneie o <strong>QR Code</strong> com o WhatsApp da empresa</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
+                    <span><strong>Pronto!</strong> Leads serão capturados automaticamente</span>
+                  </li>
+                </ol>
+                <Button onClick={handleActivate} disabled={creating} className="w-full gap-2" size="lg">
+                  {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando...</> : <><Smartphone className="h-4 w-4" />Ativar WhatsApp CRM</>}
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
