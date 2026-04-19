@@ -208,6 +208,46 @@ export function SalesTriggerEvents({ customerProductId }: Props) {
     await (supabase as any).from('sa_trigger_events').update({ status }).eq('id', id);
   };
 
+  const saveIcp = async () => {
+    if (!icp.trim()) { toast({ title: 'Descreva o cliente ideal', variant: 'destructive' }); return; }
+    setIcpSaving(true);
+    const { data: cfg } = await (supabase as any).from('sa_config')
+      .select('id').eq('customer_product_id', customerProductId).maybeSingle();
+    const { error } = await (supabase as any).from('sa_config').upsert({
+      ...(cfg?.id ? { id: cfg.id } : {}),
+      customer_product_id: customerProductId,
+      icp_description: icp.trim(),
+    }, { onConflict: 'customer_product_id' });
+    setIcpSaving(false);
+    if (error) toast({ title: 'Erro ao salvar', description: error.message, variant: 'destructive' });
+    else toast({ title: '✅ ICP salvo', description: 'A IA usará isso pra pontuar prospects.' });
+  };
+
+  const runScan = async () => {
+    if (!icp.trim()) { toast({ title: 'Defina o ICP primeiro', description: 'Descreva seu cliente ideal e salve.', variant: 'destructive' }); return; }
+    const sources = Object.entries(scanSources).filter(([, v]) => v).map(([k]) => k);
+    if (sources.length === 0) { toast({ title: 'Selecione pelo menos uma fonte', variant: 'destructive' }); return; }
+    setScanning(true);
+    setScanResult(null);
+    try {
+      const { data, error } = await (supabase as any).functions.invoke('sa-prospect-scan', {
+        body: { customer_product_id: customerProductId, sources, max_results: 15 },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.message || 'Falha no scan');
+      setScanResult(data);
+      toast({
+        title: `🎯 ${data.total_scored} prospects encontrados`,
+        description: `${data.total_hot} leads quentes (score ≥75) viraram trigger events.`,
+      });
+      await load();
+    } catch (e: any) {
+      toast({ title: 'Falha na busca', description: e.message, variant: 'destructive' });
+    } finally {
+      setScanning(false);
+    }
+  };
+
   const filtered = useMemo(() => {
     if (filter === 'all') return events;
     if (filter === 'hot') return events.filter(e => (e.relevance_score || 0) >= 75);
