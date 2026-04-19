@@ -32,6 +32,10 @@ import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
 import { CRMNotificationBell } from '@/components/crm/CRMNotificationBell';
 import { CRMMessageTemplates } from '@/components/crm/CRMMessageTemplates';
+import { CRMImportLeadsDialog } from '@/components/crm/CRMImportLeadsDialog';
+import { CRMWebhookDocs } from '@/components/crm/CRMWebhookDocs';
+import { CRMAutomationConfig } from '@/components/crm/CRMAutomationConfig';
+import { CRMCustomerTimeline } from '@/components/crm/CRMCustomerTimeline';
 import { CRMLeadsProvider, useCRMLeads } from '@/contexts/CRMLeadsContext';
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
@@ -85,6 +89,7 @@ const CRMSystem = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [salesGroupOpen, setSalesGroupOpen] = useState(true);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const { stats: leadsStats } = useCRMLeads();
 
   type SidebarItem = { value: string; label: string; icon: ComponentType<{ className?: string }> };
@@ -124,6 +129,8 @@ const CRMSystem = () => {
           { value: 'memoria', label: 'Agente de IA', icon: Brain },
           { value: 'motor-ia', label: 'Motor IA', icon: Settings },
           { value: 'integracao', label: 'Integração', icon: Link },
+          { value: 'webhooks', label: 'Webhooks', icon: Radio },
+          { value: 'automacao', label: 'Automação', icon: Bot },
           { value: 'ai-reports', label: 'Relatórios', icon: FileText },
         ],
       },
@@ -571,6 +578,12 @@ const CRMSystem = () => {
             </TabsContent>
 
             <TabsContent value="clientes" className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Importar CSV
+                </Button>
+              </div>
               <CRMClientsTable
                 customers={customers}
                 onRowClick={(customer) => {
@@ -662,9 +675,26 @@ const CRMSystem = () => {
               <CRMAIReports customerProductId={customerProductId} />
             </TabsContent>
 
+            <TabsContent value="webhooks" className="space-y-4">
+              {customerProductId && <CRMWebhookDocs customerProductId={customerProductId} />}
+            </TabsContent>
+
+            <TabsContent value="automacao" className="space-y-4">
+              {customerProductId && <CRMAutomationConfig customerProductId={customerProductId} />}
+            </TabsContent>
+
           </Tabs>
         </main>
       </div>
+
+      {customerProductId && (
+        <CRMImportLeadsDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          customerProductId={customerProductId}
+          onImported={refreshData}
+        />
+      )}
 
       {/* Dialog para adicionar/editar cliente */}
       <Dialog open={isAddingCustomer} onOpenChange={(open) => {
