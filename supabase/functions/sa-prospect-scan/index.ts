@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")!;
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 const FEEDS: Record<string, { name: string; url: string; category: string }[]> = {
   news_br: [
@@ -150,23 +150,23 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
       items.map((it, i) => `[${i}] (${it.source}) ${it.title}${it.description ? " — " + it.description.slice(0, 200) : ""}`).join("\n")
     }`;
 
-    const groqRes = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${GROQ_API_KEY}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "google/gemini-3-flash-preview",
         messages: [{ role: "system", content: sys }, { role: "user", content: usr }],
-        temperature: 0.2,
-        max_tokens: 4000,
         response_format: { type: "json_object" },
       }),
     });
 
-    if (!groqRes.ok) {
-      const t = await groqRes.text();
-      throw new Error(`Groq falhou: ${groqRes.status} ${t.slice(0, 200)}`);
+    if (!aiRes.ok) {
+      const t = await aiRes.text();
+      if (aiRes.status === 429) throw new Error("Limite de requisições atingido. Tente novamente em alguns minutos.");
+      if (aiRes.status === 402) throw new Error("Créditos esgotados. Adicione créditos no workspace Lovable.");
+      throw new Error(`IA falhou: ${aiRes.status} ${t.slice(0, 200)}`);
     }
-    const groqJson = await groqRes.json();
+    const groqJson = await aiRes.json();
     const content = groqJson.choices?.[0]?.message?.content || "{}";
     let parsed: any = {};
     try { parsed = JSON.parse(content); } catch { parsed = { prospects: [] }; }
