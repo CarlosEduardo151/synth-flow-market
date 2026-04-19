@@ -618,13 +618,6 @@ export function SalesLeads({ customerProductId }: Props) {
             {qualifying ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Qualificar IA
           </Button>
-          <Button
-            size="sm" onClick={() => setScanOpen(true)} disabled={scanning}
-            className="bg-gradient-to-r from-primary to-primary/80"
-          >
-            {scanning ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Radio className="h-4 w-4 mr-2" />}
-            Buscar prospects na web
-          </Button>
           <Button size="sm" variant="default" onClick={() => setNewLeadOpen(true)}>
             <Plus className="h-4 w-4 mr-2" />Novo lead
           </Button>
