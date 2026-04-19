@@ -191,57 +191,95 @@ function isPhoneRateLimited(phone: string): boolean {
   return false;
 }
 
-// ========== AI-based handoff intent detector ==========
-// Uses Lovable AI (cheap/fast model) to decide if the user is asking for a human agent.
-async function detectHandoffIntent(userText: string): Promise<boolean> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) {
-    console.warn("[bot-engine] handoff: no LOVABLE_API_KEY, skipping AI intent");
+// ========== Handoff intent detector ==========
+// Strategy: fast regex on common Portuguese/English/Spanish phrases (deterministic),
+// then optional GROQ-based AI fallback for ambiguous cases.
+
+const HANDOFF_KEYWORDS = [
+  // Portuguese — explicit human request
+  /\b(falar|conversar|atendimento|atende?r?)\s+(com\s+)?(um\s+|uma\s+)?(atendente|humano|pessoa|gente|operador|consultor|vendedor|gerente|funcion[aá]rio|alguém|alguem)\b/i,
+  /\b(quero|preciso|gostaria|posso)\s+(de\s+)?(falar|conversar|um\s+atendente|atendimento\s+humano)/i,
+  /\batendente\s+(humano|real|de\s+verdade)\b/i,
+  /\b(transfer[ie]r?|me\s+passa|me\s+passe|chama)\s+(para|pra)\s+(um\s+)?(atendente|humano|pessoa|gerente)/i,
+  /\b(humano|pessoa\s+real|gente\s+de\s+verdade)\b/i,
+  // English
+  /\b(talk|speak|chat)\s+(to|with)\s+(a\s+)?(human|person|agent|representative|someone)/i,
+  /\b(human|live)\s+(agent|support|representative)\b/i,
+  // Spanish
+  /\bhablar\s+con\s+(un\s+)?(humano|persona|agente|asesor)/i,
+  // Strong frustration / escalation signals
+  /\b(p[eé]ssim[oa]|horr[ií]vel|inaceit[aá]vel|absurdo|reclama(r|ção|cao))\b/i,
+  /\b(cancelar?|reembolso|devolu[çc][aã]o|processo)\b/i,
+];
+
+function quickHandoffMatch(text: string): { matched: boolean; reason: string } {
+  const clean = (text || "").toLowerCase().trim();
+  if (!clean) return { matched: false, reason: "empty" };
+  for (const re of HANDOFF_KEYWORDS) {
+    if (re.test(clean)) {
+      return { matched: true, reason: `regex:${re.source.slice(0, 40)}` };
+    }
+  }
+  return { matched: false, reason: "no_regex_match" };
+}
+
+async function detectHandoffIntentAI(userText: string): Promise<boolean> {
+  // Use GROQ (already used by main engine, faster + cheaper than Lovable Gateway here)
+  const groqKey = Deno.env.get("GROQ_API_KEY");
+  if (!groqKey) {
+    console.warn("[bot-engine] handoff AI: no GROQ_API_KEY");
     return false;
   }
   try {
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${groqKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-lite",
+        model: "llama-3.1-8b-instant",
+        temperature: 0,
+        max_tokens: 10,
         messages: [
           {
             role: "system",
-            content: `Você é um classificador. Analise a mensagem do cliente e decida se ele está EXPLICITAMENTE pedindo para falar com um atendente humano, ou se está em uma situação clara onde o bot NÃO consegue resolver (reclamação séria, problema urgente que precisa de pessoa, frustração explícita com o bot, pedido de cancelamento/reembolso complexo, situação delicada).\n\nResponda APENAS chamando a função 'classify' com handoff=true ou handoff=false.\n\nExemplos handoff=true: "quero falar com um atendente", "me passa pra alguém", "isso não resolve, preciso de uma pessoa", "vocês são péssimos quero reclamar", "preciso de ajuda urgente, fala humano".\nExemplos handoff=false: "qual o preço?", "quero comprar", "não entendi", "me explica melhor", "obrigado", "bom dia".`,
+            content: `Você classifica mensagens de WhatsApp. Decida se o cliente quer falar com um ATENDENTE HUMANO (não com bot/IA), está fazendo reclamação séria, está frustrado, ou em situação delicada que exige pessoa real.
+
+Responda APENAS com uma palavra: "SIM" ou "NAO".
+
+Exemplos SIM: "quero falar com atendente", "me passa pra alguém", "isso não resolve, preciso de uma pessoa", "vocês são péssimos", "preciso falar com humano", "atendente humano", "talk to a human".
+Exemplos NAO: "qual o preço?", "quero comprar", "obrigado", "bom dia", "me explica", "não entendi".`,
           },
           { role: "user", content: userText.slice(0, 500) },
         ],
-        tools: [{
-          type: "function",
-          function: {
-            name: "classify",
-            description: "Classifica se deve transferir para humano",
-            parameters: {
-              type: "object",
-              properties: { handoff: { type: "boolean" }, reason: { type: "string" } },
-              required: ["handoff"],
-              additionalProperties: false,
-            },
-          },
-        }],
-        tool_choice: { type: "function", function: { name: "classify" } },
       }),
     });
     if (!resp.ok) {
-      console.warn("[bot-engine] handoff classifier HTTP", resp.status);
+      console.warn("[bot-engine] handoff AI HTTP", resp.status, await resp.text().catch(() => ""));
       return false;
     }
     const data = await resp.json();
-    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
-    if (!args) return false;
-    const parsed = typeof args === "string" ? JSON.parse(args) : args;
-    console.log("[bot-engine] handoff classifier:", parsed);
-    return parsed?.handoff === true;
+    const answer = (data?.choices?.[0]?.message?.content || "").toString().trim().toUpperCase();
+    console.log("[bot-engine] handoff AI answer:", answer);
+    return answer.startsWith("SIM");
   } catch (e) {
-    console.warn("[bot-engine] handoff classifier error:", (e as Error).message);
+    console.warn("[bot-engine] handoff AI error:", (e as Error).message);
     return false;
   }
+}
+
+async function detectHandoffIntent(userText: string): Promise<{ triggered: boolean; reason: string }> {
+  // 1. Fast regex match (deterministic, zero-latency)
+  const quick = quickHandoffMatch(userText);
+  if (quick.matched) {
+    console.log("[bot-engine] handoff REGEX matched:", quick.reason);
+    return { triggered: true, reason: quick.reason };
+  }
+  // 2. AI fallback for ambiguous phrases
+  const aiTriggered = await detectHandoffIntentAI(userText);
+  if (aiTriggered) {
+    console.log("[bot-engine] handoff AI matched");
+    return { triggered: true, reason: "ai_classifier" };
+  }
+  return { triggered: false, reason: "no_signal" };
 }
 
 // ========== Metrics logger ==========
