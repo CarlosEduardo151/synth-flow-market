@@ -332,8 +332,13 @@ serve(async (req) => {
       };
     });
 
-    // Apenas clientes em risco (health < 60)
-    const atRisk = analyzed.filter((a) => a.health_score < 60);
+    // Considera em risco quem tem health < 70 OU sinais relevantes
+    const atRisk = analyzed.filter((a) =>
+      a.health_score < 70 ||
+      a.signals.length >= 2 ||
+      a.silent_negative ||
+      a.churn_keywords.length > 0
+    );
 
     // ========== IA enriquece com resumo executivo + ação ==========
     let aiInsights: any[] = [];
@@ -432,6 +437,18 @@ serve(async (req) => {
         alerts_created: created,
         alerts_updated: updated,
         ai_enriched: aiInsights.length,
+        clients: analyzed.map((a) => ({
+          id: a.id,
+          name: a.name,
+          company: a.company,
+          health_score: a.health_score,
+          churn_probability: a.churn_probability,
+          risk_level: a.risk_level,
+          sentiment_label: a.sentiment_label,
+          days_since_contact: a.days_since_contact,
+          messages_analyzed: a.messages_analyzed,
+          signals: a.signals,
+        })),
       },
       200,
       origin,
