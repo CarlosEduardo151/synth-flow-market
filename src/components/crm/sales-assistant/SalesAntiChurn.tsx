@@ -129,6 +129,7 @@ export function SalesAntiChurn({ customerProductId }: Props) {
       const updated = data?.alerts_updated || 0;
       const scanned = data?.scanned || 0;
       const atRisk = data?.at_risk || 0;
+      setMonitored(Array.isArray(data?.clients) ? data.clients : []);
       toast({
         title: 'Análise preditiva concluída',
         description: `${scanned} clientes analisados · ${atRisk} em risco · ${created} novos · ${updated} atualizados`,
