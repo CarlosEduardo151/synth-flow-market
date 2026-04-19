@@ -36,6 +36,7 @@ import { SalesScheduling } from '@/components/crm/sales-assistant/SalesSchedulin
 import { SalesCopilot } from '@/components/crm/sales-assistant/SalesCopilot';
 import { SalesRolePlay } from '@/components/crm/sales-assistant/SalesRolePlay';
 import { SalesTriggerEvents } from '@/components/crm/sales-assistant/SalesTriggerEvents';
+import { SalesLeads } from '@/components/crm/sales-assistant/SalesLeads';
 import { SalesAntiChurn } from '@/components/crm/sales-assistant/SalesAntiChurn';
 import { SalesWinback } from '@/components/crm/sales-assistant/SalesWinback';
 import { SalesHealthScore } from '@/components/crm/sales-assistant/SalesHealthScore';
