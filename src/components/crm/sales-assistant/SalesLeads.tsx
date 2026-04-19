@@ -158,7 +158,6 @@ export function SalesLeads({ customerProductId }: Props) {
   const [aiMap, setAiMap] = useState<Map<string, ProspectAI>>(new Map());
 
   // Tabs / filters
-  const [mainTab, setMainTab] = useState<'internos' | 'web'>('internos');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'score' | 'recent' | 'name'>('score');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
