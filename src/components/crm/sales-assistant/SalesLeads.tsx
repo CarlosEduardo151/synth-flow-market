@@ -176,9 +176,12 @@ export function SalesLeads({ customerProductId }: Props) {
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [qualifying, setQualifying] = useState(false);
+  const [qualifyingOne, setQualifyingOne] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [icpSaving, setIcpSaving] = useState(false);
   const [convertingId, setConvertingId] = useState<string | null>(null);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   // Form state
   const [form, setForm] = useState({
