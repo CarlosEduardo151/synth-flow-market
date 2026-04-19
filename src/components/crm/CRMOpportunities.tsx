@@ -13,7 +13,7 @@ import {
   Plus, DollarSign, Calendar, TrendingUp, TrendingDown, Target,
   Clock, User, MoreHorizontal, Eye, Pencil, Trash2, Trophy,
   AlertTriangle, ArrowRight, Percent, Flame, BarChart3,
-  PhoneCall, Handshake
+  PhoneCall, Handshake, GripVertical
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor,
+  useSensor, useSensors, useDraggable, useDroppable, closestCorners,
+  KeyboardSensor,
+} from '@dnd-kit/core';
 
 interface Opportunity {
   id: string;
