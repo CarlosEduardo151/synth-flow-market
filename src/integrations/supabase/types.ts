@@ -4364,51 +4364,96 @@ export type Database = {
       }
       sa_winback_campaigns: {
         Row: {
+          ai_analysis: Json | null
           campaign_name: string
           channel: string | null
+          company: string | null
           created_at: string
           current_step: number
+          customer_id: string | null
           customer_product_id: string
+          days_since_lost: number | null
           id: string
+          lead_email: string | null
+          lead_name: string | null
+          lead_phone: string | null
+          lost_reason: string | null
           message_sequence: Json
+          monthly_value: number | null
           next_send_at: string | null
+          opportunity_id: string | null
           prospect_id: string | null
           recovered: boolean
           recovered_at: string | null
+          scheduled_for: string | null
+          sent_at: string | null
           status: string
+          success_probability: number | null
+          suggested_message: string | null
           trigger_psychology: string[] | null
+          trigger_type: string | null
           updated_at: string
         }
         Insert: {
+          ai_analysis?: Json | null
           campaign_name: string
           channel?: string | null
+          company?: string | null
           created_at?: string
           current_step?: number
+          customer_id?: string | null
           customer_product_id: string
+          days_since_lost?: number | null
           id?: string
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
+          lost_reason?: string | null
           message_sequence?: Json
+          monthly_value?: number | null
           next_send_at?: string | null
+          opportunity_id?: string | null
           prospect_id?: string | null
           recovered?: boolean
           recovered_at?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
           status?: string
+          success_probability?: number | null
+          suggested_message?: string | null
           trigger_psychology?: string[] | null
+          trigger_type?: string | null
           updated_at?: string
         }
         Update: {
+          ai_analysis?: Json | null
           campaign_name?: string
           channel?: string | null
+          company?: string | null
           created_at?: string
           current_step?: number
+          customer_id?: string | null
           customer_product_id?: string
+          days_since_lost?: number | null
           id?: string
+          lead_email?: string | null
+          lead_name?: string | null
+          lead_phone?: string | null
+          lost_reason?: string | null
           message_sequence?: Json
+          monthly_value?: number | null
           next_send_at?: string | null
+          opportunity_id?: string | null
           prospect_id?: string | null
           recovered?: boolean
           recovered_at?: string | null
+          scheduled_for?: string | null
+          sent_at?: string | null
           status?: string
+          success_probability?: number | null
+          suggested_message?: string | null
           trigger_psychology?: string[] | null
+          trigger_type?: string | null
           updated_at?: string
         }
         Relationships: [
