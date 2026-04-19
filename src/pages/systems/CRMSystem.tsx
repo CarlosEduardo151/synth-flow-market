@@ -30,6 +30,7 @@ import { CRMIntegration } from '@/components/crm/CRMIntegration';
 
 import { CRMMemoryTab } from '@/components/crm/CRMMemoryTab';
 import { CRMFollowUpTab } from '@/components/crm/CRMFollowUpTab';
+import { CRMLeadsProvider, useCRMLeads } from '@/contexts/CRMLeadsContext';
 import { SalesProspecting } from '@/components/crm/sales-assistant/SalesProspecting';
 import { SalesCadences } from '@/components/crm/sales-assistant/SalesCadences';
 import { SalesScheduling } from '@/components/crm/sales-assistant/SalesScheduling';
@@ -446,6 +447,10 @@ const CRMSystem = () => {
               {!isCollapsed && group.items.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.value;
+                const badgeCount =
+                  tab.value === 'sales-leads' ? leadsStats.new
+                  : tab.value === 'clientes' ? leadsStats.hot
+                  : 0;
                 return (
                   <button key={tab.value} onClick={() => { setActiveTab(tab.value); setSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors ${
@@ -455,6 +460,15 @@ const CRMSystem = () => {
                     }`}>
                     <Icon className="w-[18px] h-[18px] shrink-0" />
                     <span className="flex-1 text-left">{tab.label}</span>
+                    {badgeCount > 0 && (
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                        tab.value === 'clientes'
+                          ? 'bg-red-500/15 text-red-500'
+                          : 'bg-primary/15 text-primary'
+                      }`}>
+                        {badgeCount > 99 ? '99+' : badgeCount}
+                      </span>
+                    )}
                   </button>
                 );
               })}
