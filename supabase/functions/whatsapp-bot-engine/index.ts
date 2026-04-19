@@ -44,20 +44,134 @@ import {
  * - API keys nunca expostas ao cliente
  */
 
-// ========== Anti-flood: block "fromMe" phone for 5min ==========
+// ========== Anti-flood / anti-loop guards ==========
 const BLOCK_TTL_MS = 5 * 60 * 1000;
+const DEDUP_TTL_MS = 10 * 60 * 1000;
+const FINGERPRINT_TTL_MS = 8_000;
+const OUTBOUND_ECHO_TTL_MS = 45_000;
+
 const blockMap = new Map<string, number>();
+const dedupMap = new Map<string, number>();
+const fingerprintMap = new Map<string, number>();
+const recentOutboundMap = new Map<string, { expiresAt: number; fingerprint: string }>();
+
+function cleanupNumberMap(map: Map<string, number>) {
+  const now = Date.now();
+  for (const [k, v] of map) {
+    if (now > v) map.delete(k);
+  }
+}
+
+function cleanupOutboundMap() {
+  const now = Date.now();
+  for (const [k, v] of recentOutboundMap) {
+    if (now > v.expiresAt) recentOutboundMap.delete(k);
+  }
+}
 
 function isBlocked(phone: string): boolean {
   const exp = blockMap.get(phone);
   if (!exp) return false;
-  if (Date.now() > exp) { blockMap.delete(phone); return false; }
+  if (Date.now() > exp) {
+    blockMap.delete(phone);
+    return false;
+  }
   return true;
 }
-function setBlock(phone: string) { blockMap.set(phone, Date.now() + BLOCK_TTL_MS); }
-function cleanupBlockMap() {
-  const now = Date.now();
-  for (const [k, v] of blockMap) { if (now > v) blockMap.delete(k); }
+
+function setBlock(phone: string) {
+  blockMap.set(phone, Date.now() + BLOCK_TTL_MS);
+}
+
+function cleanupEphemeralMaps() {
+  cleanupNumberMap(blockMap);
+  cleanupNumberMap(dedupMap);
+  cleanupNumberMap(fingerprintMap);
+  cleanupOutboundMap();
+}
+
+function rememberDedup(key: string, ttlMs = DEDUP_TTL_MS) {
+  if (!key) return;
+  dedupMap.set(key, Date.now() + ttlMs);
+}
+
+function hasRecentDedup(key: string): boolean {
+  const exp = dedupMap.get(key);
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    dedupMap.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function normalizeFingerprintText(text: string): string {
+  return sanitizeString(text || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 280);
+}
+
+function extractInboundPreview(body: any): string {
+  return sanitizeString(
+    body?.text?.message ||
+    body?.text ||
+    body?.image?.caption ||
+    body?.video?.caption ||
+    body?.document?.fileName ||
+    body?.location?.name ||
+    body?.contact?.displayName ||
+    "[media]"
+  );
+}
+
+function extractInboundFingerprint(phone: string, body: any): string {
+  const kind = body?.text ? "text"
+    : body?.image ? "image"
+    : body?.audio ? "audio"
+    : body?.video ? "video"
+    : body?.document ? "document"
+    : body?.sticker ? "sticker"
+    : body?.location ? "location"
+    : body?.contact ? "contact"
+    : "unknown";
+
+  return `${phone}|${kind}|${normalizeFingerprintText(extractInboundPreview(body))}`;
+}
+
+function rememberFingerprint(key: string) {
+  if (!key) return;
+  fingerprintMap.set(key, Date.now() + FINGERPRINT_TTL_MS);
+}
+
+function hasRecentFingerprint(key: string): boolean {
+  const exp = fingerprintMap.get(key);
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    fingerprintMap.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function rememberRecentOutbound(phone: string, text: string) {
+  const fingerprint = normalizeFingerprintText(text);
+  if (!phone || !fingerprint) return;
+  recentOutboundMap.set(phone, {
+    fingerprint,
+    expiresAt: Date.now() + OUTBOUND_ECHO_TTL_MS,
+  });
+}
+
+function isLikelyOutboundEcho(phone: string, incomingText: string): boolean {
+  const current = recentOutboundMap.get(phone);
+  if (!current) return false;
+  if (Date.now() > current.expiresAt) {
+    recentOutboundMap.delete(phone);
+    return false;
+  }
+  return current.fingerprint.length > 0 && current.fingerprint === normalizeFingerprintText(incomingText);
 }
 
 // ========== Per-phone rate limiter (max 10 messages per 60s) ==========
@@ -201,7 +315,9 @@ serve(async (req) => {
     if (cpErr) throw cpErr;
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
-    // Check if bot instance OR AI config is active — allow if either is active
+    // Check activation state.
+    // IMPORTANT: the motor must NEVER answer when ai_control_config.is_active = false,
+    // even if the WhatsApp instance is still connected.
     const { data: botInstances, error: botErr } = await service
       .from("bot_instances")
       .select("is_active")
@@ -221,15 +337,18 @@ serve(async (req) => {
       aiErr: aiErr?.message,
     }));
 
-    const hasBotActive = botInstances?.some((b: any) => b.is_active) ?? false;
+    const hasConnectedBot = (botInstances?.length ?? 0) === 0
+      ? true
+      : (botInstances?.some((b: any) => b.is_active) ?? false);
     const hasAiActive = aiActive?.is_active === true;
 
-    if (!hasBotActive && !hasAiActive) {
-      console.log("[bot-engine] skipped: bot and ai config inactive", cp.id, "bot:", hasBotActive, "ai:", hasAiActive);
-      return corsResponse({ ok: true, skipped: "bot_instance_inactive" }, 200, origin);
+    if (!hasAiActive || !hasConnectedBot) {
+      const reason = !hasAiActive ? "ai_inactive" : "bot_instance_inactive";
+      console.log("[bot-engine] skipped: inactive", cp.id, "bot:", hasConnectedBot, "ai:", hasAiActive, "reason:", reason);
+      return corsResponse({ ok: true, skipped: reason }, 200, origin);
     }
 
-    console.log("[bot-engine] active check passed", cp.id, "bot:", hasBotActive, "ai:", hasAiActive);
+    console.log("[bot-engine] active check passed", cp.id, "bot:", hasConnectedBot, "ai:", hasAiActive);
 
     // Parse body (max 500KB)
     const bodyText = await req.text();
@@ -250,11 +369,33 @@ serve(async (req) => {
     const phone = sanitizeString(body?.phone || body?.from || "");
     const fromMe = body?.fromMe === true;
     const messageId = sanitizeString(body?.messageId || "");
+    const inboundPreview = extractInboundPreview(body);
+    const messageDedupKey = messageId ? `${cp.id}:${messageId}` : "";
+    const fingerprintKey = `${cp.id}:${extractInboundFingerprint(phone, body)}`;
 
     if (!phone) return corsResponse({ ok: true, skipped: "no_phone" }, 200, origin);
 
+    // Cleanup + check anti-loop caches
+    cleanupEphemeralMaps();
+
+    if (messageDedupKey && hasRecentDedup(messageDedupKey)) {
+      console.log("[bot-engine] skipped duplicate messageId", messageDedupKey);
+      return corsResponse({ ok: true, skipped: "duplicate_message_id" }, 200, origin);
+    }
+
+    if (hasRecentFingerprint(fingerprintKey)) {
+      console.log("[bot-engine] skipped duplicate fingerprint", fingerprintKey);
+      return corsResponse({ ok: true, skipped: "duplicate_fingerprint" }, 200, origin);
+    }
+
+    if (!fromMe && inboundPreview && isLikelyOutboundEcho(phone, inboundPreview)) {
+      console.log("[bot-engine] skipped likely outbound echo for", phone);
+      return corsResponse({ ok: true, skipped: "likely_outbound_echo" }, 200, origin);
+    }
+
     // Block fromMe messages (prevent echo loops) but update handoff timer
     if (fromMe) {
+      if (messageDedupKey) rememberDedup(messageDedupKey);
       // When the human agent (business) sends a message, extend the handoff timer
       await service.from("bot_handoff_sessions")
         .update({ last_activity_at: new Date().toISOString() })
@@ -266,8 +407,9 @@ serve(async (req) => {
       return corsResponse({ ok: true, skipped: "from_me" }, 200, origin);
     }
 
-    // Cleanup + check blocks
-    cleanupBlockMap();
+    if (messageDedupKey) rememberDedup(messageDedupKey);
+    rememberFingerprint(fingerprintKey);
+
     if (isBlocked(phone)) return corsResponse({ ok: true, skipped: "blocked" }, 200, origin);
 
     // Per-phone rate limit
@@ -316,6 +458,7 @@ serve(async (req) => {
             await evolutionSendPresence(evoCreds, toPhone, "paused");
 
             await evolutionSendText(evoCreds, toPhone, chunk);
+            rememberRecentOutbound(toPhone, chunk);
 
             if (i < chunks.length - 1) {
               await sleep(computeInterChunkDelayMs());
@@ -330,8 +473,10 @@ serve(async (req) => {
 
       if (evoCreds) {
         await evolutionSendText(evoCreds, toPhone, text);
+        rememberRecentOutbound(toPhone, text);
       } else if (zapiCreds) {
         await zapiSendText(zapiCreds, toPhone, text, msgId);
+        rememberRecentOutbound(toPhone, text);
       }
     };
 

@@ -217,7 +217,7 @@ const WhatsAppBotConfigSystem = () => {
         const defaultConfig = {
           customer_product_id: productId,
           user_id: user.id,
-          is_active: true,
+          is_active: false,
           provider: 'google',
           model: 'models/gemini-2.5-flash',
           temperature: 0.7,
@@ -233,7 +233,7 @@ const WhatsAppBotConfigSystem = () => {
           .select('*')
           .maybeSingle();
         configData = created;
-        toast({ title: "Motor criado!", description: "Seu motor IA foi ativado automaticamente." });
+        toast({ title: "Motor criado!", description: "Configuração criada sem ligar o motor automaticamente." });
       }
 
       // Respeitar o estado do motor — não forçar is_active = true
@@ -346,7 +346,6 @@ const WhatsAppBotConfigSystem = () => {
         },
         business_name: config.businessName,
         updated_at: new Date().toISOString(),
-        is_active: true,
       }, { onConflict: 'customer_product_id' });
 
       // Save API key (skip for novalink — uses admin keys)
