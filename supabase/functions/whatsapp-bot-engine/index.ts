@@ -951,7 +951,10 @@ Detecte o idioma automaticamente pela mensagem recebida. Nunca force um idioma e
     const generateAndSendAudio = async (text: string) => {
       if (!evoCreds) return false;
       const voiceConfig = aiConfig?.configuration?.voice_config;
-      const voiceId = voiceConfig?.enabled ? (voiceConfig.voiceId || "nova") : "nova";
+      const voiceEnabled = voiceConfig?.enabled === true;
+      const voiceId = voiceEnabled ? (voiceConfig.voiceId || "nova") : "nova";
+
+      if (!voiceEnabled) return false;
 
       const { data: openaiCred } = await service
         .from("product_credentials")
@@ -992,6 +995,7 @@ Detecte o idioma automaticamente pela mensagem recebida. Nunca force um idioma e
         const audioBase64 = btoa(binary);
         const base64WithMime = `data:audio/mpeg;base64,${audioBase64}`;
         await evolutionSendAudio(evoCreds, phone, base64WithMime);
+        rememberRecentOutbound(phone, text);
         console.log("[bot-engine] TTS audio sent to", phone);
         return true;
       } else {
