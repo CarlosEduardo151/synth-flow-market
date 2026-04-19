@@ -5,6 +5,32 @@ import { corsResponse, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rate-limit.ts";
 import { batchValidate, sanitizeString, validateStringLength, validateUUID } from "../_shared/validation.ts";
 
+// In-memory dedup to avoid forwarding the same webhook event multiple times.
+const INGEST_DEDUP_TTL_MS = 10 * 60 * 1000;
+const ingestDedupMap = new Map<string, number>();
+
+function cleanupIngestDedup() {
+  const now = Date.now();
+  for (const [k, v] of ingestDedupMap) {
+    if (now > v) ingestDedupMap.delete(k);
+  }
+}
+
+function hasRecentIngestDedup(key: string): boolean {
+  const exp = ingestDedupMap.get(key);
+  if (!exp) return false;
+  if (Date.now() > exp) {
+    ingestDedupMap.delete(key);
+    return false;
+  }
+  return true;
+}
+
+function rememberIngestDedup(key: string) {
+  if (!key) return;
+  ingestDedupMap.set(key, Date.now() + INGEST_DEDUP_TTL_MS);
+}
+
 /**
  * Verifica se o horário atual (no fuso configurado) está dentro do expediente
  * e do dia da semana ativo definido em crm_capture_settings.
@@ -450,6 +476,14 @@ serve(async (req) => {
     if (!normalized) {
       return corsResponse({ ok: true, skipped: "unprocessable_event" }, 200, origin);
     }
+
+    cleanupIngestDedup();
+    const ingestDedupKey = `${cp.id}:${normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${(normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120)}`}`;
+    if (hasRecentIngestDedup(ingestDedupKey)) {
+      console.log("[ingest] duplicate event skipped:", ingestDedupKey);
+      return corsResponse({ ok: true, skipped: "duplicate_event" }, 200, origin);
+    }
+    rememberIngestDedup(ingestDedupKey);
 
     // ── Enrich media with base64 from Evolution API when webhook didn't include it ──
     const instanceName = rawPayload?.instance || "";
