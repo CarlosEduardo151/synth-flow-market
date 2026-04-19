@@ -205,7 +205,7 @@ export function SalesLeads({ customerProductId }: Props) {
         .eq('customer_product_id', customerProductId)
         .order('created_at', { ascending: false }).limit(500),
       (supabase as any).from('sa_prospects')
-        .select('email,phone,ai_score,qualification,ai_analysis,tags')
+        .select('email,phone,ai_score,qualification,ai_analysis,tags,updated_at')
         .eq('customer_product_id', customerProductId).limit(500),
       (supabase as any).from('sa_config')
         .select('icp_description').eq('customer_product_id', customerProductId).maybeSingle(),
