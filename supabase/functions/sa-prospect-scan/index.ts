@@ -195,26 +195,36 @@ Inclua APENAS itens com score >=40. Máximo ${max_results} prospects, ordenados 
       items.map((it, i) => `[${i}] (${it.source}) ${it.title}${it.description ? " — " + it.description.slice(0, 200) : ""}`).join("\n")
     }`;
 
-    const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: sys }, { role: "user", content: usr }],
-        response_format: { type: "json_object" },
-      }),
-    });
+    // Resolve customer's configured AI engine (same as "Canais → Motor IA")
+    const engine = await resolveEngine(supabase, customer_product_id);
+    console.log(`[sa-prospect-scan] engine: provider=${engine.provider} model=${engine.model}`);
 
-    if (!aiRes.ok) {
-      const t = await aiRes.text();
-      if (aiRes.status === 429) throw new Error("Limite de requisições atingido. Tente novamente em alguns minutos.");
-      if (aiRes.status === 402) throw new Error("Créditos esgotados. Adicione créditos no workspace Lovable.");
-      throw new Error(`IA falhou: ${aiRes.status} ${t.slice(0, 200)}`);
+    let content = "{}";
+    try {
+      const aiResult = await processText(
+        engine.provider,
+        {
+          apiKey: engine.apiKey,
+          model: engine.model,
+          systemPrompt: sys,
+          temperature: engine.temperature,
+          maxTokens: engine.maxTokens,
+        },
+        usr,
+      );
+      content = aiResult.text || "{}";
+    } catch (err: any) {
+      const msg = String(err?.message || err);
+      if (msg.includes("429")) throw new Error("Limite de requisições do motor de IA atingido. Tente em alguns minutos.");
+      if (msg.includes("401") || msg.includes("403")) throw new Error("Chave do motor de IA inválida. Verifique em Canais → Motor IA.");
+      throw new Error(`Motor de IA falhou: ${msg.slice(0, 200)}`);
     }
-    const groqJson = await aiRes.json();
-    const content = groqJson.choices?.[0]?.message?.content || "{}";
+
+    // Strip code fences if present
+    const fenceMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenceMatch) content = fenceMatch[1];
     let parsed: any = {};
-    try { parsed = JSON.parse(content); } catch { parsed = { prospects: [] }; }
+    try { parsed = JSON.parse(content.trim()); } catch { parsed = { prospects: [] }; }
 
     const ranked: any[] = (parsed.prospects || []).slice(0, max_results);
     const enriched = ranked.map((p) => {
