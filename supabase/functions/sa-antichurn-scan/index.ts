@@ -332,8 +332,13 @@ serve(async (req) => {
       };
     });
 
-    // Apenas clientes em risco (health < 60)
-    const atRisk = analyzed.filter((a) => a.health_score < 60);
+    // Considera em risco quem tem health < 70 OU sinais relevantes
+    const atRisk = analyzed.filter((a) =>
+      a.health_score < 70 ||
+      a.signals.length >= 2 ||
+      a.silent_negative ||
+      a.churn_keywords.length > 0
+    );
 
     // ========== IA enriquece com resumo executivo + ação ==========
     let aiInsights: any[] = [];
