@@ -335,7 +335,6 @@ export function SalesLeads({ customerProductId }: Props) {
         description: `${data.total_hot || 0} leads quentes (score ≥75).`,
       });
       setScanOpen(false);
-      setMainTab('web');
       refreshWebLeads();
     } catch (e: any) {
       toast({ title: 'Falha na busca', description: e.message, variant: 'destructive' });
