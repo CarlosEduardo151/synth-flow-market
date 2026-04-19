@@ -1,4 +1,4 @@
-import { Brain, Eye, EyeOff, Zap, TrendingUp, Sparkles } from 'lucide-react';
+import { Brain, Eye, EyeOff, Zap, TrendingUp, Sparkles, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,8 @@ interface BotEngineTabProps {
   onModelChange: (model: string) => void;
   onTemperatureChange: (temp: number) => void;
   onMaxTokensChange: (tokens: number) => void;
+  onSave?: () => void;
+  saving?: boolean;
 }
 
 export function BotEngineTab({
@@ -81,11 +83,22 @@ export function BotEngineTab({
   onModelChange,
   onTemperatureChange,
   onMaxTokensChange,
+  onSave,
+  saving,
 }: BotEngineTabProps) {
   const [showApiKey, setShowApiKey] = useState(false);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-6">
+      {onSave && (
+        <div className="flex justify-end">
+          <Button onClick={onSave} disabled={saving} size="sm" className="rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </div>
+      )}
+      <div className="grid gap-6 lg:grid-cols-2">
       {/* Provider & Model */}
       <Card className="border-border/50">
         <CardHeader className="pb-4">
@@ -258,6 +271,7 @@ export function BotEngineTab({
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

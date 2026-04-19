@@ -1,4 +1,4 @@
-import { Bot, Brain, Shield, Plus, Trash2, Sparkles, Eye, MessageSquare } from 'lucide-react';
+import { Bot, Brain, Shield, Plus, Trash2, Sparkles, Eye, MessageSquare, Save, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -59,6 +59,8 @@ interface BotPersonalityTabProps {
   onAddInstruction: (instruction: string, type: 'do' | 'dont') => void;
   onRemoveInstruction: (id: string) => void;
   onVoiceConfigChange?: (config: AgentVoiceConfig) => void;
+  onSave?: () => void;
+  saving?: boolean;
 }
 
 export function BotPersonalityTab({
@@ -71,6 +73,8 @@ export function BotPersonalityTab({
   onAddInstruction,
   onRemoveInstruction,
   onVoiceConfigChange,
+  onSave,
+  saving,
 }: BotPersonalityTabProps) {
   const [newInstruction, setNewInstruction] = useState('');
   const [newType, setNewType] = useState<'do' | 'dont'>('do');
@@ -87,6 +91,14 @@ export function BotPersonalityTab({
 
   return (
     <div className="space-y-6">
+      {onSave && (
+        <div className="flex justify-end">
+          <Button onClick={onSave} disabled={saving} size="sm" className="rounded-xl">
+            {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {saving ? 'Salvando...' : 'Salvar alterações'}
+          </Button>
+        </div>
+      )}
       {/* Communication Tone */}
       <Card className="border-border/50">
         <CardHeader className="pb-4">
