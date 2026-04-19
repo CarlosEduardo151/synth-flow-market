@@ -601,8 +601,8 @@ const CRMSystem = () => {
               {customerProductId && <SalesLeads customerProductId={customerProductId} />}
             </TabsContent>
 
-            <TabsContent value="sales-prospecting" className="space-y-4">
-              {customerProductId && <SalesProspecting customerProductId={customerProductId} />}
+            <TabsContent value="sales-leads" className="space-y-4">
+              {customerProductId && <SalesLeads customerProductId={customerProductId} />}
             </TabsContent>
 
             <TabsContent value="sales-cadences" className="space-y-4">
