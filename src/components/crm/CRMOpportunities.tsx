@@ -13,7 +13,7 @@ import {
   Plus, DollarSign, Calendar, TrendingUp, TrendingDown, Target,
   Clock, User, MoreHorizontal, Eye, Pencil, Trash2, Trophy,
   AlertTriangle, ArrowRight, Percent, Flame, BarChart3,
-  PhoneCall, Handshake
+  PhoneCall, Handshake, GripVertical
 } from 'lucide-react';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -21,6 +21,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  DndContext, DragEndEvent, DragOverlay, DragStartEvent, PointerSensor,
+  useSensor, useSensors, useDraggable, useDroppable, closestCorners,
+  KeyboardSensor,
+} from '@dnd-kit/core';
 
 interface Opportunity {
   id: string;
@@ -81,11 +86,15 @@ const sources = [
 
 export const CRMOpportunities = ({ opportunities, customers, customerProductId, onRefresh }: CRMOpportunitiesProps) => {
   const [isAddingOpportunity, setIsAddingOpportunity] = useState(false);
-  const [draggedItem, setDraggedItem] = useState<string | null>(null);
-  const [dragOverStage, setDragOverStage] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [detailOpp, setDetailOpp] = useState<Opportunity | null>(null);
   const [filterPriority, setFilterPriority] = useState<string>('all');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
 
   // Normalize stages
   const normalizedOpps = useMemo(() =>
@@ -148,32 +157,46 @@ export const CRMOpportunities = ({ opportunities, customers, customerProductId, 
     }
   };
 
-  const handleDragStart = (opportunityId: string) => setDraggedItem(opportunityId);
-  const handleDragOver = (e: React.DragEvent, stage: string) => {
-    e.preventDefault();
-    setDragOverStage(stage);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(String(event.active.id));
   };
-  const handleDragLeave = () => setDragOverStage(null);
 
-  const handleDrop = async (newStage: string) => {
-    setDragOverStage(null);
-    if (!draggedItem) return;
+  const handleDragEnd = async (event: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const oppId = String(active.id);
+    const newStage = String(over.id);
+    const opp = normalizedOpps.find(o => o.id === oppId);
+    if (!opp || opp.stage === newStage) return;
+
+    // Optimistic toast
+    const stageInfo = stages.find(s => s.value === newStage);
+    toast({ title: `Movido para ${stageInfo?.label || newStage}` });
 
     try {
       const { error } = await (supabase
         .from('crm_opportunities' as any)
         .update({ stage: newStage })
-        .eq('id', draggedItem) as any);
+        .eq('id', oppId) as any);
 
       if (!error) {
-        toast({ title: "Oportunidade movida!" });
+        onRefresh();
+      } else {
+        toast({ title: "Erro ao mover oportunidade", variant: "destructive" });
         onRefresh();
       }
     } catch {
-      console.error('Error updating opportunity');
+      toast({ title: "Erro ao mover oportunidade", variant: "destructive" });
+      onRefresh();
     }
-    setDraggedItem(null);
   };
+
+  const activeOpp = useMemo(
+    () => activeId ? normalizedOpps.find(o => o.id === activeId) : null,
+    [activeId, normalizedOpps]
+  );
 
   const handleDelete = async (id: string) => {
     try {
@@ -414,142 +437,44 @@ export const CRMOpportunities = ({ opportunities, customers, customerProductId, 
 
       {/* Kanban View */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {stages.map(stage => {
-            const stageOpps = getOpportunitiesByStage(stage.value);
-            const totalValue = stageOpps.reduce((s, o) => s + Number(o.value || 0), 0);
-            const StageIcon = stage.icon;
-            const isDragOver = dragOverStage === stage.value;
-
-            return (
-              <div
-                key={stage.value}
-                onDragOver={(e) => handleDragOver(e, stage.value)}
-                onDragLeave={handleDragLeave}
-                onDrop={() => handleDrop(stage.value)}
-                className="min-w-0"
-              >
-                <div className={`rounded-xl border ${isDragOver ? stage.border + ' bg-gradient-to-b ' + stage.gradient : 'border-border'} transition-all duration-200`}>
-                  {/* Column Header */}
-                  <div className={`px-3 py-3 border-b bg-gradient-to-r ${stage.gradient} rounded-t-xl`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${stage.dot}`} />
-                        <span className="text-sm font-semibold">{stage.label}</span>
-                        <Badge variant="secondary" className="h-5 px-1.5 text-[10px] font-bold">
-                          {stageOpps.length}
-                        </Badge>
-                      </div>
-                      <StageIcon className={`h-4 w-4 ${stage.text} opacity-60`} />
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium">
-                      {formatCurrency(totalValue)}
-                    </p>
-                  </div>
-
-                  {/* Cards */}
-                  <div className="p-2 space-y-2 min-h-[120px] max-h-[500px] overflow-y-auto">
-                    {stageOpps.map(opp => {
-                      const days = getDaysInStage(opp.created_at);
-                      const overdue = isOverdue(opp.expected_close_date);
-                      const priorityInfo = getPriorityInfo(opp.priority || 'media');
-
-                      return (
-                        <Card
-                          key={opp.id}
-                          draggable
-                          onDragStart={() => handleDragStart(opp.id)}
-                          className={`cursor-grab active:cursor-grabbing hover:shadow-md transition-all duration-150 border ${
-                            draggedItem === opp.id ? 'opacity-40 scale-95' : ''
-                          } ${overdue ? 'border-red-500/30' : ''}`}
-                        >
-                          <CardContent className="p-3 space-y-2">
-                            {/* Header */}
-                            <div className="flex items-start justify-between gap-1">
-                              <h4 className="font-semibold text-sm leading-tight line-clamp-2 flex-1">{opp.title}</h4>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0">
-                                    <MoreHorizontal className="h-3.5 w-3.5" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-36">
-                                  <DropdownMenuItem onClick={() => setDetailOpp(opp)}>
-                                    <Eye className="h-3.5 w-3.5 mr-2" /> Detalhes
-                                  </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-red-600" onClick={() => handleDelete(opp.id)}>
-                                    <Trash2 className="h-3.5 w-3.5 mr-2" /> Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-
-                            {/* Customer */}
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <User className="h-3 w-3 shrink-0" />
-                              <span className="truncate">{getCustomerName(opp.customer_id)}</span>
-                            </div>
-
-                            {/* Value + Probability */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-bold text-primary">
-                                {formatCurrency(Number(opp.value || 0))}
-                              </span>
-                              {(opp.probability !== undefined && opp.probability !== null) && (
-                                <Badge variant="outline" className="text-[10px] h-5 gap-0.5">
-                                  <Percent className="h-2.5 w-2.5" />{opp.probability}
-                                </Badge>
-                              )}
-                            </div>
-
-                            {/* Weighted value bar */}
-                            {opp.probability !== undefined && opp.value > 0 && (
-                              <Progress value={opp.probability || 50} className="h-1" />
-                            )}
-
-                            {/* Footer badges */}
-                            <div className="flex items-center justify-between pt-1 flex-wrap gap-1">
-                              <Badge variant="outline" className={`text-[10px] h-5 ${priorityInfo.color}`}>
-                                {priorityInfo.label}
-                              </Badge>
-
-                              <div className="flex items-center gap-2">
-                                {overdue && (
-                                  <span className="text-[10px] text-red-500 flex items-center gap-0.5 font-medium">
-                                    <Flame className="h-3 w-3" /> Atrasada
-                                  </span>
-                                )}
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                                  <Clock className="h-3 w-3" /> {days}d
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Close date */}
-                            {opp.expected_close_date && (
-                              <div className={`flex items-center gap-1 text-[10px] ${overdue ? 'text-red-500' : 'text-muted-foreground'}`}>
-                                <Calendar className="h-3 w-3" />
-                                Prev: {new Date(opp.expected_close_date).toLocaleDateString('pt-BR')}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-
-                    {stageOpps.length === 0 && (
-                      <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                        <StageIcon className="h-6 w-6 mb-2 opacity-30" />
-                        <p className="text-xs">Nenhuma oportunidade</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {stages.map(stage => {
+              const stageOpps = getOpportunitiesByStage(stage.value);
+              return (
+                <KanbanColumn
+                  key={stage.value}
+                  stage={stage}
+                  opps={stageOpps}
+                  customers={customers}
+                  onDetail={setDetailOpp}
+                  onDelete={handleDelete}
+                  formatCurrency={formatCurrency}
+                  getCustomerName={getCustomerName}
+                  getDaysInStage={getDaysInStage}
+                  isOverdue={isOverdue}
+                  getPriorityInfo={getPriorityInfo}
+                  activeId={activeId}
+                />
+              );
+            })}
+          </div>
+          <DragOverlay>
+            {activeOpp ? (
+              <OpportunityCardOverlay
+                opp={activeOpp}
+                getCustomerName={getCustomerName}
+                formatCurrency={formatCurrency}
+                getPriorityInfo={getPriorityInfo}
+              />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* List View */}
