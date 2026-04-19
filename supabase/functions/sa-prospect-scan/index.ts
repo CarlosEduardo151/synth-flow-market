@@ -127,7 +127,11 @@ serve(async (req) => {
   let scanId: string | null = null;
   try {
     const { customer_product_id, sources, max_results = 15 } = await req.json();
-    if (!customer_product_id) throw new Error("customer_product_id é obrigatório");
+    if (!customer_product_id) {
+      return new Response(JSON.stringify({ ok: false, error: true, code: "missing_cpid", message: "customer_product_id é obrigatório" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Carrega ICP
     const { data: cfg } = await supabase
@@ -136,7 +140,12 @@ serve(async (req) => {
       .eq("customer_product_id", customer_product_id)
       .maybeSingle();
     const icp = (cfg?.icp_description || "").trim();
-    if (!icp) throw new Error("Configure primeiro o perfil do cliente ideal (ICP) na aba Trigger Events.");
+    if (!icp) {
+      return new Response(JSON.stringify({
+        ok: false, error: true, code: "missing_icp",
+        message: "Configure e SALVE primeiro o perfil do cliente ideal (ICP) no card '🎯 Definição do Cliente Ideal' acima.",
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
 
     const requestedCategories: string[] = sources?.length ? sources : ["news_br", "tech_intl", "reviews"];
     const feedList = requestedCategories.flatMap((c) => FEEDS[c] || []);
