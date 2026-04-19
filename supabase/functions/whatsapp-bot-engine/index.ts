@@ -77,6 +77,59 @@ function isPhoneRateLimited(phone: string): boolean {
   return false;
 }
 
+// ========== AI-based handoff intent detector ==========
+// Uses Lovable AI (cheap/fast model) to decide if the user is asking for a human agent.
+async function detectHandoffIntent(userText: string): Promise<boolean> {
+  const apiKey = Deno.env.get("LOVABLE_API_KEY");
+  if (!apiKey) {
+    console.warn("[bot-engine] handoff: no LOVABLE_API_KEY, skipping AI intent");
+    return false;
+  }
+  try {
+    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash-lite",
+        messages: [
+          {
+            role: "system",
+            content: `Você é um classificador. Analise a mensagem do cliente e decida se ele está EXPLICITAMENTE pedindo para falar com um atendente humano, ou se está em uma situação clara onde o bot NÃO consegue resolver (reclamação séria, problema urgente que precisa de pessoa, frustração explícita com o bot, pedido de cancelamento/reembolso complexo, situação delicada).\n\nResponda APENAS chamando a função 'classify' com handoff=true ou handoff=false.\n\nExemplos handoff=true: "quero falar com um atendente", "me passa pra alguém", "isso não resolve, preciso de uma pessoa", "vocês são péssimos quero reclamar", "preciso de ajuda urgente, fala humano".\nExemplos handoff=false: "qual o preço?", "quero comprar", "não entendi", "me explica melhor", "obrigado", "bom dia".`,
+          },
+          { role: "user", content: userText.slice(0, 500) },
+        ],
+        tools: [{
+          type: "function",
+          function: {
+            name: "classify",
+            description: "Classifica se deve transferir para humano",
+            parameters: {
+              type: "object",
+              properties: { handoff: { type: "boolean" }, reason: { type: "string" } },
+              required: ["handoff"],
+              additionalProperties: false,
+            },
+          },
+        }],
+        tool_choice: { type: "function", function: { name: "classify" } },
+      }),
+    });
+    if (!resp.ok) {
+      console.warn("[bot-engine] handoff classifier HTTP", resp.status);
+      return false;
+    }
+    const data = await resp.json();
+    const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;
+    if (!args) return false;
+    const parsed = typeof args === "string" ? JSON.parse(args) : args;
+    console.log("[bot-engine] handoff classifier:", parsed);
+    return parsed?.handoff === true;
+  } catch (e) {
+    console.warn("[bot-engine] handoff classifier error:", (e as Error).message);
+    return false;
+  }
+}
+
 // ========== Metrics logger ==========
 
 async function logUsageMetrics(
