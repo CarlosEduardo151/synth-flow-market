@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
   try {
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY missing");
     const body = (await req.json()) as ReqBody;
+    console.log("financial-predict request", { customer_product_id: body?.customer_product_id, horizon_months: body?.horizon_months, scenarios_count: Array.isArray(body?.scenarios) ? body.scenarios.length : 0, mode: body?.mode });
     const { customer_product_id, horizon_months = 12, scenarios = [], mode = "forecast" } = body;
     if (!customer_product_id) throw new Error("customer_product_id required");
 
