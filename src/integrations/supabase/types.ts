@@ -1407,41 +1407,59 @@ export type Database = {
       financial_agent_invoices: {
         Row: {
           amount: number
+          attachment_url: string | null
+          category: string | null
           created_at: string
           customer_product_id: string
           due_date: string
           id: string
           notes: string | null
+          paid_amount: number
+          parent_invoice_id: string | null
+          payment_method: string | null
           recurring: boolean
           recurring_interval: string | null
           source: string | null
           status: string | null
+          supplier: string | null
           title: string
         }
         Insert: {
           amount: number
+          attachment_url?: string | null
+          category?: string | null
           created_at?: string
           customer_product_id: string
           due_date: string
           id?: string
           notes?: string | null
+          paid_amount?: number
+          parent_invoice_id?: string | null
+          payment_method?: string | null
           recurring?: boolean
           recurring_interval?: string | null
           source?: string | null
           status?: string | null
+          supplier?: string | null
           title: string
         }
         Update: {
           amount?: number
+          attachment_url?: string | null
+          category?: string | null
           created_at?: string
           customer_product_id?: string
           due_date?: string
           id?: string
           notes?: string | null
+          paid_amount?: number
+          parent_invoice_id?: string | null
+          payment_method?: string | null
           recurring?: boolean
           recurring_interval?: string | null
           source?: string | null
           status?: string | null
+          supplier?: string | null
           title?: string
         }
         Relationships: []
@@ -1527,6 +1545,51 @@ export type Database = {
           payment_method?: string | null
           source?: string | null
           type?: string
+        }
+        Relationships: []
+      }
+      financial_budgets: {
+        Row: {
+          alert_threshold: number
+          budget_amount: number
+          category: string | null
+          color: string
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          period: string
+          updated_at: string
+        }
+        Insert: {
+          alert_threshold?: number
+          budget_amount?: number
+          category?: string | null
+          color?: string
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          period?: string
+          updated_at?: string
+        }
+        Update: {
+          alert_threshold?: number
+          budget_amount?: number
+          category?: string | null
+          color?: string
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          period?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1710,6 +1773,255 @@ export type Database = {
             columns: ["das_guide_id"]
             isOneToOne: false
             referencedRelation: "financial_das_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_quote_items: {
+        Row: {
+          created_at: string
+          description: string
+          discount: number
+          id: string
+          quantity: number
+          quote_id: string
+          sort_order: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          discount?: number
+          id?: string
+          quantity?: number
+          quote_id: string
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          discount?: number
+          id?: string
+          quantity?: number
+          quote_id?: string
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_quote_items_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "financial_quotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_quotes: {
+        Row: {
+          approved_at: string | null
+          client_address: string | null
+          client_document: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          converted_receivable_id: string | null
+          created_at: string
+          customer_product_id: string
+          discount: number
+          id: string
+          notes: string | null
+          quote_number: string
+          rejected_at: string | null
+          sent_at: string | null
+          status: string
+          subtotal: number
+          tax: number
+          terms: string | null
+          total: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          client_address?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          converted_receivable_id?: string | null
+          created_at?: string
+          customer_product_id: string
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number: string
+          rejected_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          client_address?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          converted_receivable_id?: string | null
+          created_at?: string
+          customer_product_id?: string
+          discount?: number
+          id?: string
+          notes?: string | null
+          quote_number?: string
+          rejected_at?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          terms?: string | null
+          total?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: []
+      }
+      financial_receivable_items: {
+        Row: {
+          created_at: string
+          description: string
+          discount: number
+          id: string
+          quantity: number
+          receivable_id: string
+          sort_order: number
+          total: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          discount?: number
+          id?: string
+          quantity?: number
+          receivable_id: string
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          discount?: number
+          id?: string
+          quantity?: number
+          receivable_id?: string
+          sort_order?: number
+          total?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_receivable_items_receivable_id_fkey"
+            columns: ["receivable_id"]
+            isOneToOne: false
+            referencedRelation: "financial_receivables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_receivables: {
+        Row: {
+          client_address: string | null
+          client_document: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          customer_product_id: string
+          discount: number
+          due_date: string
+          id: string
+          invoice_number: string
+          notes: string | null
+          paid_amount: number
+          paid_at: string | null
+          payment_link: string | null
+          payment_method: string | null
+          quote_id: string | null
+          sent_at: string | null
+          status: string
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          client_address?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id: string
+          discount?: number
+          due_date: string
+          id?: string
+          invoice_number: string
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          payment_link?: string | null
+          payment_method?: string | null
+          quote_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          client_address?: string | null
+          client_document?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          customer_product_id?: string
+          discount?: number
+          due_date?: string
+          id?: string
+          invoice_number?: string
+          notes?: string | null
+          paid_amount?: number
+          paid_at?: string | null
+          payment_link?: string | null
+          payment_method?: string | null
+          quote_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_receivables_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "financial_quotes"
             referencedColumns: ["id"]
           },
         ]
@@ -5412,9 +5724,16 @@ export type Database = {
         }
         Returns: boolean
       }
+      next_invoice_number: { Args: { _cp_id: string }; Returns: string }
+      next_quote_number: { Args: { _cp_id: string }; Returns: string }
       owns_customer_product: {
         Args: { _customer_product_id: string }
         Returns: boolean
+      }
+      recalc_quote_totals: { Args: { _quote_id: string }; Returns: undefined }
+      recalc_receivable_totals: {
+        Args: { _rec_id: string }
+        Returns: undefined
       }
       search_crm_memories: {
         Args: {
