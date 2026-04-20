@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Award, BarChart3,
-  Building2, CheckCircle2, Filter, Flame, Gauge, Lightbulb, Loader2, Minus,
-  ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Zap,
+  BrainCircuit, Building2, CheckCircle2, FileText, Filter, Flame, Gauge, Lightbulb,
+  Loader2, Minus, ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Zap,
 } from "lucide-react";
 
 interface Props {
@@ -46,6 +46,7 @@ interface InsightsResult {
   benchmarks?: Benchmark[];
   health_score?: number;
   health_summary?: string;
+  narrative?: string;
   stats?: {
     total_income: number;
     total_expense: number;
@@ -550,6 +551,48 @@ export function InsightsTab({ customerProductId }: Props) {
               )}
             </TabsContent>
           </Tabs>
+
+          {/* ====== RESUMO EXECUTIVO (Nova 3.3 Pro) ====== */}
+          {result.narrative && (
+            <Card className="p-6 border-primary/30 bg-gradient-to-br from-primary/10 via-card/50 to-card/20 backdrop-blur relative overflow-hidden">
+              <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+              <div className="relative">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="h-11 w-11 rounded-xl bg-primary/15 border border-primary/30 flex items-center justify-center">
+                    <BrainCircuit className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold text-base">Resumo Executivo</h3>
+                      <Badge className="bg-primary/15 text-primary border-primary/30 gap-1 text-[10px]">
+                        <Sparkles className="h-2.5 w-2.5" /> Nova 3.3 Pro
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Análise narrativa gerada pela IA com base em 90 dias de movimentação
+                    </p>
+                  </div>
+                  <FileText className="h-4 w-4 text-muted-foreground/50 hidden sm:block" />
+                </div>
+                <div className="text-sm leading-relaxed text-foreground/90 space-y-3">
+                  {result.narrative.split(/\n\n+/).map((para, i) => (
+                    <p
+                      key={i}
+                      className="m-0"
+                      dangerouslySetInnerHTML={{
+                        __html: para
+                          .replace(/&/g, "&amp;")
+                          .replace(/</g, "&lt;")
+                          .replace(/>/g, "&gt;")
+                          .replace(/\*\*(.+?)\*\*/g, '<strong class="text-primary font-semibold">$1</strong>')
+                          .replace(/\n/g, "<br/>"),
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </Card>
+          )}
         </>
       )}
     </div>
