@@ -38,7 +38,8 @@ import { MultiCurrencyTab } from '@/components/financial/cfo/MultiCurrencyTab';
 import { DRETab } from '@/components/financial/cfo/DRETab';
 import { CashCalendarTab } from '@/components/financial/cfo/CashCalendarTab';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
-import { FinancialInvoices } from '@/components/financial/FinancialInvoices';
+import { InvoicesHub } from '@/components/financial/invoices/InvoicesHub';
+import { QuotesTab } from '@/components/financial/quotes/QuotesTab';
 import { FinancialGoals } from '@/components/financial/FinancialGoals';
 import { FinancialReports } from '@/components/financial/FinancialReports';
 import { FinancialSettings } from '@/components/financial/FinancialSettings';
@@ -54,6 +55,7 @@ const sidebarItems = [
   { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
   { value: 'recurring', label: 'Recorrentes', icon: Repeat },
   { value: 'budgets', label: 'Orçamentos', icon: PieChart },
+  { value: 'quotes', label: 'Cotações', icon: FileBarChart },
   { value: 'invoices', label: 'Faturas', icon: Receipt },
   { value: 'dre', label: 'DRE', icon: FileBarChart },
   { value: 'taxes', label: 'Impostos', icon: Calculator },
@@ -223,7 +225,10 @@ export default function FinancialAgentSystem() {
                 <FinancialTransactions customerProductId={customerId} mode={mode} />
               </TabsContent>
               <TabsContent value="invoices" className="space-y-4">
-                <FinancialInvoices customerProductId={customerId} mode={mode} />
+                <InvoicesHub customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="quotes" className="space-y-4">
+                <QuotesTab customerProductId={customerId} />
               </TabsContent>
               <TabsContent value="calendar" className="space-y-4">
                 <CashCalendarTab customerProductId={customerId} />

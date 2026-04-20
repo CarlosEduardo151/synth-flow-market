@@ -49,12 +49,13 @@ export function BudgetCategoriesTab({ customerProductId }: Props) {
     // Tenta ler de financial_budgets; se a tabela não existir o erro será tratado.
     const { data: budgets, error } = await (supabase as any)
       .from("financial_budgets")
-      .select("id, name, budget_amount, color")
+      .select("id, name, budget_amount, color, category, alert_threshold")
       .eq("customer_product_id", customerProductId)
+      .eq("is_active", true)
       .order("created_at", { ascending: true });
 
     if (error) {
-      // Fallback silencioso: sem tabela de orçamentos ainda
+      toast({ title: "Erro ao carregar", description: error.message, variant: "destructive" });
       setCats([]);
       setLoading(false);
       return;
@@ -103,20 +104,18 @@ export function BudgetCategoriesTab({ customerProductId }: Props) {
       return;
     }
     setSaving(true);
-    const color = COLORS[cats.length % COLORS.length];
+    const colorClass = COLORS[cats.length % COLORS.length];
     const { error } = await (supabase as any).from("financial_budgets").insert({
       customer_product_id: customerProductId,
       name: form.name,
+      category: form.name,
       budget_amount: Number(form.budget_amount),
-      color,
+      color: colorClass,
+      period: "monthly",
     });
     setSaving(false);
     if (error) {
-      toast({
-        title: "Tabela de orçamentos não criada",
-        description: "Solicite a criação da tabela financial_budgets para usar esta funcionalidade.",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao criar", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Orçamento criado" });
       setOpen(false);
