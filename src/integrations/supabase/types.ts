@@ -1595,6 +1595,78 @@ export type Database = {
           },
         ]
       }
+      financial_das_guides: {
+        Row: {
+          aliquota_efetiva: number
+          anexo: string | null
+          barcode: string | null
+          competencia_month: number
+          competencia_year: number
+          created_at: string
+          customer_product_id: string
+          due_date: string
+          id: string
+          notes: string | null
+          paid_at: string | null
+          payment_status: string
+          pdf_storage_path: string | null
+          pdf_url: string | null
+          pix_copy_paste: string | null
+          regime: string
+          revenue_12m: number
+          revenue_month: number
+          tax_breakdown: Json
+          total_amount: number
+          updated_at: string
+        }
+        Insert: {
+          aliquota_efetiva?: number
+          anexo?: string | null
+          barcode?: string | null
+          competencia_month: number
+          competencia_year: number
+          created_at?: string
+          customer_product_id: string
+          due_date: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_status?: string
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          pix_copy_paste?: string | null
+          regime: string
+          revenue_12m?: number
+          revenue_month?: number
+          tax_breakdown?: Json
+          total_amount: number
+          updated_at?: string
+        }
+        Update: {
+          aliquota_efetiva?: number
+          anexo?: string | null
+          barcode?: string | null
+          competencia_month?: number
+          competencia_year?: number
+          created_at?: string
+          customer_product_id?: string
+          due_date?: string
+          id?: string
+          notes?: string | null
+          paid_at?: string | null
+          payment_status?: string
+          pdf_storage_path?: string | null
+          pdf_url?: string | null
+          pix_copy_paste?: string | null
+          regime?: string
+          revenue_12m?: number
+          revenue_month?: number
+          tax_breakdown?: Json
+          total_amount?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_tax_calculations: {
         Row: {
           breakdown: Json | null
