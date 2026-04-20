@@ -1,6 +1,6 @@
 // Análise preditiva e simulação de cenários "E-se" para o Agente Financeiro
 // Usa Groq (llama-3.3-70b) para projetar caixa futuro e avaliar impactos
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
@@ -24,7 +24,9 @@ interface ReqBody {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+  if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY missing");
