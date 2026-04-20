@@ -1,6 +1,6 @@
 // Insights financeiros: anomalias, otimização de custos, benchmarking setorial
 // Usa Groq llama-3.3-70b com tool calling para resposta estruturada
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.0";
 
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY");
