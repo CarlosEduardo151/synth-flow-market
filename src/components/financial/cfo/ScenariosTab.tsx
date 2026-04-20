@@ -192,6 +192,7 @@ export function ScenariosTab({ customerProductId }: Props) {
           mode: withAi ? "analysis" : "forecast",
         },
       });
+      console.log("financial-predict invoke result", { data, error, customerProductId, horizon, scenarios: enabledScenarios.length, withAi });
       if (error) throw error;
       if (data?.error === "rate_limited") {
         toast({ title: "Limite da IA atingido", description: "Tente novamente em alguns minutos.", variant: "destructive" });
