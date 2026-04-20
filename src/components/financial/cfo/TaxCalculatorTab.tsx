@@ -28,8 +28,10 @@ const ANEXO_I = [
 
 export function TaxCalculatorTab({ customerProductId }: Props) {
   const [regime, setRegime] = useState<"mei" | "simples">("simples");
-  const [revenue12m, setRevenue12m] = useState<number>(540000);
-  const [revenueMonth, setRevenueMonth] = useState<number>(48000);
+  const [revenue12mStr, setRevenue12mStr] = useState<string>("540000,00");
+  const [revenueMonthStr, setRevenueMonthStr] = useState<string>("48000,00");
+  const revenue12m = useMemo(() => parseBR(revenue12mStr), [revenue12mStr]);
+  const revenueMonth = useMemo(() => parseBR(revenueMonthStr), [revenueMonthStr]);
   const [meiActivity, setMeiActivity] = useState<"comercio" | "servicos" | "transporte">("comercio");
   const [generating, setGenerating] = useState(false);
 
