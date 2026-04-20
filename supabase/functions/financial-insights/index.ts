@@ -15,7 +15,9 @@ interface ReqBody {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+  if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
     if (!GROQ_API_KEY) throw new Error("GROQ_API_KEY missing");
