@@ -225,6 +225,24 @@ export default function FinancialAgentSystem() {
               <TabsContent value="invoices" className="space-y-4">
                 <FinancialInvoices customerProductId={customerId} mode={mode} />
               </TabsContent>
+              <TabsContent value="calendar" className="space-y-4">
+                <CashCalendarTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="recurring" className="space-y-4">
+                <RecurringTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="budgets" className="space-y-4">
+                <BudgetCategoriesTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="dre" className="space-y-4">
+                <DRETab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="taxes" className="space-y-4">
+                <TaxCalculatorTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="currency" className="space-y-4">
+                <MultiCurrencyTab customerProductId={customerId} />
+              </TabsContent>
               <TabsContent value="goals" className="space-y-4">
                 <FinancialGoals customerProductId={customerId} />
               </TabsContent>
