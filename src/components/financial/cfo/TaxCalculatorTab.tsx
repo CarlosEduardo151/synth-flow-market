@@ -26,11 +26,12 @@ const ANEXO_I = [
   { upTo: 4800000, rate: 0.19, deduct: 378000 },
 ];
 
-export function TaxCalculatorTab({ customerProductId: _ }: Props) {
+export function TaxCalculatorTab({ customerProductId }: Props) {
   const [regime, setRegime] = useState<"mei" | "simples">("simples");
   const [revenue12m, setRevenue12m] = useState<number>(540000);
   const [revenueMonth, setRevenueMonth] = useState<number>(48000);
   const [meiActivity, setMeiActivity] = useState<"comercio" | "servicos" | "transporte">("comercio");
+  const [generating, setGenerating] = useState(false);
 
   const simples = useMemo(() => {
     const faixa = ANEXO_I.find(f => revenue12m <= f.upTo) ?? ANEXO_I[ANEXO_I.length - 1];
@@ -45,6 +46,38 @@ export function TaxCalculatorTab({ customerProductId: _ }: Props) {
   const today = new Date();
   const nextDue = new Date(today.getFullYear(), today.getMonth() + 1, 20);
   const daysLeft = Math.ceil((nextDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  async function handleGenerate() {
+    if (!customerProductId) {
+      toast.error("Produto não identificado");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("financial-generate-das", {
+        body: {
+          customerProductId,
+          regime,
+          meiActivity,
+          revenueMonth,
+          revenue12m,
+          anexo: "Anexo I",
+        },
+      });
+      if (error) throw error;
+      const url = (data as any)?.pdf_url;
+      if (url) {
+        window.open(url, "_blank");
+        toast.success("Guia DAS gerada com sucesso");
+      } else {
+        toast.success("Guia gerada");
+      }
+    } catch (e: any) {
+      toast.error(e?.message ?? "Falha ao gerar guia");
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   return (
     <div className="space-y-6">
