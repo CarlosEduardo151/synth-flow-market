@@ -14,6 +14,12 @@ import {
   Wallet,
   ChevronLeft,
   Menu,
+  PieChart,
+  Repeat,
+  Calculator,
+  Globe2,
+  FileBarChart,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -25,6 +31,12 @@ import { useProductAccess } from '@/hooks/useProductAccess';
 import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
 import { ScenariosTab } from '@/components/financial/cfo/ScenariosTab';
 import { InsightsTab } from '@/components/financial/cfo/InsightsTab';
+import { BudgetCategoriesTab } from '@/components/financial/cfo/BudgetCategoriesTab';
+import { RecurringTab } from '@/components/financial/cfo/RecurringTab';
+import { TaxCalculatorTab } from '@/components/financial/cfo/TaxCalculatorTab';
+import { MultiCurrencyTab } from '@/components/financial/cfo/MultiCurrencyTab';
+import { DRETab } from '@/components/financial/cfo/DRETab';
+import { CashCalendarTab } from '@/components/financial/cfo/CashCalendarTab';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
 import { FinancialInvoices } from '@/components/financial/FinancialInvoices';
 import { FinancialGoals } from '@/components/financial/FinancialGoals';
@@ -35,11 +47,17 @@ import { Financial2FAGate } from '@/components/financial/Financial2FAGate';
 
 const sidebarItems = [
   { value: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { value: 'calendar', label: 'Calendário', icon: CalendarIcon },
   { value: 'scenarios', label: 'Cenários', icon: Wand2 },
   { value: 'insights', label: 'Insights', icon: Sparkles },
   { value: 'chatbot', label: 'Chat', icon: MessageSquare },
   { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
+  { value: 'recurring', label: 'Recorrentes', icon: Repeat },
+  { value: 'budgets', label: 'Orçamentos', icon: PieChart },
   { value: 'invoices', label: 'Faturas', icon: Receipt },
+  { value: 'dre', label: 'DRE', icon: FileBarChart },
+  { value: 'taxes', label: 'Impostos', icon: Calculator },
+  { value: 'currency', label: 'Multi-moeda', icon: Globe2 },
   { value: 'goals', label: 'Metas', icon: Target },
   { value: 'reports', label: 'Relatórios', icon: BarChart3 },
   { value: 'settings', label: 'Config', icon: Settings },
@@ -206,6 +224,24 @@ export default function FinancialAgentSystem() {
               </TabsContent>
               <TabsContent value="invoices" className="space-y-4">
                 <FinancialInvoices customerProductId={customerId} mode={mode} />
+              </TabsContent>
+              <TabsContent value="calendar" className="space-y-4">
+                <CashCalendarTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="recurring" className="space-y-4">
+                <RecurringTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="budgets" className="space-y-4">
+                <BudgetCategoriesTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="dre" className="space-y-4">
+                <DRETab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="taxes" className="space-y-4">
+                <TaxCalculatorTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="currency" className="space-y-4">
+                <MultiCurrencyTab customerProductId={customerId} />
               </TabsContent>
               <TabsContent value="goals" className="space-y-4">
                 <FinancialGoals customerProductId={customerId} />
