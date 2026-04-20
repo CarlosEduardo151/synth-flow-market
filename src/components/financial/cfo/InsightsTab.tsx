@@ -9,8 +9,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Award, BarChart3,
-  Building2, CheckCircle2, Filter, Flame, Gauge, Lightbulb, Loader2, Minus,
-  ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Zap,
+  BrainCircuit, Building2, CheckCircle2, FileText, Filter, Flame, Gauge, Lightbulb,
+  Loader2, Minus, ShieldAlert, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Zap,
 } from "lucide-react";
 
 interface Props {
