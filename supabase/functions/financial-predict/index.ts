@@ -13,7 +13,7 @@ interface ScenarioInput {
   monthly_impact: number; // negativo = custo, positivo = receita
   start_in_months?: number; // 0 = imediato
   duration_months?: number; // null = permanente
-  type: "hire" | "expense" | "revenue" | "investment" | "saving";
+  type: "hire" | "expense" | "revenue" | "investment" | "saving" | "loan" | "tax";
 }
 
 interface ReqBody {
