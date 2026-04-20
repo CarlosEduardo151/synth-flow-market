@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Calculator, Receipt, Calendar, FileText, AlertCircle, TrendingUp,
-  CheckCircle2, Building2, Briefcase, Scale, Download, Sparkles,
+  Calculator, Receipt, Calendar, FileText, TrendingUp,
+  CheckCircle2, Building2, Briefcase, Scale, Download, Sparkles, Loader2,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface Props { customerProductId: string }
 
