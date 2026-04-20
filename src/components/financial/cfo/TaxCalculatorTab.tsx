@@ -118,8 +118,9 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
               Vence em <strong>{nextDue.toLocaleDateString("pt-BR")}</strong> — gere a guia até o dia 20 do mês seguinte
             </p>
           </div>
-          <Button variant="outline" size="sm">
-            <Download className="w-3.5 h-3.5 mr-1" /> Gerar guia
+          <Button variant="outline" size="sm" onClick={handleGenerate} disabled={generating}>
+            {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Download className="w-3.5 h-3.5 mr-1" />}
+            Gerar guia
           </Button>
         </div>
       </Card>
@@ -180,7 +181,10 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                 <Row label="INSS (5% s/min)" value={fmtBRL(meiDAS - (meiActivity === "comercio" ? 1 : meiActivity === "servicos" ? 5 : 6))} />
                 <Row label={meiActivity === "servicos" ? "ISS" : "ICMS"} value={fmtBRL(meiActivity === "comercio" ? 1 : meiActivity === "servicos" ? 5 : 6)} />
               </div>
-              <Button className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white">Gerar DAS do mês</Button>
+              <Button onClick={handleGenerate} disabled={generating} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white">
+                {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+                Gerar DAS do mês
+              </Button>
             </Card>
           </div>
         </TabsContent>
@@ -255,8 +259,9 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                 <Row label="CPP (41,5%)" value={fmtBRL(simples.das * 0.415)} />
                 <Row label="ICMS (34%)" value={fmtBRL(simples.das * 0.34)} />
               </div>
-              <Button className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white">
-                <FileText className="w-3.5 h-3.5 mr-1" /> Emitir DAS
+              <Button onClick={handleGenerate} disabled={generating} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white">
+                {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
+                Emitir DAS
               </Button>
             </Card>
           </div>
