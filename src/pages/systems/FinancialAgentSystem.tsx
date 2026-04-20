@@ -14,6 +14,12 @@ import {
   Wallet,
   ChevronLeft,
   Menu,
+  PieChart,
+  Repeat,
+  Calculator,
+  Globe2,
+  FileBarChart,
+  Calendar as CalendarIcon,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
