@@ -46,6 +46,7 @@ interface InsightsResult {
   benchmarks?: Benchmark[];
   health_score?: number;
   health_summary?: string;
+  narrative?: string;
   stats?: {
     total_income: number;
     total_expense: number;
