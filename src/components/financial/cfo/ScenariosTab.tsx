@@ -778,3 +778,152 @@ function KpiCard({
     </Card>
   );
 }
+
+// ============================================================
+// Strategic Analysis — parses CFO markdown into categorized cards
+// ============================================================
+interface ParsedSection {
+  key: string;
+  title: string;
+  emoji: string;
+  body: string;
+  tone: "primary" | "cyan" | "emerald" | "rose" | "amber" | "violet";
+  icon: any;
+}
+
+const SECTION_META: { match: RegExp; tone: ParsedSection["tone"]; icon: any }[] = [
+  { match: /diagn[oó]stico/i,   tone: "cyan",    icon: Gauge },
+  { match: /proje[cç][aã]o/i,   tone: "primary", icon: TrendingUp },
+  { match: /cen[aá]rio/i,       tone: "violet",  icon: Wand2 },
+  { match: /alerta|risco/i,     tone: "rose",    icon: AlertTriangle },
+  { match: /recomenda|a[cç][aã]o/i, tone: "emerald", icon: Lightbulb },
+  { match: /oportunidade/i,     tone: "amber",   icon: Sparkles },
+];
+
+function parseAnalysis(md: string): ParsedSection[] {
+  if (!md) return [];
+  const blocks = md.split(/^##\s+/m).map((b) => b.trim()).filter(Boolean);
+  const sections: ParsedSection[] = [];
+  for (const block of blocks) {
+    const firstLineEnd = block.indexOf("\n");
+    const headLine = (firstLineEnd === -1 ? block : block.slice(0, firstLineEnd)).trim();
+    const body = firstLineEnd === -1 ? "" : block.slice(firstLineEnd + 1).trim();
+    const emojiMatch = headLine.match(/^(\p{Extended_Pictographic}|[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}])\s*/u);
+    const emoji = emojiMatch ? emojiMatch[0].trim() : "•";
+    const title = headLine.replace(emojiMatch?.[0] || "", "").trim();
+    const meta = SECTION_META.find((s) => s.match.test(title)) || { tone: "primary" as const, icon: Sparkles };
+    sections.push({ key: title || emoji, title: title || "Seção", emoji, body, tone: meta.tone, icon: meta.icon });
+  }
+  return sections;
+}
+
+const TONE_STYLES: Record<ParsedSection["tone"], { ring: string; bg: string; text: string; chip: string; gradient: string }> = {
+  primary: { ring: "ring-primary/30",      bg: "bg-primary/10",      text: "text-primary",       chip: "bg-primary/15 text-primary",        gradient: "from-primary/10" },
+  cyan:    { ring: "ring-cyan-500/30",     bg: "bg-cyan-500/10",     text: "text-cyan-400",      chip: "bg-cyan-500/15 text-cyan-300",      gradient: "from-cyan-500/10" },
+  emerald: { ring: "ring-emerald-500/30",  bg: "bg-emerald-500/10",  text: "text-emerald-400",   chip: "bg-emerald-500/15 text-emerald-300", gradient: "from-emerald-500/10" },
+  rose:    { ring: "ring-rose-500/30",     bg: "bg-rose-500/10",     text: "text-rose-400",      chip: "bg-rose-500/15 text-rose-300",      gradient: "from-rose-500/10" },
+  amber:   { ring: "ring-amber-500/30",    bg: "bg-amber-500/10",    text: "text-amber-400",     chip: "bg-amber-500/15 text-amber-300",    gradient: "from-amber-500/10" },
+  violet:  { ring: "ring-violet-500/30",   bg: "bg-violet-500/10",   text: "text-violet-400",    chip: "bg-violet-500/15 text-violet-300",  gradient: "from-violet-500/10" },
+};
+
+function StrategicAnalysis({ markdown }: { markdown: string }) {
+  const sections = useMemo(() => parseAnalysis(markdown), [markdown]);
+
+  if (sections.length === 0) {
+    return (
+      <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card/40 to-transparent p-5">
+        <div className="prose prose-sm dark:prose-invert max-w-none">
+          <ReactMarkdown>{markdown}</ReactMarkdown>
+        </div>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/5 via-card/40 to-transparent backdrop-blur">
+      <div className="border-b border-border/60 bg-gradient-to-r from-primary/10 to-transparent px-5 py-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-primary/20 p-2.5 ring-1 ring-primary/40">
+              <Sparkles className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold tracking-tight">Análise Estratégica do CFO Virtual</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Diagnóstico completo gerado por IA · {sections.length} seções
+              </p>
+            </div>
+          </div>
+          <Badge variant="secondary" className="gap-1 text-[10px]">
+            <Zap className="h-3 w-3" /> Powered by IA
+          </Badge>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {sections.map((s) => {
+            const Icon = s.icon;
+            const styles = TONE_STYLES[s.tone];
+            return (
+              <a
+                key={s.key}
+                href={`#analysis-${encodeURIComponent(s.key)}`}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all hover:scale-105",
+                  styles.chip
+                )}
+              >
+                <Icon className="h-3 w-3" />
+                {s.title}
+              </a>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-4">
+        {sections.map((s, idx) => {
+          const Icon = s.icon;
+          const styles = TONE_STYLES[s.tone];
+          const fullWidth = sections.length % 2 === 1 && idx === 0;
+          return (
+            <div
+              key={s.key}
+              id={`analysis-${encodeURIComponent(s.key)}`}
+              className={cn(
+                "relative rounded-xl border border-border/50 bg-background/40 p-4 transition-all hover:bg-background/60 hover:shadow-lg ring-1",
+                styles.ring,
+                fullWidth && "lg:col-span-2"
+              )}
+            >
+              <div className={cn("absolute inset-x-0 top-0 h-px bg-gradient-to-r to-transparent", styles.gradient)} />
+
+              <div className="flex items-center gap-2.5 mb-3 pb-3 border-b border-border/40">
+                <div className={cn("rounded-lg p-2 ring-1", styles.bg, styles.ring)}>
+                  <Icon className={cn("h-4 w-4", styles.text)} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className={cn("text-sm font-semibold leading-tight flex items-center gap-1.5", styles.text)}>
+                    <span className="text-base">{s.emoji}</span>
+                    <span>{s.title}</span>
+                  </h4>
+                </div>
+              </div>
+
+              <div className={cn(
+                "prose prose-sm dark:prose-invert max-w-none",
+                "prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground/90",
+                "prose-ul:my-2 prose-ul:space-y-1.5 prose-ul:pl-4 prose-li:my-0 prose-li:text-foreground/85 prose-li:leading-relaxed",
+                "prose-ol:my-2 prose-ol:space-y-1.5 prose-ol:pl-4",
+                "prose-strong:text-foreground prose-strong:font-semibold",
+                "prose-headings:hidden",
+                "prose-code:bg-muted/60 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs"
+              )}>
+                <ReactMarkdown>{s.body}</ReactMarkdown>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </Card>
+  );
+}
