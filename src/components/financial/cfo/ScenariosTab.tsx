@@ -695,22 +695,7 @@ export function ScenariosTab({ customerProductId }: Props) {
             </Card>
 
             {/* AI Analysis */}
-            {result.ai_analysis && (
-              <Card className="border-primary/30 bg-gradient-to-br from-primary/10 via-card/40 to-transparent p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="rounded-lg bg-primary/20 p-1.5 ring-1 ring-primary/40">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                  </div>
-                  <h3 className="font-semibold">Análise estratégica do CFO Virtual</h3>
-                  <Badge variant="secondary" className="ml-auto text-[10px] gap-1">
-                    <Zap className="h-3 w-3" /> IA
-                  </Badge>
-                </div>
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:mt-4 prose-headings:mb-2 prose-headings:text-primary prose-p:my-2 prose-ul:my-2 prose-strong:text-foreground">
-                  <ReactMarkdown>{result.ai_analysis}</ReactMarkdown>
-                </div>
-              </Card>
-            )}
+            {result.ai_analysis && <StrategicAnalysis markdown={result.ai_analysis} />}
           </>
         )}
 
