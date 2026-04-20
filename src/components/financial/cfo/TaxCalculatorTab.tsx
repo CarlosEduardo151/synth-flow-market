@@ -16,6 +16,24 @@ interface Props { customerProductId: string }
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+// Aceita "1.234,56" ou "1234.56" ou "1234,56" — preserva precisão exata
+function parseBR(s: string): number {
+  if (!s) return 0;
+  const cleaned = s.replace(/\s/g, "").replace(/[R$]/g, "");
+  // Se tem vírgula, vírgula é decimal e ponto é milhar
+  if (cleaned.includes(",")) {
+    const n = Number(cleaned.replace(/\./g, "").replace(",", "."));
+    return isNaN(n) ? 0 : n;
+  }
+  const n = Number(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
+// Permite apenas dígitos, vírgula, ponto
+function sanitizeMoneyInput(s: string): string {
+  return s.replace(/[^\d.,]/g, "");
+}
+
 // Anexo I — Comércio (Simples Nacional 2024)
 const ANEXO_I = [
   { upTo: 180000, rate: 0.04, deduct: 0 },
@@ -204,9 +222,11 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                   <div className="relative mt-1.5">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
-                      type="number"
-                      value={revenue12m}
-                      onChange={(e) => setRevenue12m(Number(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={revenue12mStr}
+                      onChange={(e) => setRevenue12mStr(sanitizeMoneyInput(e.target.value))}
+                      placeholder="0,00"
                       className="pl-9"
                     />
                   </div>
@@ -216,9 +236,11 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                   <div className="relative mt-1.5">
                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">R$</span>
                     <Input
-                      type="number"
-                      value={revenueMonth}
-                      onChange={(e) => setRevenueMonth(Number(e.target.value) || 0)}
+                      type="text"
+                      inputMode="decimal"
+                      value={revenueMonthStr}
+                      onChange={(e) => setRevenueMonthStr(sanitizeMoneyInput(e.target.value))}
+                      placeholder="0,00"
                       className="pl-9"
                     />
                   </div>
