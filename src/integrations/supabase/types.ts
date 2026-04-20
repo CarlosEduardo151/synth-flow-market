@@ -1667,6 +1667,50 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_das_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          das_guide_id: string
+          days_before: number | null
+          error_message: string | null
+          id: string
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          das_guide_id: string
+          days_before?: number | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          das_guide_id?: string
+          days_before?: number | null
+          error_message?: string | null
+          id?: string
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_das_notifications_das_guide_id_fkey"
+            columns: ["das_guide_id"]
+            isOneToOne: false
+            referencedRelation: "financial_das_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_tax_calculations: {
         Row: {
           breakdown: Json | null
@@ -5342,6 +5386,10 @@ export type Database = {
       }
     }
     Functions: {
+      calculate_rbt12: {
+        Args: { _customer_product_id: string; _ref_date?: string }
+        Returns: number
+      }
       deliver_order_products: {
         Args: { order_id_param: string }
         Returns: Json
@@ -5349,6 +5397,10 @@ export type Database = {
       get_email_by_document: {
         Args: { doc_type: string; doc_value: string }
         Returns: string
+      }
+      get_revenue_month: {
+        Args: { _customer_product_id: string; _month: number; _year: number }
+        Returns: number
       }
       has_role: {
         Args: {
