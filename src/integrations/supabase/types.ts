@@ -1618,6 +1618,7 @@ export type Database = {
           tax_breakdown: Json
           total_amount: number
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           aliquota_efetiva?: number
@@ -1641,6 +1642,7 @@ export type Database = {
           tax_breakdown?: Json
           total_amount: number
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           aliquota_efetiva?: number
@@ -1664,6 +1666,7 @@ export type Database = {
           tax_breakdown?: Json
           total_amount?: number
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }

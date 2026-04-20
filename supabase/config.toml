@@ -1,1 +1,4 @@
 project_id = "lqduauyrwwlrbtnxkiev"
+
+[functions.financial-das-notifications]
+verify_jwt = false

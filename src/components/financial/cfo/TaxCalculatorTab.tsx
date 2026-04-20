@@ -1,64 +1,42 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Calculator, Receipt, Calendar, FileText, TrendingUp,
   CheckCircle2, Building2, Briefcase, Scale, Download, Sparkles, Loader2,
+  RefreshCw, AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { ANEXOS, ANEXO_LABELS, fmtBRL, parseBR, sanitizeMoneyInput, calcSimples } from "./tax/taxTables";
+import { TaxHistoryPanel } from "./tax/TaxHistoryPanel";
 
 interface Props { customerProductId: string }
 
-const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-
-// Aceita "1.234,56" ou "1234.56" ou "1234,56" — preserva precisão exata
-function parseBR(s: string): number {
-  if (!s) return 0;
-  const cleaned = s.replace(/\s/g, "").replace(/[R$]/g, "");
-  // Se tem vírgula, vírgula é decimal e ponto é milhar
-  if (cleaned.includes(",")) {
-    const n = Number(cleaned.replace(/\./g, "").replace(",", "."));
-    return isNaN(n) ? 0 : n;
-  }
-  const n = Number(cleaned);
-  return isNaN(n) ? 0 : n;
-}
-
-// Permite apenas dígitos, vírgula, ponto
-function sanitizeMoneyInput(s: string): string {
-  return s.replace(/[^\d.,]/g, "");
-}
-
-// Anexo I — Comércio (Simples Nacional 2024)
-const ANEXO_I = [
-  { upTo: 180000, rate: 0.04, deduct: 0 },
-  { upTo: 360000, rate: 0.073, deduct: 5940 },
-  { upTo: 720000, rate: 0.095, deduct: 13860 },
-  { upTo: 1800000, rate: 0.107, deduct: 22500 },
-  { upTo: 3600000, rate: 0.143, deduct: 87300 },
-  { upTo: 4800000, rate: 0.19, deduct: 378000 },
-];
+const SIMPLES_LIMIT = 4_800_000;
+const MEI_LIMIT = 81_000;
 
 export function TaxCalculatorTab({ customerProductId }: Props) {
   const [regime, setRegime] = useState<"mei" | "simples">("simples");
-  const [revenue12mStr, setRevenue12mStr] = useState<string>("540000,00");
-  const [revenueMonthStr, setRevenueMonthStr] = useState<string>("48000,00");
+  const [anexoKey, setAnexoKey] = useState<string>("Anexo I");
+  const [revenue12mStr, setRevenue12mStr] = useState<string>("0,00");
+  const [revenueMonthStr, setRevenueMonthStr] = useState<string>("0,00");
   const revenue12m = useMemo(() => parseBR(revenue12mStr), [revenue12mStr]);
   const revenueMonth = useMemo(() => parseBR(revenueMonthStr), [revenueMonthStr]);
   const [meiActivity, setMeiActivity] = useState<"comercio" | "servicos" | "transporte">("comercio");
   const [generating, setGenerating] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const simples = useMemo(() => {
-    const faixa = ANEXO_I.find(f => revenue12m <= f.upTo) ?? ANEXO_I[ANEXO_I.length - 1];
-    const aliquotaEfetiva = ((revenue12m * faixa.rate) - faixa.deduct) / revenue12m;
-    const das = revenueMonth * aliquotaEfetiva;
-    return { faixa, aliquotaEfetiva: aliquotaEfetiva * 100, das };
-  }, [revenue12m, revenueMonth]);
+  const simples = useMemo(
+    () => calcSimples(anexoKey, revenue12m, revenueMonth),
+    [anexoKey, revenue12m, revenueMonth],
+  );
 
   const meiAmounts = { comercio: 71.6, servicos: 75.6, transporte: 80.6 };
   const meiDAS = meiAmounts[meiActivity];
@@ -66,6 +44,43 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
   const today = new Date();
   const nextDue = new Date(today.getFullYear(), today.getMonth() + 1, 20);
   const daysLeft = Math.ceil((nextDue.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  const limit = regime === "mei" ? MEI_LIMIT : SIMPLES_LIMIT;
+  const usagePct = Math.min((revenue12m / limit) * 100, 100);
+  const isNearLimit = usagePct >= 80;
+
+  // Auto-preenche RBT12 e mês atual ao abrir
+  useEffect(() => {
+    if (customerProductId) {
+      autoFill(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [customerProductId]);
+
+  async function autoFill(silent = false) {
+    if (!customerProductId) return;
+    setAutoFilling(true);
+    try {
+      const now = new Date();
+      const [{ data: rbt }, { data: monthRev }] = await Promise.all([
+        supabase.rpc("calculate_rbt12", { _customer_product_id: customerProductId }),
+        supabase.rpc("get_revenue_month", {
+          _customer_product_id: customerProductId,
+          _year: now.getFullYear(),
+          _month: now.getMonth() + 1,
+        }),
+      ]);
+      const rbtVal = Number(rbt ?? 0);
+      const monthVal = Number(monthRev ?? 0);
+      setRevenue12mStr(rbtVal.toFixed(2).replace(".", ","));
+      setRevenueMonthStr(monthVal.toFixed(2).replace(".", ","));
+      if (!silent) toast.success("Valores atualizados a partir das transações");
+    } catch (e: any) {
+      if (!silent) toast.error(e?.message ?? "Falha ao buscar transações");
+    } finally {
+      setAutoFilling(false);
+    }
+  }
 
   async function handleGenerate() {
     if (!customerProductId) {
@@ -81,7 +96,7 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
           meiActivity,
           revenueMonth,
           revenue12m,
-          anexo: "Anexo I",
+          anexo: anexoKey,
         },
       });
       if (error) throw error;
@@ -92,6 +107,7 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
       } else {
         toast.success("Guia gerada");
       }
+      setRefreshKey((k) => k + 1);
     } catch (e: any) {
       toast.error(e?.message ?? "Falha ao gerar guia");
     } finally {
@@ -112,14 +128,30 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
             </div>
             <h2 className="text-3xl font-bold tracking-tight">Calculadora de Impostos</h2>
             <p className="text-muted-foreground text-sm mt-1 max-w-xl">
-              Estima o DAS do mês baseado no faturamento. Suporta MEI, Simples Nacional (Anexos I a V).
+              Calcula DAS para MEI e Simples Nacional (Anexos I a V). Auto-preenche dados das suas transações.
             </p>
           </div>
           <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20" variant="outline">
-            <Sparkles className="w-3 h-3 mr-1" /> Atualizado com tabela 2024
+            <Sparkles className="w-3 h-3 mr-1" /> Tabela 2024 + Fator R
           </Badge>
         </div>
       </div>
+
+      {/* Alerta desenquadramento */}
+      {isNearLimit && (
+        <Card className="p-4 border-red-500/30 bg-gradient-to-r from-red-500/10 via-orange-500/5 to-transparent">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-sm">Atenção: você atingiu {usagePct.toFixed(1)}% do limite anual</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Limite {regime === "mei" ? "MEI" : "Simples Nacional"}: {fmtBRL(limit)}.
+                {regime === "mei" ? " Considere migrar para Simples Nacional antes de exceder." : " Acima desse valor há desenquadramento e migração para Lucro Presumido/Real."}
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Due date alert */}
       <Card className="p-5 border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent">
@@ -182,12 +214,26 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                   </div>
                 </div>
                 <div className="rounded-xl bg-muted/30 p-4 border border-border/50">
-                  <p className="text-xs text-muted-foreground mb-1">Limite anual MEI</p>
-                  <p className="font-semibold">R$ 81.000,00 / ano</p>
-                  <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className="h-full w-[35%] bg-gradient-to-r from-emerald-500 to-lime-500 rounded-full" />
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-muted-foreground">Limite anual MEI · RBT12 atual</p>
+                    <button
+                      onClick={() => autoFill()}
+                      disabled={autoFilling}
+                      className="text-[11px] text-emerald-500 hover:text-emerald-600 flex items-center gap-1"
+                    >
+                      <RefreshCw className={`w-3 h-3 ${autoFilling ? "animate-spin" : ""}`} /> Atualizar
+                    </button>
                   </div>
-                  <p className="text-[11px] text-muted-foreground mt-1">35% do limite utilizado este ano</p>
+                  <p className="font-semibold text-sm">{fmtBRL(revenue12m)} / {fmtBRL(MEI_LIMIT)}</p>
+                  <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${usagePct >= 80 ? "bg-gradient-to-r from-orange-500 to-red-500" : "bg-gradient-to-r from-emerald-500 to-lime-500"}`}
+                      style={{ width: `${Math.min((revenue12m / MEI_LIMIT) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {Math.min((revenue12m / MEI_LIMIT) * 100, 100).toFixed(1)}% do limite utilizado
+                  </p>
                 </div>
               </div>
             </Card>
@@ -213,10 +259,29 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
         <TabsContent value="simples" className="mt-6">
           <div className="grid lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2 p-6 border-border/50 bg-card/50 backdrop-blur-sm">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Building2 className="w-4 h-4 text-emerald-500" /> Simples Nacional — Anexo I (Comércio)
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-emerald-500" /> Simples Nacional
+                </h3>
+                <Button variant="outline" size="sm" onClick={() => autoFill()} disabled={autoFilling}>
+                  <RefreshCw className={`w-3.5 h-3.5 mr-1 ${autoFilling ? "animate-spin" : ""}`} />
+                  Auto-preencher
+                </Button>
+              </div>
               <div className="space-y-4">
+                <div>
+                  <Label className="text-xs">Anexo</Label>
+                  <Select value={anexoKey} onValueChange={setAnexoKey}>
+                    <SelectTrigger className="mt-1.5">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.keys(ANEXOS).map((k) => (
+                        <SelectItem key={k} value={k}>{ANEXO_LABELS[k]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div>
                   <Label className="text-xs">Receita Bruta últimos 12 meses (RBT12)</Label>
                   <div className="relative mt-1.5">
@@ -261,7 +326,7 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
                   </div>
                   <div className="flex justify-between text-sm pt-2 border-t border-border/50">
                     <span className="text-foreground font-medium">Alíquota efetiva</span>
-                    <span className="font-bold text-emerald-500">{simples.aliquotaEfetiva.toFixed(3)}%</span>
+                    <span className="font-bold text-emerald-500">{(simples.aliquotaEfetiva * 100).toFixed(3)}%</span>
                   </div>
                 </div>
               </div>
@@ -275,13 +340,8 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
               <p className="text-4xl font-bold text-emerald-500 mb-1">{fmtBRL(simples.das)}</p>
               <p className="text-xs text-muted-foreground mb-4">Sobre {fmtBRL(revenueMonth)} de faturamento</p>
 
-              <div className="space-y-2 text-xs border-t border-border/50 pt-3">
-                <Row label="IRPJ (5,5%)" value={fmtBRL(simples.das * 0.055)} />
-                <Row label="CSLL (3,5%)" value={fmtBRL(simples.das * 0.035)} />
-                <Row label="COFINS (12,7%)" value={fmtBRL(simples.das * 0.127)} />
-                <Row label="PIS (2,76%)" value={fmtBRL(simples.das * 0.0276)} />
-                <Row label="CPP (41,5%)" value={fmtBRL(simples.das * 0.415)} />
-                <Row label="ICMS (34%)" value={fmtBRL(simples.das * 0.34)} />
+              <div className="text-xs text-muted-foreground border-t border-border/50 pt-3">
+                Detalhamento completo por tributo (IRPJ, CSLL, COFINS, PIS, CPP, ICMS/ISS) é gerado no PDF de acordo com o {anexoKey}.
               </div>
               <Button onClick={handleGenerate} disabled={generating} className="w-full mt-4 bg-emerald-500 hover:bg-emerald-600 text-white">
                 {generating ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <FileText className="w-3.5 h-3.5 mr-1" />}
@@ -295,22 +355,30 @@ export function TaxCalculatorTab({ customerProductId }: Props) {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-emerald-500" />
-                <p className="font-semibold text-sm">Trajetória anual — limite Simples R$ 4.800.000</p>
+                <p className="font-semibold text-sm">Trajetória anual — limite Simples {fmtBRL(SIMPLES_LIMIT)}</p>
               </div>
-              <Badge variant="outline" className="text-xs">{((revenue12m / 4800000) * 100).toFixed(1)}%</Badge>
+              <Badge variant="outline" className="text-xs">{((revenue12m / SIMPLES_LIMIT) * 100).toFixed(1)}%</Badge>
             </div>
             <div className="relative h-3 rounded-full bg-muted overflow-hidden">
               <div
-                className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 via-lime-500 to-yellow-500 rounded-full"
-                style={{ width: `${Math.min((revenue12m / 4800000) * 100, 100)}%` }}
+                className={`absolute inset-y-0 left-0 rounded-full ${
+                  isNearLimit
+                    ? "bg-gradient-to-r from-orange-500 to-red-500"
+                    : "bg-gradient-to-r from-emerald-500 via-lime-500 to-yellow-500"
+                }`}
+                style={{ width: `${Math.min((revenue12m / SIMPLES_LIMIT) * 100, 100)}%` }}
               />
             </div>
-            <div className="flex items-center gap-2 mt-3 text-xs text-emerald-500">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Dentro do limite — você pode continuar no Simples Nacional
+            <div className={`flex items-center gap-2 mt-3 text-xs ${isNearLimit ? "text-red-500" : "text-emerald-500"}`}>
+              {isNearLimit ? <AlertTriangle className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
+              {isNearLimit ? "Próximo do limite — risco de desenquadramento" : "Dentro do limite — você pode continuar no Simples Nacional"}
             </div>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Histórico */}
+      <TaxHistoryPanel customerProductId={customerProductId} refreshKey={refreshKey} />
     </div>
   );
 }
