@@ -163,8 +163,12 @@ Tarefas:
                   },
                   health_score: { type: "number", minimum: 0, maximum: 100 },
                   health_summary: { type: "string" },
+                  narrative: {
+                    type: "string",
+                    description: "Resumo executivo em 4-6 parágrafos curtos (markdown leve com **negrito**, sem títulos #) explicando o diagnóstico geral, os principais riscos detectados, as melhores oportunidades de economia, comparação com o mercado e recomendação prática final. Tom de consultor sênior, em português, direto e útil.",
+                  },
                 },
-                required: ["anomalies", "optimizations", "benchmarks", "health_score", "health_summary"],
+                required: ["anomalies", "optimizations", "benchmarks", "health_score", "health_summary", "narrative"],
               },
             },
           },
