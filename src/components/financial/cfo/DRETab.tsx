@@ -1,47 +1,125 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
-  FileBarChart, Download, Printer, Mail, ChevronRight, TrendingUp,
-  TrendingDown, ArrowDownRight, ArrowUpRight, Sparkles, FileText,
+  FileBarChart, Download, Printer, ChevronRight, TrendingUp, TrendingDown,
+  ArrowDownRight, ArrowUpRight, Sparkles, FileText, Loader2, ChevronLeft,
 } from "lucide-react";
 
 interface Props { customerProductId: string }
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const fmtPct = (v: number) => `${v.toFixed(1)}%`;
+const fmtPct = (v: number) => `${isFinite(v) ? v.toFixed(1) : "0.0"}%`;
 
-const DATA = {
-  receitaBruta: 184500,
-  deducoes: 16830,
-  custos: 62400,
-  despOperacionais: {
-    pessoal: 28400,
-    marketing: 4720,
-    administrativas: 9100,
-    infraestrutura: 6400,
-  },
-  despFinanceiras: 1840,
-  outras: -1200,
-};
+interface Tx {
+  type: string;
+  amount: number;
+  date: string | null;
+  description: string | null;
+  source: string | null;
+  payment_method: string | null;
+}
 
-const RECEITA_LIQ = DATA.receitaBruta - DATA.deducoes;
-const LUCRO_BRUTO = RECEITA_LIQ - DATA.custos;
-const TOTAL_OP = Object.values(DATA.despOperacionais).reduce((a, b) => a + b, 0);
-const EBITDA = LUCRO_BRUTO - TOTAL_OP;
-const LUCRO_LIQ = EBITDA - DATA.despFinanceiras + DATA.outras;
+const SALARY_KEYWORDS = ["salário", "salario", "folha", "pagamento funcion", "ferias", "férias", "13º", "13o"];
+const TAX_KEYWORDS = ["imposto", "das ", "darf", "iss", "icms", "irpj", "csll", "cofins", "pis ", "inss"];
+const FIN_KEYWORDS = ["juros", "tarifa", "iof", "anuidade banc", "tac"];
+const MARKETING_KEYWORDS = ["ads", "anúncio", "anuncio", "marketing", "google ads", "meta ads", "facebook ads"];
+const INFRA_KEYWORDS = ["aluguel", "internet", "energia", "água", "agua", "telefone", "luz", "saas", "hospedagem", "cloud"];
 
-const MARGEM_BRUTA = (LUCRO_BRUTO / RECEITA_LIQ) * 100;
-const MARGEM_EBITDA = (EBITDA / RECEITA_LIQ) * 100;
-const MARGEM_LIQUIDA = (LUCRO_LIQ / RECEITA_LIQ) * 100;
+function classify(desc: string): "salary" | "tax" | "financial" | "marketing" | "infra" | "other" {
+  const d = (desc || "").toLowerCase();
+  if (SALARY_KEYWORDS.some(k => d.includes(k))) return "salary";
+  if (TAX_KEYWORDS.some(k => d.includes(k))) return "tax";
+  if (FIN_KEYWORDS.some(k => d.includes(k))) return "financial";
+  if (MARKETING_KEYWORDS.some(k => d.includes(k))) return "marketing";
+  if (INFRA_KEYWORDS.some(k => d.includes(k))) return "infra";
+  return "other";
+}
 
-export function DRETab({ customerProductId: _ }: Props) {
-  const [period] = useState("Abril 2026");
+export function DRETab({ customerProductId }: Props) {
+  const today = new Date();
+  const [month, setMonth] = useState(today.getMonth());
+  const [year, setYear] = useState(today.getFullYear());
+  const [txs, setTxs] = useState<Tx[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+
+  const period = new Date(year, month).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const start = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const end = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      const { data, error } = await supabase
+        .from("financial_agent_transactions")
+        .select("type, amount, date, description, source, payment_method")
+        .eq("customer_product_id", customerProductId)
+        .gte("date", start)
+        .lte("date", end);
+      if (error) {
+        toast({ title: "Erro ao carregar DRE", description: error.message, variant: "destructive" });
+      }
+      setTxs((data ?? []) as Tx[]);
+      setLoading(false);
+    };
+    load();
+  }, [month, year, customerProductId]);
+
+  const dre = useMemo(() => {
+    const incomes = txs.filter(t => t.type === "income");
+    const expenses = txs.filter(t => t.type !== "income");
+    const receitaBruta = incomes.reduce((a, t) => a + Number(t.amount), 0);
+
+    const buckets = { salary: 0, tax: 0, financial: 0, marketing: 0, infra: 0, other: 0 };
+    expenses.forEach(t => {
+      buckets[classify(t.description || "")] += Number(t.amount);
+    });
+
+    const deducoes = buckets.tax;
+    const receitaLiq = receitaBruta - deducoes;
+    const custos = 0; // sem categoria CPV explícita ainda
+    const lucroBruto = receitaLiq - custos;
+
+    const despOp = {
+      pessoal: buckets.salary,
+      marketing: buckets.marketing,
+      administrativas: buckets.other,
+      infraestrutura: buckets.infra,
+    };
+    const totalOp = despOp.pessoal + despOp.marketing + despOp.administrativas + despOp.infraestrutura;
+    const ebitda = lucroBruto - totalOp;
+    const despFin = buckets.financial;
+    const lucroLiq = ebitda - despFin;
+
+    return {
+      receitaBruta, deducoes, receitaLiq, custos, lucroBruto,
+      despOp, totalOp, ebitda, despFin, lucroLiq,
+      mb: receitaLiq ? (lucroBruto / receitaLiq) * 100 : 0,
+      me: receitaLiq ? (ebitda / receitaLiq) * 100 : 0,
+      ml: receitaLiq ? (lucroLiq / receitaLiq) * 100 : 0,
+    };
+  }, [txs]);
+
+  const goPrev = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+  const goNext = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+  const handlePrint = () => window.print();
+
+  const handleExportJSON = () => {
+    const blob = new Blob([JSON.stringify({ period, dre }, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `dre-${year}-${month + 1}.json`; a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="space-y-6">
-      {/* Hero */}
       <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-indigo-500/10 via-background to-blue-500/10 p-6">
         <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none" />
         <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
@@ -52,66 +130,80 @@ export function DRETab({ customerProductId: _ }: Props) {
             </div>
             <h2 className="text-3xl font-bold tracking-tight">DRE Automático</h2>
             <p className="text-muted-foreground text-sm mt-1 max-w-xl">
-              Demonstração do Resultado do Exercício gerada automaticamente. Pronto para o contador.
+              Demonstração do Resultado calculada a partir das suas transações reais.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Badge variant="outline" className="text-xs">Período: {period}</Badge>
-            <Button variant="outline" size="sm"><Mail className="w-3.5 h-3.5 mr-1" /> Enviar contador</Button>
-            <Button variant="outline" size="sm"><Printer className="w-3.5 h-3.5 mr-1" /> Imprimir</Button>
-            <Button className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-0">
-              <Download className="w-3.5 h-3.5 mr-1" /> PDF
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={goPrev}><ChevronLeft className="w-4 h-4" /></Button>
+            <Badge variant="outline" className="text-xs capitalize">{period}</Badge>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={goNext}><ChevronRight className="w-4 h-4" /></Button>
+            <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-3.5 h-3.5 mr-1" /> Imprimir</Button>
+            <Button className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-0" onClick={handleExportJSON}>
+              <Download className="w-3.5 h-3.5 mr-1" /> Exportar
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Margens */}
-      <div className="grid md:grid-cols-3 gap-4">
-        <MarginCard label="Margem Bruta" pct={MARGEM_BRUTA} value={LUCRO_BRUTO} color="emerald" />
-        <MarginCard label="Margem EBITDA" pct={MARGEM_EBITDA} value={EBITDA} color="blue" />
-        <MarginCard label="Margem Líquida" pct={MARGEM_LIQUIDA} value={LUCRO_LIQ} color="violet" />
-      </div>
-
-      {/* DRE waterfall card */}
-      <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
-        <div className="p-5 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-indigo-500/5 to-transparent">
-          <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-indigo-500" />
-            <h3 className="font-semibold">Demonstração do Resultado · {period}</h3>
+      {loading ? (
+        <Card className="p-12 text-center text-muted-foreground">
+          <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /> Calculando DRE…
+        </Card>
+      ) : txs.length === 0 ? (
+        <Card className="p-12 text-center">
+          <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-40" />
+          <p className="font-semibold">Sem transações neste período</p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Importe um extrato ou cadastre transações para gerar o DRE automaticamente.
+          </p>
+        </Card>
+      ) : (
+        <>
+          <div className="grid md:grid-cols-3 gap-4">
+            <MarginCard label="Margem Bruta" pct={dre.mb} value={dre.lucroBruto} color="emerald" />
+            <MarginCard label="Margem EBITDA" pct={dre.me} value={dre.ebitda} color="blue" />
+            <MarginCard label="Margem Líquida" pct={dre.ml} value={dre.lucroLiq} color="violet" />
           </div>
-          <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30" variant="outline">
-            <Sparkles className="w-3 h-3 mr-1" /> Validado
-          </Badge>
-        </div>
 
-        <div className="p-2 sm:p-5 space-y-1">
-          <DreLine label="(+) Receita Bruta de Vendas" value={DATA.receitaBruta} bold positive />
-          <DreLine label="(−) Deduções (impostos s/ vendas, devoluções)" value={-DATA.deducoes} indent />
-          <DreSubtotal label="(=) Receita Líquida" value={RECEITA_LIQ} />
+          <Card className="border-border/50 bg-card/50 backdrop-blur-sm overflow-hidden">
+            <div className="p-5 border-b border-border/50 flex items-center justify-between bg-gradient-to-r from-indigo-500/5 to-transparent">
+              <div className="flex items-center gap-2">
+                <FileText className="w-4 h-4 text-indigo-500" />
+                <h3 className="font-semibold capitalize">Demonstração do Resultado · {period}</h3>
+              </div>
+              <Badge className="bg-emerald-500/15 text-emerald-500 border-emerald-500/30" variant="outline">
+                <Sparkles className="w-3 h-3 mr-1" /> Calculado de {txs.length} transação(ões)
+              </Badge>
+            </div>
 
-          <DreLine label="(−) Custo dos Produtos/Serviços Vendidos (CPV/CSV)" value={-DATA.custos} indent />
-          <DreSubtotal label="(=) Lucro Bruto" value={LUCRO_BRUTO} pct={MARGEM_BRUTA} />
+            <div className="p-2 sm:p-5 space-y-1">
+              <DreLine label="(+) Receita Bruta" value={dre.receitaBruta} bold positive />
+              <DreLine label="(−) Deduções (impostos s/ vendas)" value={-dre.deducoes} indent />
+              <DreSubtotal label="(=) Receita Líquida" value={dre.receitaLiq} />
 
-          <DreLine label="(−) Despesas Operacionais" value={-TOTAL_OP} bold />
-          <DreLine label="Pessoal & encargos" value={-DATA.despOperacionais.pessoal} indent dimmed />
-          <DreLine label="Marketing & vendas" value={-DATA.despOperacionais.marketing} indent dimmed />
-          <DreLine label="Administrativas" value={-DATA.despOperacionais.administrativas} indent dimmed />
-          <DreLine label="Infraestrutura & TI" value={-DATA.despOperacionais.infraestrutura} indent dimmed />
+              <DreLine label="(−) Custo dos Produtos/Serviços (CPV/CSV)" value={-dre.custos} indent />
+              <DreSubtotal label="(=) Lucro Bruto" value={dre.lucroBruto} pct={dre.mb} />
 
-          <DreSubtotal label="(=) EBITDA" value={EBITDA} pct={MARGEM_EBITDA} highlight />
+              <DreLine label="(−) Despesas Operacionais" value={-dre.totalOp} bold />
+              <DreLine label="Pessoal & encargos" value={-dre.despOp.pessoal} indent dimmed />
+              <DreLine label="Marketing & vendas" value={-dre.despOp.marketing} indent dimmed />
+              <DreLine label="Administrativas / Outras" value={-dre.despOp.administrativas} indent dimmed />
+              <DreLine label="Infraestrutura & TI" value={-dre.despOp.infraestrutura} indent dimmed />
 
-          <DreLine label="(−) Despesas Financeiras (juros, tarifas)" value={-DATA.despFinanceiras} indent />
-          <DreLine label="(±) Outras receitas/despesas" value={DATA.outras} indent />
+              <DreSubtotal label="(=) EBITDA" value={dre.ebitda} pct={dre.me} highlight />
 
-          <DreFinal label="(=) Lucro Líquido do Exercício" value={LUCRO_LIQ} pct={MARGEM_LIQUIDA} />
-        </div>
+              <DreLine label="(−) Despesas Financeiras" value={-dre.despFin} indent />
 
-        <div className="px-5 py-3 bg-muted/30 border-t border-border/50 text-[11px] text-muted-foreground flex items-center justify-between">
-          <span>Gerado automaticamente em {new Date().toLocaleString("pt-BR")}</span>
-          <span>Padrão: CPC 26 (R1) · Lei 11.638/07</span>
-        </div>
-      </Card>
+              <DreFinal label="(=) Lucro Líquido do Exercício" value={dre.lucroLiq} pct={dre.ml} />
+            </div>
+
+            <div className="px-5 py-3 bg-muted/30 border-t border-border/50 text-[11px] text-muted-foreground flex items-center justify-between">
+              <span>Gerado em {new Date().toLocaleString("pt-BR")}</span>
+              <span>Categorização automática por palavras-chave nas descrições</span>
+            </div>
+          </Card>
+        </>
+      )}
     </div>
   );
 }
@@ -157,9 +249,7 @@ function DreSubtotal({ label, value, pct, highlight }: { label: string; value: n
     } my-1.5`}>
       <span className="text-sm font-bold">{label}</span>
       <div className="flex items-center gap-3">
-        {pct !== undefined && (
-          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{fmtPct(pct)}</Badge>
-        )}
+        {pct !== undefined && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{fmtPct(pct)}</Badge>}
         <span className="text-base font-bold tabular-nums font-mono">{fmtBRL(value)}</span>
       </div>
     </div>
