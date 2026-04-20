@@ -1530,6 +1530,195 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_calendar_events: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          customer_product_id: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          paid_at: string | null
+          recurring: boolean
+          recurring_interval: string | null
+          recurring_until: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          customer_product_id: string
+          description?: string | null
+          event_date: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          paid_at?: string | null
+          recurring?: boolean
+          recurring_interval?: string | null
+          recurring_until?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          customer_product_id?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          paid_at?: string | null
+          recurring?: boolean
+          recurring_interval?: string | null
+          recurring_until?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_calendar_events_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_tax_calculations: {
+        Row: {
+          breakdown: Json | null
+          created_at: string
+          customer_product_id: string
+          das_value: number
+          deduction: number
+          due_date: string
+          effective_rate: number
+          id: string
+          nominal_rate: number
+          paid_at: string | null
+          payment_status: string
+          reference_month: string
+          regime: string
+          revenue_12m: number
+          revenue_month: number
+          updated_at: string
+        }
+        Insert: {
+          breakdown?: Json | null
+          created_at?: string
+          customer_product_id: string
+          das_value?: number
+          deduction?: number
+          due_date: string
+          effective_rate?: number
+          id?: string
+          nominal_rate?: number
+          paid_at?: string | null
+          payment_status?: string
+          reference_month: string
+          regime: string
+          revenue_12m?: number
+          revenue_month?: number
+          updated_at?: string
+        }
+        Update: {
+          breakdown?: Json | null
+          created_at?: string
+          customer_product_id?: string
+          das_value?: number
+          deduction?: number
+          due_date?: string
+          effective_rate?: number
+          id?: string
+          nominal_rate?: number
+          paid_at?: string | null
+          payment_status?: string
+          reference_month?: string
+          regime?: string
+          revenue_12m?: number
+          revenue_month?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_tax_calculations_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_tax_config: {
+        Row: {
+          auto_calculate: boolean
+          cnpj: string | null
+          company_name: string | null
+          created_at: string
+          customer_product_id: string
+          id: string
+          mei_activity: string | null
+          notify_days_before: number
+          notify_email: string | null
+          notify_whatsapp: string | null
+          regime: string
+          revenue_12m: number
+          simples_anexo: string | null
+          updated_at: string
+        }
+        Insert: {
+          auto_calculate?: boolean
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          mei_activity?: string | null
+          notify_days_before?: number
+          notify_email?: string | null
+          notify_whatsapp?: string | null
+          regime?: string
+          revenue_12m?: number
+          simples_anexo?: string | null
+          updated_at?: string
+        }
+        Update: {
+          auto_calculate?: boolean
+          cnpj?: string | null
+          company_name?: string | null
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          mei_activity?: string | null
+          notify_days_before?: number
+          notify_email?: string | null
+          notify_whatsapp?: string | null
+          regime?: string
+          revenue_12m?: number
+          simples_anexo?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_tax_config_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: true
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_budget_audit_results: {
         Row: {
           budget_id: string
