@@ -52,6 +52,7 @@ const sidebarItems = [
   { value: 'calendar', label: 'Calendário', icon: CalendarIcon },
   { value: 'scenarios', label: 'Cenários', icon: Wand2 },
   { value: 'insights', label: 'Insights', icon: Sparkles },
+  { value: 'forecast', label: 'Previsões', icon: TrendingUp },
   { value: 'chatbot', label: 'Chat', icon: MessageSquare },
   { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
   { value: 'recurring', label: 'Recorrentes', icon: Repeat },
