@@ -224,7 +224,6 @@ export default function FinancialAgentSystem() {
               <TabsContent value="forecast" className="space-y-4">
                 <ForecastTab customerProductId={customerId} />
               </TabsContent>
-              </TabsContent>
               <TabsContent value="chatbot" className="space-y-4">
                 <FinancialChatbot customerProductId={customerId} />
               </TabsContent>
