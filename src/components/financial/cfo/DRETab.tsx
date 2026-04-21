@@ -6,8 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   FileBarChart, Download, Printer, ChevronRight, TrendingUp, TrendingDown,
-  ArrowDownRight, ArrowUpRight, Sparkles, FileText, Loader2, ChevronLeft,
+  ArrowDownRight, ArrowUpRight, Sparkles, FileText, Loader2, ChevronLeft, FileDown,
 } from "lucide-react";
+import { generateDREPDF } from "@/lib/generateDREPDF";
 
 interface Props { customerProductId: string }
 
@@ -118,6 +119,32 @@ export function DRETab({ customerProductId }: Props) {
     URL.revokeObjectURL(url);
   };
 
+  const handleExportPDF = async () => {
+    try {
+      const blob = generateDREPDF({ period, txCount: txs.length, ...dre });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `DRE-${year}-${String(month + 1).padStart(2, "0")}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+
+      // Snapshot no banco
+      const start = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+      const lastDay = new Date(year, month + 1, 0).getDate();
+      const end = `${year}-${String(month + 1).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+      await (supabase as any).from("financial_report_snapshots").insert({
+        customer_product_id: customerProductId,
+        report_type: "dre",
+        period_start: start,
+        period_end: end,
+        title: `DRE ${period}`,
+        payload: { ...dre, txCount: txs.length },
+      });
+      toast({ title: "PDF gerado", description: "Relatório arquivado no histórico." });
+    } catch (e: any) {
+      toast({ title: "Erro ao gerar PDF", description: e?.message ?? "Tente novamente", variant: "destructive" });
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="relative overflow-hidden rounded-3xl border border-border/50 bg-gradient-to-br from-indigo-500/10 via-background to-blue-500/10 p-6">
@@ -138,8 +165,9 @@ export function DRETab({ customerProductId }: Props) {
             <Badge variant="outline" className="text-xs capitalize">{period}</Badge>
             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={goNext}><ChevronRight className="w-4 h-4" /></Button>
             <Button variant="outline" size="sm" onClick={handlePrint}><Printer className="w-3.5 h-3.5 mr-1" /> Imprimir</Button>
-            <Button className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-0" onClick={handleExportJSON}>
-              <Download className="w-3.5 h-3.5 mr-1" /> Exportar
+            <Button variant="outline" size="sm" onClick={handleExportJSON}><Download className="w-3.5 h-3.5 mr-1" /> JSON</Button>
+            <Button className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-0" onClick={handleExportPDF}>
+              <FileDown className="w-3.5 h-3.5 mr-1" /> Exportar PDF
             </Button>
           </div>
         </div>
