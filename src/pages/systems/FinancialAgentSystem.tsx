@@ -20,6 +20,7 @@ import {
   Globe2,
   FileBarChart,
   Calendar as CalendarIcon,
+  TrendingUp,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -219,6 +220,10 @@ export default function FinancialAgentSystem() {
               </TabsContent>
               <TabsContent value="insights" className="space-y-4">
                 <InsightsTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="forecast" className="space-y-4">
+                <ForecastTab customerProductId={customerId} />
+              </TabsContent>
               </TabsContent>
               <TabsContent value="chatbot" className="space-y-4">
                 <FinancialChatbot customerProductId={customerId} />
