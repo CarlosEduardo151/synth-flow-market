@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Repeat, Plus, Zap, Trash2, ArrowDownRight, ArrowUpRight, Clock, TrendingUp,
-  CalendarClock, Loader2,
+  CalendarClock, Loader2, PlayCircle,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
@@ -37,11 +37,32 @@ export function RecurringTab({ customerProductId }: Props) {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState(false);
   const [form, setForm] = useState({
     title: "", amount: "", event_type: "expense",
     recurring_interval: "monthly", event_date: "", category: "",
   });
   const { toast } = useToast();
+
+  const processNow = async () => {
+    setProcessing(true);
+    try {
+      const { data, error } = await (supabase as any).rpc("process_recurring_events");
+      if (error) throw error;
+      const generated = (data as any)?.generated ?? 0;
+      toast({
+        title: "Processamento concluído",
+        description: generated > 0
+          ? `${generated} próxima(s) ocorrência(s) gerada(s).`
+          : "Nenhuma recorrência vencida no momento.",
+      });
+      load();
+    } catch (e: any) {
+      toast({ title: "Erro", description: e?.message ?? "Falha ao processar", variant: "destructive" });
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -122,12 +143,17 @@ export function RecurringTab({ customerProductId }: Props) {
               Cadastre lançamentos que se repetem automaticamente: salários, aluguéis, assinaturas e receitas fixas.
             </p>
           </div>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-0 hover:opacity-90 shrink-0">
-                <Plus className="w-4 h-4 mr-1" /> Nova Recorrência
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" size="sm" onClick={processNow} disabled={processing}>
+              {processing ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5 mr-1" />}
+              Processar agora
+            </Button>
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 text-white border-0 hover:opacity-90">
+                  <Plus className="w-4 h-4 mr-1" /> Nova Recorrência
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>Nova recorrência</DialogTitle></DialogHeader>
               <div className="space-y-3">
