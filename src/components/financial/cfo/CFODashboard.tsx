@@ -5,8 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Clock, DollarSign,
-  Flame, PiggyBank, Receipt, Sparkles, TrendingUp, Wallet,
+  Activity, AlertTriangle, ArrowDownRight, ArrowUpRight, Brain, Clock, DollarSign,
+  Flame, PiggyBank, Receipt, RefreshCw, Sparkles, TrendingUp, Wallet, Zap,
 } from "lucide-react";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
