@@ -20,6 +20,7 @@ import {
   Globe2,
   FileBarChart,
   Calendar as CalendarIcon,
+  TrendingUp,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -31,6 +32,7 @@ import { useProductAccess } from '@/hooks/useProductAccess';
 import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
 import { ScenariosTab } from '@/components/financial/cfo/ScenariosTab';
 import { InsightsTab } from '@/components/financial/cfo/InsightsTab';
+import { ForecastTab } from '@/components/financial/cfo/ForecastTab';
 import { BudgetCategoriesTab } from '@/components/financial/cfo/BudgetCategoriesTab';
 import { RecurringTab } from '@/components/financial/cfo/RecurringTab';
 import { TaxCalculatorTab } from '@/components/financial/cfo/TaxCalculatorTab';
@@ -51,6 +53,7 @@ const sidebarItems = [
   { value: 'calendar', label: 'Calendário', icon: CalendarIcon },
   { value: 'scenarios', label: 'Cenários', icon: Wand2 },
   { value: 'insights', label: 'Insights', icon: Sparkles },
+  { value: 'forecast', label: 'Previsões', icon: TrendingUp },
   { value: 'chatbot', label: 'Chat', icon: MessageSquare },
   { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
   { value: 'recurring', label: 'Recorrentes', icon: Repeat },
@@ -217,6 +220,9 @@ export default function FinancialAgentSystem() {
               </TabsContent>
               <TabsContent value="insights" className="space-y-4">
                 <InsightsTab customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="forecast" className="space-y-4">
+                <ForecastTab customerProductId={customerId} />
               </TabsContent>
               <TabsContent value="chatbot" className="space-y-4">
                 <FinancialChatbot customerProductId={customerId} />
