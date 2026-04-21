@@ -46,12 +46,42 @@ const fmtBRL = (n: number) =>
 const fmtBRLFull = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2 });
 
+interface KpiSnapshot {
+  snapshot_date: string;
+  cash_balance: number | null;
+  burn_rate_monthly: number | null;
+  runway_months: number | null;
+  net_margin_pct: number | null;
+  avg_ticket: number | null;
+  revenue_mtd: number | null;
+  expense_mtd: number | null;
+}
+interface InsightItem {
+  id: string;
+  title: string;
+  description: string;
+  severity: string;
+  impact_brl: number | null;
+}
+interface ForecastItem {
+  horizon_days: number;
+  projected_income: number;
+  projected_expense: number;
+  projected_balance: number;
+  confidence: number | null;
+  generated_at: string;
+}
+
 export function CFODashboard({ customerProductId, mode }: Props) {
   const [txAll, setTxAll] = useState<Tx[]>([]);
   const [invs, setInvs] = useState<Inv[]>([]);
   const [loading, setLoading] = useState(true);
   const [granularity, setGranularity] = useState<Granularity>("daily");
   const [categorizing, setCategorizing] = useState(false);
+  const [kpi, setKpi] = useState<KpiSnapshot | null>(null);
+  const [insights, setInsights] = useState<InsightItem[]>([]);
+  const [forecast, setForecast] = useState<ForecastItem | null>(null);
+  const [aiBusy, setAiBusy] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -65,7 +95,7 @@ export function CFODashboard({ customerProductId, mode }: Props) {
       since.setDate(since.getDate() - 90);
       const sinceISO = since.toISOString().split("T")[0];
 
-      const [txRes, invRes] = await Promise.all([
+      const [txRes, invRes, kpiRes, insRes, fcRes] = await Promise.all([
         (supabase.from("financial_agent_transactions" as any)
           .select("*")
           .eq("customer_product_id", customerProductId)
@@ -75,14 +105,52 @@ export function CFODashboard({ customerProductId, mode }: Props) {
           .select("*")
           .eq("customer_product_id", customerProductId)
           .order("due_date", { ascending: true }) as any),
+        (supabase.from("financial_kpi_snapshots" as any)
+          .select("*")
+          .eq("customer_product_id", customerProductId)
+          .order("snapshot_date", { ascending: false })
+          .limit(1)
+          .maybeSingle() as any),
+        (supabase.from("financial_insights" as any)
+          .select("id, title, description, severity, impact_brl")
+          .eq("customer_product_id", customerProductId)
+          .eq("status", "open")
+          .order("detected_at", { ascending: false })
+          .limit(4) as any),
+        (supabase.from("financial_forecasts" as any)
+          .select("horizon_days, projected_income, projected_expense, projected_balance, confidence, generated_at")
+          .eq("customer_product_id", customerProductId)
+          .order("generated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle() as any),
       ]);
       setTxAll(((txRes.data || []) as any[]).map((t) => ({ ...t, amount: Number(t.amount) })));
       setInvs(((invRes.data || []) as any[]).map((i) => ({ ...i, amount: Number(i.amount) })));
+      setKpi((kpiRes.data as any) || null);
+      setInsights(((insRes.data || []) as any[]) as InsightItem[]);
+      setForecast((fcRes.data as any) || null);
     } catch (e) {
       console.error(e);
     }
     setLoading(false);
   }
+
+  async function runAi(fn: "financial-kpi-aggregate" | "financial-insights-scan" | "financial-forecast", label: string) {
+    setAiBusy(true);
+    try {
+      const { error } = await supabase.functions.invoke(fn, {
+        body: { customer_product_id: customerProductId, horizon_days: 30 },
+      });
+      if (error) throw error;
+      toast({ title: label, description: "Atualizado com sucesso." });
+      await load();
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Falha", description: e?.message || "Tente novamente.", variant: "destructive" });
+    }
+    setAiBusy(false);
+  }
+
 
   // ============ Derivações financeiras ============
   const now = new Date();
