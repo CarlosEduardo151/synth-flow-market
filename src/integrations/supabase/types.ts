@@ -1658,6 +1658,42 @@ export type Database = {
           },
         ]
       }
+      financial_currency_accounts: {
+        Row: {
+          account_name: string
+          balance: number
+          created_at: string
+          currency_code: string
+          customer_product_id: string
+          id: string
+          is_primary: boolean
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_name: string
+          balance?: number
+          created_at?: string
+          currency_code: string
+          customer_product_id: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_name?: string
+          balance?: number
+          created_at?: string
+          currency_code?: string
+          customer_product_id?: string
+          id?: string
+          is_primary?: boolean
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       financial_das_guides: {
         Row: {
           aliquota_efetiva: number
@@ -1773,6 +1809,44 @@ export type Database = {
             columns: ["das_guide_id"]
             isOneToOne: false
             referencedRelation: "financial_das_guides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_goal_links: {
+        Row: {
+          contribution_type: string
+          created_at: string
+          customer_product_id: string
+          goal_id: string
+          id: string
+          match_type: string
+          match_value: string
+        }
+        Insert: {
+          contribution_type?: string
+          created_at?: string
+          customer_product_id: string
+          goal_id: string
+          id?: string
+          match_type?: string
+          match_value: string
+        }
+        Update: {
+          contribution_type?: string
+          created_at?: string
+          customer_product_id?: string
+          goal_id?: string
+          id?: string
+          match_type?: string
+          match_value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_goal_links_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "financial_agent_goals"
             referencedColumns: ["id"]
           },
         ]
@@ -2025,6 +2099,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_recurring_runs: {
+        Row: {
+          customer_product_id: string
+          generated_event_id: string | null
+          generated_invoice_id: string | null
+          id: string
+          notes: string | null
+          run_at: string
+          run_type: string
+          source_event_id: string | null
+        }
+        Insert: {
+          customer_product_id: string
+          generated_event_id?: string | null
+          generated_invoice_id?: string | null
+          id?: string
+          notes?: string | null
+          run_at?: string
+          run_type: string
+          source_event_id?: string | null
+        }
+        Update: {
+          customer_product_id?: string
+          generated_event_id?: string | null
+          generated_invoice_id?: string | null
+          id?: string
+          notes?: string | null
+          run_at?: string
+          run_type?: string
+          source_event_id?: string | null
+        }
+        Relationships: []
+      }
+      financial_report_snapshots: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          generated_by: string | null
+          id: string
+          payload: Json
+          pdf_url: string | null
+          period_end: string | null
+          period_start: string | null
+          report_type: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          generated_by?: string | null
+          id?: string
+          payload?: Json
+          pdf_url?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          report_type: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          generated_by?: string | null
+          id?: string
+          payload?: Json
+          pdf_url?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          report_type?: string
+          title?: string
+        }
+        Relationships: []
       }
       financial_tax_calculations: {
         Row: {
@@ -5717,6 +5863,7 @@ export type Database = {
         Args: { _customer_product_id: string; _month: number; _year: number }
         Returns: number
       }
+      goal_recompute_progress: { Args: { _goal_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5730,6 +5877,7 @@ export type Database = {
         Args: { _customer_product_id: string }
         Returns: boolean
       }
+      process_recurring_events: { Args: never; Returns: Json }
       recalc_quote_totals: { Args: { _quote_id: string }; Returns: undefined }
       recalc_receivable_totals: {
         Args: { _rec_id: string }
@@ -5753,6 +5901,7 @@ export type Database = {
         }[]
       }
       update_expired_trials: { Args: never; Returns: undefined }
+      update_overdue_invoices: { Args: never; Returns: Json }
     }
     Enums: {
       acquisition_type: "purchase" | "rental"
