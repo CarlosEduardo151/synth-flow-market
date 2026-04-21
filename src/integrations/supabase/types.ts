@@ -1813,6 +1813,51 @@ export type Database = {
           },
         ]
       }
+      financial_forecasts: {
+        Row: {
+          confidence: number | null
+          created_at: string
+          customer_product_id: string
+          daily_series: Json | null
+          generated_at: string
+          horizon_days: number
+          id: string
+          method: string
+          notes: string | null
+          projected_balance: number
+          projected_expense: number
+          projected_income: number
+        }
+        Insert: {
+          confidence?: number | null
+          created_at?: string
+          customer_product_id: string
+          daily_series?: Json | null
+          generated_at?: string
+          horizon_days: number
+          id?: string
+          method?: string
+          notes?: string | null
+          projected_balance?: number
+          projected_expense?: number
+          projected_income?: number
+        }
+        Update: {
+          confidence?: number | null
+          created_at?: string
+          customer_product_id?: string
+          daily_series?: Json | null
+          generated_at?: string
+          horizon_days?: number
+          id?: string
+          method?: string
+          notes?: string | null
+          projected_balance?: number
+          projected_expense?: number
+          projected_income?: number
+        }
+        Relationships: []
+      }
       financial_goal_links: {
         Row: {
           contribution_type: string
@@ -1850,6 +1895,147 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      financial_insights: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          description: string
+          detected_at: string
+          id: string
+          impact_brl: number | null
+          insight_type: string
+          metadata: Json | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          description: string
+          detected_at?: string
+          id?: string
+          impact_brl?: number | null
+          insight_type: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          description?: string
+          detected_at?: string
+          id?: string
+          impact_brl?: number | null
+          insight_type?: string
+          metadata?: Json | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      financial_kpi_snapshots: {
+        Row: {
+          avg_ticket: number | null
+          burn_rate_monthly: number | null
+          cash_balance: number | null
+          created_at: string
+          customer_product_id: string
+          expense_mtd: number | null
+          id: string
+          metadata: Json | null
+          net_margin_pct: number | null
+          payables_open: number | null
+          receivables_open: number | null
+          revenue_mtd: number | null
+          runway_months: number | null
+          snapshot_date: string
+        }
+        Insert: {
+          avg_ticket?: number | null
+          burn_rate_monthly?: number | null
+          cash_balance?: number | null
+          created_at?: string
+          customer_product_id: string
+          expense_mtd?: number | null
+          id?: string
+          metadata?: Json | null
+          net_margin_pct?: number | null
+          payables_open?: number | null
+          receivables_open?: number | null
+          revenue_mtd?: number | null
+          runway_months?: number | null
+          snapshot_date?: string
+        }
+        Update: {
+          avg_ticket?: number | null
+          burn_rate_monthly?: number | null
+          cash_balance?: number | null
+          created_at?: string
+          customer_product_id?: string
+          expense_mtd?: number | null
+          id?: string
+          metadata?: Json | null
+          net_margin_pct?: number | null
+          payables_open?: number | null
+          receivables_open?: number | null
+          revenue_mtd?: number | null
+          runway_months?: number | null
+          snapshot_date?: string
+        }
+        Relationships: []
+      }
+      financial_notifications: {
+        Row: {
+          channel: string
+          created_at: string
+          customer_product_id: string
+          error_message: string | null
+          id: string
+          message: string
+          metadata: Json | null
+          notification_type: string
+          recipient: string
+          sent_at: string | null
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          customer_product_id: string
+          error_message?: string | null
+          id?: string
+          message: string
+          metadata?: Json | null
+          notification_type: string
+          recipient: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          customer_product_id?: string
+          error_message?: string | null
+          id?: string
+          message?: string
+          metadata?: Json | null
+          notification_type?: string
+          recipient?: string
+          sent_at?: string | null
+          status?: string
+          subject?: string | null
+        }
+        Relationships: []
       }
       financial_quote_items: {
         Row: {
