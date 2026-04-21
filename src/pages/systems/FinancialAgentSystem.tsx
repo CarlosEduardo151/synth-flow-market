@@ -31,6 +31,7 @@ import { useProductAccess } from '@/hooks/useProductAccess';
 import { CFODashboard } from '@/components/financial/cfo/CFODashboard';
 import { ScenariosTab } from '@/components/financial/cfo/ScenariosTab';
 import { InsightsTab } from '@/components/financial/cfo/InsightsTab';
+import { ForecastTab } from '@/components/financial/cfo/ForecastTab';
 import { BudgetCategoriesTab } from '@/components/financial/cfo/BudgetCategoriesTab';
 import { RecurringTab } from '@/components/financial/cfo/RecurringTab';
 import { TaxCalculatorTab } from '@/components/financial/cfo/TaxCalculatorTab';
