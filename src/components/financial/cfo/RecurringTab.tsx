@@ -210,6 +210,7 @@ export function RecurringTab({ customerProductId }: Props) {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
       </div>
 
