@@ -230,10 +230,94 @@ export function CFODashboard({ customerProductId, mode }: Props) {
     );
   }
 
+  const sevColor = (s: string) =>
+    s === "critical" ? "border-red-500/40 bg-red-500/5 text-red-300" :
+    s === "high" ? "border-amber-500/40 bg-amber-500/5 text-amber-300" :
+    "border-primary/30 bg-primary/5 text-primary";
+
   return (
     <div className="space-y-6">
+      {/* Painel IA — KPIs reais (snapshot, insights, previsão) */}
+      <Card className="p-5 bg-gradient-to-br from-primary/5 via-card/60 to-card/40 ring-1 ring-primary/20 backdrop-blur">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-md bg-primary/15"><Brain className="h-4 w-4 text-primary" /></div>
+            <div>
+              <h3 className="text-base font-semibold leading-none">Saúde Financeira (IA)</h3>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {kpi ? `Snapshot consolidado em ${new Date(kpi.snapshot_date).toLocaleDateString("pt-BR")}` : "Sem snapshot ainda — clique em Atualizar"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={aiBusy} onClick={() => runAi("financial-kpi-aggregate", "KPIs atualizados")}>
+              <RefreshCw className={`h-3 w-3 ${aiBusy ? "animate-spin" : ""}`} /> KPIs
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={aiBusy} onClick={() => runAi("financial-insights-scan", "Insights gerados")}>
+              <Sparkles className="h-3 w-3" /> Insights
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs gap-1" disabled={aiBusy} onClick={() => runAi("financial-forecast", "Previsão atualizada")}>
+              <Zap className="h-3 w-3" /> Previsão
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Saldo (snapshot)</p>
+            <p className="text-lg font-bold tabular-nums mt-1">{kpi?.cash_balance != null ? fmtBRL(Number(kpi.cash_balance)) : "—"}</p>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Burn rate /mês</p>
+            <p className="text-lg font-bold tabular-nums mt-1">{kpi?.burn_rate_monthly != null ? fmtBRL(Number(kpi.burn_rate_monthly)) : "—"}</p>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Runway</p>
+            <p className="text-lg font-bold tabular-nums mt-1">{kpi?.runway_months != null ? `${Number(kpi.runway_months).toFixed(1)} m` : "—"}</p>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-card/50 p-3">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Margem líquida</p>
+            <p className="text-lg font-bold tabular-nums mt-1">{kpi?.net_margin_pct != null ? `${Number(kpi.net_margin_pct).toFixed(1)}%` : "—"}</p>
+          </div>
+        </div>
+
+        {forecast && (
+          <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs">
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-primary flex items-center gap-1"><Zap className="h-3 w-3" /> Previsão {forecast.horizon_days}d</span>
+              <span className="text-muted-foreground">Confiança {Math.round(Number(forecast.confidence || 0) * 100)}%</span>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><span className="text-muted-foreground">Receita: </span><span className="tabular-nums font-medium text-emerald-400">{fmtBRL(Number(forecast.projected_income))}</span></div>
+              <div><span className="text-muted-foreground">Despesa: </span><span className="tabular-nums font-medium text-red-400">{fmtBRL(Number(forecast.projected_expense))}</span></div>
+              <div><span className="text-muted-foreground">Saldo: </span><span className="tabular-nums font-medium">{fmtBRL(Number(forecast.projected_balance))}</span></div>
+            </div>
+          </div>
+        )}
+
+        {insights.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Insights ativos</p>
+            {insights.map((i) => (
+              <div key={i.id} className={`rounded-md border px-3 py-2 text-xs ${sevColor(i.severity)}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold truncate">{i.title}</p>
+                    <p className="text-muted-foreground mt-0.5 line-clamp-2">{i.description}</p>
+                  </div>
+                  {i.impact_brl != null && (
+                    <span className="shrink-0 tabular-nums font-semibold">{fmtBRL(Number(i.impact_brl))}</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       {/* Header com KPIs principais */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+
         <KPICard label="Receita (mês)" value={fmtBRL(stats.income)} icon={TrendingUp} tone="positive" delta={stats.incomeDelta} />
         <KPICard label="Despesas (mês)" value={fmtBRL(stats.expenses)} icon={Flame} tone="negative" delta={stats.expensesDelta} />
         <KPICard label="Resultado" value={fmtBRL(stats.balance)} icon={Wallet} tone={stats.balance >= 0 ? "info" : "negative"} delta={stats.balanceDelta} />
