@@ -173,29 +173,131 @@ async function pickAssignment(supabase: any, productSlug: string) {
 function buildSystemPrompt({
   productSlug,
   permissions,
+  toolContext,
 }: {
   productSlug: string;
   permissions: Record<string, any>;
+  toolContext?: string;
 }) {
   const goals = permissions?.goals || { create: true, update: true, delete: true };
 
   return [
-    `Você é o Agente Financeiro do produto "${productSlug}".`,
-    "Responda em português (pt-BR), de forma direta e útil.",
+    `Você é o Agente Financeiro (CFO virtual) do produto "${productSlug}".`,
+    "Responda em português (pt-BR), de forma direta, executiva e com números reais.",
     "Você pode receber imagens; descreva e use a imagem para ajudar o usuário.",
-    "IMPORTANTE: Você NÃO executa ações diretamente. Quando o usuário pedir para CRIAR/EDITAR/APAGAR uma META, você deve PROPOR uma ação para aprovação do cliente.",
-    "Permissões atuais do cliente (metas):",
-    `- criar: ${!!goals.create}`,
-    `- atualizar: ${!!goals.update}`,
-    `- apagar: ${!!goals.delete}`,
-    "Se a permissão estiver false, explique que o cliente precisa habilitar essa permissão nas Configurações do agente.",
-    "Se for permitido, no final da sua mensagem inclua uma linha única começando com:",
+    "",
+    "===== DADOS REAIS DO CLIENTE (use SEMPRE estes números nas respostas) =====",
+    toolContext || "(sem dados disponíveis no momento)",
+    "==========================================================================",
+    "",
+    "Quando o usuário pedir relatório, análise, KPIs, fluxo, projeção, faturas, vencimentos, gastos, top categorias, saldo, runway ou insights — use APENAS os dados acima. NÃO invente números.",
+    "Se faltar dado, diga claramente o que falta e como cadastrar.",
+    "",
+    "AÇÕES (metas):",
+    "Você NÃO executa ações diretamente. Quando o usuário pedir para CRIAR/EDITAR/APAGAR uma META, PROPONHA uma ação para aprovação.",
+    `- criar meta: ${!!goals.create}`,
+    `- atualizar meta: ${!!goals.update}`,
+    `- apagar meta: ${!!goals.delete}`,
+    "Se a permissão estiver false, explique que o cliente deve habilitar nas Configurações.",
+    "Se for permitido, no final inclua uma linha única começando com:",
     "ACTION_PROPOSAL:",
-    "seguida de JSON minificado com o formato:",
-    '{"action_type":"goal_create|goal_update|goal_delete","payload":{...}}',
+    "seguida de JSON minificado: {\"action_type\":\"goal_create|goal_update|goal_delete\",\"payload\":{...}}",
     "NUNCA inclua ACTION_PROPOSAL se o usuário não pediu uma ação de meta claramente.",
-    "O restante da resposta deve ser texto normal para o usuário.",
   ].join("\n");
+}
+
+// ============ Tool context: carrega snapshot real para o prompt ============
+async function buildToolContext(supabase: any, customerProductId: string): Promise<string> {
+  try {
+    const today = new Date();
+    const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+    const since = new Date(); since.setDate(since.getDate() - 90);
+    const sinceISO = since.toISOString().split("T")[0];
+
+    const [{ data: tx }, { data: invs }, { data: recv }, { data: kpi }, { data: insights }, { data: goals }, { data: forecast }] = await Promise.all([
+      supabase.from("financial_agent_transactions").select("type, amount, description, date, category").eq("customer_product_id", customerProductId).gte("date", sinceISO).order("date", { ascending: false }).limit(500),
+      supabase.from("financial_agent_invoices").select("title, amount, due_date, status, supplier").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+      supabase.from("financial_receivables").select("invoice_number, client_name, total, due_date, status").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+      supabase.from("financial_kpi_snapshots").select("*").eq("customer_product_id", customerProductId).order("snapshot_date", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("financial_insights").select("title, description, severity, impact_brl, status").eq("customer_product_id", customerProductId).eq("status", "open").order("detected_at", { ascending: false }).limit(8),
+      supabase.from("financial_agent_goals").select("name, target_amount, current_amount, deadline, status").eq("customer_product_id", customerProductId).limit(20),
+      supabase.from("financial_forecasts").select("horizon_days, projected_income, projected_expense, projected_balance, confidence, generated_at").eq("customer_product_id", customerProductId).order("generated_at", { ascending: false }).limit(1).maybeSingle(),
+    ]);
+
+    const txArr = (tx || []) as any[];
+    const monthTx = txArr.filter((t) => String(t.date).startsWith(ym));
+    const income = monthTx.filter((t) => t.type === "income").reduce((s, t) => s + Number(t.amount || 0), 0);
+    const expense = monthTx.filter((t) => t.type === "expense").reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    const catMap = new Map<string, number>();
+    monthTx.filter((t) => t.type === "expense").forEach((t) => {
+      const c = String(t.category || "Outros").trim();
+      catMap.set(c, (catMap.get(c) || 0) + Number(t.amount || 0));
+    });
+    const topCats = Array.from(catMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    const fmt = (n: number) => `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const openPay = (invs || []).filter((i: any) => i.status === "pending");
+    const overduePay = openPay.filter((i: any) => new Date(i.due_date) < today);
+    const openRecv = (recv || []).filter((r: any) => ["sent", "overdue", "partial"].includes(r.status));
+    const overdueRecv = openRecv.filter((r: any) => new Date(r.due_date) < today);
+
+    const lines: string[] = [];
+    lines.push(`Data de hoje: ${today.toISOString().split("T")[0]}`);
+    lines.push("");
+    lines.push("[KPIs do mês corrente]");
+    lines.push(`- Receita: ${fmt(income)}`);
+    lines.push(`- Despesa: ${fmt(expense)}`);
+    lines.push(`- Resultado: ${fmt(income - expense)}`);
+    if (kpi) {
+      lines.push(`- Saldo (snapshot ${kpi.snapshot_date}): ${fmt(Number(kpi.cash_balance || 0))}`);
+      if (kpi.runway_months != null) lines.push(`- Runway: ${Number(kpi.runway_months).toFixed(1)} meses`);
+      if (kpi.burn_rate_monthly != null) lines.push(`- Burn rate mensal: ${fmt(Number(kpi.burn_rate_monthly))}`);
+      if (kpi.net_margin_pct != null) lines.push(`- Margem líquida: ${Number(kpi.net_margin_pct).toFixed(1)}%`);
+      if (kpi.avg_ticket != null) lines.push(`- Ticket médio: ${fmt(Number(kpi.avg_ticket))}`);
+    }
+    lines.push("");
+    lines.push("[Top categorias de despesa - mês]");
+    if (topCats.length === 0) lines.push("- (sem categorias)");
+    topCats.forEach(([c, v]) => lines.push(`- ${c}: ${fmt(v)}`));
+
+    lines.push("");
+    lines.push(`[Contas a pagar] em aberto: ${openPay.length} | vencidas: ${overduePay.length}`);
+    openPay.slice(0, 8).forEach((i: any) => lines.push(`- ${i.title} | ${i.supplier || "-"} | ${fmt(Number(i.amount))} | venc ${i.due_date} | ${i.status}`));
+
+    lines.push("");
+    lines.push(`[Contas a receber] em aberto: ${openRecv.length} | vencidas: ${overdueRecv.length}`);
+    openRecv.slice(0, 8).forEach((r: any) => lines.push(`- ${r.invoice_number || "-"} | ${r.client_name || "-"} | ${fmt(Number(r.total))} | venc ${r.due_date} | ${r.status}`));
+
+    if (forecast) {
+      lines.push("");
+      lines.push(`[Previsão ${forecast.horizon_days}d] receita ${fmt(Number(forecast.projected_income))} | despesa ${fmt(Number(forecast.projected_expense))} | saldo proj. ${fmt(Number(forecast.projected_balance))} | confiança ${Math.round(Number(forecast.confidence || 0) * 100)}%`);
+    }
+
+    if ((insights || []).length) {
+      lines.push("");
+      lines.push("[Insights ativos]");
+      (insights as any[]).forEach((i) => lines.push(`- [${i.severity}] ${i.title}${i.impact_brl ? ` (impacto ${fmt(Number(i.impact_brl))})` : ""} — ${i.description}`));
+    }
+
+    if ((goals || []).length) {
+      lines.push("");
+      lines.push("[Metas]");
+      (goals as any[]).forEach((g) => {
+        const pct = g.target_amount > 0 ? (Number(g.current_amount || 0) / Number(g.target_amount) * 100).toFixed(0) : "0";
+        lines.push(`- ${g.name}: ${fmt(Number(g.current_amount || 0))}/${fmt(Number(g.target_amount))} (${pct}%) ${g.deadline ? `até ${g.deadline}` : ""} [${g.status || "active"}]`);
+      });
+    }
+
+    lines.push("");
+    lines.push("[Últimas transações]");
+    txArr.slice(0, 10).forEach((t) => lines.push(`- ${t.date} | ${t.type === "income" ? "+" : "-"}${fmt(Number(t.amount))} | ${t.category || "-"} | ${t.description || ""}`));
+
+    return lines.join("\n");
+  } catch (e) {
+    console.error("buildToolContext error", e);
+    return "(erro ao carregar contexto financeiro)";
+  }
 }
 
 async function getProviderKey(supabase: any, provider: "openai" | "gemini") {
