@@ -95,9 +95,11 @@ serve(async (req) => {
     const provider = normalizeProvider(assignment?.provider);
     const model = assignment?.model ?? "google/gemini-3-flash-preview";
 
+    const toolContext = await buildToolContext(supabase, body.customerProductId);
     const systemPrompt = buildSystemPrompt({
       productSlug,
       permissions,
+      toolContext,
     });
 
     const aiResult = await generateAssistantReply({
