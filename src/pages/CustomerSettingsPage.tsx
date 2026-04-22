@@ -498,64 +498,6 @@ const CustomerSettingsPage = () => {
               </CardContent>
             </Card>
 
-            {/* Two-Factor Authentication */}
-            <Card className="border-border/50">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Fingerprint className="h-5 w-5 text-primary" />
-                      Autenticação em Duas Etapas
-                    </CardTitle>
-                    <CardDescription>Adicione uma camada extra de segurança</CardDescription>
-                  </div>
-                  {loadingMfa ? (
-                    <Badge variant="outline" className="bg-muted/40 text-muted-foreground border-border/50">
-                      Carregando...
-                    </Badge>
-                  ) : (
-                    <Badge
-                      variant="outline"
-                      className={
-                        mfaEnabled
-                          ? 'bg-primary/10 text-primary border-primary/30'
-                          : 'bg-muted/40 text-muted-foreground border-border/50'
-                      }
-                    >
-                      {mfaEnabled ? 'Ativa' : 'Desativada'}
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border border-border/50">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Mail className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">Código por e-mail</p>
-                      <p className="text-sm text-muted-foreground">Receba um código de 5 dígitos ao entrar</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {savingMfa && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
-                    <Switch
-                      checked={mfaEnabled}
-                      onCheckedChange={handleToggleMfa}
-                      disabled={loadingMfa || savingMfa}
-                    />
-                  </div>
-                </div>
-
-                {!user.email_confirmed_at && (
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Para ativar 2FA por e-mail, primeiro confirme seu e-mail na sua conta.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-
             {/* Notification Preferences */}
             <Card className="border-border/50">
               <CardHeader>
