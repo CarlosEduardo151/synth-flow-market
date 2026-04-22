@@ -144,13 +144,13 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-2xl font-bold">Transações</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[130px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -159,6 +159,53 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
                 <SelectItem value="expense">Despesas</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos anos</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos meses</SelectItem>
+                {monthNames.map((name, idx) => (
+                  <SelectItem key={idx} value={String(idx + 1).padStart(2, '0')}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterDay} onValueChange={setFilterDay}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Dia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos dias</SelectItem>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(filterYear !== 'all' || filterMonth !== 'all' || filterDay !== 'all' || filterType !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setFilterType('all'); setFilterYear('all'); setFilterMonth('all'); setFilterDay('all'); }}
+                className="h-8 text-xs"
+              >
+                Limpar
+              </Button>
+            )}
           </div>
         </div>
 
