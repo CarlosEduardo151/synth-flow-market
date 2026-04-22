@@ -2545,6 +2545,44 @@ export type Database = {
           },
         ]
       }
+      financial_whatsapp_authorized_numbers: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          id: string
+          is_active: boolean
+          label: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          is_active?: boolean
+          label?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_whatsapp_authorized_numbers_customer_product_id_fkey"
+            columns: ["customer_product_id"]
+            isOneToOne: false
+            referencedRelation: "customer_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       financial_whatsapp_logs: {
         Row: {
           attachment_type: string | null
@@ -6170,6 +6208,7 @@ export type Database = {
       }
       next_invoice_number: { Args: { _cp_id: string }; Returns: string }
       next_quote_number: { Args: { _cp_id: string }; Returns: string }
+      normalize_phone: { Args: { p: string }; Returns: string }
       owns_customer_product: {
         Args: { _customer_product_id: string }
         Returns: boolean
