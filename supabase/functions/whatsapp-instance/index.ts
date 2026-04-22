@@ -279,7 +279,7 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
-      if (cp?.id) {
+      if (cp?.id && context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
 
