@@ -235,6 +235,9 @@ type FinanceSnapshot = {
   goals: any[];
   recentTransactions: any[];
   transactionCount: number;
+  quotes: any[];
+  dasGuides: any[];
+  calendarEvents: any[];
 };
 
 const formatCurrencyBRL = (value: number) =>
