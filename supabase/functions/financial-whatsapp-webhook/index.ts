@@ -295,6 +295,41 @@ serve(async (req) => {
       return json(200, { ok: true, skipped: "group_or_self" });
     }
 
+    // ========= AUTHORIZED NUMBERS WHITELIST =========
+    // Only "chefões" (authorized numbers) configured by the owner can
+    // talk to the financial agent. If no number is configured, the bot
+    // stays silent to prevent random clients from triggering it.
+    const normalizedPhone = (phone || "").replace(/\D/g, "");
+    const { data: authorized } = await supabase
+      .from("financial_whatsapp_authorized_numbers")
+      .select("id, phone, is_active")
+      .eq("customer_product_id", customerProductId)
+      .eq("is_active", true);
+
+    const allowList = (authorized || [])
+      .map((r: any) => (r.phone || "").replace(/\D/g, ""))
+      .filter(Boolean);
+
+    const isAuthorized = allowList.some((p: string) => {
+      // match suffix to be tolerant of country code variations
+      const a = p.replace(/^0+/, "");
+      const b = normalizedPhone.replace(/^0+/, "");
+      return a === b || a.endsWith(b) || b.endsWith(a);
+    });
+
+    if (!isAuthorized) {
+      console.log("[financial-whatsapp-webhook] phone not authorized:", normalizedPhone);
+      await supabase.from("financial_whatsapp_logs").insert({
+        customer_product_id: customerProductId,
+        user_id: cp.user_id,
+        direction: "in",
+        phone,
+        message_text: "(remetente não autorizado — mensagem ignorada)",
+        status: "unauthorized",
+      });
+      return json(200, { ok: true, skipped: "unauthorized_sender" });
+    }
+
     // Extract text content
     const textContent: string =
       msg?.conversation ||

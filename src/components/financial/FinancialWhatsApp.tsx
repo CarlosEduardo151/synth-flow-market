@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
+import { FinancialAuthorizedNumbers } from "./FinancialAuthorizedNumbers";
 
 interface Props {
   customerProductId: string;
@@ -273,6 +274,9 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
           )}
         </CardContent>
       </Card>
+
+      {/* Authorized numbers (chefões) */}
+      <FinancialAuthorizedNumbers customerProductId={customerProductId} />
 
       {/* Activity log — estilo bots-automação */}
       <Card className="border-border/50">
