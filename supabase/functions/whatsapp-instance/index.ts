@@ -244,16 +244,24 @@ serve(async (req) => {
     const sb = createClient(supabaseUrl, serviceKey);
 
     const baseInstanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
-    const instanceName = context === "crm" ? `${baseInstanceName}_CRM` : baseInstanceName;
-
-    // For CRM context, use crm-simples product slug
-    const productSlug = context === "crm" ? "crm-simples" : "bots-automacao";
+    let instanceName = baseInstanceName;
+    let productSlug = "bots-automacao";
+    if (context === "crm") {
+      instanceName = `${baseInstanceName}_CRM`;
+      productSlug = "crm-simples";
+    } else if (context === "financial") {
+      instanceName = `${baseInstanceName}_FIN`;
+      productSlug = "agente-financeiro";
+    }
 
     // Fetch customer_product for this user and auto-provision webhook token if missing
     const cp = await ensureCustomerProduct(sb, user.id, productSlug);
 
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
+      if (context === "financial") {
+        return `${supabaseUrl}/functions/v1/financial-whatsapp-webhook?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
+      }
       return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
     };
 
@@ -271,7 +279,7 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
-      if (cp?.id) {
+      if (cp?.id && context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
 
@@ -357,7 +365,9 @@ serve(async (req) => {
       if (!webhookUrl) {
         return json({ error: "No customer_product or webhook_token found" }, 400);
       }
-      await ensureBotRuntime(sb, user.id, cp.id);
+      if (context !== "financial") {
+        await ensureBotRuntime(sb, user.id, cp.id);
+      }
       await configureWebhook(instanceName, webhookUrl);
       return json({ success: true, webhookUrl });
     }
