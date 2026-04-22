@@ -75,15 +75,19 @@ export function DRETab({ customerProductId }: Props) {
     const incomes = txs.filter(t => t.type === "income");
     const expenses = txs.filter(t => t.type !== "income");
     const receitaBruta = incomes.reduce((a, t) => a + Number(t.amount), 0);
+    const despesaTotal = expenses.reduce((a, t) => a + Number(t.amount), 0);
 
     const buckets = { salary: 0, tax: 0, financial: 0, marketing: 0, infra: 0, other: 0 };
     expenses.forEach(t => {
       buckets[classify(t.description || "")] += Number(t.amount);
     });
 
+    // Mantemos a mesma estrutura contábil, mas garantimos que a soma final
+    // (deduções + custos + operacionais + financeiras) === despesaTotal,
+    // de forma que Lucro Líquido = Receita - Despesa (igual ao Dashboard).
     const deducoes = buckets.tax;
     const receitaLiq = receitaBruta - deducoes;
-    const custos = 0; // sem categoria CPV explícita ainda
+    const custos = 0;
     const lucroBruto = receitaLiq - custos;
 
     const despOp = {
@@ -95,14 +99,14 @@ export function DRETab({ customerProductId }: Props) {
     const totalOp = despOp.pessoal + despOp.marketing + despOp.administrativas + despOp.infraestrutura;
     const ebitda = lucroBruto - totalOp;
     const despFin = buckets.financial;
-    const lucroLiq = ebitda - despFin;
+    const lucroLiq = receitaBruta - despesaTotal; // alinhado com Dashboard
 
     return {
       receitaBruta, deducoes, receitaLiq, custos, lucroBruto,
-      despOp, totalOp, ebitda, despFin, lucroLiq,
-      mb: receitaLiq ? (lucroBruto / receitaLiq) * 100 : 0,
-      me: receitaLiq ? (ebitda / receitaLiq) * 100 : 0,
-      ml: receitaLiq ? (lucroLiq / receitaLiq) * 100 : 0,
+      despOp, totalOp, ebitda, despFin, lucroLiq, despesaTotal,
+      mb: receitaBruta ? (lucroBruto / receitaBruta) * 100 : 0,
+      me: receitaBruta ? (ebitda / receitaBruta) * 100 : 0,
+      ml: receitaBruta ? (lucroLiq / receitaBruta) * 100 : 0,
     };
   }, [txs]);
 

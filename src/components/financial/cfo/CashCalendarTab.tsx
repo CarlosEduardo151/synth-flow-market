@@ -57,19 +57,39 @@ export function CashCalendarTab({ customerProductId }: Props) {
   const loadEvents = async () => {
     setLoading(true);
     const start = `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const end = `${year}-${String(month + 1).padStart(2, "0")}-${daysInMonth}`;
-    const { data, error } = await supabase
-      .from("financial_calendar_events")
-      .select("id, event_date, event_type, title, amount, status")
-      .eq("customer_product_id", customerProductId)
-      .gte("event_date", start)
-      .lte("event_date", end)
-      .order("event_date", { ascending: true });
-    if (error) {
-      toast({ title: "Erro ao carregar eventos", description: error.message, variant: "destructive" });
-    } else {
-      setEvents((data ?? []) as CalEvent[]);
+    const end = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+    const [evRes, txRes] = await Promise.all([
+      supabase
+        .from("financial_calendar_events")
+        .select("id, event_date, event_type, title, amount, status")
+        .eq("customer_product_id", customerProductId)
+        .gte("event_date", start)
+        .lte("event_date", end)
+        .order("event_date", { ascending: true }),
+      supabase
+        .from("financial_agent_transactions")
+        .select("id, date, type, description, amount")
+        .eq("customer_product_id", customerProductId)
+        .gte("date", start)
+        .lte("date", end)
+        .order("date", { ascending: true }),
+    ]);
+
+    if (evRes.error) {
+      toast({ title: "Erro ao carregar eventos", description: evRes.error.message, variant: "destructive" });
     }
+
+    const fromEvents = (evRes.data ?? []) as CalEvent[];
+    const fromTx: CalEvent[] = ((txRes.data ?? []) as any[]).map((t) => ({
+      id: `tx-${t.id}`,
+      event_date: String(t.date),
+      event_type: (t.type === "income" ? "income" : "expense") as CalEvent["event_type"],
+      title: t.description || (t.type === "income" ? "Receita" : "Despesa"),
+      amount: Number(t.amount) || 0,
+      status: "executed",
+    }));
+
+    setEvents([...fromEvents, ...fromTx]);
     setLoading(false);
   };
 

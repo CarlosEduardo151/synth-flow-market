@@ -17,7 +17,6 @@ import {
   PieChart,
   Repeat,
   Calculator,
-  Globe2,
   FileBarChart,
   Calendar as CalendarIcon,
   TrendingUp,
@@ -36,7 +35,6 @@ import { ForecastTab } from '@/components/financial/cfo/ForecastTab';
 import { BudgetCategoriesTab } from '@/components/financial/cfo/BudgetCategoriesTab';
 import { RecurringTab } from '@/components/financial/cfo/RecurringTab';
 import { TaxCalculatorTab } from '@/components/financial/cfo/TaxCalculatorTab';
-import { MultiCurrencyTab } from '@/components/financial/cfo/MultiCurrencyTab';
 import { DRETab } from '@/components/financial/cfo/DRETab';
 import { CashCalendarTab } from '@/components/financial/cfo/CashCalendarTab';
 import { FinancialTransactions } from '@/components/financial/FinancialTransactions';
@@ -62,7 +60,6 @@ const sidebarItems = [
   { value: 'invoices', label: 'Faturas', icon: Receipt },
   { value: 'dre', label: 'DRE', icon: FileBarChart },
   { value: 'taxes', label: 'Impostos', icon: Calculator },
-  { value: 'currency', label: 'Multi-moeda', icon: Globe2 },
   { value: 'goals', label: 'Metas', icon: Target },
   { value: 'reports', label: 'Relatórios', icon: BarChart3 },
   { value: 'settings', label: 'Config', icon: Settings },
@@ -250,9 +247,6 @@ export default function FinancialAgentSystem() {
               </TabsContent>
               <TabsContent value="taxes" className="space-y-4">
                 <TaxCalculatorTab customerProductId={customerId} />
-              </TabsContent>
-              <TabsContent value="currency" className="space-y-4">
-                <MultiCurrencyTab customerProductId={customerId} />
               </TabsContent>
               <TabsContent value="goals" className="space-y-4">
                 <FinancialGoals customerProductId={customerId} />

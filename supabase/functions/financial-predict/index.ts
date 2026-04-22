@@ -71,7 +71,15 @@ Deno.serve(async (req) => {
     const avgIncome = months.length ? months.reduce((s, m) => s + m.income, 0) / months.length : 0;
     const avgExpense = months.length ? months.reduce((s, m) => s + m.expense, 0) / months.length : 0;
     const burnRate = avgExpense - avgIncome; // positivo = queimando dinheiro
-    const currentBalance = months.reduce((s, m) => s + m.net, 0);
+
+    // Saldo atual = receita - despesa de TODO o histórico (alinhado ao Dashboard)
+    const { data: allTx } = await sb
+      .from("financial_agent_transactions")
+      .select("type, amount")
+      .eq("customer_product_id", customer_product_id);
+    const totalIn = (allTx || []).filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+    const totalOut = (allTx || []).filter((t: any) => t.type !== "income").reduce((s: number, t: any) => s + Number(t.amount || 0), 0);
+    const currentBalance = totalIn - totalOut;
 
     // Faturas recorrentes futuras
     const pendingInvoices = (invs || []).filter((i: any) => i.status !== "paid")

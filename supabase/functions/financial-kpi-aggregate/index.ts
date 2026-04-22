@@ -75,24 +75,14 @@ async function aggregateOne(sb: any, cpId: string) {
   const burn90 = (burnTx || []).reduce((s: number, t: any) => s + Number(t.amount), 0);
   const burn_rate_monthly = burn90 / 3;
 
-  // Saldo de caixa: soma de contas multi-moeda em BRL (se existir) + (income - expense de todo o histórico)
-  const { data: accounts } = await sb
-    .from("financial_currency_accounts")
-    .select("balance, currency, exchange_rate_to_brl")
-    .eq("customer_product_id", cpId);
-  let cash_from_accounts = 0;
-  (accounts || []).forEach((a: any) => {
-    const rate = Number(a.exchange_rate_to_brl) || (a.currency === "BRL" ? 1 : 0);
-    cash_from_accounts += Number(a.balance) * rate;
-  });
-
+  // Saldo de caixa: income - expense de todo o histórico
   const { data: allTx } = await sb
     .from("financial_agent_transactions")
     .select("type, amount")
     .eq("customer_product_id", cpId);
   const totalIn = (allTx || []).filter((t: any) => t.type === "income").reduce((s: number, t: any) => s + Number(t.amount), 0);
   const totalOut = (allTx || []).filter((t: any) => t.type === "expense").reduce((s: number, t: any) => s + Number(t.amount), 0);
-  const cash_balance = cash_from_accounts > 0 ? cash_from_accounts : totalIn - totalOut;
+  const cash_balance = totalIn - totalOut;
 
   // Runway = saldo / burn rate
   const runway_months = burn_rate_monthly > 0 ? cash_balance / burn_rate_monthly : 0;

@@ -31,6 +31,9 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterMonth, setFilterMonth] = useState<string>('all');
+  const [filterDay, setFilterDay] = useState<string>('all');
   const { toast } = useToast();
 
   const [newTransaction, setNewTransaction] = useState({
@@ -110,9 +113,24 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
     }
   };
 
-  const filteredTransactions = filterType === 'all' 
-    ? transactions 
-    : transactions.filter(t => t.type === filterType);
+  const availableYears = Array.from(
+    new Set(transactions.map(t => t.date?.slice(0, 4)).filter(Boolean) as string[])
+  ).sort((a, b) => b.localeCompare(a));
+
+  const monthNames = [
+    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+  ];
+
+  const filteredTransactions = transactions.filter(t => {
+    if (filterType !== 'all' && t.type !== filterType) return false;
+    if (!t.date) return filterYear === 'all' && filterMonth === 'all' && filterDay === 'all';
+    const [y, m, d] = t.date.slice(0, 10).split('-');
+    if (filterYear !== 'all' && y !== filterYear) return false;
+    if (filterMonth !== 'all' && m !== filterMonth) return false;
+    if (filterDay !== 'all' && d !== filterDay) return false;
+    return true;
+  });
 
   const paymentMethods = mode === 'business' 
     ? ['PIX', 'Boleto', 'Cartão Crédito', 'Cartão Débito', 'Transferência', 'Dinheiro', 'Cheque']
@@ -126,13 +144,13 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-2xl font-bold">Transações</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Filter className="h-4 w-4 text-muted-foreground" />
             <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
-              <SelectTrigger className="w-[150px]">
+              <SelectTrigger className="w-[130px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -141,6 +159,53 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
                 <SelectItem value="expense">Despesas</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={filterYear} onValueChange={setFilterYear}>
+              <SelectTrigger className="w-[110px]">
+                <SelectValue placeholder="Ano" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos anos</SelectItem>
+                {availableYears.map(y => (
+                  <SelectItem key={y} value={y}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterMonth} onValueChange={setFilterMonth}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue placeholder="Mês" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos meses</SelectItem>
+                {monthNames.map((name, idx) => (
+                  <SelectItem key={idx} value={String(idx + 1).padStart(2, '0')}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={filterDay} onValueChange={setFilterDay}>
+              <SelectTrigger className="w-[100px]">
+                <SelectValue placeholder="Dia" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos dias</SelectItem>
+                {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, '0')).map(d => (
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {(filterYear !== 'all' || filterMonth !== 'all' || filterDay !== 'all' || filterType !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setFilterType('all'); setFilterYear('all'); setFilterMonth('all'); setFilterDay('all'); }}
+                className="h-8 text-xs"
+              >
+                Limpar
+              </Button>
+            )}
           </div>
         </div>
 

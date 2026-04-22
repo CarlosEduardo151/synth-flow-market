@@ -1658,42 +1658,6 @@ export type Database = {
           },
         ]
       }
-      financial_currency_accounts: {
-        Row: {
-          account_name: string
-          balance: number
-          created_at: string
-          currency_code: string
-          customer_product_id: string
-          id: string
-          is_primary: boolean
-          notes: string | null
-          updated_at: string
-        }
-        Insert: {
-          account_name: string
-          balance?: number
-          created_at?: string
-          currency_code: string
-          customer_product_id: string
-          id?: string
-          is_primary?: boolean
-          notes?: string | null
-          updated_at?: string
-        }
-        Update: {
-          account_name?: string
-          balance?: number
-          created_at?: string
-          currency_code?: string
-          customer_product_id?: string
-          id?: string
-          is_primary?: boolean
-          notes?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
       financial_das_guides: {
         Row: {
           aliquota_efetiva: number
