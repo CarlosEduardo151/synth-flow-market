@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
+import { FinancialAuthorizedNumbers } from "./FinancialAuthorizedNumbers";
 
 interface Props {
   customerProductId: string;
