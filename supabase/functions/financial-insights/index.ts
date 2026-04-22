@@ -26,25 +26,100 @@ Deno.serve(async (req) => {
 
     const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-    // Últimos 90 dias de transações
+    // Janela de 90 dias para análise principal
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+    const since = ninetyDaysAgo.toISOString().slice(0, 10);
+    const todayKey = new Date().toISOString().slice(0, 10);
 
-    const { data: txs } = await sb
-      .from("financial_agent_transactions")
-      .select("type, amount, date, description, source")
-      .eq("customer_product_id", customer_product_id)
-      .gte("date", ninetyDaysAgo.toISOString().slice(0, 10))
-      .order("date", { ascending: true });
+    // ============================================================
+    // BUSCA DADOS DE TODAS AS FONTES (a aba Insights é a "mestra")
+    // ============================================================
+    const [
+      txsRes,
+      invsRes,
+      recvRes,
+      quotesRes,
+      dasRes,
+      budgetsRes,
+      calendarRes,
+      forecastRes,
+      kpiRes,
+      goalsRes,
+    ] = await Promise.all([
+      sb.from("financial_agent_transactions")
+        .select("type, amount, date, description, category, source, payment_method")
+        .eq("customer_product_id", customer_product_id)
+        .gte("date", since)
+        .order("date", { ascending: true }),
+      sb.from("financial_agent_invoices")
+        .select("title, amount, paid_amount, due_date, status, supplier, category, recurring, recurring_interval")
+        .eq("customer_product_id", customer_product_id)
+        .order("due_date", { ascending: true })
+        .limit(200),
+      sb.from("financial_receivables")
+        .select("invoice_number, client_name, total, due_date, status, paid_amount")
+        .eq("customer_product_id", customer_product_id)
+        .order("due_date", { ascending: true })
+        .limit(200),
+      sb.from("financial_quotes")
+        .select("quote_number, client_name, total, status, valid_until, sent_at, approved_at, rejected_at")
+        .eq("customer_product_id", customer_product_id)
+        .order("created_at", { ascending: false })
+        .limit(100),
+      sb.from("financial_das_guides")
+        .select("competencia_month, competencia_year, total_amount, due_date, payment_status, anexo, regime, revenue_month")
+        .eq("customer_product_id", customer_product_id)
+        .order("due_date", { ascending: false })
+        .limit(24),
+      sb.from("financial_budgets")
+        .select("name, budget_amount, category, period, alert_threshold, is_active")
+        .eq("customer_product_id", customer_product_id)
+        .eq("is_active", true),
+      sb.from("financial_calendar_events")
+        .select("title, amount, event_type, event_date, status, recurring, recurring_interval, category")
+        .eq("customer_product_id", customer_product_id)
+        .gte("event_date", since)
+        .order("event_date", { ascending: true })
+        .limit(200),
+      sb.from("financial_forecasts")
+        .select("horizon_days, projected_income, projected_expense, projected_balance, confidence, generated_at")
+        .eq("customer_product_id", customer_product_id)
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      sb.from("financial_kpi_snapshots")
+        .select("snapshot_date, cash_balance, runway_months, burn_rate_monthly, net_margin_pct, avg_ticket, revenue_mtd, expense_mtd, payables_open, receivables_open")
+        .eq("customer_product_id", customer_product_id)
+        .order("snapshot_date", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      sb.from("financial_agent_goals")
+        .select("name, target_amount, current_amount, deadline, status")
+        .eq("customer_product_id", customer_product_id)
+        .limit(20),
+    ]);
 
-    const transactions = (txs || []).map((t: any) => ({
+    const transactions = (txsRes.data || []).map((t: any) => ({
       type: t.type,
       amount: Number(t.amount) || 0,
       date: t.date,
       description: (t.description || "").slice(0, 80),
+      category: t.category || null,
     }));
+    const invoices = (invsRes.data || []) as any[];
+    const receivables = (recvRes.data || []) as any[];
+    const quotes = (quotesRes.data || []) as any[];
+    const dasGuides = (dasRes.data || []) as any[];
+    const budgets = (budgetsRes.data || []) as any[];
+    const calendarEvents = (calendarRes.data || []) as any[];
+    const forecast = forecastRes.data || null;
+    const kpi = kpiRes.data || null;
+    const goals = (goalsRes.data || []) as any[];
 
-    // Detecção determinística de anomalias (z-score por categoria/descrição)
+    // ============================================================
+    // Detecção determinística de anomalias (z-score por descrição)
+    // ============================================================
     const expensesByDesc = new Map<string, number[]>();
     transactions.filter((t) => t.type === "expense").forEach((t) => {
       const key = (t.description || "outros").toLowerCase().slice(0, 40);
@@ -70,10 +145,56 @@ Deno.serve(async (req) => {
       }
     });
 
-    // Estatísticas globais
+    // ============================================================
+    // Estatísticas globais (mesma fórmula do Dashboard)
+    // ============================================================
     const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
     const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-    const expenseSamples = transactions.filter((t) => t.type === "expense").slice(0, 80);
+    const balance = totalIncome - totalExpense;
+    const expenseSamples = transactions.filter((t) => t.type === "expense").slice(0, 60);
+
+    const openPayables = invoices.filter((i) => ["pending", "overdue"].includes(i.status));
+    const overduePayables = openPayables.filter((i) => String(i.due_date || "") < todayKey);
+    const openReceivables = receivables.filter((r) => ["sent", "overdue", "partial"].includes(r.status));
+    const overdueReceivables = openReceivables.filter((r) => String(r.due_date || "") < todayKey);
+    const totalPayablesOpen = openPayables.reduce((s, i) => s + (Number(i.amount || 0) - Number(i.paid_amount || 0)), 0);
+    const totalReceivablesOpen = openReceivables.reduce((s, r) => s + (Number(r.total || 0) - Number(r.paid_amount || 0)), 0);
+
+    const pendingQuotes = quotes.filter((q) => ["draft", "sent"].includes(q.status));
+    const approvedQuotes = quotes.filter((q) => q.status === "approved");
+    const pendingDas = dasGuides.filter((d) => d.payment_status === "pending");
+
+    // Resumo compacto para a IA
+    const dataSummary = {
+      periodo: "últimos 90 dias",
+      receita_total: totalIncome,
+      despesa_total: totalExpense,
+      saldo_liquido: balance,
+      margem_pct: totalIncome > 0 ? ((balance / totalIncome) * 100).toFixed(1) : "0",
+      transacoes_count: transactions.length,
+      kpi_dashboard: kpi ? {
+        snapshot_date: kpi.snapshot_date,
+        saldo: kpi.cash_balance,
+        runway_meses: kpi.runway_months,
+        burn_rate_mensal: kpi.burn_rate_monthly,
+        margem_liquida_pct: kpi.net_margin_pct,
+        ticket_medio: kpi.avg_ticket,
+      } : null,
+      contas_a_pagar: { abertas: openPayables.length, vencidas: overduePayables.length, total_aberto: totalPayablesOpen },
+      contas_a_receber: { abertas: openReceivables.length, vencidas: overdueReceivables.length, total_aberto: totalReceivablesOpen },
+      cotacoes: { pendentes: pendingQuotes.length, aprovadas: approvedQuotes.length, total_aprovado: approvedQuotes.reduce((s, q) => s + Number(q.total || 0), 0) },
+      impostos_das: { pendentes: pendingDas.length, total_pendente: pendingDas.reduce((s, d) => s + Number(d.total_amount || 0), 0), proximas: pendingDas.slice(0, 3).map((d) => ({ comp: `${d.competencia_month}/${d.competencia_year}`, valor: d.total_amount, vence: d.due_date })) },
+      orcamentos: budgets.map((b) => ({ nome: b.name, limite: b.budget_amount, periodo: b.period, categoria: b.category })),
+      eventos_recorrentes: calendarEvents.filter((e) => e.recurring).slice(0, 10).map((e) => ({ titulo: e.title, valor: e.amount, tipo: e.event_type, intervalo: e.recurring_interval })),
+      previsao: forecast ? {
+        horizonte_dias: forecast.horizon_days,
+        receita_projetada: forecast.projected_income,
+        despesa_projetada: forecast.projected_expense,
+        saldo_projetado: forecast.projected_balance,
+        confianca: forecast.confidence,
+      } : null,
+      metas: goals.map((g) => ({ nome: g.name, atual: g.current_amount, alvo: g.target_amount, prazo: g.deadline, status: g.status })),
+    };
 
     // Chamar Groq com tool calling para estrutura
     const aiResp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -85,32 +206,33 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content:
-              "Você é um auditor financeiro experiente. Analise transações e responda SEMPRE via tool call estruturado. Seja conciso e prático.",
+              "Você é um CFO virtual sênior. Analise TODOS os dados do cliente (transações, faturas, cotações, impostos DAS, orçamentos, recorrentes, previsões, KPIs e metas). Cruze as informações entre as fontes. Responda SEMPRE via tool call estruturado. Seja conciso, prático e baseado em números reais. NÃO invente dados.",
           },
           {
             role: "user",
-            content: `Analise os dados financeiros abaixo (últimos 90 dias):
+            content: `Analise o panorama financeiro COMPLETO abaixo (últimos 90 dias).
 
 Setor: ${sector} | Porte: ${company_size}
-Receita total: R$ ${totalIncome.toFixed(2)}
-Despesa total: R$ ${totalExpense.toFixed(2)}
-Margem: ${totalIncome > 0 ? (((totalIncome - totalExpense) / totalIncome) * 100).toFixed(1) : "0"}%
 
-Anomalias detectadas (regra estatística):
+===== PANORAMA CONSOLIDADO (TODAS AS FONTES) =====
+${JSON.stringify(dataSummary, null, 2)}
+
+===== ANOMALIAS ESTATÍSTICAS DETECTADAS =====
 ${JSON.stringify(anomalies_local, null, 2)}
 
-Amostra de despesas:
+===== AMOSTRA DE DESPESAS RECENTES =====
 ${JSON.stringify(expenseSamples, null, 2)}
 
-Tarefas:
-1. Identifique gastos suspeitos (assinaturas duplicadas, serviços ociosos, valores fora do padrão)
-2. Sugira otimizações concretas com economia estimada
-3. Compare com benchmark típico do setor "${sector}" (porte ${company_size}) e indique onde está acima/abaixo da média
-4. Liste alertas críticos`,
+Tarefas (use TODAS as fontes acima — Dashboard, DRE, Faturas, Cotações, DAS, Orçamentos, Recorrentes, Previsões, Calendário):
+1. Aponte anomalias e gastos suspeitos cruzando transações com orçamentos e recorrentes
+2. Sugira otimizações concretas com economia mensal estimada (priorize impostos atrasados, contas vencidas, cotações pendentes envelhecidas)
+3. Compare com benchmark típico do setor "${sector}" (porte ${company_size})
+4. Liste alertas críticos (DAS vencendo, recebíveis em atraso, runway baixo, metas em risco)
+5. Calcule health_score 0-100 ponderando margem, runway, atrasos, orçamento, fluxo previsto`,
           },
         ],
         temperature: 0.3,
-        max_tokens: 2000,
+        max_tokens: 2500,
         tools: [
           {
             type: "function",
