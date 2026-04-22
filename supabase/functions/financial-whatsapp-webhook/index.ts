@@ -208,6 +208,42 @@ async function fetchMediaBase64(
   }
 }
 
+function unwrapMessageContainer(message: any): any {
+  let current = message || {};
+  for (let i = 0; i < 5; i++) {
+    if (current?.ephemeralMessage?.message) {
+      current = current.ephemeralMessage.message;
+      continue;
+    }
+    if (current?.viewOnceMessage?.message) {
+      current = current.viewOnceMessage.message;
+      continue;
+    }
+    if (current?.viewOnceMessageV2?.message) {
+      current = current.viewOnceMessageV2.message;
+      continue;
+    }
+    if (current?.documentWithCaptionMessage?.message) {
+      current = current.documentWithCaptionMessage.message;
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+function resolveEventName(body: any): string {
+  return String(body?.event || body?.eventName || body?.type || "").toLowerCase();
+}
+
+function resolveMessageEnvelope(body: any): any {
+  const data = body?.data || body;
+  if (data?.key || data?.message) return data;
+  if (Array.isArray(data?.messages) && data.messages[0]) return data.messages[0];
+  if (Array.isArray(body?.messages) && body.messages[0]) return body.messages[0];
+  return data;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
