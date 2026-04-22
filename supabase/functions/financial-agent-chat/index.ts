@@ -256,7 +256,7 @@ async function fetchTransactionsForSnapshot(supabase: any, customerProductId: st
   for (let from = 0; from < 5000; from += pageSize) {
     const { data, error } = await supabase
       .from("financial_agent_transactions")
-      .select("type, amount, description, date, category")
+      .select("id, type, amount, description, date, category, tags")
       .eq("customer_product_id", customerProductId)
       .order("date", { ascending: false })
       .range(from, from + pageSize - 1);
@@ -341,6 +341,9 @@ async function buildFinanceSnapshot(supabase: any, customerProductId: string): P
     goals: (goals || []) as any[],
     recentTransactions: txArr.slice(0, 10),
     transactionCount: txArr.length,
+    quotes: (quotes || []) as any[],
+    dasGuides: (das || []) as any[],
+    calendarEvents: (calEvents || []) as any[],
   };
 }
 
