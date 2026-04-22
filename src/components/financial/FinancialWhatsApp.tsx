@@ -11,9 +11,9 @@ import {
   Power,
   RefreshCw,
   Smartphone,
-  MessageSquare,
-  ArrowUp,
-  ArrowDown,
+  Activity,
+  ArrowDownLeft,
+  ArrowUpRight,
   Image as ImageIcon,
   FileText,
 } from "lucide-react";
@@ -30,6 +30,7 @@ interface LogRow {
   phone: string | null;
   message_text: string | null;
   attachment_type: string | null;
+  processing_ms: number | null;
   status: string;
   created_at: string;
 }
@@ -41,6 +42,7 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
   const [loading, setLoading] = useState(false);
   const [polling, setPolling] = useState(false);
   const [logs, setLogs] = useState<LogRow[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
 
   const invoke = useCallback(async (action: string) => {
     const { data, error } = await (supabase as any).functions.invoke("whatsapp-instance", {
@@ -68,13 +70,16 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
   }, [invoke]);
 
   const loadLogs = useCallback(async () => {
-    const { data } = await (supabase as any)
-      .from("financial_whatsapp_logs")
-      .select("id, direction, phone, message_text, attachment_type, status, created_at")
-      .eq("customer_product_id", customerProductId)
-      .order("created_at", { ascending: false })
-      .limit(30);
-    setLogs((data as LogRow[]) || []);
+    try {
+      const { data } = await (supabase as any)
+        .from("financial_whatsapp_logs")
+        .select("id, direction, phone, message_text, attachment_type, processing_ms, status, created_at")
+        .eq("customer_product_id", customerProductId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+      setLogs((data as LogRow[]) || []);
+    } catch { /* ignore */ }
+    finally { setLogsLoading(false); }
   }, [customerProductId]);
 
   useEffect(() => {
@@ -108,7 +113,6 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
       if (data.qrcode) {
         setQrcode(data.qrcode);
       } else {
-        // Fallback: request QR explicitly
         const qr = await invoke("qrcode");
         setQrcode(qr.qrcode || null);
       }
@@ -164,10 +168,23 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
       : `data:image/png;base64,${qrcode}`
     : null;
 
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  };
+
+  const maskPhone = (p: string | null) => {
+    if (!p || p.length < 6) return p || "—";
+    return p.slice(0, 4) + "••••" + p.slice(-2);
+  };
+
+  const inCount = logs.filter(l => l.direction === "in").length;
+  const outCount = logs.filter(l => l.direction === "out").length;
+
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="space-y-4">
       {/* Connection panel */}
-      <Card className="lg:col-span-2">
+      <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <div className="flex items-center gap-2">
             <Smartphone className="h-5 w-5 text-primary" />
@@ -232,58 +249,116 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
         </CardContent>
       </Card>
 
-      {/* Activity log */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-primary" />
-            <CardTitle className="text-base">Últimas mensagens</CardTitle>
+      {/* Activity log — estilo bots-automação */}
+      <Card className="border-border/50">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div>
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Activity className="h-4 w-4 text-primary" />
+                Atividade do Motor
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                Mensagens processadas pelo Agente Financeiro no WhatsApp conectado
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              {logs.length > 0 && (
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <ArrowDownLeft className="h-3 w-3 text-blue-500" />
+                    {inCount} recebidas
+                  </span>
+                  <span className="text-border">|</span>
+                  <span className="flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3 text-green-500" />
+                    {outCount} enviadas
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-[10px] text-muted-foreground">LIVE</span>
+              </div>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={loadLogs} disabled={logsLoading}>
+                <RefreshCw className={`h-3 w-3 ${logsLoading ? "animate-spin" : ""}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <ScrollArea className="h-[420px] px-4 pb-4">
-            {logs.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-8 text-center">
-                Nenhuma mensagem ainda.
+          {logsLoading && logs.length === 0 ? (
+            <div className="flex justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : logs.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+              <Activity className="h-10 w-10 text-muted-foreground/20 mb-3" />
+              <p className="text-sm text-muted-foreground">Nenhuma atividade registrada</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">
+                Envie uma mensagem pelo WhatsApp conectado para ver a atividade aqui
               </p>
-            ) : (
-              <div className="space-y-2">
-                {logs.map((l) => (
-                  <div
-                    key={l.id}
-                    className={`p-2 rounded-md border text-xs ${
-                      l.direction === "in" ? "bg-muted/40" : "bg-primary/5 border-primary/20"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2 mb-1">
-                      <span className="flex items-center gap-1 font-medium">
-                        {l.direction === "in" ? (
-                          <ArrowDown className="h-3 w-3" />
-                        ) : (
-                          <ArrowUp className="h-3 w-3" />
-                        )}
-                        {l.direction === "in" ? "Recebido" : "Enviado"}
-                      </span>
-                      <span className="text-muted-foreground">
-                        {new Date(l.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <div className="line-clamp-3 whitespace-pre-wrap">{l.message_text}</div>
-                    {l.attachment_type && (
-                      <Badge variant="outline" className="mt-1 text-[10px]">
-                        {l.attachment_type === "image" ? (
-                          <ImageIcon className="h-3 w-3 mr-1" />
-                        ) : (
-                          <FileText className="h-3 w-3 mr-1" />
-                        )}
-                        {l.attachment_type}
-                      </Badge>
-                    )}
-                  </div>
-                ))}
+            </div>
+          ) : (
+            <div className="border-t border-border/40">
+              <div className="grid grid-cols-[40px_1fr_110px_80px_80px_150px] gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 bg-muted/30">
+                <span></span>
+                <span>Mensagem</span>
+                <span>Telefone</span>
+                <span>Anexo</span>
+                <span>Tempo</span>
+                <span className="text-right">Data</span>
               </div>
-            )}
-          </ScrollArea>
+              <ScrollArea className="h-[420px]">
+                <div className="divide-y divide-border/20">
+                  {logs.map((l) => {
+                    const isIn = l.direction === "in";
+                    return (
+                      <div
+                        key={l.id}
+                        className="grid grid-cols-[40px_1fr_110px_80px_80px_150px] gap-2 px-4 py-2.5 text-xs hover:bg-muted/20 transition-colors items-center"
+                      >
+                        <div className="flex justify-center">
+                          <div className={`rounded-md p-1 ${isIn ? "bg-blue-500/10" : "bg-green-500/10"}`}>
+                            {isIn
+                              ? <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500" />
+                              : <ArrowUpRight className="h-3.5 w-3.5 text-green-500" />}
+                          </div>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-foreground truncate whitespace-pre-wrap">{l.message_text}</p>
+                        </div>
+                        <span className="text-muted-foreground font-mono text-[11px]">{maskPhone(l.phone)}</span>
+                        <span>
+                          {l.attachment_type ? (
+                            <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                              {l.attachment_type === "image" ? (
+                                <ImageIcon className="h-2.5 w-2.5 mr-1" />
+                              ) : (
+                                <FileText className="h-2.5 w-2.5 mr-1" />
+                              )}
+                              {l.attachment_type}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </span>
+                        <span className="text-muted-foreground">{l.processing_ms ? `${l.processing_ms}ms` : "—"}</span>
+                        <span className="text-muted-foreground text-right text-[11px]">{fmtTime(l.created_at)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          )}
+          {logs.length > 0 && (
+            <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 text-[10px] text-muted-foreground">
+              <span>{logs.length} registro{logs.length !== 1 ? "s" : ""} (últimos 50)</span>
+              <span>Atualização automática a cada 8s</span>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
