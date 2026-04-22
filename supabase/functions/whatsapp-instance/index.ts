@@ -365,7 +365,9 @@ serve(async (req) => {
       if (!webhookUrl) {
         return json({ error: "No customer_product or webhook_token found" }, 400);
       }
-      await ensureBotRuntime(sb, user.id, cp.id);
+      if (context !== "financial") {
+        await ensureBotRuntime(sb, user.id, cp.id);
+      }
       await configureWebhook(instanceName, webhookUrl);
       return json({ success: true, webhookUrl });
     }
