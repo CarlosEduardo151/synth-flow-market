@@ -276,15 +276,16 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
-    // Evolution event dispatch — only process incoming messages
-    const event = body?.event || body?.eventName || "";
-    if (event && !String(event).toUpperCase().includes("MESSAGES_UPSERT")) {
+    // Evolution event dispatch — accept actual event variants used by Evolution API
+    const event = resolveEventName(body);
+    if (event && !event.startsWith("messages")) {
+      console.log("[financial-whatsapp-webhook] skipped event:", event);
       return json(200, { ok: true, skipped: event });
     }
 
-    const data = body?.data || body;
+    const data = resolveMessageEnvelope(body);
     const key = data?.key || {};
-    const msg = data?.message || {};
+    const msg = unwrapMessageContainer(data?.message || {});
     const fromMe = key?.fromMe === true;
     const remoteJid: string = key?.remoteJid || "";
     const phone = remoteJid.replace(/@.*$/, "");
@@ -301,6 +302,9 @@ serve(async (req) => {
       msg?.imageMessage?.caption ||
       msg?.documentMessage?.caption ||
       msg?.audioMessage?.caption ||
+      msg?.editedMessage?.message?.conversation ||
+      msg?.buttonsResponseMessage?.selectedDisplayText ||
+      msg?.listResponseMessage?.title ||
       "";
 
     // Detect attachment
@@ -333,6 +337,16 @@ serve(async (req) => {
         }
       }
     }
+
+    console.log("[financial-whatsapp-webhook] inbound message:", JSON.stringify({
+      event,
+      hasKey: !!key?.id,
+      phone,
+      fromMe,
+      textPreview: (textContent || "").slice(0, 120),
+      attachmentType,
+      messageKeys: Object.keys(msg || {}),
+    }));
 
     if (!textContent && !attachment) {
       // Nothing actionable
