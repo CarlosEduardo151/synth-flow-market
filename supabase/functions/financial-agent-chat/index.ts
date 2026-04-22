@@ -371,16 +371,40 @@ function buildToolContext(snapshot: FinanceSnapshot): string {
     snapshot.topCategories.forEach(([category, value]) => lines.push(`- ${category}: ${formatCurrencyBRL(value)}`));
 
     lines.push("");
-    lines.push(`[Contas a pagar] em aberto: ${snapshot.openPayables.length} | vencidas: ${snapshot.overduePayablesCount}`);
-    snapshot.openPayables.slice(0, 8).forEach((item: any) => {
-      lines.push(`- ${item.title} | ${item.supplier || "-"} | ${formatCurrencyBRL(Number(item.amount || 0))} | venc ${item.due_date} | ${item.status}`);
+    lines.push(`[Contas a pagar / Faturas] em aberto: ${snapshot.openPayables.length} | vencidas: ${snapshot.overduePayablesCount}`);
+    snapshot.openPayables.slice(0, 10).forEach((item: any) => {
+      lines.push(`- id=${item.id} | ${item.title} | ${item.supplier || "-"} | ${formatCurrencyBRL(Number(item.amount || 0))} | venc ${item.due_date} | ${item.status}${item.recurring ? ` | recorrente ${item.recurring_interval || ""}` : ""}`);
     });
 
     lines.push("");
     lines.push(`[Contas a receber] em aberto: ${snapshot.openReceivables.length} | vencidas: ${snapshot.overdueReceivablesCount}`);
-    snapshot.openReceivables.slice(0, 8).forEach((item: any) => {
-      lines.push(`- ${item.invoice_number || "-"} | ${item.client_name || "-"} | ${formatCurrencyBRL(Number(item.total || 0))} | venc ${item.due_date} | ${item.status}`);
+    snapshot.openReceivables.slice(0, 10).forEach((item: any) => {
+      lines.push(`- id=${item.id} | ${item.invoice_number || "-"} | ${item.client_name || "-"} | ${formatCurrencyBRL(Number(item.total || 0))} | venc ${item.due_date} | ${item.status}`);
     });
+
+    if (snapshot.quotes?.length) {
+      lines.push("");
+      lines.push("[Cotações / Orçamentos recentes]");
+      snapshot.quotes.slice(0, 10).forEach((q: any) => {
+        lines.push(`- id=${q.id} | ${q.quote_number} | ${q.client_name} | ${formatCurrencyBRL(Number(q.total || 0))} | ${q.status}${q.valid_until ? ` | val. ${q.valid_until}` : ""}`);
+      });
+    }
+
+    if (snapshot.dasGuides?.length) {
+      lines.push("");
+      lines.push("[Impostos DAS / Simples Nacional]");
+      snapshot.dasGuides.slice(0, 8).forEach((d: any) => {
+        lines.push(`- id=${d.id} | ${d.regime}${d.anexo ? ` ${d.anexo}` : ""} | ${String(d.competencia_month).padStart(2,"0")}/${d.competencia_year} | ${formatCurrencyBRL(Number(d.total_amount || 0))} | venc ${d.due_date} | ${d.payment_status}`);
+      });
+    }
+
+    if (snapshot.calendarEvents?.length) {
+      lines.push("");
+      lines.push("[Calendário / Eventos recorrentes]");
+      snapshot.calendarEvents.slice(0, 12).forEach((c: any) => {
+        lines.push(`- id=${c.id} | ${c.event_date} | ${c.event_type} | ${c.title} | ${formatCurrencyBRL(Number(c.amount || 0))} | ${c.status}${c.recurring ? ` | recorrente ${c.recurring_interval || ""}` : ""}`);
+      });
+    }
 
     if (snapshot.forecast) {
       lines.push("");
@@ -400,14 +424,14 @@ function buildToolContext(snapshot: FinanceSnapshot): string {
       lines.push("[Metas]");
       snapshot.goals.forEach((goal: any) => {
         const pct = goal.target_amount > 0 ? (Number(goal.current_amount || 0) / Number(goal.target_amount) * 100).toFixed(0) : "0";
-        lines.push(`- ${goal.name}: ${formatCurrencyBRL(Number(goal.current_amount || 0))}/${formatCurrencyBRL(Number(goal.target_amount || 0))} (${pct}%) ${goal.deadline ? `até ${goal.deadline}` : ""} [${goal.status || "active"}]`);
+        lines.push(`- id=${goal.id} | ${goal.name}: ${formatCurrencyBRL(Number(goal.current_amount || 0))}/${formatCurrencyBRL(Number(goal.target_amount || 0))} (${pct}%) ${goal.deadline ? `até ${goal.deadline}` : ""} [${goal.status || "active"}]`);
       });
     }
 
     lines.push("");
     lines.push("[Últimas transações]");
     snapshot.recentTransactions.forEach((item: any) => {
-      lines.push(`- ${item.date} | ${item.type === "income" ? "+" : "-"}${formatCurrencyBRL(Number(item.amount || 0))} | ${item.category || "-"} | ${item.description || ""}`);
+      lines.push(`- id=${item.id} | ${item.date} | ${item.type === "income" ? "+" : "-"}${formatCurrencyBRL(Number(item.amount || 0))} | ${item.category || "-"} | ${item.description || ""}`);
     });
 
     return lines.join("\n");
