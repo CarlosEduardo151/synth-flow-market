@@ -178,15 +178,13 @@ async function pickAssignment(supabase: any, productSlug: string) {
 
 function buildSystemPrompt({
   productSlug,
-  permissions,
+  permissions: _permissions,
   toolContext,
 }: {
   productSlug: string;
   permissions: Record<string, any>;
   toolContext?: string;
 }) {
-  const goals = permissions?.goals || { create: true, update: true, delete: true };
-
   return [
     `Você é o Agente Financeiro (CFO virtual) do produto "${productSlug}".`,
     "Responda em português (pt-BR), de forma direta, executiva e com números reais.",
@@ -200,16 +198,52 @@ function buildSystemPrompt({
     "Para perguntas sobre saldo atual, priorize o campo 'Saldo atual real (histórico consolidado)'. Nunca responda 0,00 se houver saldo calculado no contexto.",
     "Se faltar dado, diga claramente o que falta e como cadastrar.",
     "",
-    "AÇÕES (metas):",
-    "Você NÃO executa ações diretamente. Quando o usuário pedir para CRIAR/EDITAR/APAGAR uma META, PROPONHA uma ação para aprovação.",
-    `- criar meta: ${!!goals.create}`,
-    `- atualizar meta: ${!!goals.update}`,
-    `- apagar meta: ${!!goals.delete}`,
-    "Se a permissão estiver false, explique que o cliente deve habilitar nas Configurações.",
-    "Se for permitido, no final inclua uma linha única começando com:",
-    "ACTION_PROPOSAL:",
-    "seguida de JSON minificado: {\"action_type\":\"goal_create|goal_update|goal_delete\",\"payload\":{...}}",
-    "NUNCA inclua ACTION_PROPOSAL se o usuário não pediu uma ação de meta claramente.",
+    "===== AUTONOMIA / AÇÕES =====",
+    "Você pode PROPOR ações em todas estas áreas. NUNCA execute direto: toda ação vira uma proposta que o usuário aprova/rejeita no chat.",
+    "Use o ID exato (id=...) que aparece no contexto acima para update/delete.",
+    "",
+    "Quando o usuário pedir uma ação, você DEVE responder com uma frase curta de confirmação e, no FINAL, em uma única linha, incluir:",
+    "ACTION_PROPOSAL: <json minificado>",
+    "Formato: {\"action_type\":\"...\",\"payload\":{...}}",
+    "",
+    "Action types suportados (use exatamente esses nomes):",
+    "TRANSAÇÕES:",
+    "- transaction_create  payload: {type:'income'|'expense', amount:number, description?, date?:'YYYY-MM-DD', category?, payment_method?, tags?:string[]}",
+    "- transaction_update  payload: {id, ...campos a atualizar}",
+    "- transaction_delete  payload: {id}",
+    "FATURAS / CONTAS A PAGAR:",
+    "- invoice_create  payload: {title, amount, due_date:'YYYY-MM-DD', supplier?, category?, status?:'pending'|'paid'|'overdue', recurring?:bool, recurring_interval?:'weekly'|'monthly'|'quarterly'|'yearly', notes?}",
+    "- invoice_update  payload: {id, ...campos}",
+    "- invoice_delete  payload: {id}",
+    "- invoice_mark_paid  payload: {id, paid_amount?, payment_method?}",
+    "RECEBÍVEIS / FATURAS DE CLIENTES:",
+    "- receivable_create  payload: {client_name, total, due_date:'YYYY-MM-DD', client_email?, client_phone?, client_document?, status?:'draft'|'sent'|'paid'|'overdue', notes?}",
+    "- receivable_update  payload: {id, ...campos}",
+    "- receivable_delete  payload: {id}",
+    "- receivable_mark_paid  payload: {id, paid_amount?, payment_method?}",
+    "COTAÇÕES / ORÇAMENTOS:",
+    "- quote_create  payload: {client_name, total, client_email?, client_phone?, client_document?, valid_until?:'YYYY-MM-DD', notes?, terms?, items?:[{description,quantity,unit_price,discount?}]}",
+    "- quote_update  payload: {id, ...campos}",
+    "- quote_delete  payload: {id}",
+    "- quote_mark_status  payload: {id, status:'draft'|'sent'|'approved'|'rejected'|'expired'}",
+    "IMPOSTOS DAS / SIMPLES NACIONAL:",
+    "- das_create  payload: {regime:'simples'|'mei', anexo?, competencia_month:1-12, competencia_year, revenue_month, revenue_12m?, aliquota_efetiva, total_amount, due_date:'YYYY-MM-DD', tax_breakdown?:object, notes?}",
+    "- das_mark_paid  payload: {id, paid_at?:'YYYY-MM-DD'}",
+    "- das_delete  payload: {id}",
+    "EVENTOS DE CALENDÁRIO / RECORRENTES:",
+    "- calendar_create  payload: {title, event_date:'YYYY-MM-DD', event_type:'income'|'expense'|'tax'|'reminder', amount?, category?, recurring?:bool, recurring_interval?:'weekly'|'monthly'|'quarterly'|'yearly', recurring_until?:'YYYY-MM-DD', description?}",
+    "- calendar_update  payload: {id, ...campos}",
+    "- calendar_delete  payload: {id}",
+    "METAS:",
+    "- goal_create  payload: {name, target_amount, current_amount?, deadline?:'YYYY-MM-DD'}",
+    "- goal_update  payload: {id, ...campos}",
+    "- goal_delete  payload: {id}",
+    "",
+    "REGRAS:",
+    "- Só inclua ACTION_PROPOSAL quando o usuário pedir CLARAMENTE uma ação (criar, lançar, registrar, atualizar, marcar, apagar, mudar status etc.).",
+    "- Nunca invente IDs. Se o usuário pedir editar/apagar e o ID não estiver no contexto acima, peça mais detalhes (descrição, valor, data) para identificar.",
+    "- Se faltar campo obrigatório, pergunte antes de propor.",
+    "- Sempre confirme em texto humano o que vai propor (ex.: 'Vou registrar uma despesa de R$ 50,00 em Alimentação para hoje. Confirma?'), e adicione a linha ACTION_PROPOSAL ao final.",
   ].join("\n");
 }
 
@@ -235,6 +269,9 @@ type FinanceSnapshot = {
   goals: any[];
   recentTransactions: any[];
   transactionCount: number;
+  quotes: any[];
+  dasGuides: any[];
+  calendarEvents: any[];
 };
 
 const formatCurrencyBRL = (value: number) =>
@@ -253,7 +290,7 @@ async function fetchTransactionsForSnapshot(supabase: any, customerProductId: st
   for (let from = 0; from < 5000; from += pageSize) {
     const { data, error } = await supabase
       .from("financial_agent_transactions")
-      .select("type, amount, description, date, category")
+      .select("id, type, amount, description, date, category, tags")
       .eq("customer_product_id", customerProductId)
       .order("date", { ascending: false })
       .range(from, from + pageSize - 1);
@@ -273,14 +310,17 @@ async function buildFinanceSnapshot(supabase: any, customerProductId: string): P
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  const [tx, { data: invs }, { data: recv }, { data: kpi }, { data: insights }, { data: goals }, { data: forecast }] = await Promise.all([
+  const [tx, { data: invs }, { data: recv }, { data: kpi }, { data: insights }, { data: goals }, { data: forecast }, { data: quotes }, { data: das }, { data: calEvents }] = await Promise.all([
     fetchTransactionsForSnapshot(supabase, customerProductId),
-    supabase.from("financial_agent_invoices").select("title, amount, due_date, status, supplier").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
-    supabase.from("financial_receivables").select("invoice_number, client_name, total, due_date, status").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+    supabase.from("financial_agent_invoices").select("id, title, amount, due_date, status, supplier, category, recurring, recurring_interval").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+    supabase.from("financial_receivables").select("id, invoice_number, client_name, total, due_date, status, paid_amount").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
     supabase.from("financial_kpi_snapshots").select("*").eq("customer_product_id", customerProductId).order("snapshot_date", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("financial_insights").select("title, description, severity, impact_brl, status").eq("customer_product_id", customerProductId).eq("status", "open").order("detected_at", { ascending: false }).limit(8),
-    supabase.from("financial_agent_goals").select("name, target_amount, current_amount, deadline, status").eq("customer_product_id", customerProductId).limit(20),
+    supabase.from("financial_agent_goals").select("id, name, target_amount, current_amount, deadline, status").eq("customer_product_id", customerProductId).limit(20),
     supabase.from("financial_forecasts").select("horizon_days, projected_income, projected_expense, projected_balance, confidence, generated_at").eq("customer_product_id", customerProductId).order("generated_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("financial_quotes").select("id, quote_number, client_name, total, status, valid_until").eq("customer_product_id", customerProductId).order("created_at", { ascending: false }).limit(20),
+    supabase.from("financial_das_guides").select("id, regime, anexo, competencia_month, competencia_year, total_amount, due_date, payment_status").eq("customer_product_id", customerProductId).order("due_date", { ascending: false }).limit(12),
+    supabase.from("financial_calendar_events").select("id, title, amount, event_type, event_date, status, recurring, recurring_interval, category").eq("customer_product_id", customerProductId).order("event_date", { ascending: true }).limit(40),
   ]);
 
   const txArr = (tx || []) as any[];
@@ -335,6 +375,9 @@ async function buildFinanceSnapshot(supabase: any, customerProductId: string): P
     goals: (goals || []) as any[],
     recentTransactions: txArr.slice(0, 10),
     transactionCount: txArr.length,
+    quotes: (quotes || []) as any[],
+    dasGuides: (das || []) as any[],
+    calendarEvents: (calEvents || []) as any[],
   };
 }
 
@@ -362,16 +405,40 @@ function buildToolContext(snapshot: FinanceSnapshot): string {
     snapshot.topCategories.forEach(([category, value]) => lines.push(`- ${category}: ${formatCurrencyBRL(value)}`));
 
     lines.push("");
-    lines.push(`[Contas a pagar] em aberto: ${snapshot.openPayables.length} | vencidas: ${snapshot.overduePayablesCount}`);
-    snapshot.openPayables.slice(0, 8).forEach((item: any) => {
-      lines.push(`- ${item.title} | ${item.supplier || "-"} | ${formatCurrencyBRL(Number(item.amount || 0))} | venc ${item.due_date} | ${item.status}`);
+    lines.push(`[Contas a pagar / Faturas] em aberto: ${snapshot.openPayables.length} | vencidas: ${snapshot.overduePayablesCount}`);
+    snapshot.openPayables.slice(0, 10).forEach((item: any) => {
+      lines.push(`- id=${item.id} | ${item.title} | ${item.supplier || "-"} | ${formatCurrencyBRL(Number(item.amount || 0))} | venc ${item.due_date} | ${item.status}${item.recurring ? ` | recorrente ${item.recurring_interval || ""}` : ""}`);
     });
 
     lines.push("");
     lines.push(`[Contas a receber] em aberto: ${snapshot.openReceivables.length} | vencidas: ${snapshot.overdueReceivablesCount}`);
-    snapshot.openReceivables.slice(0, 8).forEach((item: any) => {
-      lines.push(`- ${item.invoice_number || "-"} | ${item.client_name || "-"} | ${formatCurrencyBRL(Number(item.total || 0))} | venc ${item.due_date} | ${item.status}`);
+    snapshot.openReceivables.slice(0, 10).forEach((item: any) => {
+      lines.push(`- id=${item.id} | ${item.invoice_number || "-"} | ${item.client_name || "-"} | ${formatCurrencyBRL(Number(item.total || 0))} | venc ${item.due_date} | ${item.status}`);
     });
+
+    if (snapshot.quotes?.length) {
+      lines.push("");
+      lines.push("[Cotações / Orçamentos recentes]");
+      snapshot.quotes.slice(0, 10).forEach((q: any) => {
+        lines.push(`- id=${q.id} | ${q.quote_number} | ${q.client_name} | ${formatCurrencyBRL(Number(q.total || 0))} | ${q.status}${q.valid_until ? ` | val. ${q.valid_until}` : ""}`);
+      });
+    }
+
+    if (snapshot.dasGuides?.length) {
+      lines.push("");
+      lines.push("[Impostos DAS / Simples Nacional]");
+      snapshot.dasGuides.slice(0, 8).forEach((d: any) => {
+        lines.push(`- id=${d.id} | ${d.regime}${d.anexo ? ` ${d.anexo}` : ""} | ${String(d.competencia_month).padStart(2,"0")}/${d.competencia_year} | ${formatCurrencyBRL(Number(d.total_amount || 0))} | venc ${d.due_date} | ${d.payment_status}`);
+      });
+    }
+
+    if (snapshot.calendarEvents?.length) {
+      lines.push("");
+      lines.push("[Calendário / Eventos recorrentes]");
+      snapshot.calendarEvents.slice(0, 12).forEach((c: any) => {
+        lines.push(`- id=${c.id} | ${c.event_date} | ${c.event_type} | ${c.title} | ${formatCurrencyBRL(Number(c.amount || 0))} | ${c.status}${c.recurring ? ` | recorrente ${c.recurring_interval || ""}` : ""}`);
+      });
+    }
 
     if (snapshot.forecast) {
       lines.push("");
@@ -391,14 +458,14 @@ function buildToolContext(snapshot: FinanceSnapshot): string {
       lines.push("[Metas]");
       snapshot.goals.forEach((goal: any) => {
         const pct = goal.target_amount > 0 ? (Number(goal.current_amount || 0) / Number(goal.target_amount) * 100).toFixed(0) : "0";
-        lines.push(`- ${goal.name}: ${formatCurrencyBRL(Number(goal.current_amount || 0))}/${formatCurrencyBRL(Number(goal.target_amount || 0))} (${pct}%) ${goal.deadline ? `até ${goal.deadline}` : ""} [${goal.status || "active"}]`);
+        lines.push(`- id=${goal.id} | ${goal.name}: ${formatCurrencyBRL(Number(goal.current_amount || 0))}/${formatCurrencyBRL(Number(goal.target_amount || 0))} (${pct}%) ${goal.deadline ? `até ${goal.deadline}` : ""} [${goal.status || "active"}]`);
       });
     }
 
     lines.push("");
     lines.push("[Últimas transações]");
     snapshot.recentTransactions.forEach((item: any) => {
-      lines.push(`- ${item.date} | ${item.type === "income" ? "+" : "-"}${formatCurrencyBRL(Number(item.amount || 0))} | ${item.category || "-"} | ${item.description || ""}`);
+      lines.push(`- id=${item.id} | ${item.date} | ${item.type === "income" ? "+" : "-"}${formatCurrencyBRL(Number(item.amount || 0))} | ${item.category || "-"} | ${item.description || ""}`);
     });
 
     return lines.join("\n");
