@@ -179,19 +179,54 @@ export function FinancialChatbot({ customerProductId }: FinancialChatbotProps) {
   };
 
   const decideAction = async (actionRequestId: string, decision: 'approved' | 'rejected') => {
+    // Optimistic UI: remove a ação da lista enquanto processa
+    setPendingActions((prev) => prev.map((a) => (a.id === actionRequestId ? { ...a, status: 'approved' } : a)));
     try {
       const { data, error } = await supabase.functions.invoke('financial-agent-actions', {
         body: { actionRequestId, decision },
       });
-      if (error) throw error;
-      toast({ title: decision === 'approved' ? 'Aprovado' : 'Rejeitado' });
+
+      // Tenta extrair mensagem detalhada do erro vinda do edge function
+      let serverError: string | null = null;
+      if (error) {
+        try {
+          const ctx: any = (error as any).context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            serverError = body?.error || body?.message || null;
+          } else if (ctx && typeof ctx.text === 'function') {
+            const txt = await ctx.text();
+            try {
+              const parsed = JSON.parse(txt);
+              serverError = parsed?.error || parsed?.message || txt;
+            } catch {
+              serverError = txt;
+            }
+          }
+        } catch {
+          // ignore parse failure
+        }
+        throw new Error(serverError || (error as any).message || 'Erro desconhecido');
+      }
+
+      const status = (data as any)?.status;
+      if (status === 'failed') {
+        throw new Error((data as any)?.error || 'Falha ao executar ação');
+      }
+
+      toast({
+        title: decision === 'approved' ? '✅ Aprovado e executado' : 'Rejeitado',
+        description: decision === 'approved' ? 'A ação foi executada com sucesso.' : 'A ação foi descartada.',
+      });
       await fetchPendingActions();
-      // Refresh history to include system message
       await fetchHistory();
       return data;
     } catch (e) {
       console.error('decideAction error:', e);
-      toast({ title: 'Erro', description: 'Falha ao processar aprovação.', variant: 'destructive' });
+      const msg = e instanceof Error ? e.message : 'Falha ao processar aprovação.';
+      toast({ title: 'Erro ao processar ação', description: msg, variant: 'destructive' });
+      // Restaura a lista para mostrar a ação como pendente novamente
+      await fetchPendingActions();
     }
   };
 
