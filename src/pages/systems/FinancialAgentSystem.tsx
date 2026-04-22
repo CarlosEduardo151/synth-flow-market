@@ -20,6 +20,7 @@ import {
   FileBarChart,
   Calendar as CalendarIcon,
   TrendingUp,
+  Smartphone,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ import { FinancialGoals } from '@/components/financial/FinancialGoals';
 import { FinancialReports } from '@/components/financial/FinancialReports';
 import { FinancialSettings } from '@/components/financial/FinancialSettings';
 import { FinancialChatbot } from '@/components/financial/FinancialChatbot';
+import { FinancialWhatsApp } from '@/components/financial/FinancialWhatsApp';
 import { Financial2FAGate } from '@/components/financial/Financial2FAGate';
 
 const sidebarItems = [
@@ -53,6 +55,7 @@ const sidebarItems = [
   { value: 'insights', label: 'Insights', icon: Sparkles },
   { value: 'forecast', label: 'Previsões', icon: TrendingUp },
   { value: 'chatbot', label: 'Chat', icon: MessageSquare },
+  { value: 'whatsapp', label: 'WhatsApp', icon: Smartphone },
   { value: 'transactions', label: 'Transações', icon: ArrowUpDown },
   { value: 'recurring', label: 'Recorrentes', icon: Repeat },
   { value: 'budgets', label: 'Orçamentos', icon: PieChart },
@@ -223,6 +226,9 @@ export default function FinancialAgentSystem() {
               </TabsContent>
               <TabsContent value="chatbot" className="space-y-4">
                 <FinancialChatbot customerProductId={customerId} />
+              </TabsContent>
+              <TabsContent value="whatsapp" className="space-y-4">
+                <FinancialWhatsApp customerProductId={customerId} />
               </TabsContent>
               <TabsContent value="transactions" className="space-y-4">
                 <FinancialTransactions customerProductId={customerId} mode={mode} />
