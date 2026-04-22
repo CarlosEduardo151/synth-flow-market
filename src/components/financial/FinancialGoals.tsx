@@ -69,6 +69,8 @@ export function FinancialGoals({ customerProductId }: Props) {
       customer_product_id: customerProductId,
       name: newGoal.name,
       target_amount: parseFloat(newGoal.target_amount),
+      current_amount: 0,
+      status: 'active',
       deadline: newGoal.deadline || null
     }) as any);
 
@@ -125,7 +127,7 @@ export function FinancialGoals({ customerProductId }: Props) {
     }
   };
 
-  const activeGoals = goals.filter(g => g.status === 'active');
+  const activeGoals = goals.filter(g => (g.status ?? 'active') !== 'completed');
   const completedGoals = goals.filter(g => g.status === 'completed');
 
   if (loading) {
