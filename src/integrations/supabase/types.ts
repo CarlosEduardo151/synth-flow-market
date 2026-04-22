@@ -1281,6 +1281,42 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_agent_action_requests: {
+        Row: {
+          action_type: string
+          created_at: string
+          customer_product_id: string
+          id: string
+          payload: Json
+          result: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          payload?: Json
+          result?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_agent_chat_logs: {
         Row: {
           created_at: string
@@ -1305,6 +1341,36 @@ export type Database = {
           id?: string
           message?: string
           session_id?: string | null
+        }
+        Relationships: []
+      }
+      financial_agent_chat_messages: {
+        Row: {
+          attachments: Json | null
+          content: string
+          created_at: string
+          customer_product_id: string
+          id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          attachments?: Json | null
+          content: string
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          attachments?: Json | null
+          content?: string
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          role?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1464,6 +1530,33 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_agent_permissions: {
+        Row: {
+          created_at: string
+          customer_product_id: string
+          id: string
+          permissions: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_product_id: string
+          id?: string
+          permissions?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_product_id?: string
+          id?: string
+          permissions?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_agent_security: {
         Row: {
           created_at: string
@@ -1515,6 +1608,7 @@ export type Database = {
       financial_agent_transactions: {
         Row: {
           amount: number
+          category: string | null
           created_at: string
           customer_product_id: string
           date: string | null
@@ -1522,10 +1616,12 @@ export type Database = {
           id: string
           payment_method: string | null
           source: string | null
+          tags: string[] | null
           type: string
         }
         Insert: {
           amount: number
+          category?: string | null
           created_at?: string
           customer_product_id: string
           date?: string | null
@@ -1533,10 +1629,12 @@ export type Database = {
           id?: string
           payment_method?: string | null
           source?: string | null
+          tags?: string[] | null
           type: string
         }
         Update: {
           amount?: number
+          category?: string | null
           created_at?: string
           customer_product_id?: string
           date?: string | null
@@ -1544,6 +1642,7 @@ export type Database = {
           id?: string
           payment_method?: string | null
           source?: string | null
+          tags?: string[] | null
           type?: string
         }
         Relationships: []

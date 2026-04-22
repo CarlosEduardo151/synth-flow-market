@@ -43,19 +43,19 @@ const listVariants = {
   },
 };
 
-const itemVariants = {
+const itemVariants: import('framer-motion').Variants = {
   hidden: { opacity: 0, y: 14, scale: 0.98 },
   visible: {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
+    transition: { duration: 0.25, ease: 'easeOut' },
   },
   exit: {
     opacity: 0,
     y: -10,
     scale: 0.98,
-    transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
+    transition: { duration: 0.16, ease: 'easeIn' },
   },
 };
 
