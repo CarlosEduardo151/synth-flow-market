@@ -283,8 +283,8 @@ function buildSystemPrompt({
     "REGRAS:",
     "- Só inclua ACTION_PROPOSAL quando o usuário pedir CLARAMENTE uma ação (criar, lançar, registrar, atualizar, marcar, apagar, mudar status etc.).",
     "- Nunca invente IDs. Se o usuário pedir editar/apagar e o ID não estiver no contexto acima, peça mais detalhes (descrição, valor, data) para identificar.",
-    "- Se faltar campo obrigatório, pergunte antes de propor.",
-    "- Sempre confirme em texto humano o que vai propor (ex.: 'Vou registrar uma despesa de R$ 50,00 em Alimentação para hoje. Confirma?'), e adicione a linha ACTION_PROPOSAL ao final.",
+    "- Se faltar campo obrigatório no que o usuário disse, pergunte antes de propor. Caso contrário, assuma defaults razoáveis (data = hoje, status = pending, etc.).",
+    "- NÃO peça confirmação antes de executar; apenas faça e relate.",
   ].join("\n");
 }
 
