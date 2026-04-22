@@ -2545,6 +2545,54 @@ export type Database = {
           },
         ]
       }
+      financial_whatsapp_logs: {
+        Row: {
+          attachment_type: string | null
+          attachment_url: string | null
+          created_at: string
+          customer_product_id: string
+          direction: string
+          error_message: string | null
+          id: string
+          message_text: string | null
+          metadata: Json | null
+          phone: string | null
+          processing_ms: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          customer_product_id: string
+          direction: string
+          error_message?: string | null
+          id?: string
+          message_text?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          processing_ms?: number | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          created_at?: string
+          customer_product_id?: string
+          direction?: string
+          error_message?: string | null
+          id?: string
+          message_text?: string | null
+          metadata?: Json | null
+          phone?: string | null
+          processing_ms?: number | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       fleet_budget_audit_results: {
         Row: {
           budget_id: string
