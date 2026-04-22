@@ -273,14 +273,17 @@ async function buildFinanceSnapshot(supabase: any, customerProductId: string): P
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const ym = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 
-  const [tx, { data: invs }, { data: recv }, { data: kpi }, { data: insights }, { data: goals }, { data: forecast }] = await Promise.all([
+  const [tx, { data: invs }, { data: recv }, { data: kpi }, { data: insights }, { data: goals }, { data: forecast }, { data: quotes }, { data: das }, { data: calEvents }] = await Promise.all([
     fetchTransactionsForSnapshot(supabase, customerProductId),
-    supabase.from("financial_agent_invoices").select("title, amount, due_date, status, supplier").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
-    supabase.from("financial_receivables").select("invoice_number, client_name, total, due_date, status").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+    supabase.from("financial_agent_invoices").select("id, title, amount, due_date, status, supplier, category, recurring, recurring_interval").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
+    supabase.from("financial_receivables").select("id, invoice_number, client_name, total, due_date, status, paid_amount").eq("customer_product_id", customerProductId).order("due_date", { ascending: true }).limit(50),
     supabase.from("financial_kpi_snapshots").select("*").eq("customer_product_id", customerProductId).order("snapshot_date", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("financial_insights").select("title, description, severity, impact_brl, status").eq("customer_product_id", customerProductId).eq("status", "open").order("detected_at", { ascending: false }).limit(8),
-    supabase.from("financial_agent_goals").select("name, target_amount, current_amount, deadline, status").eq("customer_product_id", customerProductId).limit(20),
+    supabase.from("financial_agent_goals").select("id, name, target_amount, current_amount, deadline, status").eq("customer_product_id", customerProductId).limit(20),
     supabase.from("financial_forecasts").select("horizon_days, projected_income, projected_expense, projected_balance, confidence, generated_at").eq("customer_product_id", customerProductId).order("generated_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("financial_quotes").select("id, quote_number, client_name, total, status, valid_until").eq("customer_product_id", customerProductId).order("created_at", { ascending: false }).limit(20),
+    supabase.from("financial_das_guides").select("id, regime, anexo, competencia_month, competencia_year, total_amount, due_date, payment_status").eq("customer_product_id", customerProductId).order("due_date", { ascending: false }).limit(12),
+    supabase.from("financial_calendar_events").select("id, title, amount, event_type, event_date, status, recurring, recurring_interval, category").eq("customer_product_id", customerProductId).order("event_date", { ascending: true }).limit(40),
   ]);
 
   const txArr = (tx || []) as any[];
