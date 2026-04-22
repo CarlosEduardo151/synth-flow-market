@@ -31,6 +31,9 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterType, setFilterType] = useState<'all' | 'income' | 'expense'>('all');
+  const [filterYear, setFilterYear] = useState<string>('all');
+  const [filterMonth, setFilterMonth] = useState<string>('all');
+  const [filterDay, setFilterDay] = useState<string>('all');
   const { toast } = useToast();
 
   const [newTransaction, setNewTransaction] = useState({
@@ -110,9 +113,24 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
     }
   };
 
-  const filteredTransactions = filterType === 'all' 
-    ? transactions 
-    : transactions.filter(t => t.type === filterType);
+  const availableYears = Array.from(
+    new Set(transactions.map(t => t.date?.slice(0, 4)).filter(Boolean) as string[])
+  ).sort((a, b) => b.localeCompare(a));
+
+  const monthNames = [
+    'Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'
+  ];
+
+  const filteredTransactions = transactions.filter(t => {
+    if (filterType !== 'all' && t.type !== filterType) return false;
+    if (!t.date) return filterYear === 'all' && filterMonth === 'all' && filterDay === 'all';
+    const [y, m, d] = t.date.slice(0, 10).split('-');
+    if (filterYear !== 'all' && y !== filterYear) return false;
+    if (filterMonth !== 'all' && m !== filterMonth) return false;
+    if (filterDay !== 'all' && d !== filterDay) return false;
+    return true;
+  });
 
   const paymentMethods = mode === 'business' 
     ? ['PIX', 'Boleto', 'Cartão Crédito', 'Cartão Débito', 'Transferência', 'Dinheiro', 'Cheque']
