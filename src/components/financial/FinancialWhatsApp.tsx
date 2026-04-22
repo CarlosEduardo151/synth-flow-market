@@ -69,6 +69,21 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
     }
   }, [invoke]);
 
+  const reconfigureWebhook = useCallback(async (silent = false) => {
+    try {
+      await invoke("reconfigure_webhook");
+      if (!silent) toast({ title: "Webhook reconfigurado", description: "O WhatsApp agora envia mensagens para o Agente Financeiro." });
+    } catch (e) {
+      if (!silent) {
+        toast({
+          title: "Erro ao reconfigurar",
+          description: e instanceof Error ? e.message : "Falha desconhecida",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [invoke, toast]);
+
   const loadLogs = useCallback(async () => {
     try {
       const { data } = await (supabase as any)
