@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   Calendar as CalIcon, ChevronLeft, ChevronRight, ArrowDownRight, ArrowUpRight,
-  AlertTriangle, Sparkles, Receipt, Users, Plus, Loader2,
+  Sparkles, Receipt, Users, Plus, Loader2,
 } from "lucide-react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
@@ -27,6 +26,37 @@ interface CalEvent {
 }
 
 const fmtBRL = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const pad2 = (value: number) => String(value).padStart(2, "0");
+
+function parseDateParts(value: string | null | undefined) {
+  if (!value) return null;
+
+  const iso = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+  if (iso) {
+    return {
+      year: Number(iso[1]),
+      month: Number(iso[2]),
+      day: Number(iso[3]),
+    };
+  }
+
+  const dmy = String(value).match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (dmy) {
+    const parsedYear = Number(dmy[3]);
+    return {
+      year: parsedYear < 100 ? parsedYear + 2000 : parsedYear,
+      month: Number(dmy[2]),
+      day: Number(dmy[1]),
+    };
+  }
+
+  return null;
+}
+
+const normalizeDateKey = (value: string | null | undefined) => {
+  const parts = parseDateParts(value);
+  return parts ? `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}` : "";
+};
 
 const TYPE_META: Record<string, { icon: any; color: string; bg: string; label: string }> = {
   income:  { icon: ArrowUpRight,   color: "text-emerald-500", bg: "bg-emerald-500", label: "Receita" },
@@ -50,7 +80,7 @@ export function CashCalendarTab({ customerProductId }: Props) {
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
-  const monthName = new Date(year, month).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const monthName = new Date(year, month, 1).toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
   const firstWeekday = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -79,17 +109,26 @@ export function CashCalendarTab({ customerProductId }: Props) {
       toast({ title: "Erro ao carregar eventos", description: evRes.error.message, variant: "destructive" });
     }
 
-    const fromEvents = (evRes.data ?? []) as CalEvent[];
-    const fromTx: CalEvent[] = ((txRes.data ?? []) as any[]).map((t) => ({
-      id: `tx-${t.id}`,
-      event_date: String(t.date),
-      event_type: (t.type === "income" ? "income" : "expense") as CalEvent["event_type"],
-      title: t.description || (t.type === "income" ? "Receita" : "Despesa"),
-      amount: Number(t.amount) || 0,
-      status: "executed",
-    }));
+    const fromEvents: CalEvent[] = ((evRes.data ?? []) as CalEvent[])
+      .map((event) => ({
+        ...event,
+        event_date: normalizeDateKey(event.event_date),
+      }))
+      .filter((event) => event.event_date);
 
-    setEvents([...fromEvents, ...fromTx]);
+    const fromTx: CalEvent[] = ((txRes.data ?? []) as any[])
+      .map((t) => ({
+        id: `tx-${t.id}`,
+        event_date: normalizeDateKey(String(t.date)),
+        event_type: (t.type === "income" ? "income" : "expense") as CalEvent["event_type"],
+        title: t.description || (t.type === "income" ? "Receita" : "Despesa"),
+        amount: Number(t.amount) || 0,
+        status: "executed",
+      }))
+      .filter((event) => event.event_date);
+
+    const mergedEvents = [...fromEvents, ...fromTx].sort((a, b) => a.event_date.localeCompare(b.event_date));
+    setEvents(mergedEvents);
     setLoading(false);
   };
 
@@ -97,13 +136,14 @@ export function CashCalendarTab({ customerProductId }: Props) {
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, CalEvent[]>();
-    events.forEach(e => {
-      const d = parseInt(e.event_date.slice(8, 10), 10);
-      if (!map.has(d)) map.set(d, []);
-      map.get(d)!.push(e);
+    events.forEach((event) => {
+      const parts = parseDateParts(event.event_date);
+      if (!parts || parts.year !== year || parts.month !== month + 1) return;
+      if (!map.has(parts.day)) map.set(parts.day, []);
+      map.get(parts.day)!.push(event);
     });
     return map;
-  }, [events]);
+  }, [events, month, year]);
 
   const totals = useMemo(() => {
     const income = events.filter(e => e.event_type === "income").reduce((a, e) => a + Number(e.amount), 0);

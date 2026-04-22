@@ -26,6 +26,42 @@ interface Transaction {
   created_at: string;
 }
 
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+const getLocalDateInputValue = (date = new Date()) =>
+  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+
+function parseDateParts(value: string | null | undefined) {
+  if (!value) return null;
+
+  const iso = String(value).match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+  if (iso) {
+    return {
+      year: Number(iso[1]),
+      month: Number(iso[2]),
+      day: Number(iso[3]),
+    };
+  }
+
+  const dmy = String(value).match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (dmy) {
+    const parsedYear = Number(dmy[3]);
+    return {
+      year: parsedYear < 100 ? parsedYear + 2000 : parsedYear,
+      month: Number(dmy[2]),
+      day: Number(dmy[1]),
+    };
+  }
+
+  return null;
+}
+
+const formatDateBR = (value: string | null | undefined) => {
+  const parts = parseDateParts(value);
+  if (!parts) return value || '—';
+  return `${pad2(parts.day)}/${pad2(parts.month)}/${parts.year}`;
+};
+
 export function FinancialTransactions({ customerProductId, mode }: Props) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -40,7 +76,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
     type: 'expense' as 'income' | 'expense',
     amount: '',
     description: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateInputValue(),
     payment_method: ''
   });
 
@@ -89,7 +125,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
         type: 'expense',
         amount: '',
         description: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getLocalDateInputValue(),
         payment_method: ''
       });
       setDialogOpen(false);
@@ -311,7 +347,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
                 <div>
                   <p className="font-medium">{tx.description || (tx.type === 'income' ? 'Receita' : 'Despesa')}</p>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{new Date(tx.date).toLocaleDateString('pt-BR')}</span>
+                    <span>{formatDateBR(tx.date)}</span>
                     {tx.payment_method && (
                       <>
                         <span>•</span>
@@ -347,7 +383,7 @@ export function FinancialTransactions({ customerProductId, mode }: Props) {
         ))}
 
         {filteredTransactions.length === 0 && (
-          <Card className="p-12 text-center">
+          <Card className="p-8 text-center bg-card/50">
             <p className="text-muted-foreground">Nenhuma transação encontrada</p>
           </Card>
         )}
