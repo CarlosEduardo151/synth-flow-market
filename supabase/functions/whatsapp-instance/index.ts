@@ -244,10 +244,15 @@ serve(async (req) => {
     const sb = createClient(supabaseUrl, serviceKey);
 
     const baseInstanceName = await resolveInstanceName(sb, user.id, user.email || user.id);
-    const instanceName = context === "crm" ? `${baseInstanceName}_CRM` : baseInstanceName;
-
-    // For CRM context, use crm-simples product slug
-    const productSlug = context === "crm" ? "crm-simples" : "bots-automacao";
+    let instanceName = baseInstanceName;
+    let productSlug = "bots-automacao";
+    if (context === "crm") {
+      instanceName = `${baseInstanceName}_CRM`;
+      productSlug = "crm-simples";
+    } else if (context === "financial") {
+      instanceName = `${baseInstanceName}_FIN`;
+      productSlug = "agente-financeiro";
+    }
 
     // Fetch customer_product for this user and auto-provision webhook token if missing
     const cp = await ensureCustomerProduct(sb, user.id, productSlug);
