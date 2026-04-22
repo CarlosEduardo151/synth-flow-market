@@ -275,6 +275,9 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
         </CardContent>
       </Card>
 
+      {/* Authorized numbers (chefões) */}
+      <FinancialAuthorizedNumbers customerProductId={customerProductId} />
+
       {/* Activity log — estilo bots-automação */}
       <Card className="border-border/50">
         <CardHeader className="pb-3">
