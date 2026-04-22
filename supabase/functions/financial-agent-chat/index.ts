@@ -118,36 +118,73 @@ serve(async (req) => {
           attachments,
         });
 
-    // Persist assistant message
+    let assistantContent = aiResult.reply;
+    let actionRequest: any = null;
+    let executedAction: any = null;
+
+    if (aiResult.actionProposal) {
+      const actionType = String(aiResult.actionProposal.action_type || "");
+      const payload = aiResult.actionProposal.payload || {};
+      const requiresApproval = ACTIONS_REQUIRING_APPROVAL.has(actionType);
+
+      if (requiresApproval) {
+        const { data: ar, error: arErr } = await supabase
+          .from("financial_agent_action_requests")
+          .insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "pending",
+          })
+          .select("*")
+          .single();
+        if (!arErr) actionRequest = ar;
+      } else {
+        // Auto-execute (non-destructive operational action)
+        try {
+          const result = await executeFinancialAction(supabase, user.id, body.customerProductId, actionType, payload);
+          executedAction = { action_type: actionType, payload, result };
+          assistantContent = `${aiResult.reply}\n\n✅ Pronto, executado: ${actionType}.`;
+          // Audit log as executed action_request
+          await supabase.from("financial_agent_action_requests").insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "executed",
+            result: result ?? null,
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Erro desconhecido";
+          assistantContent = `${aiResult.reply}\n\n❌ Não consegui executar (${actionType}): ${msg}`;
+          await supabase.from("financial_agent_action_requests").insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "failed",
+            result: { error: msg },
+          });
+        }
+      }
+    }
+
+    // Persist assistant message (with possible execution feedback)
     await supabase.from("financial_agent_chat_messages").insert({
       user_id: user.id,
       customer_product_id: body.customerProductId,
       role: "assistant",
-      content: aiResult.reply,
+      content: assistantContent,
       attachments: aiResult.replyAttachments ?? null,
     });
 
-    let actionRequest: any = null;
-    if (aiResult.actionProposal) {
-      const { data: ar, error: arErr } = await supabase
-        .from("financial_agent_action_requests")
-        .insert({
-          user_id: user.id,
-          customer_product_id: body.customerProductId,
-          action_type: aiResult.actionProposal.action_type,
-          payload: aiResult.actionProposal.payload,
-          status: "pending",
-        })
-        .select("*")
-        .single();
-      if (!arErr) actionRequest = ar;
-    }
-
     return json(200, {
-      reply: aiResult.reply,
+      reply: assistantContent,
       provider,
       model,
       actionRequest,
+      executedAction,
     });
   } catch (e) {
     console.error("financial-agent-chat error:", e);
