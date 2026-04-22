@@ -261,6 +261,10 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Verificar status
               </Button>
+              <Button variant="outline" onClick={() => reconfigureWebhook(false)} disabled={loading}>
+                <Activity className="h-4 w-4 mr-2" />
+                Reconfigurar Webhook
+              </Button>
               <Button variant="destructive" onClick={handleDisconnect} disabled={loading}>
                 <Power className="h-4 w-4 mr-2" />
                 Desconectar
