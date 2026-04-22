@@ -43,10 +43,9 @@ serve(async (req) => {
     if (reqRow.user_id !== user.id) return json(403, { error: "Sem permissão" });
     if (reqRow.status !== "pending") return json(400, { error: "Solicitação já decidida" });
 
-    const decidedAt = new Date().toISOString();
     const { error: updErr } = await supabase
       .from("financial_agent_action_requests")
-      .update({ status: body.decision, decided_at: decidedAt, decision_by: user.id })
+      .update({ status: body.decision })
       .eq("id", reqRow.id);
     if (updErr) return json(500, { error: updErr.message });
 
@@ -79,7 +78,7 @@ serve(async (req) => {
 
       await supabase
         .from("financial_agent_action_requests")
-        .update({ status: "executed", executed_at: new Date().toISOString(), result: execResult ?? null })
+        .update({ status: "executed", result: execResult ?? null })
         .eq("id", reqRow.id);
 
       await supabase.from("financial_agent_chat_messages").insert({
