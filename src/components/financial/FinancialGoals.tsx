@@ -49,13 +49,13 @@ const itemVariants = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.25, ease: 'easeOut' },
+    transition: { duration: 0.25, ease: [0.22, 1, 0.36, 1] },
   },
   exit: {
     opacity: 0,
     y: -10,
     scale: 0.98,
-    transition: { duration: 0.16, ease: 'easeInOut' },
+    transition: { duration: 0.16, ease: [0.4, 0, 1, 1] },
   },
 };
 
