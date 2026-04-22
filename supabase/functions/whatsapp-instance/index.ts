@@ -259,6 +259,9 @@ serve(async (req) => {
 
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
+      if (context === "financial") {
+        return `${supabaseUrl}/functions/v1/financial-whatsapp-webhook?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
+      }
       return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
     };
 
