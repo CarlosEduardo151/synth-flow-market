@@ -98,11 +98,17 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
   }, [customerProductId]);
 
   useEffect(() => {
-    checkStatus();
+    (async () => {
+      const s = await checkStatus();
+      // If already connected, ensure the Evolution webhook points to the financial endpoint.
+      if (s?.connected) {
+        reconfigureWebhook(true);
+      }
+    })();
     loadLogs();
     const logsInterval = setInterval(loadLogs, 8000);
     return () => clearInterval(logsInterval);
-  }, [checkStatus, loadLogs]);
+  }, [checkStatus, loadLogs, reconfigureWebhook]);
 
   // Poll status while showing QR code
   useEffect(() => {
