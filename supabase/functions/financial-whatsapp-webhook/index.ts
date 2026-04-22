@@ -208,6 +208,42 @@ async function fetchMediaBase64(
   }
 }
 
+function unwrapMessageContainer(message: any): any {
+  let current = message || {};
+  for (let i = 0; i < 5; i++) {
+    if (current?.ephemeralMessage?.message) {
+      current = current.ephemeralMessage.message;
+      continue;
+    }
+    if (current?.viewOnceMessage?.message) {
+      current = current.viewOnceMessage.message;
+      continue;
+    }
+    if (current?.viewOnceMessageV2?.message) {
+      current = current.viewOnceMessageV2.message;
+      continue;
+    }
+    if (current?.documentWithCaptionMessage?.message) {
+      current = current.documentWithCaptionMessage.message;
+      continue;
+    }
+    break;
+  }
+  return current;
+}
+
+function resolveEventName(body: any): string {
+  return String(body?.event || body?.eventName || body?.type || "").toLowerCase();
+}
+
+function resolveMessageEnvelope(body: any): any {
+  const data = body?.data || body;
+  if (data?.key || data?.message) return data;
+  if (Array.isArray(data?.messages) && data.messages[0]) return data.messages[0];
+  if (Array.isArray(body?.messages) && body.messages[0]) return body.messages[0];
+  return data;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -240,15 +276,16 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
-    // Evolution event dispatch — only process incoming messages
-    const event = body?.event || body?.eventName || "";
-    if (event && !String(event).toUpperCase().includes("MESSAGES_UPSERT")) {
+    // Evolution event dispatch — accept actual event variants used by Evolution API
+    const event = resolveEventName(body);
+    if (event && !event.startsWith("messages")) {
+      console.log("[financial-whatsapp-webhook] skipped event:", event);
       return json(200, { ok: true, skipped: event });
     }
 
-    const data = body?.data || body;
+    const data = resolveMessageEnvelope(body);
     const key = data?.key || {};
-    const msg = data?.message || {};
+    const msg = unwrapMessageContainer(data?.message || {});
     const fromMe = key?.fromMe === true;
     const remoteJid: string = key?.remoteJid || "";
     const phone = remoteJid.replace(/@.*$/, "");
@@ -265,6 +302,9 @@ serve(async (req) => {
       msg?.imageMessage?.caption ||
       msg?.documentMessage?.caption ||
       msg?.audioMessage?.caption ||
+      msg?.editedMessage?.message?.conversation ||
+      msg?.buttonsResponseMessage?.selectedDisplayText ||
+      msg?.listResponseMessage?.title ||
       "";
 
     // Detect attachment
@@ -297,6 +337,16 @@ serve(async (req) => {
         }
       }
     }
+
+    console.log("[financial-whatsapp-webhook] inbound message:", JSON.stringify({
+      event,
+      hasKey: !!key?.id,
+      phone,
+      fromMe,
+      textPreview: (textContent || "").slice(0, 120),
+      attachmentType,
+      messageKeys: Object.keys(msg || {}),
+    }));
 
     if (!textContent && !attachment) {
       // Nothing actionable
@@ -375,6 +425,11 @@ serve(async (req) => {
     }
 
     const finalReply = (ai.reply + executionNote).slice(0, 4000);
+    console.log("[financial-whatsapp-webhook] reply prepared:", JSON.stringify({
+      hasAction: !!ai.actionProposal?.action_type,
+      actionType: ai.actionProposal?.action_type || null,
+      replyPreview: finalReply.slice(0, 200),
+    }));
 
     // Send reply back to WhatsApp
     if (creds) {
@@ -395,7 +450,8 @@ serve(async (req) => {
     return json(200, { ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
-    console.error("[financial-whatsapp-webhook] error:", msg);
+    const stack = e instanceof Error ? e.stack : undefined;
+    console.error("[financial-whatsapp-webhook] error:", msg, stack || "");
     return json(200, { ok: false, error: msg }); // 200 so Evolution doesn't retry endlessly
   }
 });
