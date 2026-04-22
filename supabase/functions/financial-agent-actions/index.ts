@@ -42,7 +42,15 @@ serve(async (req) => {
 
     if (reqErr || !reqRow) return json(404, { error: "Solicitação não encontrada" });
     if (reqRow.user_id !== user.id) return json(403, { error: "Sem permissão" });
-    if (reqRow.status !== "pending") return json(400, { error: "Solicitação já decidida" });
+
+    // Idempotência: se já foi decidida, devolve o estado atual em 200 sem erro
+    if (reqRow.status !== "pending") {
+      return json(200, {
+        success: true,
+        status: reqRow.status,
+        message: `Esta ação já foi ${reqRow.status}.`,
+      });
+    }
 
     const { error: updErr } = await supabase
       .from("financial_agent_action_requests")
