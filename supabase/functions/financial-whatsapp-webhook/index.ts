@@ -425,6 +425,11 @@ serve(async (req) => {
     }
 
     const finalReply = (ai.reply + executionNote).slice(0, 4000);
+    console.log("[financial-whatsapp-webhook] reply prepared:", JSON.stringify({
+      hasAction: !!ai.actionProposal?.action_type,
+      actionType: ai.actionProposal?.action_type || null,
+      replyPreview: finalReply.slice(0, 200),
+    }));
 
     // Send reply back to WhatsApp
     if (creds) {
@@ -445,7 +450,8 @@ serve(async (req) => {
     return json(200, { ok: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
-    console.error("[financial-whatsapp-webhook] error:", msg);
+    const stack = e instanceof Error ? e.stack : undefined;
+    console.error("[financial-whatsapp-webhook] error:", msg, stack || "");
     return json(200, { ok: false, error: msg }); // 200 so Evolution doesn't retry endlessly
   }
 });
