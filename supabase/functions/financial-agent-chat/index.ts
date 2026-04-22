@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { executeFinancialAction, ACTIONS_REQUIRING_APPROVAL } from "../_shared/financial-actions.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -117,36 +118,73 @@ serve(async (req) => {
           attachments,
         });
 
-    // Persist assistant message
+    let assistantContent = aiResult.reply;
+    let actionRequest: any = null;
+    let executedAction: any = null;
+
+    if (aiResult.actionProposal) {
+      const actionType = String(aiResult.actionProposal.action_type || "");
+      const payload = aiResult.actionProposal.payload || {};
+      const requiresApproval = ACTIONS_REQUIRING_APPROVAL.has(actionType);
+
+      if (requiresApproval) {
+        const { data: ar, error: arErr } = await supabase
+          .from("financial_agent_action_requests")
+          .insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "pending",
+          })
+          .select("*")
+          .single();
+        if (!arErr) actionRequest = ar;
+      } else {
+        // Auto-execute (non-destructive operational action)
+        try {
+          const result = await executeFinancialAction(supabase, user.id, body.customerProductId, actionType, payload);
+          executedAction = { action_type: actionType, payload, result };
+          assistantContent = `${aiResult.reply}\n\n✅ Pronto, executado: ${actionType}.`;
+          // Audit log as executed action_request
+          await supabase.from("financial_agent_action_requests").insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "executed",
+            result: result ?? null,
+          });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Erro desconhecido";
+          assistantContent = `${aiResult.reply}\n\n❌ Não consegui executar (${actionType}): ${msg}`;
+          await supabase.from("financial_agent_action_requests").insert({
+            user_id: user.id,
+            customer_product_id: body.customerProductId,
+            action_type: actionType,
+            payload,
+            status: "failed",
+            result: { error: msg },
+          });
+        }
+      }
+    }
+
+    // Persist assistant message (with possible execution feedback)
     await supabase.from("financial_agent_chat_messages").insert({
       user_id: user.id,
       customer_product_id: body.customerProductId,
       role: "assistant",
-      content: aiResult.reply,
+      content: assistantContent,
       attachments: aiResult.replyAttachments ?? null,
     });
 
-    let actionRequest: any = null;
-    if (aiResult.actionProposal) {
-      const { data: ar, error: arErr } = await supabase
-        .from("financial_agent_action_requests")
-        .insert({
-          user_id: user.id,
-          customer_product_id: body.customerProductId,
-          action_type: aiResult.actionProposal.action_type,
-          payload: aiResult.actionProposal.payload,
-          status: "pending",
-        })
-        .select("*")
-        .single();
-      if (!arErr) actionRequest = ar;
-    }
-
     return json(200, {
-      reply: aiResult.reply,
+      reply: assistantContent,
       provider,
       model,
       actionRequest,
+      executedAction,
     });
   } catch (e) {
     console.error("financial-agent-chat error:", e);
@@ -199,12 +237,15 @@ function buildSystemPrompt({
     "Se faltar dado, diga claramente o que falta e como cadastrar.",
     "",
     "===== AUTONOMIA / AÇÕES =====",
-    "Você pode PROPOR ações em todas estas áreas. NUNCA execute direto: toda ação vira uma proposta que o usuário aprova/rejeita no chat.",
+    "Você TEM AUTONOMIA para executar ações diretamente em nome do usuário em todas as áreas (transações, faturas, recebíveis, cotações, impostos DAS, calendário/recorrentes, metas).",
+    "Execute imediatamente ações de criação, atualização e marcação (ex: 'adicione transação 250 receita', 'crie fatura', 'marque como pago'). NÃO peça confirmação antes — apenas faça.",
+    "EXCEÇÃO — apenas as ações de DELETE (*_delete) entram em fluxo de aprovação automaticamente. Para tudo o mais, execute direto.",
     "Use o ID exato (id=...) que aparece no contexto acima para update/delete.",
     "",
-    "Quando o usuário pedir uma ação, você DEVE responder com uma frase curta de confirmação e, no FINAL, em uma única linha, incluir:",
+    "Quando o usuário pedir uma ação, responda em UMA frase curta confirmando o que vai fazer e, no FINAL, em uma única linha, inclua:",
     "ACTION_PROPOSAL: <json minificado>",
     "Formato: {\"action_type\":\"...\",\"payload\":{...}}",
+    "O sistema executa automaticamente. Você verá o resultado e pode informar ao usuário no próximo turno.",
     "",
     "Action types suportados (use exatamente esses nomes):",
     "TRANSAÇÕES:",
@@ -242,8 +283,8 @@ function buildSystemPrompt({
     "REGRAS:",
     "- Só inclua ACTION_PROPOSAL quando o usuário pedir CLARAMENTE uma ação (criar, lançar, registrar, atualizar, marcar, apagar, mudar status etc.).",
     "- Nunca invente IDs. Se o usuário pedir editar/apagar e o ID não estiver no contexto acima, peça mais detalhes (descrição, valor, data) para identificar.",
-    "- Se faltar campo obrigatório, pergunte antes de propor.",
-    "- Sempre confirme em texto humano o que vai propor (ex.: 'Vou registrar uma despesa de R$ 50,00 em Alimentação para hoje. Confirma?'), e adicione a linha ACTION_PROPOSAL ao final.",
+    "- Se faltar campo obrigatório no que o usuário disse, pergunte antes de propor. Caso contrário, assuma defaults razoáveis (data = hoje, status = pending, etc.).",
+    "- NÃO peça confirmação antes de executar; apenas faça e relate.",
   ].join("\n");
 }
 
