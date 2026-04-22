@@ -69,6 +69,21 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
     }
   }, [invoke]);
 
+  const reconfigureWebhook = useCallback(async (silent = false) => {
+    try {
+      await invoke("reconfigure_webhook");
+      if (!silent) toast({ title: "Webhook reconfigurado", description: "O WhatsApp agora envia mensagens para o Agente Financeiro." });
+    } catch (e) {
+      if (!silent) {
+        toast({
+          title: "Erro ao reconfigurar",
+          description: e instanceof Error ? e.message : "Falha desconhecida",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [invoke, toast]);
+
   const loadLogs = useCallback(async () => {
     try {
       const { data } = await (supabase as any)
@@ -83,11 +98,17 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
   }, [customerProductId]);
 
   useEffect(() => {
-    checkStatus();
+    (async () => {
+      const s = await checkStatus();
+      // If already connected, ensure the Evolution webhook points to the financial endpoint.
+      if (s?.connected) {
+        reconfigureWebhook(true);
+      }
+    })();
     loadLogs();
     const logsInterval = setInterval(loadLogs, 8000);
     return () => clearInterval(logsInterval);
-  }, [checkStatus, loadLogs]);
+  }, [checkStatus, loadLogs, reconfigureWebhook]);
 
   // Poll status while showing QR code
   useEffect(() => {
@@ -239,6 +260,10 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
               <Button variant="outline" onClick={checkStatus} disabled={loading}>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Verificar status
+              </Button>
+              <Button variant="outline" onClick={() => reconfigureWebhook(false)} disabled={loading}>
+                <Activity className="h-4 w-4 mr-2" />
+                Reconfigurar Webhook
               </Button>
               <Button variant="destructive" onClick={handleDisconnect} disabled={loading}>
                 <Power className="h-4 w-4 mr-2" />
