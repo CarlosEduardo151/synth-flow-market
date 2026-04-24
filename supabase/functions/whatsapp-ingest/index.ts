@@ -478,12 +478,26 @@ serve(async (req) => {
     }
 
     cleanupIngestDedup();
-    const ingestDedupKey = `${cp.id}:${normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${(normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120)}`}`;
+    // Detect fan-out hop to prevent loops between sibling products
+    const fanoutHeader = req.headers.get("x-fanout-origin") || "";
+    const isFanoutHop = !!fanoutHeader;
+
+    // Global dedup key (per user + product + message) — covers both direct webhook and fan-out
+    const contentSig = (normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120);
+    const baseKey = normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${contentSig}`;
+    const ingestDedupKey = `ingest:${cp.id}:${baseKey}`;
     if (hasRecentIngestDedup(ingestDedupKey)) {
       console.log("[ingest] duplicate event skipped:", ingestDedupKey);
       return corsResponse({ ok: true, skipped: "duplicate_event" }, 200, origin);
     }
     rememberIngestDedup(ingestDedupKey);
+
+    // Cross-product dedup at the user level: if this exact message was already
+    // processed for this user (via any product), skip CRM insert + bot trigger
+    // duplications. We still allow the first processing to proceed.
+    const userMsgKey = `usermsg:${cp.user_id}:${baseKey}`;
+    const alreadyHandledForUser = hasRecentIngestDedup(userMsgKey);
+    rememberIngestDedup(userMsgKey);
 
     // ── Enrich media with base64 from Evolution API when webhook didn't include it ──
     const instanceName = rawPayload?.instance || "";
