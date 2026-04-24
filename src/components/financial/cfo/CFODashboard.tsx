@@ -250,31 +250,22 @@ export function CFODashboard({ customerProductId, mode }: Props) {
 
   // ============ Categorização IA ============
   async function categorizeUncategorized() {
-    const targets = txAll.filter((t) => !t.category && (t.description || "").length > 0).slice(0, 30);
-    if (targets.length === 0) {
+    const pending = txAll.filter((t) => !t.category && (t.description || "").length > 0).length;
+    if (pending === 0) {
       toast({ title: "Tudo categorizado", description: "Nenhuma transação pendente." });
       return;
     }
     setCategorizing(true);
     try {
-      const { data, error } = await supabase.functions.invoke("financial-categorize", {
-        body: {
-          items: targets.map((t) => ({
-            id: t.id, description: t.description, amount: t.amount, type: t.type,
-          })),
-        },
+      const { data, error } = await supabase.functions.invoke("financial-categorize-apply", {
+        body: { customer_product_id: customerProductId, limit: 50 },
       });
       if (error) throw error;
-      const results = (data?.results || []) as { id: string; category: string }[];
-      // grava category no campo description (fallback se schema não tiver category) — preferimos updates atômicos
-      await Promise.all(
-        results.map((r) =>
-          (supabase.from("financial_agent_transactions" as any)
-            .update({ source: r.category ? `cat:${r.category}` : null })
-            .eq("id", r.id) as any)
-        ),
-      );
-      toast({ title: "Categorização concluída", description: `${results.length} transações classificadas.` });
+      const updated = (data as any)?.updated ?? 0;
+      toast({
+        title: "Categorização concluída",
+        description: `${updated} transação(ões) classificada(s) pela IA.`,
+      });
       await load();
     } catch (e: any) {
       console.error(e);
