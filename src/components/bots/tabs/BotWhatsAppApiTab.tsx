@@ -50,12 +50,16 @@ export function BotWhatsAppApiTab({
         onConnectionChange(true);
         setQrCode(null);
         setInstanceName(data.instanceName || null);
-      } else if (data?.state === 'close' && instanceName) {
-        // Instance exists but disconnected
+      } else {
         onConnectionChange(false);
+        if (!data?.instanceName) {
+          setInstanceName(null);
+          setQrCode(null);
+        }
       }
       return data;
     } catch {
+      onConnectionChange(false);
       return null;
     }
   }, [onConnectionChange, instanceName]);
@@ -98,17 +102,6 @@ export function BotWhatsAppApiTab({
       if (!data?.success) throw new Error(data?.error || 'Falha ao ativar WhatsApp');
 
       setInstanceName(data.instanceName);
-
-      if (data.alreadyConnected) {
-        // Reused an instance already paired to this number — no QR needed.
-        setQrCode(null);
-        onConnectionChange(true);
-        toast({
-          title: '✅ Número já conectado!',
-          description: 'Detectamos que esse WhatsApp já está pareado. Reaproveitamos a sessão.',
-        });
-        return;
-      }
 
       if (data.qrcode) {
         setQrCode(data.qrcode);
@@ -270,9 +263,8 @@ export function BotWhatsAppApiTab({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Digite o número do WhatsApp que você quer conectar. Se o número já estiver
-              conectado em outro painel, vamos <strong>reaproveitar a sessão automaticamente</strong> —
-              sem precisar escanear QR Code de novo.
+              Digite o número do WhatsApp que você quer conectar. Vamos criar uma
+              <strong> nova sessão de conexão</strong> para esse número pelo site.
             </p>
 
             <div className="space-y-2">
