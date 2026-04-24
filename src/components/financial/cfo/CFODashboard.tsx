@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { KPICard } from "./KPICard";
 import { useToast } from "@/hooks/use-toast";
+import { useFinancialDataChanged } from "@/lib/financialEvents";
 
 interface Props {
   customerProductId: string;
