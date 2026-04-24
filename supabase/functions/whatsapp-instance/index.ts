@@ -47,6 +47,70 @@ function generateWebhookToken(): string {
     .join("");
 }
 
+/**
+ * Normalize ANY phone format the user might type into a canonical
+ * digits-only string. Accepts "+55 99 9 1234-5678", "(99) 91234-5678",
+ * "5599912345678", "9 9123-4567", "+1 415 555 1234", etc.
+ *
+ * If the cleaned digits look like a Brazilian number (10/11 digits, DDD)
+ * and don't already start with country code, prepend "55".
+ */
+function normalizePhoneNumber(raw: string): string {
+  if (!raw) return "";
+  let d = String(raw).replace(/\D+/g, "");
+  if (!d) return "";
+  d = d.replace(/^0+/, "");
+  if ((d.length === 10 || d.length === 11) && !d.startsWith("55")) {
+    d = "55" + d;
+  }
+  return d;
+}
+
+function ownerJidMatchesPhone(ownerJid: string | null | undefined, normalizedPhone: string): boolean {
+  if (!ownerJid || !normalizedPhone) return false;
+  const ownerDigits = String(ownerJid).split("@")[0].replace(/\D+/g, "");
+  if (!ownerDigits) return false;
+  if (ownerDigits === normalizedPhone) return true;
+  // Compare last 10 digits to tolerate the optional Brazilian "9" prefix or country-code differences.
+  const minLen = Math.min(ownerDigits.length, normalizedPhone.length, 10);
+  return ownerDigits.slice(-minLen) === normalizedPhone.slice(-minLen);
+}
+
+async function findEvolutionInstanceByPhone(normalizedPhone: string): Promise<{
+  instanceName: string;
+  state: string;
+  ownerJid: string;
+} | null> {
+  if (!normalizedPhone) return null;
+  try {
+    const resp = await fetch(`${EVOLUTION_URL()}/instance/fetchInstances`, {
+      method: "GET",
+      headers: { apikey: EVOLUTION_KEY() },
+    });
+    if (!resp.ok) {
+      console.warn("[whatsapp-instance] fetchInstances failed:", resp.status);
+      return null;
+    }
+    const list = await resp.json().catch(() => []);
+    if (!Array.isArray(list)) return null;
+
+    for (const inst of list) {
+      const name = inst?.name || inst?.instanceName || inst?.instance?.instanceName;
+      const owner = inst?.ownerJid || inst?.owner || inst?.instance?.owner;
+      const state = inst?.connectionStatus || inst?.state || inst?.instance?.state || "unknown";
+      if (!name) continue;
+      if (state !== "open") continue;
+      if (ownerJidMatchesPhone(owner, normalizedPhone)) {
+        return { instanceName: name, state, ownerJid: owner };
+      }
+    }
+    return null;
+  } catch (e) {
+    console.error("[whatsapp-instance] findEvolutionInstanceByPhone error:", e);
+    return null;
+  }
+}
+
 async function ensureCustomerProduct(sb: any, userId: string, productSlug = "bots-automacao") {
   const { data: existing, error } = await sb
     .from("customer_products")
