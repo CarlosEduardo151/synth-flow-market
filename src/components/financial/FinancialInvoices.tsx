@@ -95,6 +95,7 @@ export function FinancialInvoices({ customerProductId, mode }: Props) {
         recurring_interval: 'monthly'
       });
       setDialogOpen(false);
+      emitFinancialDataChanged('invoice-created');
       fetchInvoices();
     }
   };
