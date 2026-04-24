@@ -147,6 +147,7 @@ export function PayablesTab({ customerProductId }: Props) {
         }
       }
       toast.success("Pagamento registrado");
+      emitFinancialDataChanged("invoice-paid");
       load();
     } catch (e: any) { toast.error(e.message); }
   }
