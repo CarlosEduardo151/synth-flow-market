@@ -2,11 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2, CheckCircle2, XCircle, RefreshCw,
   Smartphone, Zap, QrCode, Wifi, WifiOff,
-  ArrowDownLeft, ArrowUpRight, Activity
+  ArrowDownLeft, ArrowUpRight, Activity, Phone, Link2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -36,6 +38,7 @@ export function BotWhatsAppApiTab({
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [phoneInput, setPhoneInput] = useState('');
 
   const checkStatus = useCallback(async () => {
     try {
@@ -76,33 +79,50 @@ export function BotWhatsAppApiTab({
   }, [qrCode, checkStatus, toast]);
 
   const handleActivate = async () => {
+    const cleaned = phoneInput.replace(/\D+/g, '');
+    if (cleaned.length < 10) {
+      toast({
+        title: 'Número inválido',
+        description: 'Digite o WhatsApp com DDD (ex: 11 91234-5678).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
-        body: { action: 'create' },
+        body: { action: 'connect_by_number', phone: phoneInput },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Falha ao criar instância');
+      if (!data?.success) throw new Error(data?.error || 'Falha ao ativar WhatsApp');
 
       setInstanceName(data.instanceName);
 
+      if (data.alreadyConnected) {
+        // Reused an instance already paired to this number — no QR needed.
+        setQrCode(null);
+        onConnectionChange(true);
+        toast({
+          title: '✅ Número já conectado!',
+          description: 'Detectamos que esse WhatsApp já está pareado. Reaproveitamos a sessão.',
+        });
+        return;
+      }
+
       if (data.qrcode) {
         setQrCode(data.qrcode);
+        toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
       } else {
-        // Instance already existed, fetch QR
+        toast({
+          title: 'Aguarde…',
+          description: 'Instância criada. Gerando QR Code…',
+        });
+        // Try to fetch QR explicitly
         const qrResp = await supabase.functions.invoke('whatsapp-instance', {
           body: { action: 'qrcode' },
         });
-        if (qrResp.data?.qrcode) {
-          setQrCode(qrResp.data.qrcode);
-        }
-      }
-
-      if (data.status === 'open') {
-        onConnectionChange(true);
-        toast({ title: '✅ Já conectado!', description: 'Sua instância WhatsApp já estava ativa.' });
-      } else {
-        toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
+        if (qrResp.data?.qrcode) setQrCode(qrResp.data.qrcode);
       }
     } catch (e: any) {
       toast({
@@ -250,25 +270,44 @@ export function BotWhatsAppApiTab({
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Clique no botão abaixo para ativar o WhatsApp no seu bot. 
-              Um <strong>QR Code</strong> será gerado para você escanear com o WhatsApp que deseja conectar.
+              Digite o número do WhatsApp que você quer conectar. Se o número já estiver
+              conectado em outro painel, vamos <strong>reaproveitar a sessão automaticamente</strong> —
+              sem precisar escanear QR Code de novo.
             </p>
-            <ol className="space-y-2 text-sm text-muted-foreground">
+
+            <div className="space-y-2">
+              <Label htmlFor="wa-phone" className="text-xs font-medium flex items-center gap-1.5">
+                <Phone className="h-3.5 w-3.5 text-primary" />
+                Número do WhatsApp
+              </Label>
+              <Input
+                id="wa-phone"
+                type="tel"
+                placeholder="Ex: +55 11 91234-5678"
+                value={phoneInput}
+                onChange={(e) => setPhoneInput(e.target.value)}
+                disabled={creating}
+                autoComplete="tel"
+                className="text-base"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Aceita qualquer formato: <code>+55 11 9...</code>, <code>11 9...</code>, <code>5511...</code> etc.
+              </p>
+            </div>
+
+            <ol className="space-y-1.5 text-xs text-muted-foreground pt-2 border-t border-border/40">
               <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">1</span>
-                <span>Clique em <strong>"Ativar WhatsApp"</strong></span>
+                <Link2 className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                <span>Se o número <strong>já estiver conectado</strong> em outro painel → conexão instantânea, sem QR.</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">2</span>
-                <span>Escaneie o <strong>QR Code</strong> com seu WhatsApp</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">3</span>
-                <span><strong>Pronto!</strong> O bot começa a responder automaticamente</span>
+                <QrCode className="h-3.5 w-3.5 text-primary mt-0.5 shrink-0" />
+                <span>Se for um número <strong>novo</strong> → geramos um QR Code para você escanear.</span>
               </li>
             </ol>
-            <Button onClick={handleActivate} disabled={creating} className="w-full gap-2" size="lg">
-              {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Preparando...</> : <><Smartphone className="h-4 w-4" />Ativar WhatsApp</>}
+
+            <Button onClick={handleActivate} disabled={creating || !phoneInput.trim()} className="w-full gap-2" size="lg">
+              {creating ? <><Loader2 className="h-4 w-4 animate-spin" />Verificando número…</> : <><Smartphone className="h-4 w-4" />Conectar WhatsApp</>}
             </Button>
           </CardContent>
         </Card>
