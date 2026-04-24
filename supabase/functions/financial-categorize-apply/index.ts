@@ -1,7 +1,7 @@
 // Categoriza transações financeiras pendentes do usuário e grava no campo `category`.
 // Fluxo: autentica usuário -> busca transações sem categoria do customer_product_id -> chama Groq -> UPDATE em massa.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders, handleCorsPreflightRequest } from "../_shared/cors.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -16,7 +16,9 @@ const CATEGORIES = [
 ] as const;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -131,11 +133,10 @@ Deno.serve(async (req) => {
     console.error("apply categorize error", e);
     return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
   }
+  function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
