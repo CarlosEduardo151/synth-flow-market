@@ -88,6 +88,7 @@ export function CFODashboard({ customerProductId, mode }: Props) {
   useEffect(() => {
     void load();
   }, [customerProductId]);
+  useFinancialDataChanged(() => { void load(); });
 
   async function load() {
     setLoading(true);
