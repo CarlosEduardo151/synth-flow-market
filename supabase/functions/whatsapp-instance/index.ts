@@ -279,6 +279,8 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
+      const instanceAlreadyExists = resp.status === 409 || resp.status === 403;
+
       if (cp?.id && context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
