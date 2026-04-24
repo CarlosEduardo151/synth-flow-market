@@ -38,6 +38,7 @@ export function FinancialReports({ customerProductId, mode }: Props) {
   useEffect(() => {
     fetchData();
   }, [customerProductId, period]);
+  useFinancialDataChanged(() => { fetchData(); });
 
   const fetchData = async () => {
     setLoading(true);
