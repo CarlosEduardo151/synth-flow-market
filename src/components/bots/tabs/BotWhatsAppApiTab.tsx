@@ -79,33 +79,50 @@ export function BotWhatsAppApiTab({
   }, [qrCode, checkStatus, toast]);
 
   const handleActivate = async () => {
+    const cleaned = phoneInput.replace(/\D+/g, '');
+    if (cleaned.length < 10) {
+      toast({
+        title: 'Número inválido',
+        description: 'Digite o WhatsApp com DDD (ex: 11 91234-5678).',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
-        body: { action: 'create' },
+        body: { action: 'connect_by_number', phone: phoneInput },
       });
       if (error) throw error;
-      if (!data?.success) throw new Error(data?.error || 'Falha ao criar instância');
+      if (!data?.success) throw new Error(data?.error || 'Falha ao ativar WhatsApp');
 
       setInstanceName(data.instanceName);
 
+      if (data.alreadyConnected) {
+        // Reused an instance already paired to this number — no QR needed.
+        setQrCode(null);
+        onConnectionChange(true);
+        toast({
+          title: '✅ Número já conectado!',
+          description: 'Detectamos que esse WhatsApp já está pareado. Reaproveitamos a sessão.',
+        });
+        return;
+      }
+
       if (data.qrcode) {
         setQrCode(data.qrcode);
+        toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
       } else {
-        // Instance already existed, fetch QR
+        toast({
+          title: 'Aguarde…',
+          description: 'Instância criada. Gerando QR Code…',
+        });
+        // Try to fetch QR explicitly
         const qrResp = await supabase.functions.invoke('whatsapp-instance', {
           body: { action: 'qrcode' },
         });
-        if (qrResp.data?.qrcode) {
-          setQrCode(qrResp.data.qrcode);
-        }
-      }
-
-      if (data.status === 'open') {
-        onConnectionChange(true);
-        toast({ title: '✅ Já conectado!', description: 'Sua instância WhatsApp já estava ativa.' });
-      } else {
-        toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
+        if (qrResp.data?.qrcode) setQrCode(qrResp.data.qrcode);
       }
     } catch (e: any) {
       toast({
