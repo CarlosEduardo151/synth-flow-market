@@ -440,7 +440,7 @@ serve(async (req) => {
     // Authenticate webhook
     const { data: cp, error: cpErr } = await service
       .from("customer_products")
-      .select("id, product_slug")
+      .select("id, product_slug, user_id")
       .eq("id", customerProductId)
       .eq("webhook_token", token)
       .maybeSingle();
