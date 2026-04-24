@@ -90,6 +90,7 @@ export function PayablesTab({ customerProductId }: Props) {
     toast.success("Conta adicionada");
     setOpen(false);
     setForm({ title: "", supplier: "", category: "", amount: "", due_date: "", notes: "", payment_method: "pix", recurring: false, recurring_interval: "monthly" });
+    emitFinancialDataChanged("invoice-created");
     load();
   }
 
