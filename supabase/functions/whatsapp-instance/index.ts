@@ -402,6 +402,24 @@ serve(async (req) => {
         return json({ error: "invalid_phone", message: "Número inválido. Digite com DDD (ex: 11 91234-5678)." }, 400);
       }
 
+      // 1. Check if there is ALREADY an Evolution instance OPEN for this phone
+      //    (regardless of context). If yes → reuse it: link to this user/product
+      //    and reconfigure webhook so messages route to the right ingest.
+      const existing = await findEvolutionInstanceByPhone(normalized);
+      if (existing?.instanceName) {
+        console.log("[whatsapp-instance] connect_by_number reusing existing instance:", existing.instanceName, "for", normalized);
+        await linkExistingInstance(existing.instanceName);
+        return json({
+          success: true,
+          alreadyConnected: true,
+          reused: true,
+          instanceName: existing.instanceName,
+          status: "open",
+          phone: normalized,
+        });
+      }
+
+      // 2. Otherwise → create a fresh instance and return its QR code.
       const freshInstanceName = buildFreshInstanceName(baseInstanceName, normalized, context);
       console.log("[whatsapp-instance] connect_by_number creating fresh instance for", normalized, "→", freshInstanceName);
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
