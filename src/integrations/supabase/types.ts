@@ -1481,6 +1481,7 @@ export type Database = {
           id: string
           notes: string | null
           paid_amount: number
+          paid_at: string | null
           parent_invoice_id: string | null
           payment_method: string | null
           recurring: boolean
@@ -1500,6 +1501,7 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_amount?: number
+          paid_at?: string | null
           parent_invoice_id?: string | null
           payment_method?: string | null
           recurring?: boolean
@@ -1519,6 +1521,7 @@ export type Database = {
           id?: string
           notes?: string | null
           paid_amount?: number
+          paid_at?: string | null
           parent_invoice_id?: string | null
           payment_method?: string | null
           recurring?: boolean
