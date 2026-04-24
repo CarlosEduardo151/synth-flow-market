@@ -452,6 +452,8 @@ serve(async (req) => {
       });
     }
 
+    // Legacy direct-create flow (no phone number, uses email-derived instanceName)
+    if (action === "create") {
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
