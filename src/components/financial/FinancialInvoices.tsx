@@ -100,17 +100,36 @@ export function FinancialInvoices({ customerProductId, mode }: Props) {
   };
 
   const handleMarkAsPaid = async (id: string) => {
-    const { error } = await (supabase
+    const inv = invoices.find(i => i.id === id);
+    if (!inv) return;
+    // Idempotência: só atualiza se ainda estava pendente
+    const { data: updated, error } = await (supabase
       .from('financial_agent_invoices' as any)
       .update({ status: 'paid', paid_at: new Date().toISOString() })
-      .eq('id', id) as any);
+      .eq('id', id)
+      .eq('status', 'pending')
+      .select('id') as any);
 
     if (error) {
       toast({ title: "Erro ao atualizar", variant: "destructive" });
-    } else {
-      toast({ title: "Fatura marcada como paga!" });
-      fetchInvoices();
+      return;
     }
+    if (!updated || updated.length === 0) {
+      toast({ title: "Esta fatura já foi paga." });
+      fetchInvoices();
+      return;
+    }
+    // Lança a despesa correspondente para refletir no fluxo de caixa
+    await (supabase.from('financial_agent_transactions' as any).insert({
+      customer_product_id: customerProductId,
+      type: 'expense', amount: Number(inv.amount),
+      description: inv.title,
+      date: new Date().toISOString().slice(0, 10),
+      source: `payable:${inv.id}`,
+    }) as any);
+    toast({ title: "Fatura marcada como paga!" });
+    emitFinancialDataChanged('invoice-paid');
+    fetchInvoices();
   };
 
   const handleDelete = async (id: string) => {
@@ -125,6 +144,7 @@ export function FinancialInvoices({ customerProductId, mode }: Props) {
       toast({ title: "Erro ao excluir", variant: "destructive" });
     } else {
       toast({ title: "Fatura excluída" });
+      emitFinancialDataChanged('invoice-deleted');
       fetchInvoices();
     }
   };
