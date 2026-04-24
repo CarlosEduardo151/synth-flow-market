@@ -329,7 +329,129 @@ serve(async (req) => {
       return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
     };
 
-    if (action === "create") {
+    // ── Helper: link an existing Evolution instance (already connected to a phone)
+    // to the current user's customer_product, configure its webhook and bot runtime.
+    async function linkExistingInstance(existingInstanceName: string) {
+      // 1. Persist mapping in evolution_instances + product_credentials
+      if (cp?.id) {
+        await sb.from("evolution_instances").upsert({
+          user_id: user.id,
+          customer_product_id: cp.id,
+          instance_name: existingInstanceName,
+          evolution_url: EVOLUTION_URL(),
+          evolution_apikey: EVOLUTION_KEY(),
+          is_active: true,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "customer_product_id" }).then(({ error: e }: any) => {
+          if (e) console.error("[whatsapp-instance] link evolution_instances upsert:", e.message);
+        });
+      }
+      await sb.from("product_credentials").upsert({
+        user_id: user.id,
+        product_slug: productSlug,
+        credential_key: "evolution_instance_name",
+        credential_value: existingInstanceName,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id,product_slug,credential_key" }).then(({ error: e }: any) => {
+        if (e) console.error("[whatsapp-instance] link product_credentials upsert:", e.message);
+      });
+
+      // 2. Provision bot runtime (only for non-financial flows)
+      if (cp?.id && context !== "financial") {
+        await ensureBotRuntime(sb, user.id, cp.id);
+      }
+
+      // 3. Re-configure webhook so events route to THIS user's product
+      const webhookUrl = buildWebhookUrl();
+      if (webhookUrl) await configureWebhook(existingInstanceName, webhookUrl);
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // ACTION: lookup_number — just check whether a phone is already
+    // connected to ANY Evolution instance. Read-only.
+    // ───────────────────────────────────────────────────────────
+    if (action === "lookup_number") {
+      const normalized = normalizePhoneNumber((body.phone as string) || "");
+      if (!normalized || normalized.length < 10) {
+        return json({ error: "invalid_phone", normalized }, 400);
+      }
+      const found = await findEvolutionInstanceByPhone(normalized);
+      return json({
+        normalized,
+        alreadyConnected: !!found,
+        instance: found,
+      });
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // ACTION: connect_by_number — main entry point for the new flow.
+    // 1. Normalize the phone the user typed.
+    // 2. If an Evolution instance already exists for that number → reuse it
+    //    (link to this user/product, reconfigure webhook, NO QR code).
+    // 3. Otherwise → create a fresh instance and return its QR code.
+    // ───────────────────────────────────────────────────────────
+    if (action === "connect_by_number") {
+      const normalized = normalizePhoneNumber((body.phone as string) || "");
+      if (!normalized || normalized.length < 10) {
+        return json({ error: "invalid_phone", message: "Número inválido. Digite com DDD (ex: 11 91234-5678)." }, 400);
+      }
+
+      // Try to find an existing connected instance for this phone
+      const existing = await findEvolutionInstanceByPhone(normalized);
+      if (existing) {
+        console.log("[whatsapp-instance] reusing existing instance for", normalized, "→", existing.instanceName);
+        await linkExistingInstance(existing.instanceName);
+        return json({
+          success: true,
+          alreadyConnected: true,
+          instanceName: existing.instanceName,
+          status: "open",
+          qrcode: null,
+          phone: normalized,
+        });
+      }
+
+      // No existing instance for that number → create a new one (uses default instanceName for this user/context)
+      console.log("[whatsapp-instance] no existing instance for", normalized, "→ creating", instanceName);
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+        body: JSON.stringify({ instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
+      });
+      const data = await resp.json().catch(() => null);
+      console.log("[whatsapp-instance] create (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
+
+      if (!resp.ok && resp.status !== 409 && resp.status !== 403) {
+        return json({ error: "Falha ao criar instância", details: data }, resp.status);
+      }
+
+      await linkExistingInstance(instanceName);
+
+      // Get a QR code (either from create response or via /instance/connect)
+      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      if (!qrcode) {
+        try {
+          const connResp = await fetch(
+            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`,
+            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+          );
+          const connData = await connResp.json().catch(() => null);
+          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+        } catch (e) {
+          console.error("[whatsapp-instance] connect_by_number QR fetch error:", e);
+        }
+      }
+
+      return json({
+        success: true,
+        alreadyConnected: false,
+        instanceName,
+        qrcode,
+        status: "qrcode",
+        phone: normalized,
+      });
+    }
+
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
