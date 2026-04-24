@@ -39,6 +39,8 @@ export function BotWhatsAppApiTab({
   const [checking, setChecking] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
+
+  const checkStatus = useCallback(async () => {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
         body: { action: 'status' },
