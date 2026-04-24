@@ -64,6 +64,7 @@ export function FinancialDashboard({ customerProductId, mode }: Props) {
   useEffect(() => {
     fetchData();
   }, [customerProductId]);
+  useFinancialDataChanged(() => { fetchData(); });
 
   const fetchData = async () => {
     setLoading(true);
