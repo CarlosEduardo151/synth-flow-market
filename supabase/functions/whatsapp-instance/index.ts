@@ -319,8 +319,36 @@ serve(async (req) => {
         console.warn("[whatsapp-instance] no customer_product found for webhook setup");
       }
 
-      const qrcode = data?.qrcode?.base64 || data?.qrcode || null;
-      return json({ success: true, instanceName, qrcode, status: data?.instance?.status || "created" });
+      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let connectionStatus = data?.instance?.status || (instanceAlreadyExists ? "exists" : "created");
+
+      // If no QR (instance already existed OR Evolution didn't return one), fetch via /instance/connect
+      if (!qrcode) {
+        try {
+          const connResp = await fetch(
+            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`,
+            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+          );
+          const connData = await connResp.json().catch(() => null);
+          console.log("[whatsapp-instance] connect after create:", connResp.status, JSON.stringify(connData)?.slice(0, 200));
+          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+
+          // Check if it's already connected
+          if (!qrcode) {
+            const stateResp = await fetch(
+              `${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`,
+              { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+            );
+            const stateData = await stateResp.json().catch(() => null);
+            const st = stateData?.instance?.state || stateData?.state;
+            if (st === "open") connectionStatus = "open";
+          }
+        } catch (e) {
+          console.error("[whatsapp-instance] connect fallback error:", e instanceof Error ? e.message : e);
+        }
+      }
+
+      return json({ success: true, instanceName, qrcode, status: connectionStatus });
     }
 
     if (action === "qrcode") {
