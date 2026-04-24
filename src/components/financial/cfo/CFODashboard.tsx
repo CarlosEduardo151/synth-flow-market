@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { KPICard } from "./KPICard";
 import { useToast } from "@/hooks/use-toast";
+import { useFinancialDataChanged } from "@/lib/financialEvents";
 
 interface Props {
   customerProductId: string;
@@ -87,6 +88,7 @@ export function CFODashboard({ customerProductId, mode }: Props) {
   useEffect(() => {
     void load();
   }, [customerProductId]);
+  useFinancialDataChanged(() => { void load(); });
 
   async function load() {
     setLoading(true);

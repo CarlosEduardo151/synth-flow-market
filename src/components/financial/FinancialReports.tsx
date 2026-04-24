@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
+import { useFinancialDataChanged } from '@/lib/financialEvents';
 import { 
   BarChart, 
   Bar, 
@@ -37,6 +38,7 @@ export function FinancialReports({ customerProductId, mode }: Props) {
   useEffect(() => {
     fetchData();
   }, [customerProductId, period]);
+  useFinancialDataChanged(() => { fetchData(); });
 
   const fetchData = async () => {
     setLoading(true);

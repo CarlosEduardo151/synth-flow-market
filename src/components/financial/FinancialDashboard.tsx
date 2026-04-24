@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useFinancialDataChanged } from '@/lib/financialEvents';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -63,6 +64,7 @@ export function FinancialDashboard({ customerProductId, mode }: Props) {
   useEffect(() => {
     fetchData();
   }, [customerProductId]);
+  useFinancialDataChanged(() => { fetchData(); });
 
   const fetchData = async () => {
     setLoading(true);

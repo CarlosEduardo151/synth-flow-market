@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { emitFinancialDataChanged, useFinancialDataChanged } from "@/lib/financialEvents";
 import { Receipt, Plus, Search, Check, AlertTriangle, Clock, Trash2, Loader2, Repeat, DollarSign, Wallet } from "lucide-react";
 
 interface Props { customerProductId: string }
@@ -41,6 +42,7 @@ export function PayablesTab({ customerProductId }: Props) {
   }
 
   useEffect(() => { load(); }, [customerProductId]);
+  useFinancialDataChanged(() => { load(); });
 
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -88,6 +90,7 @@ export function PayablesTab({ customerProductId }: Props) {
     toast.success("Conta adicionada");
     setOpen(false);
     setForm({ title: "", supplier: "", category: "", amount: "", due_date: "", notes: "", payment_method: "pix", recurring: false, recurring_interval: "monthly" });
+    emitFinancialDataChanged("invoice-created");
     load();
   }
 
@@ -145,6 +148,7 @@ export function PayablesTab({ customerProductId }: Props) {
         }
       }
       toast.success("Pagamento registrado");
+      emitFinancialDataChanged("invoice-paid");
       load();
     } catch (e: any) { toast.error(e.message); }
   }
@@ -152,7 +156,7 @@ export function PayablesTab({ customerProductId }: Props) {
   async function remove(id: string) {
     if (!confirm("Excluir conta?")) return;
     const { error } = await (supabase as any).from("financial_agent_invoices").delete().eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Excluída"); load(); }
+    if (error) toast.error(error.message); else { toast.success("Excluída"); emitFinancialDataChanged("invoice-deleted"); load(); }
   }
 
   function statusFor(inv: any) {
