@@ -593,26 +593,30 @@ serve(async (req) => {
       const phone = normalized.phone || "";
       const senderName = normalized.senderName || "";
 
-      console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
+      if (alreadyHandledForUser) {
+        console.log("[ingest][CRM] message already handled for this user, skipping insert+capture");
+      } else {
+        console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
 
-      const { error: logErr } = await service
-        .from("bot_conversation_logs")
-        .insert({
-          customer_product_id: cp.id,
-          direction: "inbound",
-          phone,
-          message_text: messageText,
-          source: "whatsapp",
-          provider: "crm_lead",
-          model: senderName || null,
-        });
+        const { error: logErr } = await service
+          .from("bot_conversation_logs")
+          .insert({
+            customer_product_id: cp.id,
+            direction: "inbound",
+            phone,
+            message_text: messageText,
+            source: "whatsapp",
+            provider: "crm_lead",
+            model: senderName || null,
+          });
 
-      if (logErr) console.error("[ingest][CRM] log insert error:", logErr.message);
+        if (logErr) console.error("[ingest][CRM] log insert error:", logErr.message);
 
-      try {
-        await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
-      } catch (e) {
-        console.error("[ingest][CRM] capture error:", e);
+        try {
+          await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
+        } catch (e) {
+          console.error("[ingest][CRM] capture error:", e);
+        }
       }
 
       // Fan-out to bots-automacao engine so the bot can also reply on the same number
