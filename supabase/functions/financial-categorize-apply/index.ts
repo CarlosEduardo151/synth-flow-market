@@ -16,7 +16,9 @@ const CATEGORIES = [
 ] as const;
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+  if (req.method === "OPTIONS") return handleCorsPreflightRequest(req);
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
