@@ -452,6 +452,91 @@ serve(async (req) => {
       });
     }
 
+    // ───────────────────────────────────────────────────────────
+    // ACTION: sync_existing — reconfigura todas as instâncias antigas
+    // do usuário (ou de todos, se admin) para apontar webhook para o
+    // produto certo, garantindo que mensagens cheguem ao ingest correto
+    // e o fan-out + dedup funcionem.
+    // ───────────────────────────────────────────────────────────
+    if (action === "sync_existing") {
+      const scope = (body.scope as string) || "self"; // "self" or "all"
+      const isAdmin = await sb.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }: any) => !!data).catch(() => false);
+      const targetAll = scope === "all" && isAdmin;
+
+      const { data: rows, error: rowsErr } = await (targetAll
+        ? sb.from("evolution_instances").select("id, user_id, customer_product_id, instance_name")
+        : sb.from("evolution_instances").select("id, user_id, customer_product_id, instance_name").eq("user_id", user.id));
+
+      if (rowsErr) return json({ error: "list_failed", details: rowsErr.message }, 500);
+
+      // Fetch all Evolution instances once
+      let evoList: any[] = [];
+      try {
+        const r = await fetch(`${EVOLUTION_URL()}/instance/fetchInstances`, { headers: { apikey: EVOLUTION_KEY() } });
+        evoList = await r.json().catch(() => []);
+        if (!Array.isArray(evoList)) evoList = [];
+      } catch (e) {
+        return json({ error: "evolution_unreachable", details: String(e) }, 502);
+      }
+
+      const findEvoByName = (name: string) =>
+        evoList.find((i) => (i?.name || i?.instanceName || i?.instance?.instanceName) === name);
+
+      const results: any[] = [];
+
+      for (const row of (rows || [])) {
+        try {
+          const evo = findEvoByName(row.instance_name);
+          const owner = evo?.ownerJid || evo?.owner || evo?.instance?.owner || "";
+          const state = evo?.connectionStatus || evo?.state || evo?.instance?.state || "unknown";
+          const ownerDigits = String(owner).split("@")[0].replace(/\D+/g, "");
+
+          // Look up the customer_product to know product_slug
+          const { data: cpRow } = await sb
+            .from("customer_products")
+            .select("id, product_slug, webhook_token, user_id")
+            .eq("id", row.customer_product_id)
+            .maybeSingle();
+
+          if (!cpRow?.id || !cpRow?.webhook_token) {
+            results.push({ instance: row.instance_name, status: "skipped_no_cp" });
+            continue;
+          }
+
+          const fnPath = cpRow.product_slug === "financeiro-agente"
+            ? "financial-whatsapp-webhook"
+            : "whatsapp-ingest";
+          const newWebhook = `${supabaseUrl}/functions/v1/${fnPath}?customer_product_id=${cpRow.id}&token=${cpRow.webhook_token}`;
+
+          // Re-configure webhook on Evolution
+          let webhookOk = false;
+          try {
+            await configureWebhook(row.instance_name, newWebhook);
+            webhookOk = true;
+          } catch (e) {
+            console.error("[sync_existing] webhook err:", row.instance_name, e);
+          }
+
+          // Provision bot runtime (CRM/bots) if needed
+          if (cpRow.product_slug !== "financeiro-agente") {
+            try { await ensureBotRuntime(sb, cpRow.user_id, cpRow.id); } catch (_) {}
+          }
+
+          results.push({
+            instance: row.instance_name,
+            product_slug: cpRow.product_slug,
+            phone: ownerDigits || null,
+            evolution_state: state,
+            webhook_reconfigured: webhookOk,
+          });
+        } catch (e) {
+          results.push({ instance: row.instance_name, error: String(e) });
+        }
+      }
+
+      return json({ ok: true, total: results.length, results });
+    }
+
     // Legacy direct-create flow (no phone number, uses email-derived instanceName)
     if (action === "create") {
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
