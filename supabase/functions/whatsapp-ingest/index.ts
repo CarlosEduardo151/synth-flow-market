@@ -534,7 +534,12 @@ serve(async (req) => {
 
     // ── Helper: fan-out to sibling product (same user, same WhatsApp number)
     // so a single connected number can serve CRM + Bots-Automação simultaneously.
+    // Only the FIRST hop fans out — sibling invocations carry x-fanout-origin and skip further fan-out.
     const fanOutToSibling = async (siblingSlug: string, mode: "engine" | "ingest") => {
+      if (isFanoutHop) {
+        console.log(`[ingest] skip fan-out → ${siblingSlug} (already a fan-out hop)`);
+        return;
+      }
       try {
         const { data: sibling } = await service
           .from("customer_products")
@@ -551,7 +556,12 @@ serve(async (req) => {
         const url = `${supabaseUrl}/functions/v1/${fnName}?customer_product_id=${encodeURIComponent(sibling.id)}&token=${encodeURIComponent(sibling.webhook_token)}`;
         const r = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            "x-fanout-origin": cp.product_slug,
+            "x-fanout-msg-id": baseKey,
+          },
           body: mode === "engine" ? JSON.stringify(normalized) : bodyText,
         });
         const t = await r.text().catch(() => "");
