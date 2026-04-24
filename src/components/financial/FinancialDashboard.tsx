@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
+import { useFinancialDataChanged } from '@/lib/financialEvents';
 import { 
   TrendingUp, 
   TrendingDown, 
