@@ -440,7 +440,7 @@ serve(async (req) => {
     // Authenticate webhook
     const { data: cp, error: cpErr } = await service
       .from("customer_products")
-      .select("id, product_slug")
+      .select("id, product_slug, user_id")
       .eq("id", customerProductId)
       .eq("webhook_token", token)
       .maybeSingle();
@@ -518,11 +518,42 @@ serve(async (req) => {
       }
     }
 
+    // ── Helper: fan-out to sibling product (same user, same WhatsApp number)
+    // so a single connected number can serve CRM + Bots-Automação simultaneously.
+    const fanOutToSibling = async (siblingSlug: string, mode: "engine" | "ingest") => {
+      try {
+        const { data: sibling } = await service
+          .from("customer_products")
+          .select("id, webhook_token, is_active")
+          .eq("user_id", cp.user_id)
+          .eq("product_slug", siblingSlug)
+          .eq("is_active", true)
+          .maybeSingle();
+        if (!sibling?.id || !sibling.webhook_token) {
+          console.log(`[ingest] no active sibling '${siblingSlug}' for user ${cp.user_id}`);
+          return;
+        }
+        const fnName = mode === "engine" ? "whatsapp-bot-engine" : "whatsapp-ingest";
+        const url = `${supabaseUrl}/functions/v1/${fnName}?customer_product_id=${encodeURIComponent(sibling.id)}&token=${encodeURIComponent(sibling.webhook_token)}`;
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          body: mode === "engine" ? JSON.stringify(normalized) : bodyText,
+        });
+        const t = await r.text().catch(() => "");
+        console.log(`[ingest] fan-out → ${siblingSlug} (${fnName}):`, r.status, t.slice(0, 200));
+      } catch (e) {
+        console.error(`[ingest] fan-out ${siblingSlug} error:`, e instanceof Error ? e.message : e);
+      }
+    };
+
     // ── CRM path: store message directly as a lead log ──
     if (isCRM) {
       // Skip messages sent by the connected number itself
       if (normalized.fromMe) {
         console.log("[ingest][CRM] skipping fromMe message");
+        // Still notify the bot so it can extend its handoff timer / dedup
+        await fanOutToSibling("bots-automacao", "engine");
         return corsResponse({ ok: true, skipped: "from_me" }, 200, origin);
       }
 
@@ -540,7 +571,6 @@ serve(async (req) => {
 
       console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
 
-      // Store in bot_conversation_logs so the CRM activity log picks it up
       const { error: logErr } = await service
         .from("bot_conversation_logs")
         .insert({
@@ -553,18 +583,18 @@ serve(async (req) => {
           model: senderName || null,
         });
 
-      if (logErr) {
-        console.error("[ingest][CRM] log insert error:", logErr.message);
-      }
+      if (logErr) console.error("[ingest][CRM] log insert error:", logErr.message);
 
-      // ── Captura automática de lead ──
       try {
         await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
       } catch (e) {
         console.error("[ingest][CRM] capture error:", e);
       }
 
-      return corsResponse({ ok: true, crm: true }, 200, origin);
+      // Fan-out to bots-automacao engine so the bot can also reply on the same number
+      await fanOutToSibling("bots-automacao", "engine");
+
+      return corsResponse({ ok: true, crm: true, fanout: "bots-automacao" }, 200, origin);
     }
 
     // ── Bot path: forward to bot engine ──
@@ -583,6 +613,9 @@ serve(async (req) => {
 
     const engineText = await engineResp.text().catch(() => "");
     console.log("[ingest] bot-engine response:", engineResp.status, engineText.slice(0, 500));
+
+    // Also fan-out to CRM ingest (same user) so leads/messages are captured even when only the bot instance receives the webhook
+    await fanOutToSibling("crm-simples", "ingest");
 
     if (!engineResp.ok) {
       return corsResponse({ ok: false, engine_status: engineResp.status, engine_body: engineText.slice(0, 500) }, 502, origin);
