@@ -94,30 +94,55 @@ export function PayablesTab({ customerProductId }: Props) {
   async function markPaid(inv: any) {
     if (!confirm(`Marcar "${inv.title}" como paga e lançar despesa?`)) return;
     try {
-      await (supabase as any).from("financial_agent_invoices").update({
-        status: "paid", paid_at: new Date().toISOString(), paid_amount: inv.amount,
-      }).eq("id", inv.id);
+      // Idempotência: só atualiza se ainda estava pendente. Se outra aba/clique já pagou, não faz nada.
+      const { data: updated, error: upErr } = await (supabase as any)
+        .from("financial_agent_invoices")
+        .update({ status: "paid", paid_at: new Date().toISOString(), paid_amount: inv.amount })
+        .eq("id", inv.id)
+        .eq("status", "pending")
+        .select("id");
+      if (upErr) throw upErr;
+      if (!updated || updated.length === 0) {
+        toast.message("Esta fatura já foi paga.");
+        load();
+        return;
+      }
+
       await (supabase as any).from("financial_agent_transactions").insert({
         customer_product_id: customerProductId,
         type: "expense", amount: Number(inv.amount),
         description: inv.title + (inv.supplier ? ` — ${inv.supplier}` : ""),
         date: new Date().toISOString().slice(0, 10),
-        payment_method: inv.payment_method, source: "payable",
+        payment_method: inv.payment_method, source: `payable:${inv.id}`,
       });
-      // Generate next recurring invoice
+
+      // Generate next recurring invoice (com guarda contra duplicação)
       if (inv.recurring && inv.recurring_interval) {
         const next = new Date(inv.due_date);
         if (inv.recurring_interval === "monthly") next.setMonth(next.getMonth() + 1);
         else if (inv.recurring_interval === "weekly") next.setDate(next.getDate() + 7);
         else if (inv.recurring_interval === "yearly") next.setFullYear(next.getFullYear() + 1);
-        await (supabase as any).from("financial_agent_invoices").insert({
-          customer_product_id: customerProductId,
-          title: inv.title, supplier: inv.supplier, category: inv.category,
-          amount: inv.amount, due_date: next.toISOString().slice(0, 10),
-          notes: inv.notes, payment_method: inv.payment_method,
-          recurring: true, recurring_interval: inv.recurring_interval,
-          parent_invoice_id: inv.id, source: "recurring", status: "pending",
-        });
+        const nextDate = next.toISOString().slice(0, 10);
+
+        // Verifica se a próxima ocorrência já existe (por parent_invoice_id ou por título+data+cp)
+        const { data: existing } = await (supabase as any)
+          .from("financial_agent_invoices")
+          .select("id")
+          .eq("customer_product_id", customerProductId)
+          .eq("title", inv.title)
+          .eq("due_date", nextDate)
+          .limit(1);
+
+        if (!existing || existing.length === 0) {
+          await (supabase as any).from("financial_agent_invoices").insert({
+            customer_product_id: customerProductId,
+            title: inv.title, supplier: inv.supplier, category: inv.category,
+            amount: inv.amount, due_date: nextDate,
+            notes: inv.notes, payment_method: inv.payment_method,
+            recurring: true, recurring_interval: inv.recurring_interval,
+            parent_invoice_id: inv.id, source: "recurring", status: "pending",
+          });
+        }
       }
       toast.success("Pagamento registrado");
       load();
