@@ -646,7 +646,23 @@ serve(async (req) => {
     }
 
     if (action === "status") {
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
+      // Source of truth: must exist in our evolution_instances table.
+      // If the user deleted instances on Evolution panel and we cleaned the DB,
+      // we must NOT report "connected" just because Evolution still has a stale instance
+      // matching the email-derived fallback name.
+      const { data: dbInst } = await sb
+        .from("evolution_instances")
+        .select("instance_name, is_active")
+        .eq("user_id", user.id)
+        .eq("is_active", true)
+        .maybeSingle();
+
+      if (!dbInst?.instance_name) {
+        console.log("[whatsapp-instance] status: no DB instance for user", user.id);
+        return json({ connected: false, state: "not_provisioned", instanceName: null });
+      }
+
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(dbInst.instance_name)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
       });
@@ -655,13 +671,13 @@ serve(async (req) => {
       console.log("[whatsapp-instance] status response:", resp.status, JSON.stringify(data));
 
       if (!resp.ok) {
-        return json({ connected: false, state: "disconnected" });
+        return json({ connected: false, state: "disconnected", instanceName: dbInst.instance_name });
       }
 
       const state = data?.instance?.state || data?.state || "close";
       const connected = state === "open";
 
-      return json({ connected, state, instanceName });
+      return json({ connected, state, instanceName: dbInst.instance_name });
     }
 
     if (action === "reconfigure_webhook") {
