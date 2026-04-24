@@ -12,9 +12,9 @@ const ALLOWED_ORIGINS = [
   'https://4b638d23-1bbd-400f-85e1-8df70617efd4.lovableproject.com',
   'https://id-preview--e36abe90-829b-426c-b93a-7bf13ba510e9.lovable.app',
   'https://e36abe90-829b-426c-b93a-7bf13ba510e9.lovableproject.com',
-  // Adicione suas URLs de produção aqui:
-  // 'https://seu-dominio.com',
-  // 'https://www.seu-dominio.com'
+  // Produção - StarAI
+  'https://starai.com.br',
+  'https://www.starai.com.br',
 ];
 
 export function getCorsHeaders(origin?: string | null): Record<string, string> {
