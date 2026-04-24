@@ -47,6 +47,7 @@ export function FinancialInvoices({ customerProductId, mode }: Props) {
   useEffect(() => {
     fetchInvoices();
   }, [customerProductId]);
+  useFinancialDataChanged(() => { fetchInvoices(); });
 
   const fetchInvoices = async () => {
     setLoading(true);
