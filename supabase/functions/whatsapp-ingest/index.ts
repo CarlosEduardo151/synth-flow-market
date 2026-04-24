@@ -482,7 +482,9 @@ serve(async (req) => {
       return corsResponse({ ok: true, skipped: "unprocessable_event" }, 200, origin);
     }
 
-    cleanupIngestDedup();
+    // Best-effort cleanup of expired dedup rows (1% chance per request)
+    if (Math.random() < 0.01) cleanupExpiredDedup(service);
+
     // Detect fan-out hop to prevent loops between sibling products
     const fanoutHeader = req.headers.get("x-fanout-origin") || "";
     const isFanoutHop = !!fanoutHeader;
@@ -490,19 +492,18 @@ serve(async (req) => {
     // Global dedup key (per user + product + message) — covers both direct webhook and fan-out
     const contentSig = (normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120);
     const baseKey = normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${contentSig}`;
+
     const ingestDedupKey = `ingest:${cp.id}:${baseKey}`;
-    if (hasRecentIngestDedup(ingestDedupKey)) {
+    const claimedIngest = await tryClaimDedup(service, ingestDedupKey, "ingest");
+    if (!claimedIngest) {
       console.log("[ingest] duplicate event skipped:", ingestDedupKey);
       return corsResponse({ ok: true, skipped: "duplicate_event" }, 200, origin);
     }
-    rememberIngestDedup(ingestDedupKey);
 
-    // Cross-product dedup at the user level: if this exact message was already
-    // processed for this user (via any product), skip CRM insert + bot trigger
-    // duplications. We still allow the first processing to proceed.
+    // Cross-product dedup at the user level
     const userMsgKey = `usermsg:${cp.user_id}:${baseKey}`;
-    const alreadyHandledForUser = hasRecentIngestDedup(userMsgKey);
-    rememberIngestDedup(userMsgKey);
+    const claimedUserMsg = await tryClaimDedup(service, userMsgKey, "user");
+    const alreadyHandledForUser = !claimedUserMsg;
 
     // ── Enrich media with base64 from Evolution API when webhook didn't include it ──
     const instanceName = rawPayload?.instance || "";
