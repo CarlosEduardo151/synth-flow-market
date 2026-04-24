@@ -224,6 +224,12 @@ async function resolveInstanceName(sb: any, userId: string, userEmail: string): 
   return userEmail.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
 }
 
+function buildFreshInstanceName(baseName: string, normalizedPhone: string, context: string): string {
+  const phoneSuffix = normalizedPhone.slice(-8) || crypto.randomUUID().replace(/-/g, "").slice(0, 8);
+  const contextSuffix = context === "bot" ? "BOT" : context.toUpperCase();
+  return `${baseName}_${contextSuffix}_${phoneSuffix}`.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+}
+
 const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"] as const;
 
 /**
@@ -396,43 +402,28 @@ serve(async (req) => {
         return json({ error: "invalid_phone", message: "Número inválido. Digite com DDD (ex: 11 91234-5678)." }, 400);
       }
 
-      // Try to find an existing connected instance for this phone
-      const existing = await findEvolutionInstanceByPhone(normalized);
-      if (existing) {
-        console.log("[whatsapp-instance] reusing existing instance for", normalized, "→", existing.instanceName);
-        await linkExistingInstance(existing.instanceName);
-        return json({
-          success: true,
-          alreadyConnected: true,
-          instanceName: existing.instanceName,
-          status: "open",
-          qrcode: null,
-          phone: normalized,
-        });
-      }
-
-      // No existing instance for that number → create a new one (uses default instanceName for this user/context)
-      console.log("[whatsapp-instance] no existing instance for", normalized, "→ creating", instanceName);
+      const freshInstanceName = buildFreshInstanceName(baseInstanceName, normalized, context);
+      console.log("[whatsapp-instance] connect_by_number creating fresh instance for", normalized, "→", freshInstanceName);
       const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
-        body: JSON.stringify({ instanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
+        body: JSON.stringify({ instanceName: freshInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
       });
       const data = await resp.json().catch(() => null);
       console.log("[whatsapp-instance] create (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
 
-      if (!resp.ok && resp.status !== 409 && resp.status !== 403) {
+      if (!resp.ok) {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
-      await linkExistingInstance(instanceName);
+      await linkExistingInstance(freshInstanceName);
 
       // Get a QR code (either from create response or via /instance/connect)
       let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
       if (!qrcode) {
         try {
           const connResp = await fetch(
-            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`,
+            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(freshInstanceName)}`,
             { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
           );
           const connData = await connResp.json().catch(() => null);
@@ -445,7 +436,7 @@ serve(async (req) => {
       return json({
         success: true,
         alreadyConnected: false,
-        instanceName,
+        instanceName: freshInstanceName,
         qrcode,
         status: "qrcode",
         phone: normalized,
