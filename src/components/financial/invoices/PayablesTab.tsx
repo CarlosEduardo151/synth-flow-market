@@ -155,7 +155,7 @@ export function PayablesTab({ customerProductId }: Props) {
   async function remove(id: string) {
     if (!confirm("Excluir conta?")) return;
     const { error } = await (supabase as any).from("financial_agent_invoices").delete().eq("id", id);
-    if (error) toast.error(error.message); else { toast.success("Excluída"); load(); }
+    if (error) toast.error(error.message); else { toast.success("Excluída"); emitFinancialDataChanged("invoice-deleted"); load(); }
   }
 
   function statusFor(inv: any) {
