@@ -279,6 +279,8 @@ serve(async (req) => {
         return json({ error: "Falha ao criar instância", details: data }, resp.status);
       }
 
+      const instanceAlreadyExists = resp.status === 409 || resp.status === 403;
+
       if (cp?.id && context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
@@ -317,8 +319,36 @@ serve(async (req) => {
         console.warn("[whatsapp-instance] no customer_product found for webhook setup");
       }
 
-      const qrcode = data?.qrcode?.base64 || data?.qrcode || null;
-      return json({ success: true, instanceName, qrcode, status: data?.instance?.status || "created" });
+      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let connectionStatus = data?.instance?.status || (instanceAlreadyExists ? "exists" : "created");
+
+      // If no QR (instance already existed OR Evolution didn't return one), fetch via /instance/connect
+      if (!qrcode) {
+        try {
+          const connResp = await fetch(
+            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`,
+            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+          );
+          const connData = await connResp.json().catch(() => null);
+          console.log("[whatsapp-instance] connect after create:", connResp.status, JSON.stringify(connData)?.slice(0, 200));
+          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+
+          // Check if it's already connected
+          if (!qrcode) {
+            const stateResp = await fetch(
+              `${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`,
+              { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+            );
+            const stateData = await stateResp.json().catch(() => null);
+            const st = stateData?.instance?.state || stateData?.state;
+            if (st === "open") connectionStatus = "open";
+          }
+        } catch (e) {
+          console.error("[whatsapp-instance] connect fallback error:", e instanceof Error ? e.message : e);
+        }
+      }
+
+      return json({ success: true, instanceName, qrcode, status: connectionStatus });
     }
 
     if (action === "qrcode") {
@@ -328,15 +358,16 @@ serve(async (req) => {
       });
 
       const data = await resp.json().catch(() => null);
-      console.log("[whatsapp-instance] qrcode response:", resp.status);
+      console.log("[whatsapp-instance] qrcode response:", resp.status, JSON.stringify(data)?.slice(0, 200));
 
       if (!resp.ok) {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
+      const qrcode = data?.base64 || data?.qrcode?.base64 || data?.qrcode || data?.code || null;
       return json({
         success: true,
-        qrcode: data?.base64 || data?.qrcode?.base64 || null,
+        qrcode,
         pairingCode: data?.pairingCode || null,
       });
     }
