@@ -358,15 +358,16 @@ serve(async (req) => {
       });
 
       const data = await resp.json().catch(() => null);
-      console.log("[whatsapp-instance] qrcode response:", resp.status);
+      console.log("[whatsapp-instance] qrcode response:", resp.status, JSON.stringify(data)?.slice(0, 200));
 
       if (!resp.ok) {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
+      const qrcode = data?.base64 || data?.qrcode?.base64 || data?.qrcode || data?.code || null;
       return json({
         success: true,
-        qrcode: data?.base64 || data?.qrcode?.base64 || null,
+        qrcode,
         pairingCode: data?.pairingCode || null,
       });
     }
