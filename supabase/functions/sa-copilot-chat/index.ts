@@ -25,43 +25,189 @@ function fmtMoney(n: number) {
 async function buildContext(customerProductId: string, opportunityId?: string | null) {
   const parts: string[] = [];
 
+  // Run all queries in parallel — all scoped by customer_product_id (multi-tenant isolation)
+  const [
+    oppsRes,
+    customersRes,
+    leadsRes,
+    interactionsRes,
+    captureRes,
+    memoriesRes,
+    convosRes,
+    prospectsRes,
+    cadencesRes,
+    alertsRes,
+    healthRes,
+    meetingsRes,
+    cpRes,
+  ] = await Promise.all([
+    admin.from('crm_opportunities')
+      .select('id,title,stage,value,probability,priority,expected_close_date,lost_reason,notes,customer_id,updated_at,created_at')
+      .eq('customer_product_id', customerProductId)
+      .order('updated_at', { ascending: false }).limit(200),
+    admin.from('crm_customers')
+      .select('id,name,email,phone,company,status,notes,last_contact_date,created_at')
+      .eq('customer_product_id', customerProductId)
+      .order('updated_at', { ascending: false }).limit(200),
+    (admin as any).from('sa_trigger_events')
+      .select('id,event_type,title,description,source,relevance_score,status,detected_at')
+      .eq('customer_product_id', customerProductId)
+      .order('relevance_score', { ascending: false, nullsFirst: false })
+      .order('detected_at', { ascending: false }).limit(100),
+    admin.from('crm_interactions')
+      .select('type,subject,description,created_at,customer_id')
+      .eq('customer_product_id', customerProductId)
+      .order('created_at', { ascending: false }).limit(80),
+    admin.from('crm_capture_settings')
+      .select('*').eq('customer_product_id', customerProductId).maybeSingle(),
+    (admin as any).from('crm_client_memories')
+      .select('client_name,client_phone,interaction_date,summary,topics,sentiment')
+      .eq('customer_product_id', customerProductId)
+      .order('interaction_date', { ascending: false }).limit(60),
+    (admin as any).from('bot_conversation_logs')
+      .select('phone,direction,message_text,created_at')
+      .eq('customer_product_id', customerProductId)
+      .order('created_at', { ascending: false }).limit(60),
+    (admin as any).from('sa_prospects')
+      .select('name,company,role,score,status,created_at')
+      .eq('customer_product_id', customerProductId)
+      .order('score', { ascending: false, nullsFirst: false }).limit(60),
+    (admin as any).from('sa_cadence_enrollments')
+      .select('id,status,current_step,enrolled_at')
+      .eq('customer_product_id', customerProductId)
+      .order('enrolled_at', { ascending: false }).limit(40),
+    (admin as any).from('sa_antichurn_alerts')
+      .select('customer_id,risk_level,reason,status,created_at')
+      .eq('customer_product_id', customerProductId)
+      .eq('status', 'active').limit(40),
+    (admin as any).from('sa_deal_health_scores')
+      .select('opportunity_id,score,risk_factors,calculated_at')
+      .eq('customer_product_id', customerProductId)
+      .order('calculated_at', { ascending: false }).limit(40),
+    (admin as any).from('sa_meetings')
+      .select('title,meeting_date,status,notes')
+      .eq('customer_product_id', customerProductId)
+      .order('meeting_date', { ascending: false }).limit(20),
+    admin.from('customer_products')
+      .select('product_title,product_slug,delivered_at')
+      .eq('id', customerProductId).maybeSingle(),
+  ]);
+
+  const opps = oppsRes.data || [];
+  const customers = customersRes.data || [];
+  const leads = leadsRes.data || [];
+  const interactions = interactionsRes.data || [];
+  const capture: any = captureRes.data;
+  const memories = memoriesRes.data || [];
+  const convos = convosRes.data || [];
+  const prospects = prospectsRes.data || [];
+  const cadences = cadencesRes.data || [];
+  const alerts = alertsRes.data || [];
+  const healths = healthRes.data || [];
+  const meetings = meetingsRes.data || [];
+  const cp: any = cpRes.data;
+
+  parts.push(`# Empresa / Conta
+- Produto: ${cp?.product_title ?? 'CRM'} (${cp?.product_slug ?? 'crm-simples'})
+- Ativo desde: ${cp?.delivered_at ?? '—'}
+- ID interno (escopo): ${customerProductId}`);
+
   // Pipeline overview
-  const { data: opps } = await admin.from('crm_opportunities')
-    .select('id,title,stage,value,probability,priority,expected_close_date,lost_reason,notes,customer_id,updated_at')
-    .eq('customer_product_id', customerProductId)
-    .order('updated_at', { ascending: false }).limit(200);
+  const open = opps.filter((o: any) => !['won', 'lost'].includes((o.stage || '').toLowerCase()));
+  const won = opps.filter((o: any) => (o.stage || '').toLowerCase() === 'won');
+  const lost = opps.filter((o: any) => (o.stage || '').toLowerCase() === 'lost');
+  const totalForecast = open.reduce((s: number, o: any) => s + Number(o.value || 0) * (Number(o.probability || 0) / 100), 0);
+  const totalOpenValue = open.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
+  const totalWonValue = won.reduce((s: number, o: any) => s + Number(o.value || 0), 0);
 
-  const all = opps || [];
-  const open = all.filter(o => !['won', 'lost'].includes((o.stage || '').toLowerCase()));
-  const totalForecast = open.reduce((s, o) => s + Number(o.value || 0) * (Number(o.probability || 0) / 100), 0);
+  const byStage: Record<string, { count: number; value: number }> = {};
+  for (const o of open) {
+    const k = o.stage || 'sem estágio';
+    byStage[k] = byStage[k] || { count: 0, value: 0 };
+    byStage[k].count += 1;
+    byStage[k].value += Number(o.value || 0);
+  }
 
-  parts.push(`# Pipeline geral
-- Oportunidades em aberto: ${open.length}
+  parts.push(`# Pipeline
+- Oportunidades em aberto: ${open.length} (valor total ${fmtMoney(totalOpenValue)})
 - Forecast ponderado: ${fmtMoney(totalForecast)}
-- Top 5 deals abertos:
-${open.slice(0, 5).map(o => `  • ${o.title} — ${fmtMoney(Number(o.value || 0))} — estágio: ${o.stage} — prob: ${o.probability ?? 0}%`).join('\n') || '  (vazio)'}`);
+- Ganhas: ${won.length} (${fmtMoney(totalWonValue)}) | Perdidas: ${lost.length}
+- Distribuição por estágio:
+${Object.entries(byStage).map(([k, v]) => `  • ${k}: ${v.count} deals · ${fmtMoney(v.value)}`).join('\n') || '  (vazio)'}
+- Top 10 deals abertos:
+${open.slice(0, 10).map((o: any) => `  • ${o.title} — ${fmtMoney(Number(o.value || 0))} — ${o.stage} — prob ${o.probability ?? 0}% — prio ${o.priority ?? '-'}`).join('\n') || '  (vazio)'}`);
+
+  // Clientes
+  if (customers.length) {
+    parts.push(`# Clientes (${customers.length} cadastrados)
+${customers.slice(0, 30).map((c: any) => `- ${c.name}${c.company ? ' (' + c.company + ')' : ''} — ${c.email ?? '—'} | ${c.phone ?? '—'} | status: ${c.status ?? '—'} | últ. contato: ${c.last_contact_date ?? '—'}`).join('\n')}`);
+  }
+
+  // Leads quentes (sa_trigger_events = capturados pelo CRM)
+  if (leads.length) {
+    const hot = leads.filter((l: any) => (l.relevance_score || 0) >= 70);
+    parts.push(`# Leads capturados (${leads.length} no total, ${hot.length} quentes ≥70)
+${leads.slice(0, 25).map((l: any) => `- [${l.relevance_score ?? 0}] ${l.title} — ${l.event_type} — fonte: ${l.source ?? '—'} — status: ${l.status} — ${new Date(l.detected_at).toLocaleDateString('pt-BR')}${l.description ? '\n   ' + String(l.description).slice(0, 200) : ''}`).join('\n')}`);
+  }
+
+  // Prospects
+  if (prospects.length) {
+    parts.push(`# Prospects (${prospects.length})
+${prospects.slice(0, 20).map((p: any) => `- ${p.name}${p.company ? ' (' + p.company + ')' : ''}${p.role ? ' — ' + p.role : ''} | score: ${p.score ?? '-'} | status: ${p.status ?? '-'}`).join('\n')}`);
+  }
+
+  // Capture settings (configuração do CRM)
+  if (capture) {
+    parts.push(`# Configuração de captura
+- Palavras-chave: ${(capture.keywords || []).join(', ') || '—'}
+- Fontes ativas: ${(capture.sources || []).join(', ') || '—'}
+- Captura automática: ${capture.auto_capture_enabled ? 'sim' : 'não'}`);
+  }
+
+  // Alertas anti-churn
+  if (alerts.length) {
+    parts.push(`# 🚨 Alertas anti-churn ativos (${alerts.length})
+${alerts.map((a: any) => `- [${a.risk_level}] ${a.reason ?? '—'} — desde ${new Date(a.created_at).toLocaleDateString('pt-BR')}`).join('\n')}`);
+  }
+
+  // Health scores recentes
+  if (healths.length) {
+    parts.push(`# Health scores recentes
+${healths.slice(0, 10).map((h: any) => `- Deal ${h.opportunity_id?.slice(0, 8)} — score ${h.score} — riscos: ${(h.risk_factors || []).join(', ') || '—'}`).join('\n')}`);
+  }
+
+  // Cadências
+  if (cadences.length) {
+    const active = cadences.filter((c: any) => c.status === 'active').length;
+    parts.push(`# Cadências de follow-up
+- ${active} contatos em cadência ativa de ${cadences.length} totais.`);
+  }
+
+  // Reuniões recentes
+  if (meetings.length) {
+    parts.push(`# Reuniões recentes
+${meetings.slice(0, 10).map((m: any) => `- ${new Date(m.meeting_date).toLocaleDateString('pt-BR')} — ${m.title} — ${m.status}${m.notes ? '\n   ' + String(m.notes).slice(0, 150) : ''}`).join('\n')}`);
+  }
+
+  // Conversas WhatsApp recentes
+  if (convos.length) {
+    parts.push(`# Conversas WhatsApp (últimas ${Math.min(convos.length, 30)})
+${convos.slice(0, 30).map((c: any) => `- [${new Date(c.created_at).toLocaleString('pt-BR')}] ${c.direction === 'inbound' ? '⬅' : '➡'} ${c.phone}: ${String(c.message_text || '').slice(0, 200)}`).join('\n')}`);
+  }
 
   // Selected opportunity deep dive
   if (opportunityId) {
-    const opp = all.find(o => o.id === opportunityId);
+    const opp: any = opps.find((o: any) => o.id === opportunityId);
     if (opp) {
-      const { data: cust } = opp.customer_id
-        ? await admin.from('crm_customers').select('name,email,phone,company,notes,status,last_contact_date').eq('id', opp.customer_id).maybeSingle()
-        : { data: null } as any;
+      const cust: any = opp.customer_id ? customers.find((c: any) => c.id === opp.customer_id) : null;
 
-      const { data: interactions } = await admin.from('crm_interactions')
-        .select('type,subject,description,created_at')
-        .eq('customer_product_id', customerProductId)
-        .eq('customer_id', opp.customer_id ?? '00000000-0000-0000-0000-000000000000')
-        .order('created_at', { ascending: false }).limit(20);
+      const oppInteractions = interactions.filter((i: any) => i.customer_id === opp.customer_id).slice(0, 30);
 
-      const { data: memories } = cust?.name ? await admin.from('crm_client_memories')
-        .select('summary,topics,sentiment,interaction_date')
-        .eq('customer_product_id', customerProductId)
-        .eq('client_name', cust.name)
-        .order('interaction_date', { ascending: false }).limit(10) : { data: null } as any;
+      const oppMemories = cust?.name
+        ? memories.filter((m: any) => m.client_name === cust.name).slice(0, 15)
+        : [];
 
-      parts.push(`# Lead selecionado
+      parts.push(`# 🎯 Lead selecionado (foco)
 - Título: ${opp.title}
 - Cliente: ${cust?.name ?? '—'} (${cust?.company ?? 'sem empresa'})
 - Email: ${cust?.email ?? '—'} | Telefone: ${cust?.phone ?? '—'}
@@ -71,14 +217,14 @@ ${open.slice(0, 5).map(o => `  • ${o.title} — ${fmtMoney(Number(o.value || 0
 - Notas do deal: ${opp.notes ?? '—'}
 - Notas do cliente: ${cust?.notes ?? '—'}`);
 
-      if (interactions?.length) {
-        parts.push(`# Histórico de interações (mais recentes primeiro)
-${interactions.map(i => `- [${new Date(i.created_at).toLocaleDateString('pt-BR')}] ${i.type}${i.subject ? ' — ' + i.subject : ''}: ${i.description}`).join('\n')}`);
+      if (oppInteractions.length) {
+        parts.push(`# Histórico de interações deste lead
+${oppInteractions.map((i: any) => `- [${new Date(i.created_at).toLocaleDateString('pt-BR')}] ${i.type}${i.subject ? ' — ' + i.subject : ''}: ${i.description}`).join('\n')}`);
       }
 
-      if (memories?.length) {
-        parts.push(`# Memórias contextuais (RAG)
-${memories.map((m: any) => `- [${new Date(m.interaction_date).toLocaleDateString('pt-BR')}] ${m.sentiment ? `(${m.sentiment}) ` : ''}${m.summary}${m.topics?.length ? ' — tópicos: ' + m.topics.join(', ') : ''}`).join('\n')}`);
+      if (oppMemories.length) {
+        parts.push(`# Memórias contextuais (RAG) deste cliente
+${oppMemories.map((m: any) => `- [${new Date(m.interaction_date).toLocaleDateString('pt-BR')}] ${m.sentiment ? `(${m.sentiment}) ` : ''}${m.summary}${m.topics?.length ? ' — tópicos: ' + m.topics.join(', ') : ''}`).join('\n')}`);
       }
     }
   }
