@@ -478,12 +478,26 @@ serve(async (req) => {
     }
 
     cleanupIngestDedup();
-    const ingestDedupKey = `${cp.id}:${normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${(normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120)}`}`;
+    // Detect fan-out hop to prevent loops between sibling products
+    const fanoutHeader = req.headers.get("x-fanout-origin") || "";
+    const isFanoutHop = !!fanoutHeader;
+
+    // Global dedup key (per user + product + message) — covers both direct webhook and fan-out
+    const contentSig = (normalized.text?.message || normalized.image?.caption || normalized.video?.caption || normalized.document?.fileName || normalized.location?.name || normalized.contact?.displayName || '[media]').toString().trim().slice(0, 120);
+    const baseKey = normalized.messageId || `${normalized.phone}:${normalized.fromMe}:${contentSig}`;
+    const ingestDedupKey = `ingest:${cp.id}:${baseKey}`;
     if (hasRecentIngestDedup(ingestDedupKey)) {
       console.log("[ingest] duplicate event skipped:", ingestDedupKey);
       return corsResponse({ ok: true, skipped: "duplicate_event" }, 200, origin);
     }
     rememberIngestDedup(ingestDedupKey);
+
+    // Cross-product dedup at the user level: if this exact message was already
+    // processed for this user (via any product), skip CRM insert + bot trigger
+    // duplications. We still allow the first processing to proceed.
+    const userMsgKey = `usermsg:${cp.user_id}:${baseKey}`;
+    const alreadyHandledForUser = hasRecentIngestDedup(userMsgKey);
+    rememberIngestDedup(userMsgKey);
 
     // ── Enrich media with base64 from Evolution API when webhook didn't include it ──
     const instanceName = rawPayload?.instance || "";
@@ -520,7 +534,12 @@ serve(async (req) => {
 
     // ── Helper: fan-out to sibling product (same user, same WhatsApp number)
     // so a single connected number can serve CRM + Bots-Automação simultaneously.
+    // Only the FIRST hop fans out — sibling invocations carry x-fanout-origin and skip further fan-out.
     const fanOutToSibling = async (siblingSlug: string, mode: "engine" | "ingest") => {
+      if (isFanoutHop) {
+        console.log(`[ingest] skip fan-out → ${siblingSlug} (already a fan-out hop)`);
+        return;
+      }
       try {
         const { data: sibling } = await service
           .from("customer_products")
@@ -537,7 +556,12 @@ serve(async (req) => {
         const url = `${supabaseUrl}/functions/v1/${fnName}?customer_product_id=${encodeURIComponent(sibling.id)}&token=${encodeURIComponent(sibling.webhook_token)}`;
         const r = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+            "x-fanout-origin": cp.product_slug,
+            "x-fanout-msg-id": baseKey,
+          },
           body: mode === "engine" ? JSON.stringify(normalized) : bodyText,
         });
         const t = await r.text().catch(() => "");
@@ -569,26 +593,30 @@ serve(async (req) => {
       const phone = normalized.phone || "";
       const senderName = normalized.senderName || "";
 
-      console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
+      if (alreadyHandledForUser) {
+        console.log("[ingest][CRM] message already handled for this user, skipping insert+capture");
+      } else {
+        console.log("[ingest][CRM] storing lead message from:", phone, "text:", messageText.slice(0, 100));
 
-      const { error: logErr } = await service
-        .from("bot_conversation_logs")
-        .insert({
-          customer_product_id: cp.id,
-          direction: "inbound",
-          phone,
-          message_text: messageText,
-          source: "whatsapp",
-          provider: "crm_lead",
-          model: senderName || null,
-        });
+        const { error: logErr } = await service
+          .from("bot_conversation_logs")
+          .insert({
+            customer_product_id: cp.id,
+            direction: "inbound",
+            phone,
+            message_text: messageText,
+            source: "whatsapp",
+            provider: "crm_lead",
+            model: senderName || null,
+          });
 
-      if (logErr) console.error("[ingest][CRM] log insert error:", logErr.message);
+        if (logErr) console.error("[ingest][CRM] log insert error:", logErr.message);
 
-      try {
-        await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
-      } catch (e) {
-        console.error("[ingest][CRM] capture error:", e);
+        try {
+          await captureLeadIfNeeded(service, cp.id, phone, senderName, messageText);
+        } catch (e) {
+          console.error("[ingest][CRM] capture error:", e);
+        }
       }
 
       // Fan-out to bots-automacao engine so the bot can also reply on the same number
