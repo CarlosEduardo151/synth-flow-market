@@ -6135,6 +6135,27 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_message_dedup: {
+        Row: {
+          created_at: string
+          dedup_key: string
+          expires_at: string
+          scope: string
+        }
+        Insert: {
+          created_at?: string
+          dedup_key: string
+          expires_at?: string
+          scope: string
+        }
+        Update: {
+          created_at?: string
+          dedup_key?: string
+          expires_at?: string
+          scope?: string
+        }
+        Relationships: []
+      }
       worker_instances: {
         Row: {
           created_at: string
