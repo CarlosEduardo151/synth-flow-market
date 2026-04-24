@@ -5,30 +5,35 @@ import { corsResponse, handleCorsPreflightRequest } from "../_shared/cors.ts";
 import { checkRateLimit, getClientIdentifier, RATE_LIMITS } from "../_shared/rate-limit.ts";
 import { batchValidate, sanitizeString, validateStringLength, validateUUID } from "../_shared/validation.ts";
 
-// In-memory dedup to avoid forwarding the same webhook event multiple times.
-const INGEST_DEDUP_TTL_MS = 10 * 60 * 1000;
-const ingestDedupMap = new Map<string, number>();
-
-function cleanupIngestDedup() {
-  const now = Date.now();
-  for (const [k, v] of ingestDedupMap) {
-    if (now > v) ingestDedupMap.delete(k);
+// Persistent dedup using a Postgres table — necessary because edge functions
+// run in ephemeral isolates (in-memory Maps don't survive across invocations).
+async function tryClaimDedup(service: any, key: string, scope: string, ttlMinutes = 10): Promise<boolean> {
+  if (!key) return true;
+  try {
+    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+    // Insert; if conflict on PK, claim fails → already processed
+    const { error } = await service
+      .from("whatsapp_message_dedup")
+      .insert({ dedup_key: key, scope, expires_at: expiresAt });
+    if (error) {
+      // Unique violation → duplicate. Any other error → fail-open (process).
+      if ((error as any).code === "23505" || /duplicate/i.test(error.message || "")) {
+        return false;
+      }
+      console.error("[dedup] insert error (fail-open):", error.message);
+      return true;
+    }
+    return true;
+  } catch (e) {
+    console.error("[dedup] exception (fail-open):", e instanceof Error ? e.message : e);
+    return true;
   }
 }
 
-function hasRecentIngestDedup(key: string): boolean {
-  const exp = ingestDedupMap.get(key);
-  if (!exp) return false;
-  if (Date.now() > exp) {
-    ingestDedupMap.delete(key);
-    return false;
-  }
-  return true;
-}
-
-function rememberIngestDedup(key: string) {
-  if (!key) return;
-  ingestDedupMap.set(key, Date.now() + INGEST_DEDUP_TTL_MS);
+async function cleanupExpiredDedup(service: any) {
+  try {
+    await service.from("whatsapp_message_dedup").delete().lt("expires_at", new Date().toISOString());
+  } catch (_) { /* best effort */ }
 }
 
 /**
