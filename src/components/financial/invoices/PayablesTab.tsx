@@ -42,6 +42,7 @@ export function PayablesTab({ customerProductId }: Props) {
   }
 
   useEffect(() => { load(); }, [customerProductId]);
+  useFinancialDataChanged(() => { load(); });
 
   const filtered = useMemo(() => {
     const today = new Date(); today.setHours(0, 0, 0, 0);
