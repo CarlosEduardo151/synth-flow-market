@@ -133,11 +133,10 @@ Deno.serve(async (req) => {
     console.error("apply categorize error", e);
     return json({ error: e instanceof Error ? e.message : "unknown" }, 500);
   }
+  function json(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 });
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
-}
