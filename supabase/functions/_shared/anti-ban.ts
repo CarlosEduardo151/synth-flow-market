@@ -20,23 +20,24 @@ export function sleep(ms: number): Promise<void> {
 
 /**
  * Atraso humanizado proporcional ao tamanho do texto + jitter.
- * - Base: 1s a cada 20 caracteres
- * - Jitter: 2 a 5 segundos
- * - Mínimo: 1.5s, Máximo: 12s (para não travar o webhook)
+ * Otimizado para resposta rápida mantendo aparência humana.
+ * - Base: 1s a cada 60 caracteres (~ velocidade de digitação rápida)
+ * - Jitter: 0.4 a 1.2 segundos
+ * - Mínimo: 700ms, Máximo: 3.5s
  */
 export function computeHumanDelayMs(text: string): number {
   const len = text?.length || 0;
-  const base = (len / 20) * 1000;
-  const jitter = 2000 + Math.random() * 3000; // 2..5s
+  const base = (len / 60) * 1000;
+  const jitter = 400 + Math.random() * 800; // 0.4..1.2s
   const total = base + jitter;
-  return Math.min(Math.max(total, 1500), 12_000);
+  return Math.min(Math.max(total, 700), 3500);
 }
 
 /**
  * Pequeno delay entre fragmentos de uma mesma resposta (step-by-step).
  */
 export function computeInterChunkDelayMs(): number {
-  return 800 + Math.floor(Math.random() * 1500); // 0.8..2.3s
+  return 300 + Math.floor(Math.random() * 500); // 0.3..0.8s
 }
 
 /**

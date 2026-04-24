@@ -134,7 +134,8 @@ export async function evolutionSendPresence(
       body: JSON.stringify({
         number,
         presence,
-        ...(delayMs ? { delay: delayMs } : {}),
+        // Evolution API requires `delay` (in ms). Default to 1200ms when not provided.
+        delay: typeof delayMs === "number" && delayMs > 0 ? delayMs : 1200,
       }),
     });
     if (!resp.ok) {
