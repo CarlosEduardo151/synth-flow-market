@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { emitFinancialDataChanged, useFinancialDataChanged } from "@/lib/financialEvents";
 import { Receipt, Plus, Search, Check, AlertTriangle, Clock, Trash2, Loader2, Repeat, DollarSign, Wallet } from "lucide-react";
 
 interface Props { customerProductId: string }
