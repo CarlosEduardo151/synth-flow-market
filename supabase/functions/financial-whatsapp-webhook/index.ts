@@ -300,31 +300,47 @@ serve(async (req) => {
     // talk to the financial agent. If no number is configured, the bot
     // stays silent to prevent random clients from triggering it.
     const normalizedPhone = (phone || "").replace(/\D/g, "");
-    const { data: authorized } = await supabase
+    const { data: authorized, error: authErr } = await supabase
       .from("financial_whatsapp_authorized_numbers")
       .select("id, phone, is_active")
       .eq("customer_product_id", customerProductId)
       .eq("is_active", true);
 
+    if (authErr) {
+      console.error("[financial-whatsapp-webhook] auth query error:", authErr.message);
+    }
+
     const allowList = (authorized || [])
       .map((r: any) => (r.phone || "").replace(/\D/g, ""))
       .filter(Boolean);
 
+    console.log("[financial-whatsapp-webhook] auth check:", JSON.stringify({
+      customerProductId,
+      normalizedPhone,
+      allowListCount: allowList.length,
+      allowListSample: allowList.slice(0, 5),
+    }));
+
+    // Match permissivo: tolera variações de DDI/DDD (ex.: 559991300202 vs 9991300202).
+    // Compara igualdade direta OU os últimos 8 dígitos (número local).
     const isAuthorized = allowList.some((p: string) => {
-      // match suffix to be tolerant of country code variations
       const a = p.replace(/^0+/, "");
       const b = normalizedPhone.replace(/^0+/, "");
-      return a === b || a.endsWith(b) || b.endsWith(a);
+      if (!a || !b) return false;
+      if (a === b) return true;
+      const tail = (s: string, n: number) => s.slice(-n);
+      if (a.length >= 8 && b.length >= 8 && tail(a, 8) === tail(b, 8)) return true;
+      return a.endsWith(b) || b.endsWith(a);
     });
 
     if (!isAuthorized) {
-      console.log("[financial-whatsapp-webhook] phone not authorized:", normalizedPhone);
+      console.log("[financial-whatsapp-webhook] phone not authorized:", normalizedPhone, "allowList:", JSON.stringify(allowList));
       await supabase.from("financial_whatsapp_logs").insert({
         customer_product_id: customerProductId,
         user_id: cp.user_id,
         direction: "in",
         phone,
-        message_text: "(remetente não autorizado — mensagem ignorada)",
+        message_text: `(remetente não autorizado — ${normalizedPhone} não está na lista. Autorizados: ${allowList.join(", ") || "nenhum"})`,
         status: "unauthorized",
       });
       return json(200, { ok: true, skipped: "unauthorized_sender" });
