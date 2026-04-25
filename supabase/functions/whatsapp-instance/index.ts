@@ -671,22 +671,38 @@ serve(async (req) => {
         return json({ connected: false, state: "not_provisioned", instanceName: null });
       }
 
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(dbInst.instance_name)}`, {
-        method: "GET",
-        headers: { apikey: EVOLUTION_KEY() },
-      });
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 8000);
+        const resp = await fetch(`${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(dbInst.instance_name)}`, {
+          method: "GET",
+          headers: { apikey: EVOLUTION_KEY() },
+          signal: ctrl.signal,
+        }).finally(() => clearTimeout(t));
 
-      const data = await resp.json().catch(() => null);
-      console.log("[whatsapp-instance] status response:", resp.status, JSON.stringify(data));
+        const data = await resp.json().catch(() => null);
+        console.log("[whatsapp-instance] status response:", resp.status, JSON.stringify(data));
 
-      if (!resp.ok) {
-        return json({ connected: false, state: "disconnected", instanceName: dbInst.instance_name });
+        if (!resp.ok) {
+          return json({ connected: false, state: "disconnected", instanceName: dbInst.instance_name });
+        }
+
+        const state = data?.instance?.state || data?.state || "close";
+        const connected = state === "open";
+
+        return json({ connected, state, instanceName: dbInst.instance_name });
+      } catch (netErr) {
+        const msg = netErr instanceof Error ? netErr.message : "network error";
+        console.error("[whatsapp-instance] status network error:", msg);
+        // Evolution API offline/timeout → don't crash the UI, return graceful fallback
+        return json({
+          connected: false,
+          state: "service_unavailable",
+          instanceName: dbInst.instance_name,
+          fallback: true,
+          error: "evolution_api_unreachable",
+        });
       }
-
-      const state = data?.instance?.state || data?.state || "close";
-      const connected = state === "open";
-
-      return json({ connected, state, instanceName: dbInst.instance_name });
     }
 
     if (action === "reconfigure_webhook") {
@@ -715,6 +731,18 @@ serve(async (req) => {
     const msg = e instanceof Error ? e.message : "unknown error";
     console.error("[whatsapp-instance] error:", msg);
     if (msg === "unauthorized") return json({ error: msg }, 401);
+    // External API connectivity issues → return 200 with fallback so the UI doesn't crash
+    const isNetwork =
+      /tcp connect|Connection timed out|error sending request|ECONNREFUSED|fetch failed|network|aborted/i.test(msg);
+    if (isNetwork) {
+      return json({
+        connected: false,
+        state: "service_unavailable",
+        fallback: true,
+        error: "evolution_api_unreachable",
+        detail: msg,
+      });
+    }
     return json({ error: msg }, 500);
   }
 });
