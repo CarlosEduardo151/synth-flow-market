@@ -9,6 +9,7 @@ import {
   Smartphone, Zap, QrCode, Wifi, WifiOff,
   Phone, Link2,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -67,6 +68,14 @@ export function SharedWhatsAppConnectTab({
       error?.message ||
       'Tente novamente.'
     );
+  };
+
+  const prepareQrForDisplay = async (value?: string | null) => {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    if (raw.startsWith('data:image')) return raw;
+    if (/^(iVBORw0KGgo|\/9j\/|UklGR|R0lGOD)/.test(raw)) return `data:image/png;base64,${raw}`;
+    return QRCode.toDataURL(raw, { errorCorrectionLevel: 'M', margin: 2, width: 320 });
   };
 
   const setConnected = useCallback((v: boolean) => {
