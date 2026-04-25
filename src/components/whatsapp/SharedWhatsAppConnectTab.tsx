@@ -489,10 +489,14 @@ export function SharedWhatsAppConnectTab({
               <Loader2 className="h-3 w-3 animate-spin" />
               Aguardando leitura do QR Code...
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-wrap justify-center gap-2">
               <Button variant="outline" size="sm" className="gap-2" onClick={handleRefreshQr} disabled={checking}>
                 {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
                 Gerar novo QR Code
+              </Button>
+              <Button variant="destructive" size="sm" className="gap-2" onClick={handleTotalReset} disabled={checking}>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Reset total (apagar sessão)
               </Button>
             </div>
           </CardContent>
