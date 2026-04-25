@@ -415,19 +415,22 @@ serve(async (req) => {
       hasKey: !!key?.id,
       phone,
       fromMe,
-      textPreview: (textContent || "").slice(0, 120),
+      textPreview: (finalText || "").slice(0, 120),
       attachmentType,
+      transcribedAudio: !!transcribedAudio,
       messageKeys: Object.keys(msg || {}),
     }));
 
-    if (!textContent && !attachment) {
+    if (!finalText && !attachment) {
       // Nothing actionable
       await supabase.from("financial_whatsapp_logs").insert({
         customer_product_id: customerProductId,
         user_id: cp.user_id,
         direction: "in",
         phone,
-        message_text: "(mensagem sem conteúdo processável)",
+        message_text: attachmentType === "audio"
+          ? "(áudio recebido mas não foi possível transcrever)"
+          : "(mensagem sem conteúdo processável)",
         status: "ignored",
       });
       return json(200, { ok: true, skipped: "no_content" });
@@ -439,7 +442,9 @@ serve(async (req) => {
       user_id: cp.user_id,
       direction: "in",
       phone,
-      message_text: textContent || `(anexo ${attachmentType})`,
+      message_text: transcribedAudio
+        ? `🎤 ${transcribedAudio}`
+        : (finalText || `(anexo ${attachmentType})`),
       attachment_type: attachmentType,
       status: "ok",
     });
@@ -454,7 +459,7 @@ serve(async (req) => {
     const snapshot = await buildSnapshot(supabase, customerProductId);
     const systemPrompt = SYSTEM_PROMPT(snapshot);
 
-    const userTextForAI = textContent ||
+    const userTextForAI = finalText ||
       (attachment?.type === "pdf"
         ? "O usuário enviou um PDF. Extraia os dados financeiros relevantes e proponha a ação adequada."
         : "O usuário enviou uma imagem. Se for um comprovante/boleto/cupom, extraia valor, data e descrição e proponha lançar como transação.");
