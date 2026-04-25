@@ -2,29 +2,16 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Loader2, RefreshCw, Activity,
   ArrowDownLeft, ArrowUpRight,
-  Image as ImageIcon, FileText,
 } from "lucide-react";
 import { FinancialAuthorizedNumbers } from "./FinancialAuthorizedNumbers";
 import { SharedWhatsAppConnectTab } from "@/components/whatsapp/SharedWhatsAppConnectTab";
 
 interface Props {
   customerProductId: string;
-}
-
-interface LogRow {
-  id: string;
-  direction: "in" | "out";
-  phone: string | null;
-  message_text: string | null;
-  attachment_type: string | null;
-  processing_ms: number | null;
-  status: string;
-  created_at: string;
 }
 
 export function FinancialWhatsApp({ customerProductId }: Props) {
@@ -59,42 +46,89 @@ export function FinancialWhatsApp({ customerProductId }: Props) {
   );
 }
 
-/* ───────── Activity log Financeiro ───────── */
-function FinancialActivityLog({ customerProductId }: { customerProductId: string }) {
-  const [logs, setLogs] = useState<LogRow[]>([]);
-  const [logsLoading, setLogsLoading] = useState(true);
+/* ───────── Activity log Financeiro (espelha o CRM lendo bot_conversation_logs) ───────── */
+interface LogEntry {
+  id: string;
+  direction: string;
+  phone: string | null;
+  message_text: string;
+  created_at: string;
+  processing_ms: number | null;
+  tokens_used: number | null;
+  provider: string | null;
+  model: string | null;
+}
 
-  const loadLogs = useCallback(async () => {
+function FinancialActivityLog({ customerProductId }: { customerProductId: string }) {
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchLogs = useCallback(async () => {
+    setLoading(true);
     try {
-      const { data } = await (supabase as any)
-        .from("financial_whatsapp_logs")
-        .select("id, direction, phone, message_text, attachment_type, processing_ms, status, created_at")
-        .eq("customer_product_id", customerProductId)
-        .order("created_at", { ascending: false })
+      // 1) Descobre o telefone vinculado a este customer_product_id (Evolution instance)
+      const { data: inst } = await (supabase as any)
+        .from('evolution_instances')
+        .select('phone_number')
+        .eq('customer_product_id', customerProductId)
+        .maybeSingle();
+
+      const phone: string | null = inst?.phone_number || null;
+
+      // 2) Tenta buscar logs específicos do produto financeiro
+      const { data: ownLogs } = await (supabase as any)
+        .from('bot_conversation_logs')
+        .select('id, direction, phone, message_text, created_at, processing_ms, tokens_used, provider, model')
+        .eq('customer_product_id', customerProductId)
+        .order('created_at', { ascending: false })
         .limit(50);
-      setLogs((data as LogRow[]) || []);
+
+      let merged: LogEntry[] = (ownLogs as LogEntry[]) || [];
+
+      // 3) Se houver telefone vinculado, agrega o histórico do mesmo número
+      //    (mensagens antigas registradas por outros produtos no mesmo número)
+      if (phone) {
+        const { data: phoneLogs } = await (supabase as any)
+          .from('bot_conversation_logs')
+          .select('id, direction, phone, message_text, created_at, processing_ms, tokens_used, provider, model')
+          .eq('phone', phone)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        const seen = new Set(merged.map((l) => l.id));
+        for (const l of (phoneLogs as LogEntry[]) || []) {
+          if (!seen.has(l.id)) {
+            merged.push(l);
+            seen.add(l.id);
+          }
+        }
+        merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        merged = merged.slice(0, 50);
+      }
+
+      setLogs(merged);
     } catch { /* ignore */ }
-    finally { setLogsLoading(false); }
+    finally { setLoading(false); }
   }, [customerProductId]);
 
   useEffect(() => {
-    loadLogs();
-    const iv = setInterval(loadLogs, 8000);
+    fetchLogs();
+    const iv = setInterval(fetchLogs, 8_000);
     return () => clearInterval(iv);
-  }, [loadLogs]);
+  }, [fetchLogs]);
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
   };
 
   const maskPhone = (p: string | null) => {
-    if (!p || p.length < 6) return p || "—";
-    return p.slice(0, 4) + "••••" + p.slice(-2);
+    if (!p || p.length < 6) return p || '—';
+    return p.slice(0, 4) + '••••' + p.slice(-2);
   };
 
-  const inCount = logs.filter(l => l.direction === "in").length;
-  const outCount = logs.filter(l => l.direction === "out").length;
+  const inCount = logs.filter(l => l.direction === 'inbound' || l.direction === 'in').length;
+  const outCount = logs.filter(l => l.direction === 'outbound' || l.direction === 'out').length;
 
   return (
     <Card className="border-border/50">
@@ -103,10 +137,10 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
           <div>
             <CardTitle className="text-base font-semibold flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
-              Atividade do Motor
+              Atividade do Motor — Financeiro
             </CardTitle>
             <p className="text-xs text-muted-foreground mt-1">
-              Mensagens processadas pelo Agente Financeiro no WhatsApp conectado
+              Mensagens processadas no número conectado ao Agente Financeiro
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -127,15 +161,15 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
               <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-[10px] text-muted-foreground">LIVE</span>
             </div>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={loadLogs} disabled={logsLoading}>
-              <RefreshCw className={`h-3 w-3 ${logsLoading ? "animate-spin" : ""}`} />
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={fetchLogs} disabled={loading}>
+              <RefreshCw className={`h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </Button>
           </div>
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {logsLoading && logs.length === 0 ? (
+        {loading && logs.length === 0 ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
@@ -149,49 +183,32 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
           </div>
         ) : (
           <div className="border-t border-border/40">
-            <div className="grid grid-cols-[40px_1fr_110px_80px_80px_150px] gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 bg-muted/30">
+            <div className="grid grid-cols-[40px_1fr_120px_120px_140px] gap-2 px-4 py-2 text-[10px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border/30 bg-muted/30">
               <span></span>
               <span>Mensagem</span>
+              <span>Origem</span>
               <span>Telefone</span>
-              <span>Anexo</span>
-              <span>Tempo</span>
               <span className="text-right">Data</span>
             </div>
             <ScrollArea className="h-[420px]">
               <div className="divide-y divide-border/20">
                 {logs.map((l) => {
-                  const isIn = l.direction === "in";
+                  const isIn = l.direction === 'inbound' || l.direction === 'in';
+                  const senderName = l.provider || l.model || '—';
                   return (
                     <div
                       key={l.id}
-                      className="grid grid-cols-[40px_1fr_110px_80px_80px_150px] gap-2 px-4 py-2.5 text-xs hover:bg-muted/20 transition-colors items-center"
+                      className="grid grid-cols-[40px_1fr_120px_120px_140px] gap-2 px-4 py-2.5 text-xs hover:bg-muted/20 transition-colors items-center"
                     >
                       <div className="flex justify-center">
-                        <div className={`rounded-md p-1 ${isIn ? "bg-blue-500/10" : "bg-green-500/10"}`}>
-                          {isIn
-                            ? <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500" />
-                            : <ArrowUpRight className="h-3.5 w-3.5 text-green-500" />}
-                        </div>
+                        {isIn
+                          ? <ArrowDownLeft className="h-3.5 w-3.5 text-blue-500" />
+                          : <ArrowUpRight className="h-3.5 w-3.5 text-green-500" />
+                        }
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-foreground truncate whitespace-pre-wrap">{l.message_text}</p>
-                      </div>
+                      <p className="truncate text-foreground">{l.message_text}</p>
+                      <span className="text-muted-foreground truncate">{senderName}</span>
                       <span className="text-muted-foreground font-mono text-[11px]">{maskPhone(l.phone)}</span>
-                      <span>
-                        {l.attachment_type ? (
-                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                            {l.attachment_type === "image" ? (
-                              <ImageIcon className="h-2.5 w-2.5 mr-1" />
-                            ) : (
-                              <FileText className="h-2.5 w-2.5 mr-1" />
-                            )}
-                            {l.attachment_type}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </span>
-                      <span className="text-muted-foreground">{l.processing_ms ? `${l.processing_ms}ms` : "—"}</span>
                       <span className="text-muted-foreground text-right text-[11px]">{fmtTime(l.created_at)}</span>
                     </div>
                   );
@@ -202,7 +219,7 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
         )}
         {logs.length > 0 && (
           <div className="flex items-center justify-between px-4 py-2 border-t border-border/30 text-[10px] text-muted-foreground">
-            <span>{logs.length} registro{logs.length !== 1 ? "s" : ""} (últimos 50)</span>
+            <span>{logs.length} registro{logs.length !== 1 ? 's' : ''} (últimos 50)</span>
             <span>Atualização automática a cada 8s</span>
           </div>
         )}
