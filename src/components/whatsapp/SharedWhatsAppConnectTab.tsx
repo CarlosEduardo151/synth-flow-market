@@ -9,6 +9,7 @@ import {
   Smartphone, Zap, QrCode, Wifi, WifiOff,
   Phone, Link2,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -67,6 +68,14 @@ export function SharedWhatsAppConnectTab({
       error?.message ||
       'Tente novamente.'
     );
+  };
+
+  const prepareQrForDisplay = async (value?: string | null) => {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    if (raw.startsWith('data:image')) return raw;
+    if (/^(iVBORw0KGgo|\/9j\/|UklGR|R0lGOD)/.test(raw)) return `data:image/png;base64,${raw}`;
+    return QRCode.toDataURL(raw, { errorCorrectionLevel: 'M', margin: 2, width: 320 });
   };
 
   const setConnected = useCallback((v: boolean) => {
@@ -139,7 +148,7 @@ export function SharedWhatsAppConnectTab({
 
       // Se a auto-reconexão devolveu um QR, mostramos imediatamente para re-scan
       if (data?.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         setConnected(false);
         toast({
           title: '📱 Escaneie o QR Code',
@@ -199,14 +208,14 @@ export function SharedWhatsAppConnectTab({
       }
 
       if (data.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
       } else {
         toast({ title: 'Aguarde…', description: 'Instância criada. Gerando QR Code…' });
         const qrResp = await supabase.functions.invoke('whatsapp-instance', {
           body: { action: 'qrcode', context },
         });
-        if (qrResp.data?.qrcode) setQrCode(qrResp.data.qrcode);
+        if (qrResp.data?.qrcode) setQrCode(await prepareQrForDisplay(qrResp.data.qrcode));
       }
     } catch (e: any) {
       toast({
@@ -223,11 +232,11 @@ export function SharedWhatsAppConnectTab({
     setChecking(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
-        body: { action: 'qrcode', context },
+        body: { action: 'qrcode', context, reset: true },
       });
       if (error) throw new Error(getInvokeErrorMessage(error, data));
       if (data?.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         toast({ title: 'QR Code atualizado!' });
       } else {
         toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });

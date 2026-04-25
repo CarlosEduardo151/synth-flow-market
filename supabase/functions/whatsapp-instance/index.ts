@@ -148,6 +148,18 @@ async function getEvolutionConnectionState(instanceName: string): Promise<string
   }
 }
 
+function extractQrImage(data: any): string | null {
+  return data?.base64 || data?.qrcode?.base64 || (typeof data?.qrcode === "string" ? data.qrcode : null) || null;
+}
+
+function extractQrPayload(data: any): string | null {
+  return data?.code || data?.qrcode?.code || null;
+}
+
+function extractQrValue(data: any): string | null {
+  return extractQrImage(data) || extractQrPayload(data);
+}
+
 async function requestEvolutionQrCode(instanceName: string): Promise<string | null> {
   try {
     const connResp = await fetch(
@@ -155,7 +167,7 @@ async function requestEvolutionQrCode(instanceName: string): Promise<string | nu
       { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
     );
     const connData = await connResp.json().catch(() => null);
-    return connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+    return extractQrValue(connData);
   } catch (e) {
     console.error("[whatsapp-instance] QR request error:", e);
     return null;
@@ -769,7 +781,7 @@ serve(async (req) => {
       );
       if (webhookUrl) await configureWebhook(freshInstanceName, webhookUrl);
 
-      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let qrcode = extractQrValue(data);
       if (!qrcode) qrcode = await requestEvolutionQrCode(freshInstanceName);
 
       return json({
@@ -791,7 +803,13 @@ serve(async (req) => {
     // ───────────────────────────────────────────────────────────
     if (action === "sync_existing") {
       const scope = (body.scope as string) || "self"; // "self" or "all"
-      const isAdmin = await sb.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }: any) => !!data).catch(() => false);
+      let isAdmin = false;
+      try {
+        const { data } = await sb.rpc("has_role", { _user_id: user.id, _role: "admin" });
+        isAdmin = !!data;
+      } catch (_) {
+        isAdmin = false;
+      }
       const targetAll = scope === "all" && isAdmin;
 
       const { data: rows, error: rowsErr } = await (targetAll
@@ -921,7 +939,7 @@ serve(async (req) => {
         console.warn("[whatsapp-instance] no customer_product found for webhook setup");
       }
 
-      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let qrcode = extractQrValue(data);
       let connectionStatus = data?.instance?.status || (instanceAlreadyExists ? "exists" : "created");
 
       // If no QR (instance already existed OR Evolution didn't return one), fetch via /instance/connect
@@ -933,7 +951,7 @@ serve(async (req) => {
           );
           const connData = await connResp.json().catch(() => null);
           console.log("[whatsapp-instance] connect after create:", connResp.status, JSON.stringify(connData)?.slice(0, 200));
-          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+          qrcode = extractQrValue(connData);
 
           // Check if it's already connected
           if (!qrcode) {
@@ -955,6 +973,19 @@ serve(async (req) => {
 
     if (action === "qrcode") {
       const linkedInstanceName = await resolveLinkedInstanceName();
+      const shouldReset = body.reset === true || body.fresh === true;
+      if (shouldReset) {
+        try {
+          await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
+            method: "DELETE",
+            headers: { apikey: EVOLUTION_KEY() },
+          });
+          await new Promise((r) => setTimeout(r, 1000));
+        } catch (e) {
+          console.warn("[whatsapp-instance] qrcode reset/logout failed:", e instanceof Error ? e.message : e);
+        }
+      }
+
       const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(linkedInstanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
@@ -967,11 +998,12 @@ serve(async (req) => {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
-      const qrcode = data?.base64 || data?.qrcode?.base64 || data?.qrcode || data?.code || null;
+      const qrcode = extractQrValue(data);
       return json({
         success: true,
         qrcode,
         pairingCode: data?.pairingCode || null,
+        hasImage: !!extractQrImage(data),
       });
     }
 
@@ -1215,7 +1247,7 @@ serve(async (req) => {
               { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
             );
             const qrData = await qrResp.json().catch(() => null);
-            qrcode = qrData?.base64 || qrData?.qrcode?.base64 || qrData?.qrcode || qrData?.code || null;
+            qrcode = extractQrValue(qrData);
             pairingCode = qrData?.pairingCode || null;
           } catch (qrErr) {
             console.warn("[whatsapp-instance] force_reconnect: failed to fetch QR:", qrErr);
