@@ -236,7 +236,7 @@ export function SharedWhatsAppConnectTab({
       });
       if (error) throw new Error(getInvokeErrorMessage(error, data));
       if (data?.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         toast({ title: 'QR Code atualizado!' });
       } else {
         toast({ title: 'QR Code indisponível', description: 'Tente criar a instância novamente.', variant: 'destructive' });
