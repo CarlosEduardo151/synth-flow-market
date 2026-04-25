@@ -184,11 +184,24 @@ async function callAI(opts: {
  */
 async function fetchMediaBase64(
   creds: { apiUrl: string; apiKey: string; instanceName: string },
-  message: any,
+  envelope: any,
 ): Promise<string | null> {
-  // If webhook was configured with base64:true, Evolution often includes it directly
-  const direct = message?.message?.base64 || message?.base64;
-  if (typeof direct === "string" && direct.length > 100) return direct;
+  // Evolution can deliver base64 in many places depending on webhook config.
+  // Try every known location before falling back to the API.
+  const candidates: any[] = [
+    envelope?.base64,
+    envelope?.message?.base64,
+    envelope?.message?.audioMessage?.base64,
+    envelope?.message?.imageMessage?.base64,
+    envelope?.message?.documentMessage?.base64,
+    envelope?.message?.message?.base64,
+    envelope?.data?.base64,
+    envelope?.media,
+    envelope?.mediaBase64,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 100) return c;
+  }
 
   try {
     const resp = await fetch(
@@ -196,12 +209,16 @@ async function fetchMediaBase64(
       {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: creds.apiKey },
-        body: JSON.stringify({ message: { key: message.key, message: message.message } }),
+        body: JSON.stringify({ message: { key: envelope.key, message: envelope.message } }),
       },
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => "");
+      console.warn("[financial-whatsapp-webhook] getBase64FromMediaMessage failed:", resp.status, t.slice(0, 200));
+      return null;
+    }
     const data = await resp.json().catch(() => null);
-    return data?.base64 || null;
+    return data?.base64 || data?.media || null;
   } catch (e) {
     console.warn("fetchMediaBase64 failed:", e instanceof Error ? e.message : e);
     return null;
@@ -431,13 +448,24 @@ serve(async (req) => {
       // Áudio (incluindo PTT/voice note): baixa e transcreve via Whisper
       attachmentType = "audio";
       const audioMime = msg?.audioMessage?.mimetype || msg?.pttMessage?.mimetype || "audio/ogg";
+      console.log("[financial-whatsapp-webhook] audio detected:", JSON.stringify({
+        audioMime,
+        hasAudioMsg: !!msg?.audioMessage,
+        hasPtt: !!msg?.pttMessage,
+        envelopeHasBase64: !!(data?.base64 || data?.message?.base64),
+      }));
       const creds = await loadEvolutionCredentials(supabase, cp.user_id, customerProductId);
-      if (creds) {
+      if (!creds) {
+        console.error("[financial-whatsapp-webhook] no evolution credentials — cannot fetch audio");
+      } else {
         const b64 = await fetchMediaBase64(creds, data);
-        if (b64) {
+        if (!b64) {
+          console.error("[financial-whatsapp-webhook] could not retrieve audio base64");
+        } else {
+          console.log("[financial-whatsapp-webhook] audio base64 retrieved, length:", b64.length);
           const transcript = await transcribeAudioBase64(b64, audioMime);
           if (transcript) {
-            // Injeta a transcrição como texto da mensagem para a IA processar normalmente
+            console.log("[financial-whatsapp-webhook] transcription ok:", transcript.slice(0, 120));
             (msg as any).__transcribedAudio = transcript;
           } else {
             console.warn("[financial-whatsapp-webhook] audio transcription returned empty");
