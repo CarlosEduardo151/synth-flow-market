@@ -731,6 +731,18 @@ serve(async (req) => {
     const msg = e instanceof Error ? e.message : "unknown error";
     console.error("[whatsapp-instance] error:", msg);
     if (msg === "unauthorized") return json({ error: msg }, 401);
+    // External API connectivity issues → return 200 with fallback so the UI doesn't crash
+    const isNetwork =
+      /tcp connect|Connection timed out|error sending request|ECONNREFUSED|fetch failed|network|aborted/i.test(msg);
+    if (isNetwork) {
+      return json({
+        connected: false,
+        state: "service_unavailable",
+        fallback: true,
+        error: "evolution_api_unreachable",
+        detail: msg,
+      });
+    }
     return json({ error: msg }, 500);
   }
 });
