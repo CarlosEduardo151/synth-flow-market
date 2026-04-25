@@ -259,9 +259,38 @@ export function SharedWhatsAppConnectTab({
           }
         >
           {isConnected ? <Wifi className="h-3 w-3" /> : qrCode ? <QrCode className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-          {isConnected ? 'Conectado' : qrCode ? 'Aguardando QR' : 'Desconectado'}
+          {isConnected
+            ? `Conectado${rawState ? ` · ${rawState}` : ''}`
+            : qrCode
+              ? 'Aguardando QR'
+              : `Desconectado${rawState ? ` · ${rawState}` : ''}`}
         </Badge>
       </div>
+
+      {/* Diagnostic bar — visible whenever an instance exists, even disconnected */}
+      {instanceName && !isConnected && !qrCode && (
+        <div className="flex items-center gap-3 rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3">
+          <WifiOff className="h-5 w-5 text-orange-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
+              Instância encontrada mas não está em <code>open</code>
+            </p>
+            <p className="text-[11px] text-muted-foreground truncate">
+              {instanceName} · estado atual: <strong>{rawState || 'desconhecido'}</strong>
+            </p>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleCheckStatus} disabled={checking}>
+              {checking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+              Status
+            </Button>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleReconfigureWebhook} disabled={checking}>
+              <Zap className="h-3 w-3" />
+              Reconfigurar Webhook
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Connected — status bar */}
       {isConnected && (
