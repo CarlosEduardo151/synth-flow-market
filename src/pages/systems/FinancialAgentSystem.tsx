@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -76,13 +76,18 @@ export default function FinancialAgentSystem() {
   const [mode, setMode] = useState<'personal' | 'business'>('personal');
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    if (!loading && (!hasAccess || !customerId)) {
+      toast({
+        title: 'Erro',
+        description: 'Você precisa adquirir o produto ou ativar um teste grátis para acessar este sistema.',
+        variant: 'destructive',
+      });
+      navigate('/p/agente-financeiro');
+    }
+  }, [loading, hasAccess, customerId, navigate, toast]);
+
   if (!loading && (!hasAccess || !customerId)) {
-    toast({
-      title: 'Erro',
-      description: 'Você precisa adquirir o produto ou ativar um teste grátis para acessar este sistema.',
-      variant: 'destructive',
-    });
-    navigate('/p/agente-financeiro');
     return null;
   }
 
