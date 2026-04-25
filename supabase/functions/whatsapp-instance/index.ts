@@ -651,7 +651,8 @@ serve(async (req) => {
     }
 
     if (action === "qrcode") {
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`, {
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(linkedInstanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
       });
@@ -676,11 +677,21 @@ serve(async (req) => {
       // If the user deleted instances on Evolution panel and we cleaned the DB,
       // we must NOT report "connected" just because Evolution still has a stale instance
       // matching the email-derived fallback name.
-      const { data: dbInst } = await sb
-        .from("evolution_instances")
-        .select("instance_name, is_active")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
+      const dbQuery = cp?.id
+        ? sb
+          .from("evolution_instances")
+          .select("instance_name, is_active")
+          .eq("customer_product_id", cp.id)
+          .eq("is_active", true)
+        : sb
+          .from("evolution_instances")
+          .select("instance_name, is_active")
+          .eq("user_id", user.id)
+          .eq("is_active", true);
+
+      const { data: dbInst } = await dbQuery
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!dbInst?.instance_name) {
@@ -730,12 +741,14 @@ serve(async (req) => {
       if (context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
-      await configureWebhook(instanceName, webhookUrl);
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      await configureWebhook(linkedInstanceName, webhookUrl);
       return json({ success: true, webhookUrl });
     }
 
     if (action === "disconnect") {
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(instanceName)}`, {
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
         method: "DELETE",
         headers: { apikey: EVOLUTION_KEY() },
       });
