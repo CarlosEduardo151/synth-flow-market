@@ -428,12 +428,65 @@ serve(async (req) => {
       if (existing?.instanceName) {
         console.log("[whatsapp-instance] connect_by_number reusing existing instance:", existing.instanceName, "for", normalized);
         await linkExistingInstance(existing.instanceName);
+
+        // Re-check the REAL connection state via /instance/connectionState
+        // (fetchInstances can be stale and report 'open' for a session that
+        // is actually 'connecting' or 'close'). If not truly open → force a
+        // fresh QR by logging out and reconnecting.
+        let realState = "open";
+        try {
+          const stResp = await fetch(
+            `${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(existing.instanceName)}`,
+            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+          );
+          const stData = await stResp.json().catch(() => null);
+          realState = stData?.instance?.state || stData?.state || "unknown";
+          console.log("[whatsapp-instance] connect_by_number real state:", realState);
+        } catch (e) {
+          console.error("[whatsapp-instance] connectionState check error:", e);
+        }
+
+        if (realState === "open") {
+          return json({
+            success: true,
+            alreadyConnected: true,
+            reused: true,
+            instanceName: existing.instanceName,
+            status: "open",
+            phone: normalized,
+          });
+        }
+
+        // Not really open → force logout then reconnect to obtain a fresh QR
+        try {
+          await fetch(
+            `${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(existing.instanceName)}`,
+            { method: "DELETE", headers: { apikey: EVOLUTION_KEY() } },
+          );
+        } catch (e) {
+          console.error("[whatsapp-instance] logout before reconnect failed:", e);
+        }
+
+        let qrcode: string | null = null;
+        try {
+          const connResp = await fetch(
+            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(existing.instanceName)}`,
+            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+          );
+          const connData = await connResp.json().catch(() => null);
+          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+          console.log("[whatsapp-instance] reuse→reconnect QR obtained:", !!qrcode);
+        } catch (e) {
+          console.error("[whatsapp-instance] reuse→reconnect error:", e);
+        }
+
         return json({
           success: true,
-          alreadyConnected: true,
+          alreadyConnected: false,
           reused: true,
           instanceName: existing.instanceName,
-          status: "open",
+          qrcode,
+          status: "qrcode",
           phone: normalized,
         });
       }
