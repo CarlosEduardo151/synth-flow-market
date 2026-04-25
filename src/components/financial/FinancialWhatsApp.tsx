@@ -66,14 +66,30 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      // 1) Descobre o telefone vinculado a este customer_product_id (Evolution instance)
+      // 1) Descobre a instância vinculada a este customer_product_id
       const { data: inst } = await (supabase as any)
         .from('evolution_instances')
-        .select('phone_number')
+        .select('instance_name')
         .eq('customer_product_id', customerProductId)
         .maybeSingle();
 
-      const phone: string | null = inst?.phone_number || null;
+      // Extrai sufixo numérico do instance_name (ex: ..._BOT_91898399 → 91898399)
+      // e tenta montar o telefone completo (assumindo Brasil "55" + DDD/numero).
+      let phone: string | null = null;
+      const inst_name: string | undefined = inst?.instance_name;
+      if (inst_name) {
+        const m = inst_name.match(/_(\d{6,})$/);
+        if (m) {
+          const tail = m[1];
+          // procura qualquer log existente cujo phone termine com esse sufixo
+          const { data: sample } = await (supabase as any)
+            .from('bot_conversation_logs')
+            .select('phone')
+            .like('phone', `%${tail}`)
+            .limit(1);
+          phone = sample?.[0]?.phone || tail;
+        }
+      }
 
       // 2) Tenta buscar logs específicos do produto financeiro
       const { data: ownLogs } = await (supabase as any)
