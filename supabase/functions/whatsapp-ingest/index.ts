@@ -658,6 +658,7 @@ serve(async (req) => {
 
       // Fan-out to bots-automacao engine so the bot can also reply on the same number
       await fanOutToSibling("bots-automacao", "engine");
+      await fanOutToSibling("agente-financeiro", "financial");
 
       return corsResponse({ ok: true, crm: true, fanout: "bots-automacao" }, 200, origin);
     }
@@ -679,8 +680,9 @@ serve(async (req) => {
     const engineText = await engineResp.text().catch(() => "");
     console.log("[ingest] bot-engine response:", engineResp.status, engineText.slice(0, 500));
 
-    // Also fan-out to CRM ingest (same user) so leads/messages are captured even when only the bot instance receives the webhook
+    // Also fan-out to CRM ingest + financial webhook so one connected number can serve all products.
     await fanOutToSibling("crm-simples", "ingest");
+    await fanOutToSibling("agente-financeiro", "financial");
 
     if (!engineResp.ok) {
       return corsResponse({ ok: false, engine_status: engineResp.status, engine_body: engineText.slice(0, 500) }, 502, origin);
