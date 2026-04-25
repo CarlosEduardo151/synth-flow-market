@@ -1242,8 +1242,8 @@ serve(async (req) => {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
       const linkedInstanceName = await resolveLinkedInstanceName();
-      await configureWebhook(linkedInstanceName, webhookUrl);
-      return json({ success: true, webhookUrl });
+      const ok = await configureAndVerifyWebhook(linkedInstanceName, webhookUrl);
+      return json({ success: true, webhookUrl, verified: ok });
     }
 
     if (action === "purge_instance") {
