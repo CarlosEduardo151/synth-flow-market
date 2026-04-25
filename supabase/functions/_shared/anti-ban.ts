@@ -26,18 +26,19 @@ export function sleep(ms: number): Promise<void> {
  * - Mínimo: 700ms, Máximo: 3.5s
  */
 export function computeHumanDelayMs(text: string): number {
+  // Modo Equilibrado: delays reduzidos pela metade.
   const len = text?.length || 0;
-  const base = (len / 60) * 1000;
-  const jitter = 400 + Math.random() * 800; // 0.4..1.2s
+  const base = (len / 120) * 1000; // dobro de velocidade de "digitação"
+  const jitter = 200 + Math.random() * 400; // 0.2..0.6s
   const total = base + jitter;
-  return Math.min(Math.max(total, 700), 3500);
+  return Math.min(Math.max(total, 350), 1800); // min 350ms, max 1.8s
 }
 
 /**
  * Pequeno delay entre fragmentos de uma mesma resposta (step-by-step).
  */
 export function computeInterChunkDelayMs(): number {
-  return 300 + Math.floor(Math.random() * 500); // 0.3..0.8s
+  return 150 + Math.floor(Math.random() * 250); // 0.15..0.4s
 }
 
 /**
