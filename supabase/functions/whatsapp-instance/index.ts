@@ -329,11 +329,30 @@ serve(async (req) => {
 
     const buildWebhookUrl = () => {
       if (!cp?.id || !cp?.webhook_token) return null;
-      if (context === "financial") {
-        return `${supabaseUrl}/functions/v1/financial-whatsapp-webhook?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
-      }
+      // Evolution API supports only one webhook URL per instance.
+      // Route every product through whatsapp-ingest so a reused number can fan-out
+      // to CRM, bot engine and financial flows without one product overwriting another.
       return `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${cp.id}&token=${cp.webhook_token}`;
     };
+
+    async function resolveLinkedInstanceName() {
+      if (cp?.id) {
+        const { data: linkedInstance } = await sb
+          .from("evolution_instances")
+          .select("instance_name")
+          .eq("customer_product_id", cp.id)
+          .eq("is_active", true)
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (linkedInstance?.instance_name) {
+          return linkedInstance.instance_name as string;
+        }
+      }
+
+      return instanceName;
+    }
 
     // ── Helper: link an existing Evolution instance (already connected to a phone)
     // to the current user's customer_product, configure its webhook and bot runtime.
@@ -512,9 +531,7 @@ serve(async (req) => {
             continue;
           }
 
-          const fnPath = cpRow.product_slug === "financeiro-agente"
-            ? "financial-whatsapp-webhook"
-            : "whatsapp-ingest";
+          const fnPath = "whatsapp-ingest";
           const newWebhook = `${supabaseUrl}/functions/v1/${fnPath}?customer_product_id=${cpRow.id}&token=${cpRow.webhook_token}`;
 
           // Re-configure webhook on Evolution
@@ -527,7 +544,7 @@ serve(async (req) => {
           }
 
           // Provision bot runtime (CRM/bots) if needed
-          if (cpRow.product_slug !== "financeiro-agente") {
+          if (cpRow.product_slug !== "agente-financeiro") {
             try { await ensureBotRuntime(sb, cpRow.user_id, cpRow.id); } catch (_) {}
           }
 
@@ -634,7 +651,8 @@ serve(async (req) => {
     }
 
     if (action === "qrcode") {
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`, {
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(linkedInstanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
       });
@@ -659,11 +677,21 @@ serve(async (req) => {
       // If the user deleted instances on Evolution panel and we cleaned the DB,
       // we must NOT report "connected" just because Evolution still has a stale instance
       // matching the email-derived fallback name.
-      const { data: dbInst } = await sb
-        .from("evolution_instances")
-        .select("instance_name, is_active")
-        .eq("user_id", user.id)
-        .eq("is_active", true)
+      const dbQuery = cp?.id
+        ? sb
+          .from("evolution_instances")
+          .select("instance_name, is_active")
+          .eq("customer_product_id", cp.id)
+          .eq("is_active", true)
+        : sb
+          .from("evolution_instances")
+          .select("instance_name, is_active")
+          .eq("user_id", user.id)
+          .eq("is_active", true);
+
+      const { data: dbInst } = await dbQuery
+        .order("updated_at", { ascending: false })
+        .limit(1)
         .maybeSingle();
 
       if (!dbInst?.instance_name) {
@@ -713,12 +741,14 @@ serve(async (req) => {
       if (context !== "financial") {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
-      await configureWebhook(instanceName, webhookUrl);
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      await configureWebhook(linkedInstanceName, webhookUrl);
       return json({ success: true, webhookUrl });
     }
 
     if (action === "disconnect") {
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(instanceName)}`, {
+      const linkedInstanceName = await resolveLinkedInstanceName();
+      const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
         method: "DELETE",
         headers: { apikey: EVOLUTION_KEY() },
       });
