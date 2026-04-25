@@ -803,7 +803,13 @@ serve(async (req) => {
     // ───────────────────────────────────────────────────────────
     if (action === "sync_existing") {
       const scope = (body.scope as string) || "self"; // "self" or "all"
-      const isAdmin = await sb.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }: any) => !!data).catch(() => false);
+      let isAdmin = false;
+      try {
+        const { data } = await sb.rpc("has_role", { _user_id: user.id, _role: "admin" });
+        isAdmin = !!data;
+      } catch (_) {
+        isAdmin = false;
+      }
       const targetAll = scope === "all" && isAdmin;
 
       const { data: rows, error: rowsErr } = await (targetAll
