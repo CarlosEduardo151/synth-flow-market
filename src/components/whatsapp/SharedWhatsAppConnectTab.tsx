@@ -248,6 +248,27 @@ export function SharedWhatsAppConnectTab({
     }
   };
 
+  const handleTotalReset = async () => {
+    if (!confirm('Isso vai apagar a sessão atual no servidor e gerar um QR Code novo do zero. Continuar?')) return;
+    setChecking(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
+        body: { action: 'qrcode', context, total_reset: true },
+      });
+      if (error) throw new Error(getInvokeErrorMessage(error, data));
+      if (data?.qrcode) {
+        setQrCode(await prepareQrForDisplay(data.qrcode));
+        toast({ title: 'Sessão recriada', description: 'Escaneie o novo QR Code.' });
+      } else {
+        toast({ title: 'Reset feito', description: 'Aguarde e clique em "Gerar novo QR Code".' });
+      }
+    } catch (e: any) {
+      toast({ title: 'Erro no reset total', description: e.message, variant: 'destructive' });
+    } finally {
+      setChecking(false);
+    }
+  };
+
   const handleDisconnect = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
