@@ -1010,7 +1010,35 @@ serve(async (req) => {
     if (action === "qrcode") {
       const linkedInstanceName = await resolveLinkedInstanceName();
       const shouldReset = body.reset === true || body.fresh === true;
-      if (shouldReset) {
+      const totalReset = body.total_reset === true || body.hard_reset === true;
+
+      // TOTAL RESET: deleta a instância no Evolution e recria do zero.
+      // Resolve o cenário "Não foi possível conectar o dispositivo" causado por
+      // sessão Baileys corrompida no servidor.
+      if (totalReset) {
+        try {
+          await deleteEvolutionInstance(linkedInstanceName);
+          await new Promise((r) => setTimeout(r, 1500));
+          // Recria a instância
+          const createResp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+            body: JSON.stringify({ instanceName: linkedInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
+          });
+          const createData = await createResp.json().catch(() => null);
+          console.log("[whatsapp-instance] total_reset recreate:", createResp.status, JSON.stringify(createData)?.slice(0, 200));
+          // Reaplica webhook
+          const webhookUrl = buildWebhookUrl();
+          if (webhookUrl) await configureAndVerifyWebhook(linkedInstanceName, webhookUrl);
+          // QR já pode ter vindo no create
+          const qrFromCreate = extractQrValue(createData);
+          if (qrFromCreate) {
+            return json({ success: true, qrcode: qrFromCreate, hasImage: !!extractQrImage(createData), reset: "total" });
+          }
+        } catch (e) {
+          console.warn("[whatsapp-instance] total_reset failed:", e instanceof Error ? e.message : e);
+        }
+      } else if (shouldReset) {
         try {
           await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
             method: "DELETE",
@@ -1034,12 +1062,19 @@ serve(async (req) => {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
+      // Garante que o webhook está configurado e verificado
+      const webhookUrl = buildWebhookUrl();
+      if (webhookUrl) {
+        configureAndVerifyWebhook(linkedInstanceName, webhookUrl).catch(() => {});
+      }
+
       const qrcode = extractQrValue(data);
       return json({
         success: true,
         qrcode,
         pairingCode: data?.pairingCode || null,
         hasImage: !!extractQrImage(data),
+        reset: totalReset ? "total" : (shouldReset ? "logout" : "none"),
       });
     }
 
