@@ -305,10 +305,124 @@ async function resolveInstanceName(sb: any, userId: string, userEmail: string): 
   return userEmail.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
 }
 
-function buildFreshInstanceName(baseName: string, normalizedPhone: string, context: string): string {
+/**
+ * Build a UNIFIED instance name for a phone number.
+ * IMPORTANT: WhatsApp/Baileys only allows ONE active session per phone number.
+ * Therefore we use a single instance name per (user, phone) and share it
+ * across all products via fan-out in whatsapp-ingest.
+ *
+ * Legacy instances created with `_BOT_`, `_FIN_`, `_FINANCIAL_`, `_CRM_`
+ * suffixes are detected and reused so a user that already connected
+ * doesn't have to re-scan.
+ */
+function buildFreshInstanceName(baseName: string, normalizedPhone: string, _context: string): string {
   const phoneSuffix = normalizedPhone.slice(-8) || crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  const contextSuffix = context === "bot" ? "BOT" : context.toUpperCase();
-  return `${baseName}_${contextSuffix}_${phoneSuffix}`.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+  // Single, context-independent name — one number → one Evolution instance.
+  return `${baseName}_WA_${phoneSuffix}`.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+}
+
+/**
+ * Find ANY active Evolution instance already linked to this user (in our DB),
+ * regardless of which product/context it was originally created for.
+ * Used to enforce the "one number = one instance" invariant.
+ */
+async function findUserOwnedInstance(sb: any, userId: string): Promise<string | null> {
+  const { data: rows } = await sb
+    .from("evolution_instances")
+    .select("instance_name, updated_at")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+  if (!rows?.length) return null;
+
+  // Verify each one is still alive on Evolution and prefer the one that's "open".
+  const evoList = await fetchEvolutionInstances();
+  const byName = new Map<string, EvolutionInstanceInfo>();
+  for (const inst of evoList) {
+    const m = mapEvolutionInstance(inst);
+    if (m) byName.set(m.instanceName, m);
+  }
+  // 1st pass: prefer open
+  for (const r of rows) {
+    const m = byName.get(r.instance_name);
+    if (m?.state === "open") return r.instance_name;
+  }
+  // 2nd pass: any existing on Evolution
+  for (const r of rows) {
+    if (byName.has(r.instance_name)) return r.instance_name;
+  }
+  return null;
+}
+
+/**
+ * Link the same Evolution instance to ALL of the user's active products
+ * (bots-automacao, crm-simples, agente-financeiro). This ensures the
+ * fan-out in whatsapp-ingest reaches every product without race conditions.
+ */
+async function linkInstanceToAllUserProducts(
+  sb: any,
+  userId: string,
+  instanceName: string,
+  evolutionUrl: string,
+  evolutionKey: string,
+): Promise<{ linkedProducts: string[]; webhookUrl: string | null }> {
+  const { data: products } = await sb
+    .from("customer_products")
+    .select("id, product_slug, webhook_token, is_active")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .in("product_slug", ["bots-automacao", "crm-simples", "agente-financeiro"]);
+
+  const linked: string[] = [];
+  let primaryWebhookUrl: string | null = null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const nowIso = new Date().toISOString();
+
+  for (const p of products || []) {
+    let token = p.webhook_token;
+    if (!token) {
+      token = generateWebhookToken();
+      await sb.from("customer_products")
+        .update({ webhook_token: token, updated_at: nowIso })
+        .eq("id", p.id);
+    }
+
+    // Deactivate any OTHER instances tied to this product (consolidation)
+    await sb.from("evolution_instances")
+      .update({ is_active: false, updated_at: nowIso })
+      .eq("customer_product_id", p.id)
+      .neq("instance_name", instanceName);
+
+    await sb.from("evolution_instances").upsert({
+      user_id: userId,
+      customer_product_id: p.id,
+      instance_name: instanceName,
+      evolution_url: evolutionUrl,
+      evolution_apikey: evolutionKey,
+      is_active: true,
+      updated_at: nowIso,
+    }, { onConflict: "customer_product_id" });
+
+    await sb.from("product_credentials").upsert({
+      user_id: userId,
+      product_slug: p.product_slug,
+      credential_key: "evolution_instance_name",
+      credential_value: instanceName,
+      updated_at: nowIso,
+    }, { onConflict: "user_id,product_slug,credential_key" });
+
+    if (!primaryWebhookUrl) {
+      primaryWebhookUrl = `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${p.id}&token=${token}`;
+    }
+    linked.push(p.product_slug);
+
+    if (p.product_slug !== "agente-financeiro") {
+      try { await ensureBotRuntime(sb, userId, p.id); } catch (_) { /* best effort */ }
+    }
+  }
+
+  return { linkedProducts: linked, webhookUrl: primaryWebhookUrl };
 }
 
 const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"] as const;
