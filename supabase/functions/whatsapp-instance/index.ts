@@ -967,6 +967,19 @@ serve(async (req) => {
 
     if (action === "qrcode") {
       const linkedInstanceName = await resolveLinkedInstanceName();
+      const shouldReset = body.reset === true || body.fresh === true;
+      if (shouldReset) {
+        try {
+          await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
+            method: "DELETE",
+            headers: { apikey: EVOLUTION_KEY() },
+          });
+          await new Promise((r) => setTimeout(r, 1000));
+        } catch (e) {
+          console.warn("[whatsapp-instance] qrcode reset/logout failed:", e instanceof Error ? e.message : e);
+        }
+      }
+
       const resp = await fetch(`${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(linkedInstanceName)}`, {
         method: "GET",
         headers: { apikey: EVOLUTION_KEY() },
