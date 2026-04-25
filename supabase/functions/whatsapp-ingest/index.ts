@@ -453,6 +453,7 @@ serve(async (req) => {
     if (!cp?.id) return corsResponse({ error: "unauthorized" }, 401, origin);
 
     const isCRM = cp.product_slug === "crm-simples";
+    const isFinancial = cp.product_slug === "agente-financeiro";
 
     const bodyText = await req.text();
     if (bodyText.length > 250_000) {
@@ -541,7 +542,7 @@ serve(async (req) => {
     // ── Helper: fan-out to sibling product (same user, same WhatsApp number)
     // so a single connected number can serve CRM + Bots-Automação simultaneously.
     // Only the FIRST hop fans out — sibling invocations carry x-fanout-origin and skip further fan-out.
-    const fanOutToSibling = async (siblingSlug: string, mode: "engine" | "ingest") => {
+    const fanOutToSibling = async (siblingSlug: string, mode: "engine" | "ingest" | "financial") => {
       if (isFanoutHop) {
         console.log(`[ingest] skip fan-out → ${siblingSlug} (already a fan-out hop)`);
         return;
@@ -558,7 +559,11 @@ serve(async (req) => {
           console.log(`[ingest] no active sibling '${siblingSlug}' for user ${cp.user_id}`);
           return;
         }
-        const fnName = mode === "engine" ? "whatsapp-bot-engine" : "whatsapp-ingest";
+        const fnName = mode === "engine"
+          ? "whatsapp-bot-engine"
+          : mode === "financial"
+            ? "financial-whatsapp-webhook"
+            : "whatsapp-ingest";
         const url = `${supabaseUrl}/functions/v1/${fnName}?customer_product_id=${encodeURIComponent(sibling.id)}&token=${encodeURIComponent(sibling.webhook_token)}`;
         const r = await fetch(url, {
           method: "POST",
@@ -576,6 +581,32 @@ serve(async (req) => {
         console.error(`[ingest] fan-out ${siblingSlug} error:`, e instanceof Error ? e.message : e);
       }
     };
+
+    // ── Financial path: forward raw webhook to the dedicated financial processor ──
+    if (isFinancial) {
+      const financialUrl = `${supabaseUrl}/functions/v1/financial-whatsapp-webhook?customer_product_id=${encodeURIComponent(cp.id)}&token=${encodeURIComponent(token)}`;
+
+      const financialResp = await fetch(financialUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        body: bodyText,
+      });
+
+      const financialText = await financialResp.text().catch(() => "");
+      console.log("[ingest] financial-webhook response:", financialResp.status, financialText.slice(0, 500));
+
+      await fanOutToSibling("crm-simples", "ingest");
+      await fanOutToSibling("bots-automacao", "engine");
+
+      if (!financialResp.ok) {
+        return corsResponse({ ok: false, financial_status: financialResp.status, financial_body: financialText.slice(0, 500) }, 502, origin);
+      }
+
+      return corsResponse({ ok: true, financial: true }, 200, origin);
+    }
 
     // ── CRM path: store message directly as a lead log ──
     if (isCRM) {
