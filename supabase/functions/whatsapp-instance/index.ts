@@ -1183,6 +1183,8 @@ serve(async (req) => {
     if (action === "force_reconnect") {
       // Forçar uma reconexão imediata da instância do usuário, ignorando backoff,
       // delegando ao worker whatsapp-auto-reconnect (mesmo backoff/healing logic).
+      // Se mesmo após a tentativa a instância continuar fora do estado "open",
+      // tentamos buscar o QR code para que o usuário possa re-escanear.
       const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
       const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
       try {
@@ -1195,7 +1197,39 @@ serve(async (req) => {
           body: JSON.stringify({ user_id: user.id, force: true }),
         });
         const data = await r.json().catch(() => ({}));
-        return json({ success: r.ok, ...data });
+
+        // Verifica resultado e busca QR se ainda não está open
+        const results = (data?.results || []) as any[];
+        const target = results.find((x: any) => x?.action !== "healthy") || results[0];
+        const finalState = target?.state || "unknown";
+        let qrcode: string | null = null;
+        let pairingCode: string | null = null;
+
+        if (finalState !== "open") {
+          // Tenta obter QR para re-scan (a chamada /instance/connect na auto-reconnect
+          // já dispara o QR no backend; aqui apenas recuperamos o base64 atual)
+          try {
+            const linkedInstanceName = await resolveLinkedInstanceName();
+            const qrResp = await fetch(
+              `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(linkedInstanceName)}`,
+              { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+            );
+            const qrData = await qrResp.json().catch(() => null);
+            qrcode = qrData?.base64 || qrData?.qrcode?.base64 || qrData?.qrcode || qrData?.code || null;
+            pairingCode = qrData?.pairingCode || null;
+          } catch (qrErr) {
+            console.warn("[whatsapp-instance] force_reconnect: failed to fetch QR:", qrErr);
+          }
+        }
+
+        return json({
+          success: r.ok,
+          state: finalState,
+          connected: finalState === "open",
+          qrcode,
+          pairingCode,
+          ...data,
+        });
       } catch (e) {
         return json({ success: false, error: e instanceof Error ? e.message : String(e) }, 500);
       }
