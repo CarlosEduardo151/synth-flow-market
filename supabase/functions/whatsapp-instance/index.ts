@@ -1180,6 +1180,27 @@ serve(async (req) => {
       return json({ success: true });
     }
 
+    if (action === "force_reconnect") {
+      // Forçar uma reconexão imediata da instância do usuário, ignorando backoff,
+      // delegando ao worker whatsapp-auto-reconnect (mesmo backoff/healing logic).
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      try {
+        const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-auto-reconnect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ user_id: user.id, force: true }),
+        });
+        const data = await r.json().catch(() => ({}));
+        return json({ success: r.ok, ...data });
+      } catch (e) {
+        return json({ success: false, error: e instanceof Error ? e.message : String(e) }, 500);
+      }
+    }
+
     return json({ error: "invalid action" }, 400);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown error";
