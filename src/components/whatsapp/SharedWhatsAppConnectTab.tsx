@@ -54,6 +54,7 @@ export function SharedWhatsAppConnectTab({
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [instanceName, setInstanceName] = useState<string | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const [rawState, setRawState] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
@@ -69,12 +70,14 @@ export function SharedWhatsAppConnectTab({
         body: { action: 'status', context },
       });
       if (error) throw error;
+      setRawState(data?.state || null);
       if (data?.connected) {
         setConnected(true);
         setQrCode(null);
         setInstanceName(data.instanceName || null);
       } else {
         setConnected(false);
+        if (data?.instanceName) setInstanceName(data.instanceName);
         if (!data?.instanceName) {
           setInstanceName(null);
           setQrCode(null);
@@ -83,6 +86,7 @@ export function SharedWhatsAppConnectTab({
       return data;
     } catch {
       setConnected(false);
+      setRawState(null);
       return null;
     }
   }, [context, setConnected]);
