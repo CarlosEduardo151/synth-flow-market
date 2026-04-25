@@ -1244,6 +1244,7 @@ export type Database = {
       }
       evolution_instances: {
         Row: {
+          connection_state: string | null
           created_at: string
           customer_product_id: string
           evolution_apikey: string
@@ -1252,10 +1253,16 @@ export type Database = {
           id: string
           instance_name: string
           is_active: boolean
+          last_health_check_at: string | null
+          last_reconnect_attempt_at: string | null
+          last_reconnect_error: string | null
+          next_reconnect_at: string | null
+          reconnect_attempts: number
           updated_at: string
           user_id: string
         }
         Insert: {
+          connection_state?: string | null
           created_at?: string
           customer_product_id: string
           evolution_apikey?: string
@@ -1264,10 +1271,16 @@ export type Database = {
           id?: string
           instance_name: string
           is_active?: boolean
+          last_health_check_at?: string | null
+          last_reconnect_attempt_at?: string | null
+          last_reconnect_error?: string | null
+          next_reconnect_at?: string | null
+          reconnect_attempts?: number
           updated_at?: string
           user_id: string
         }
         Update: {
+          connection_state?: string | null
           created_at?: string
           customer_product_id?: string
           evolution_apikey?: string
@@ -1276,6 +1289,11 @@ export type Database = {
           id?: string
           instance_name?: string
           is_active?: boolean
+          last_health_check_at?: string | null
+          last_reconnect_attempt_at?: string | null
+          last_reconnect_error?: string | null
+          next_reconnect_at?: string | null
+          reconnect_attempts?: number
           updated_at?: string
           user_id?: string
         }
