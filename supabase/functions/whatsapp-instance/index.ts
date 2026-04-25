@@ -503,6 +503,42 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
   return false;
 }
 
+// Verifies webhook via /webhook/find/{instanceName}, returns true if URL matches.
+async function verifyWebhook(instanceName: string, expectedUrl: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${EVOLUTION_URL()}/webhook/find/${encodeURIComponent(instanceName)}`, {
+      method: "GET",
+      headers: { apikey: EVOLUTION_KEY() },
+    });
+    if (!resp.ok) {
+      console.warn("[whatsapp-instance] verifyWebhook find failed:", resp.status);
+      return false;
+    }
+    const data = await resp.json().catch(() => null);
+    const currentUrl = data?.url || data?.webhook?.url || data?.Webhook?.url || "";
+    const enabled = data?.enabled ?? data?.webhook?.enabled ?? data?.Webhook?.enabled ?? false;
+    const ok = enabled && typeof currentUrl === "string" && currentUrl === expectedUrl;
+    console.log("[whatsapp-instance] verifyWebhook:", { instanceName, ok, currentUrl, enabled });
+    return ok;
+  } catch (e) {
+    console.error("[whatsapp-instance] verifyWebhook error:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
+// Configure + verify; if mismatch, retry once.
+async function configureAndVerifyWebhook(instanceName: string, webhookUrl: string): Promise<boolean> {
+  await configureWebhook(instanceName, webhookUrl);
+  let ok = await verifyWebhook(instanceName, webhookUrl);
+  if (!ok) {
+    console.warn("[whatsapp-instance] webhook mismatch after first set, retrying...");
+    await new Promise((r) => setTimeout(r, 800));
+    await configureWebhook(instanceName, webhookUrl);
+    ok = await verifyWebhook(instanceName, webhookUrl);
+  }
+  return ok;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
