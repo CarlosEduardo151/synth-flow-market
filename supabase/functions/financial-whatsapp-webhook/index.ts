@@ -387,7 +387,28 @@ serve(async (req) => {
           }
         }
       }
+    } else if (msg?.audioMessage || msg?.pttMessage) {
+      // Áudio (incluindo PTT/voice note): baixa e transcreve via Whisper
+      attachmentType = "audio";
+      const audioMime = msg?.audioMessage?.mimetype || msg?.pttMessage?.mimetype || "audio/ogg";
+      const creds = await loadEvolutionCredentials(supabase, cp.user_id, customerProductId);
+      if (creds) {
+        const b64 = await fetchMediaBase64(creds, data);
+        if (b64) {
+          const transcript = await transcribeAudioBase64(b64, audioMime);
+          if (transcript) {
+            // Injeta a transcrição como texto da mensagem para a IA processar normalmente
+            (msg as any).__transcribedAudio = transcript;
+          } else {
+            console.warn("[financial-whatsapp-webhook] audio transcription returned empty");
+          }
+        }
+      }
     }
+
+    // Se transcrevemos áudio, usamos isso como conteúdo de texto
+    const transcribedAudio = (msg as any)?.__transcribedAudio as string | undefined;
+    const finalText = textContent || transcribedAudio || "";
 
     console.log("[financial-whatsapp-webhook] inbound message:", JSON.stringify({
       event,
