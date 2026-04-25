@@ -76,12 +76,13 @@ function ownerJidMatchesPhone(ownerJid: string | null | undefined, normalizedPho
   return ownerDigits.slice(-minLen) === normalizedPhone.slice(-minLen);
 }
 
-async function findEvolutionInstanceByPhone(normalizedPhone: string): Promise<{
+type EvolutionInstanceInfo = {
   instanceName: string;
   state: string;
   ownerJid: string;
-} | null> {
-  if (!normalizedPhone) return null;
+};
+
+async function fetchEvolutionInstances(): Promise<any[]> {
   try {
     const resp = await fetch(`${EVOLUTION_URL()}/instance/fetchInstances`, {
       method: "GET",
@@ -89,26 +90,106 @@ async function findEvolutionInstanceByPhone(normalizedPhone: string): Promise<{
     });
     if (!resp.ok) {
       console.warn("[whatsapp-instance] fetchInstances failed:", resp.status);
-      return null;
+      return [];
     }
     const list = await resp.json().catch(() => []);
-    if (!Array.isArray(list)) return null;
-
-    for (const inst of list) {
-      const name = inst?.name || inst?.instanceName || inst?.instance?.instanceName;
-      const owner = inst?.ownerJid || inst?.owner || inst?.instance?.owner;
-      const state = inst?.connectionStatus || inst?.state || inst?.instance?.state || "unknown";
-      if (!name) continue;
-      if (state !== "open") continue;
-      if (ownerJidMatchesPhone(owner, normalizedPhone)) {
-        return { instanceName: name, state, ownerJid: owner };
-      }
-    }
-    return null;
+    return Array.isArray(list) ? list : [];
   } catch (e) {
-    console.error("[whatsapp-instance] findEvolutionInstanceByPhone error:", e);
+    console.error("[whatsapp-instance] fetchEvolutionInstances error:", e);
+    return [];
+  }
+}
+
+function mapEvolutionInstance(inst: any): EvolutionInstanceInfo | null {
+  const instanceName = inst?.name || inst?.instanceName || inst?.instance?.instanceName;
+  if (!instanceName) return null;
+  return {
+    instanceName,
+    state: inst?.connectionStatus || inst?.state || inst?.instance?.state || "unknown",
+    ownerJid: inst?.ownerJid || inst?.owner || inst?.instance?.owner || "",
+  };
+}
+
+async function findEvolutionInstanceByPhone(normalizedPhone: string): Promise<EvolutionInstanceInfo | null> {
+  if (!normalizedPhone) return null;
+  const list = await fetchEvolutionInstances();
+  for (const inst of list) {
+    const mapped = mapEvolutionInstance(inst);
+    if (!mapped) continue;
+    if (mapped.state !== "open") continue;
+    if (ownerJidMatchesPhone(mapped.ownerJid, normalizedPhone)) {
+      return mapped;
+    }
+  }
+  return null;
+}
+
+async function findEvolutionInstanceByName(instanceName: string): Promise<EvolutionInstanceInfo | null> {
+  if (!instanceName) return null;
+  const list = await fetchEvolutionInstances();
+  for (const inst of list) {
+    const mapped = mapEvolutionInstance(inst);
+    if (mapped?.instanceName === instanceName) return mapped;
+  }
+  return null;
+}
+
+async function getEvolutionConnectionState(instanceName: string): Promise<string> {
+  try {
+    const stResp = await fetch(
+      `${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(instanceName)}`,
+      { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+    );
+    const stData = await stResp.json().catch(() => null);
+    return stData?.instance?.state || stData?.state || "unknown";
+  } catch (e) {
+    console.error("[whatsapp-instance] connectionState check error:", e);
+    return "unknown";
+  }
+}
+
+async function requestEvolutionQrCode(instanceName: string): Promise<string | null> {
+  try {
+    const connResp = await fetch(
+      `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(instanceName)}`,
+      { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+    );
+    const connData = await connResp.json().catch(() => null);
+    return connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+  } catch (e) {
+    console.error("[whatsapp-instance] QR request error:", e);
     return null;
   }
+}
+
+async function deleteEvolutionInstance(instanceName: string): Promise<{ ok: boolean; status: number; data: any }> {
+  try {
+    const resp = await fetch(`${EVOLUTION_URL()}/instance/delete/${encodeURIComponent(instanceName)}`, {
+      method: "DELETE",
+      headers: { apikey: EVOLUTION_KEY() },
+    });
+    const data = await resp.json().catch(() => null);
+    console.log("[whatsapp-instance] delete instance response:", resp.status, JSON.stringify(data)?.slice(0, 300));
+    return { ok: resp.ok || resp.status === 404, status: resp.status, data };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    console.error("[whatsapp-instance] delete instance error:", message);
+    return { ok: false, status: 0, data: { message } };
+  }
+}
+
+function extractEvolutionErrorMessage(data: any): string {
+  const providerMessage = data?.response?.message;
+  if (Array.isArray(providerMessage) && providerMessage.length) return providerMessage.join(" ");
+  if (typeof providerMessage === "string" && providerMessage) return providerMessage;
+  if (typeof data?.message === "string" && data.message) return data.message;
+  if (typeof data?.error === "string" && data.error) return data.error;
+  return "Erro ao comunicar com o provedor do WhatsApp.";
+}
+
+function isNameAlreadyInUseError(status: number, data: any): boolean {
+  const message = extractEvolutionErrorMessage(data);
+  return (status === 403 || status === 409) && /already in use|já.*uso|name.*use/i.test(message);
 }
 
 async function ensureCustomerProduct(sb: any, userId: string, productSlug = "bots-automacao") {
@@ -429,22 +510,8 @@ serve(async (req) => {
         console.log("[whatsapp-instance] connect_by_number reusing existing instance:", existing.instanceName, "for", normalized);
         await linkExistingInstance(existing.instanceName);
 
-        // Re-check the REAL connection state via /instance/connectionState
-        // (fetchInstances can be stale and report 'open' for a session that
-        // is actually 'connecting' or 'close'). If not truly open → force a
-        // fresh QR by logging out and reconnecting.
-        let realState = "open";
-        try {
-          const stResp = await fetch(
-            `${EVOLUTION_URL()}/instance/connectionState/${encodeURIComponent(existing.instanceName)}`,
-            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
-          );
-          const stData = await stResp.json().catch(() => null);
-          realState = stData?.instance?.state || stData?.state || "unknown";
-          console.log("[whatsapp-instance] connect_by_number real state:", realState);
-        } catch (e) {
-          console.error("[whatsapp-instance] connectionState check error:", e);
-        }
+        const realState = await getEvolutionConnectionState(existing.instanceName);
+        console.log("[whatsapp-instance] connect_by_number real state:", realState);
 
         if (realState === "open") {
           return json({
@@ -467,18 +534,8 @@ serve(async (req) => {
           console.error("[whatsapp-instance] logout before reconnect failed:", e);
         }
 
-        let qrcode: string | null = null;
-        try {
-          const connResp = await fetch(
-            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(existing.instanceName)}`,
-            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
-          );
-          const connData = await connResp.json().catch(() => null);
-          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
-          console.log("[whatsapp-instance] reuse→reconnect QR obtained:", !!qrcode);
-        } catch (e) {
-          console.error("[whatsapp-instance] reuse→reconnect error:", e);
-        }
+        const qrcode = await requestEvolutionQrCode(existing.instanceName);
+        console.log("[whatsapp-instance] reuse→reconnect QR obtained:", !!qrcode);
 
         return json({
           success: true,
@@ -493,17 +550,61 @@ serve(async (req) => {
 
       // 2. Otherwise → create a fresh instance and return its QR code.
       const freshInstanceName = buildFreshInstanceName(baseInstanceName, normalized, context);
+      const staleNamedInstance = await findEvolutionInstanceByName(freshInstanceName);
+      if (staleNamedInstance?.instanceName) {
+        console.warn("[whatsapp-instance] stale named instance found before create:", freshInstanceName, staleNamedInstance.state);
+        const deleted = await deleteEvolutionInstance(freshInstanceName);
+        if (!deleted.ok) {
+          return json({
+            error: "instance_name_in_use",
+            message: `A instância ${freshInstanceName} já existia e não pôde ser removida automaticamente.`,
+            instanceName: freshInstanceName,
+            details: deleted.data,
+          }, 409);
+        }
+      }
+
+      const createInstance = async () => {
+        const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+          body: JSON.stringify({ instanceName: freshInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
+        });
+        const data = await resp.json().catch(() => null);
+        return { resp, data };
+      };
+
       console.log("[whatsapp-instance] connect_by_number creating fresh instance for", normalized, "→", freshInstanceName);
-      const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
-        body: JSON.stringify({ instanceName: freshInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
-      });
-      const data = await resp.json().catch(() => null);
+      let { resp, data } = await createInstance();
       console.log("[whatsapp-instance] create (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
 
+      let duplicateName = isNameAlreadyInUseError(resp.status, data);
+      if (!resp.ok && duplicateName) {
+        console.warn("[whatsapp-instance] duplicate name detected after create, deleting and retrying:", freshInstanceName);
+        const deleted = await deleteEvolutionInstance(freshInstanceName);
+        if (!deleted.ok) {
+          return json({
+            error: "instance_name_in_use",
+            message: `A instância ${freshInstanceName} ficou travada no provedor e não pôde ser apagada automaticamente.`,
+            instanceName: freshInstanceName,
+            details: { create: data, delete: deleted.data },
+          }, 409);
+        }
+
+        ({ resp, data } = await createInstance());
+        console.log("[whatsapp-instance] create retry (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
+        duplicateName = isNameAlreadyInUseError(resp.status, data);
+      }
+
       if (!resp.ok) {
-        return json({ error: "Falha ao criar instância", details: data }, resp.status);
+        return json({
+          error: duplicateName ? "instance_name_in_use" : "create_instance_failed",
+          message: duplicateName
+            ? `A instância ${freshInstanceName} já existia no provedor. Removemos a sessão travada, mas a recriação ainda falhou.`
+            : extractEvolutionErrorMessage(data),
+          instanceName: freshInstanceName,
+          details: data,
+        }, duplicateName ? 409 : resp.status);
       }
 
       await linkExistingInstance(freshInstanceName);
@@ -511,16 +612,7 @@ serve(async (req) => {
       // Get a QR code (either from create response or via /instance/connect)
       let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
       if (!qrcode) {
-        try {
-          const connResp = await fetch(
-            `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(freshInstanceName)}`,
-            { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
-          );
-          const connData = await connResp.json().catch(() => null);
-          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
-        } catch (e) {
-          console.error("[whatsapp-instance] connect_by_number QR fetch error:", e);
-        }
+        qrcode = await requestEvolutionQrCode(freshInstanceName);
       }
 
       return json({
@@ -797,6 +889,33 @@ serve(async (req) => {
       const linkedInstanceName = await resolveLinkedInstanceName();
       await configureWebhook(linkedInstanceName, webhookUrl);
       return json({ success: true, webhookUrl });
+    }
+
+    if (action === "purge_instance") {
+      const requestedName = String(body.instanceName || "").trim() || await resolveLinkedInstanceName();
+      if (!requestedName) {
+        return json({ error: "instance_name_required", message: "Informe o nome da instância para apagar." }, 400);
+      }
+
+      const deleted = await deleteEvolutionInstance(requestedName);
+      if (!deleted.ok) {
+        return json({
+          error: "delete_instance_failed",
+          message: `Não foi possível apagar a instância ${requestedName}.`,
+          instanceName: requestedName,
+          details: deleted.data,
+        }, deleted.status || 500);
+      }
+
+      await sb
+        .from("evolution_instances")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("instance_name", requestedName)
+        .then(({ error: e }: any) => {
+          if (e) console.error("[whatsapp-instance] purge evolution_instances update error:", e.message);
+        });
+
+      return json({ success: true, instanceName: requestedName, message: "Instância apagada com sucesso." });
     }
 
     if (action === "disconnect") {
