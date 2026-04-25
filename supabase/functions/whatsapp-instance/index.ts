@@ -1021,6 +1021,23 @@ serve(async (req) => {
         const state = data?.instance?.state || data?.state || "close";
         const connected = state === "open";
 
+        // ── Auto-healing: if our DB-tracked instance is NOT open, look for ANY
+        // other instance owned by this user that IS open on Evolution and
+        // adopt it. Solves the case where switching tabs / re-connecting
+        // killed the previous Baileys session and left the DB pointing to a
+        // dead instance.
+        if (!connected) {
+          const healed = await findUserOwnedInstance(sb, user.id);
+          if (healed && healed !== dbInst.instance_name) {
+            const healedState = await getEvolutionConnectionState(healed);
+            if (healedState === "open") {
+              console.log("[whatsapp-instance] status auto-heal: switching from", dbInst.instance_name, "to", healed);
+              await linkInstanceToAllUserProducts(sb, user.id, healed, EVOLUTION_URL(), EVOLUTION_KEY());
+              return json({ connected: true, state: "open", instanceName: healed, healed: true });
+            }
+          }
+        }
+
         return json({ connected, state, instanceName: dbInst.instance_name });
       } catch (netErr) {
         const msg = netErr instanceof Error ? netErr.message : "network error";
