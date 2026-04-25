@@ -781,7 +781,7 @@ serve(async (req) => {
       );
       if (webhookUrl) await configureWebhook(freshInstanceName, webhookUrl);
 
-      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let qrcode = extractQrValue(data);
       if (!qrcode) qrcode = await requestEvolutionQrCode(freshInstanceName);
 
       return json({
@@ -933,7 +933,7 @@ serve(async (req) => {
         console.warn("[whatsapp-instance] no customer_product found for webhook setup");
       }
 
-      let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
+      let qrcode = extractQrValue(data);
       let connectionStatus = data?.instance?.status || (instanceAlreadyExists ? "exists" : "created");
 
       // If no QR (instance already existed OR Evolution didn't return one), fetch via /instance/connect
@@ -945,7 +945,7 @@ serve(async (req) => {
           );
           const connData = await connResp.json().catch(() => null);
           console.log("[whatsapp-instance] connect after create:", connResp.status, JSON.stringify(connData)?.slice(0, 200));
-          qrcode = connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+          qrcode = extractQrValue(connData);
 
           // Check if it's already connected
           if (!qrcode) {
