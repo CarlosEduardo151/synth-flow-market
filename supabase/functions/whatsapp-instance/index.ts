@@ -305,10 +305,124 @@ async function resolveInstanceName(sb: any, userId: string, userEmail: string): 
   return userEmail.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
 }
 
-function buildFreshInstanceName(baseName: string, normalizedPhone: string, context: string): string {
+/**
+ * Build a UNIFIED instance name for a phone number.
+ * IMPORTANT: WhatsApp/Baileys only allows ONE active session per phone number.
+ * Therefore we use a single instance name per (user, phone) and share it
+ * across all products via fan-out in whatsapp-ingest.
+ *
+ * Legacy instances created with `_BOT_`, `_FIN_`, `_FINANCIAL_`, `_CRM_`
+ * suffixes are detected and reused so a user that already connected
+ * doesn't have to re-scan.
+ */
+function buildFreshInstanceName(baseName: string, normalizedPhone: string, _context: string): string {
   const phoneSuffix = normalizedPhone.slice(-8) || crypto.randomUUID().replace(/-/g, "").slice(0, 8);
-  const contextSuffix = context === "bot" ? "BOT" : context.toUpperCase();
-  return `${baseName}_${contextSuffix}_${phoneSuffix}`.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+  // Single, context-independent name — one number → one Evolution instance.
+  return `${baseName}_WA_${phoneSuffix}`.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 100);
+}
+
+/**
+ * Find ANY active Evolution instance already linked to this user (in our DB),
+ * regardless of which product/context it was originally created for.
+ * Used to enforce the "one number = one instance" invariant.
+ */
+async function findUserOwnedInstance(sb: any, userId: string): Promise<string | null> {
+  const { data: rows } = await sb
+    .from("evolution_instances")
+    .select("instance_name, updated_at")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+  if (!rows?.length) return null;
+
+  // Verify each one is still alive on Evolution and prefer the one that's "open".
+  const evoList = await fetchEvolutionInstances();
+  const byName = new Map<string, EvolutionInstanceInfo>();
+  for (const inst of evoList) {
+    const m = mapEvolutionInstance(inst);
+    if (m) byName.set(m.instanceName, m);
+  }
+  // 1st pass: prefer open
+  for (const r of rows) {
+    const m = byName.get(r.instance_name);
+    if (m?.state === "open") return r.instance_name;
+  }
+  // 2nd pass: any existing on Evolution
+  for (const r of rows) {
+    if (byName.has(r.instance_name)) return r.instance_name;
+  }
+  return null;
+}
+
+/**
+ * Link the same Evolution instance to ALL of the user's active products
+ * (bots-automacao, crm-simples, agente-financeiro). This ensures the
+ * fan-out in whatsapp-ingest reaches every product without race conditions.
+ */
+async function linkInstanceToAllUserProducts(
+  sb: any,
+  userId: string,
+  instanceName: string,
+  evolutionUrl: string,
+  evolutionKey: string,
+): Promise<{ linkedProducts: string[]; webhookUrl: string | null }> {
+  const { data: products } = await sb
+    .from("customer_products")
+    .select("id, product_slug, webhook_token, is_active")
+    .eq("user_id", userId)
+    .eq("is_active", true)
+    .in("product_slug", ["bots-automacao", "crm-simples", "agente-financeiro"]);
+
+  const linked: string[] = [];
+  let primaryWebhookUrl: string | null = null;
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const nowIso = new Date().toISOString();
+
+  for (const p of products || []) {
+    let token = p.webhook_token;
+    if (!token) {
+      token = generateWebhookToken();
+      await sb.from("customer_products")
+        .update({ webhook_token: token, updated_at: nowIso })
+        .eq("id", p.id);
+    }
+
+    // Deactivate any OTHER instances tied to this product (consolidation)
+    await sb.from("evolution_instances")
+      .update({ is_active: false, updated_at: nowIso })
+      .eq("customer_product_id", p.id)
+      .neq("instance_name", instanceName);
+
+    await sb.from("evolution_instances").upsert({
+      user_id: userId,
+      customer_product_id: p.id,
+      instance_name: instanceName,
+      evolution_url: evolutionUrl,
+      evolution_apikey: evolutionKey,
+      is_active: true,
+      updated_at: nowIso,
+    }, { onConflict: "customer_product_id" });
+
+    await sb.from("product_credentials").upsert({
+      user_id: userId,
+      product_slug: p.product_slug,
+      credential_key: "evolution_instance_name",
+      credential_value: instanceName,
+      updated_at: nowIso,
+    }, { onConflict: "user_id,product_slug,credential_key" });
+
+    if (!primaryWebhookUrl) {
+      primaryWebhookUrl = `${supabaseUrl}/functions/v1/whatsapp-ingest?customer_product_id=${p.id}&token=${token}`;
+    }
+    linked.push(p.product_slug);
+
+    if (p.product_slug !== "agente-financeiro") {
+      try { await ensureBotRuntime(sb, userId, p.id); } catch (_) { /* best effort */ }
+    }
+  }
+
+  return { linkedProducts: linked, webhookUrl: primaryWebhookUrl };
 }
 
 const WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE", "QRCODE_UPDATED"] as const;
@@ -490,11 +604,21 @@ serve(async (req) => {
     }
 
     // ───────────────────────────────────────────────────────────
-    // ACTION: connect_by_number — main entry point for the new flow.
-    // 1. Normalize the phone the user typed.
-    // 2. If an Evolution instance already exists for that number → reuse it
-    //    (link to this user/product, reconfigure webhook, NO QR code).
-    // 3. Otherwise → create a fresh instance and return its QR code.
+    // ACTION: connect_by_number — UNIFIED entry point.
+    //
+    // Invariant: 1 phone number = 1 Evolution instance.
+    // WhatsApp/Baileys only allows one active session per number, so we never
+    // create per-product instances. Instead we reuse the same instance and
+    // fan out events to every product the user owns (bots, CRM, financial).
+    //
+    // Flow:
+    //  A. If Evolution already has an OPEN instance for this phone → reuse it.
+    //  B. Else if the user already owns an instance in our DB (any product) →
+    //     reuse that name and force a fresh QR.
+    //  C. Else → create a brand-new unified instance.
+    //
+    // In every case we link the chosen instance to ALL of the user's active
+    // products so message routing keeps working even if the user switches tabs.
     // ───────────────────────────────────────────────────────────
     if (action === "connect_by_number") {
       const normalized = normalizePhoneNumber((body.phone as string) || "");
@@ -502,53 +626,90 @@ serve(async (req) => {
         return json({ error: "invalid_phone", message: "Número inválido. Digite com DDD (ex: 11 91234-5678)." }, 400);
       }
 
-      // 1. Check if there is ALREADY an Evolution instance OPEN for this phone
-      //    (regardless of context). If yes → reuse it: link to this user/product
-      //    and reconfigure webhook so messages route to the right ingest.
-      const existing = await findEvolutionInstanceByPhone(normalized);
-      if (existing?.instanceName) {
-        console.log("[whatsapp-instance] connect_by_number reusing existing instance:", existing.instanceName, "for", normalized);
-        await linkExistingInstance(existing.instanceName);
+      const evoUrl = EVOLUTION_URL();
+      const evoKey = EVOLUTION_KEY();
 
-        const realState = await getEvolutionConnectionState(existing.instanceName);
-        console.log("[whatsapp-instance] connect_by_number real state:", realState);
+      // ── Step A: any Evolution instance already linked to this phone ──
+      const existingByPhone = await findEvolutionInstanceByPhone(normalized);
+      if (existingByPhone?.instanceName) {
+        console.log("[whatsapp-instance] reusing OPEN instance for phone:", existingByPhone.instanceName);
+        const { webhookUrl, linkedProducts } = await linkInstanceToAllUserProducts(
+          sb, user.id, existingByPhone.instanceName, evoUrl, evoKey,
+        );
+        if (webhookUrl) await configureWebhook(existingByPhone.instanceName, webhookUrl);
 
+        const realState = await getEvolutionConnectionState(existingByPhone.instanceName);
         if (realState === "open") {
           return json({
             success: true,
             alreadyConnected: true,
             reused: true,
-            instanceName: existing.instanceName,
+            instanceName: existingByPhone.instanceName,
             status: "open",
             phone: normalized,
+            linkedProducts,
           });
         }
 
-        // Not really open → force logout then reconnect to obtain a fresh QR
         try {
-          await fetch(
-            `${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(existing.instanceName)}`,
-            { method: "DELETE", headers: { apikey: EVOLUTION_KEY() } },
-          );
-        } catch (e) {
-          console.error("[whatsapp-instance] logout before reconnect failed:", e);
-        }
-
-        const qrcode = await requestEvolutionQrCode(existing.instanceName);
-        console.log("[whatsapp-instance] reuse→reconnect QR obtained:", !!qrcode);
-
+          await fetch(`${evoUrl}/instance/logout/${encodeURIComponent(existingByPhone.instanceName)}`, {
+            method: "DELETE", headers: { apikey: evoKey },
+          });
+        } catch (_) { /* best effort */ }
+        const qrcode = await requestEvolutionQrCode(existingByPhone.instanceName);
         return json({
           success: true,
           alreadyConnected: false,
           reused: true,
-          instanceName: existing.instanceName,
+          instanceName: existingByPhone.instanceName,
           qrcode,
           status: "qrcode",
           phone: normalized,
+          linkedProducts,
         });
       }
 
-      // 2. Otherwise → create a fresh instance and return its QR code.
+      // ── Step B: user already owns an instance in our DB (any product) ──
+      const ownedInstanceName = await findUserOwnedInstance(sb, user.id);
+      if (ownedInstanceName) {
+        console.log("[whatsapp-instance] user already owns instance, reusing:", ownedInstanceName);
+        const { webhookUrl, linkedProducts } = await linkInstanceToAllUserProducts(
+          sb, user.id, ownedInstanceName, evoUrl, evoKey,
+        );
+        if (webhookUrl) await configureWebhook(ownedInstanceName, webhookUrl);
+
+        const realState = await getEvolutionConnectionState(ownedInstanceName);
+        if (realState === "open") {
+          return json({
+            success: true,
+            alreadyConnected: true,
+            reused: true,
+            instanceName: ownedInstanceName,
+            status: "open",
+            phone: normalized,
+            linkedProducts,
+          });
+        }
+
+        try {
+          await fetch(`${evoUrl}/instance/logout/${encodeURIComponent(ownedInstanceName)}`, {
+            method: "DELETE", headers: { apikey: evoKey },
+          });
+        } catch (_) { /* best effort */ }
+        const qrcode = await requestEvolutionQrCode(ownedInstanceName);
+        return json({
+          success: true,
+          alreadyConnected: false,
+          reused: true,
+          instanceName: ownedInstanceName,
+          qrcode,
+          status: "qrcode",
+          phone: normalized,
+          linkedProducts,
+        });
+      }
+
+      // ── Step C: create a brand-new UNIFIED instance ──
       const freshInstanceName = buildFreshInstanceName(baseInstanceName, normalized, context);
       const staleNamedInstance = await findEvolutionInstanceByName(freshInstanceName);
       if (staleNamedInstance?.instanceName) {
@@ -565,22 +726,20 @@ serve(async (req) => {
       }
 
       const createInstance = async () => {
-        const resp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
+        const resp = await fetch(`${evoUrl}/instance/create`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+          headers: { "Content-Type": "application/json", apikey: evoKey },
           body: JSON.stringify({ instanceName: freshInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
         });
         const data = await resp.json().catch(() => null);
         return { resp, data };
       };
 
-      console.log("[whatsapp-instance] connect_by_number creating fresh instance for", normalized, "→", freshInstanceName);
+      console.log("[whatsapp-instance] creating UNIFIED instance for", normalized, "→", freshInstanceName);
       let { resp, data } = await createInstance();
-      console.log("[whatsapp-instance] create (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
 
       let duplicateName = isNameAlreadyInUseError(resp.status, data);
       if (!resp.ok && duplicateName) {
-        console.warn("[whatsapp-instance] duplicate name detected after create, deleting and retrying:", freshInstanceName);
         const deleted = await deleteEvolutionInstance(freshInstanceName);
         if (!deleted.ok) {
           return json({
@@ -590,9 +749,7 @@ serve(async (req) => {
             details: { create: data, delete: deleted.data },
           }, 409);
         }
-
         ({ resp, data } = await createInstance());
-        console.log("[whatsapp-instance] create retry (by_number) response:", resp.status, JSON.stringify(data)?.slice(0, 300));
         duplicateName = isNameAlreadyInUseError(resp.status, data);
       }
 
@@ -600,20 +757,20 @@ serve(async (req) => {
         return json({
           error: duplicateName ? "instance_name_in_use" : "create_instance_failed",
           message: duplicateName
-            ? `A instância ${freshInstanceName} já existia no provedor. Removemos a sessão travada, mas a recriação ainda falhou.`
+            ? `A instância ${freshInstanceName} já existia no provedor.`
             : extractEvolutionErrorMessage(data),
           instanceName: freshInstanceName,
           details: data,
         }, duplicateName ? 409 : resp.status);
       }
 
-      await linkExistingInstance(freshInstanceName);
+      const { webhookUrl, linkedProducts } = await linkInstanceToAllUserProducts(
+        sb, user.id, freshInstanceName, evoUrl, evoKey,
+      );
+      if (webhookUrl) await configureWebhook(freshInstanceName, webhookUrl);
 
-      // Get a QR code (either from create response or via /instance/connect)
       let qrcode = data?.qrcode?.base64 || data?.qrcode || null;
-      if (!qrcode) {
-        qrcode = await requestEvolutionQrCode(freshInstanceName);
-      }
+      if (!qrcode) qrcode = await requestEvolutionQrCode(freshInstanceName);
 
       return json({
         success: true,
@@ -622,6 +779,7 @@ serve(async (req) => {
         qrcode,
         status: "qrcode",
         phone: normalized,
+        linkedProducts,
       });
     }
 
@@ -862,6 +1020,23 @@ serve(async (req) => {
 
         const state = data?.instance?.state || data?.state || "close";
         const connected = state === "open";
+
+        // ── Auto-healing: if our DB-tracked instance is NOT open, look for ANY
+        // other instance owned by this user that IS open on Evolution and
+        // adopt it. Solves the case where switching tabs / re-connecting
+        // killed the previous Baileys session and left the DB pointing to a
+        // dead instance.
+        if (!connected) {
+          const healed = await findUserOwnedInstance(sb, user.id);
+          if (healed && healed !== dbInst.instance_name) {
+            const healedState = await getEvolutionConnectionState(healed);
+            if (healedState === "open") {
+              console.log("[whatsapp-instance] status auto-heal: switching from", dbInst.instance_name, "to", healed);
+              await linkInstanceToAllUserProducts(sb, user.id, healed, EVOLUTION_URL(), EVOLUTION_KEY());
+              return json({ connected: true, state: "open", instanceName: healed, healed: true });
+            }
+          }
+        }
 
         return json({ connected, state, instanceName: dbInst.instance_name });
       } catch (netErr) {
