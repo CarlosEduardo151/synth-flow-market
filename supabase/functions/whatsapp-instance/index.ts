@@ -979,11 +979,12 @@ serve(async (req) => {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
-      const qrcode = data?.base64 || data?.qrcode?.base64 || data?.qrcode || data?.code || null;
+      const qrcode = extractQrValue(data);
       return json({
         success: true,
         qrcode,
         pairingCode: data?.pairingCode || null,
+        hasImage: !!extractQrImage(data),
       });
     }
 
@@ -1227,7 +1228,7 @@ serve(async (req) => {
               { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
             );
             const qrData = await qrResp.json().catch(() => null);
-            qrcode = qrData?.base64 || qrData?.qrcode?.base64 || qrData?.qrcode || qrData?.code || null;
+            qrcode = extractQrValue(qrData);
             pairingCode = qrData?.pairingCode || null;
           } catch (qrErr) {
             console.warn("[whatsapp-instance] force_reconnect: failed to fetch QR:", qrErr);
