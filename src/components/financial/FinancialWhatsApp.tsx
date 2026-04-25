@@ -66,61 +66,25 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      // 1) Descobre a instância vinculada a este customer_product_id
-      const { data: inst } = await (supabase as any)
-        .from('evolution_instances')
-        .select('instance_name')
-        .eq('customer_product_id', customerProductId)
-        .maybeSingle();
-
-      // Extrai sufixo numérico do instance_name (ex: ..._BOT_91898399 → 91898399)
-      // e tenta montar o telefone completo (assumindo Brasil "55" + DDD/numero).
-      let phone: string | null = null;
-      const inst_name: string | undefined = inst?.instance_name;
-      if (inst_name) {
-        const m = inst_name.match(/_(\d{6,})$/);
-        if (m) {
-          const tail = m[1];
-          // procura qualquer log existente cujo phone termine com esse sufixo
-          const { data: sample } = await (supabase as any)
-            .from('bot_conversation_logs')
-            .select('phone')
-            .like('phone', `%${tail}`)
-            .limit(1);
-          phone = sample?.[0]?.phone || tail;
-        }
-      }
-
-      // 2) Tenta buscar logs específicos do produto financeiro
-      const { data: ownLogs } = await (supabase as any)
-        .from('bot_conversation_logs')
-        .select('id, direction, phone, message_text, created_at, processing_ms, tokens_used, provider, model')
+      // Lê os logs nativos do Agente Financeiro (gravados pelo edge financial-whatsapp-webhook)
+      const { data: rows } = await (supabase as any)
+        .from('financial_whatsapp_logs')
+        .select('id, direction, phone, message_text, attachment_type, status, error_message, processing_ms, created_at')
         .eq('customer_product_id', customerProductId)
         .order('created_at', { ascending: false })
         .limit(50);
 
-      let merged: LogEntry[] = (ownLogs as LogEntry[]) || [];
-
-      // 3) Se houver telefone vinculado, agrega o histórico do mesmo número
-      //    (mensagens antigas registradas por outros produtos no mesmo número)
-      if (phone) {
-        const { data: phoneLogs } = await (supabase as any)
-          .from('bot_conversation_logs')
-          .select('id, direction, phone, message_text, created_at, processing_ms, tokens_used, provider, model')
-          .eq('phone', phone)
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        const seen = new Set(merged.map((l) => l.id));
-        for (const l of (phoneLogs as LogEntry[]) || []) {
-          if (!seen.has(l.id)) {
-            merged.push(l);
-            seen.add(l.id);
-          }
-        }
-        merged.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        merged = merged.slice(0, 50);
-      }
+      const merged: LogEntry[] = (rows as any[] || []).map((r) => ({
+        id: r.id,
+        direction: r.direction,
+        phone: r.phone,
+        message_text: r.message_text,
+        created_at: r.created_at,
+        processing_ms: r.processing_ms,
+        tokens_used: null,
+        provider: r.attachment_type ? `anexo:${r.attachment_type}` : (r.status || null),
+        model: r.error_message || null,
+      }));
 
       setLogs(merged);
     } catch { /* ignore */ }
