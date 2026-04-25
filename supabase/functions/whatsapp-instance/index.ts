@@ -503,6 +503,42 @@ async function configureWebhook(instanceName: string, webhookUrl: string): Promi
   return false;
 }
 
+// Verifies webhook via /webhook/find/{instanceName}, returns true if URL matches.
+async function verifyWebhook(instanceName: string, expectedUrl: string): Promise<boolean> {
+  try {
+    const resp = await fetch(`${EVOLUTION_URL()}/webhook/find/${encodeURIComponent(instanceName)}`, {
+      method: "GET",
+      headers: { apikey: EVOLUTION_KEY() },
+    });
+    if (!resp.ok) {
+      console.warn("[whatsapp-instance] verifyWebhook find failed:", resp.status);
+      return false;
+    }
+    const data = await resp.json().catch(() => null);
+    const currentUrl = data?.url || data?.webhook?.url || data?.Webhook?.url || "";
+    const enabled = data?.enabled ?? data?.webhook?.enabled ?? data?.Webhook?.enabled ?? false;
+    const ok = enabled && typeof currentUrl === "string" && currentUrl === expectedUrl;
+    console.log("[whatsapp-instance] verifyWebhook:", { instanceName, ok, currentUrl, enabled });
+    return ok;
+  } catch (e) {
+    console.error("[whatsapp-instance] verifyWebhook error:", e instanceof Error ? e.message : e);
+    return false;
+  }
+}
+
+// Configure + verify; if mismatch, retry once.
+async function configureAndVerifyWebhook(instanceName: string, webhookUrl: string): Promise<boolean> {
+  await configureWebhook(instanceName, webhookUrl);
+  let ok = await verifyWebhook(instanceName, webhookUrl);
+  if (!ok) {
+    console.warn("[whatsapp-instance] webhook mismatch after first set, retrying...");
+    await new Promise((r) => setTimeout(r, 800));
+    await configureWebhook(instanceName, webhookUrl);
+    ok = await verifyWebhook(instanceName, webhookUrl);
+  }
+  return ok;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -974,7 +1010,35 @@ serve(async (req) => {
     if (action === "qrcode") {
       const linkedInstanceName = await resolveLinkedInstanceName();
       const shouldReset = body.reset === true || body.fresh === true;
-      if (shouldReset) {
+      const totalReset = body.total_reset === true || body.hard_reset === true;
+
+      // TOTAL RESET: deleta a instância no Evolution e recria do zero.
+      // Resolve o cenário "Não foi possível conectar o dispositivo" causado por
+      // sessão Baileys corrompida no servidor.
+      if (totalReset) {
+        try {
+          await deleteEvolutionInstance(linkedInstanceName);
+          await new Promise((r) => setTimeout(r, 1500));
+          // Recria a instância
+          const createResp = await fetch(`${EVOLUTION_URL()}/instance/create`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: EVOLUTION_KEY() },
+            body: JSON.stringify({ instanceName: linkedInstanceName, integration: "WHATSAPP-BAILEYS", qrcode: true }),
+          });
+          const createData = await createResp.json().catch(() => null);
+          console.log("[whatsapp-instance] total_reset recreate:", createResp.status, JSON.stringify(createData)?.slice(0, 200));
+          // Reaplica webhook
+          const webhookUrl = buildWebhookUrl();
+          if (webhookUrl) await configureAndVerifyWebhook(linkedInstanceName, webhookUrl);
+          // QR já pode ter vindo no create
+          const qrFromCreate = extractQrValue(createData);
+          if (qrFromCreate) {
+            return json({ success: true, qrcode: qrFromCreate, hasImage: !!extractQrImage(createData), reset: "total" });
+          }
+        } catch (e) {
+          console.warn("[whatsapp-instance] total_reset failed:", e instanceof Error ? e.message : e);
+        }
+      } else if (shouldReset) {
         try {
           await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
             method: "DELETE",
@@ -998,12 +1062,19 @@ serve(async (req) => {
         return json({ error: "Falha ao obter QR Code", details: data }, resp.status);
       }
 
+      // Garante que o webhook está configurado e verificado
+      const webhookUrl = buildWebhookUrl();
+      if (webhookUrl) {
+        configureAndVerifyWebhook(linkedInstanceName, webhookUrl).catch(() => {});
+      }
+
       const qrcode = extractQrValue(data);
       return json({
         success: true,
         qrcode,
         pairingCode: data?.pairingCode || null,
         hasImage: !!extractQrImage(data),
+        reset: totalReset ? "total" : (shouldReset ? "logout" : "none"),
       });
     }
 
@@ -1171,8 +1242,8 @@ serve(async (req) => {
         await ensureBotRuntime(sb, user.id, cp.id);
       }
       const linkedInstanceName = await resolveLinkedInstanceName();
-      await configureWebhook(linkedInstanceName, webhookUrl);
-      return json({ success: true, webhookUrl });
+      const ok = await configureAndVerifyWebhook(linkedInstanceName, webhookUrl);
+      return json({ success: true, webhookUrl, verified: ok });
     }
 
     if (action === "purge_instance") {
