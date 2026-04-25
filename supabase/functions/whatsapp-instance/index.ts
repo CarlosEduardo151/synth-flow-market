@@ -891,6 +891,33 @@ serve(async (req) => {
       return json({ success: true, webhookUrl });
     }
 
+    if (action === "purge_instance") {
+      const requestedName = String(body.instanceName || "").trim() || await resolveLinkedInstanceName();
+      if (!requestedName) {
+        return json({ error: "instance_name_required", message: "Informe o nome da instância para apagar." }, 400);
+      }
+
+      const deleted = await deleteEvolutionInstance(requestedName);
+      if (!deleted.ok) {
+        return json({
+          error: "delete_instance_failed",
+          message: `Não foi possível apagar a instância ${requestedName}.`,
+          instanceName: requestedName,
+          details: deleted.data,
+        }, deleted.status || 500);
+      }
+
+      await sb
+        .from("evolution_instances")
+        .update({ is_active: false, updated_at: new Date().toISOString() })
+        .eq("instance_name", requestedName)
+        .then(({ error: e }: any) => {
+          if (e) console.error("[whatsapp-instance] purge evolution_instances update error:", e.message);
+        });
+
+      return json({ success: true, instanceName: requestedName, message: "Instância apagada com sucesso." });
+    }
+
     if (action === "disconnect") {
       const linkedInstanceName = await resolveLinkedInstanceName();
       const resp = await fetch(`${EVOLUTION_URL()}/instance/logout/${encodeURIComponent(linkedInstanceName)}`, {
