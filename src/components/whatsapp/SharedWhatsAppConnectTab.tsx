@@ -59,6 +59,16 @@ export function SharedWhatsAppConnectTab({
   const [initialLoading, setInitialLoading] = useState(true);
   const [phoneInput, setPhoneInput] = useState('');
 
+  const getInvokeErrorMessage = (error: any, data?: any) => {
+    return (
+      data?.message ||
+      data?.error ||
+      error?.context?.message ||
+      error?.message ||
+      'Tente novamente.'
+    );
+  };
+
   const setConnected = useCallback((v: boolean) => {
     setIsConnected(v);
     onConnectionChange?.(v);
@@ -132,7 +142,7 @@ export function SharedWhatsAppConnectTab({
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
         body: { action: 'connect_by_number', phone: phoneInput, context },
       });
-      if (error) throw error;
+      if (error) throw new Error(getInvokeErrorMessage(error, data));
       if (!data?.success) throw new Error(data?.error || 'Falha ao ativar WhatsApp');
 
       setInstanceName(data.instanceName);
@@ -175,7 +185,7 @@ export function SharedWhatsAppConnectTab({
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
         body: { action: 'qrcode', context },
       });
-      if (error) throw error;
+      if (error) throw new Error(getInvokeErrorMessage(error, data));
       if (data?.qrcode) {
         setQrCode(data.qrcode);
         toast({ title: 'QR Code atualizado!' });
@@ -191,9 +201,10 @@ export function SharedWhatsAppConnectTab({
 
   const handleDisconnect = async () => {
     try {
-      await supabase.functions.invoke('whatsapp-instance', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
         body: { action: 'disconnect', context },
       });
+      if (error) throw new Error(getInvokeErrorMessage(error, data));
       setConnected(false);
       setQrCode(null);
       setInstanceName(null);
@@ -206,9 +217,10 @@ export function SharedWhatsAppConnectTab({
   const handleReconfigureWebhook = async () => {
     setChecking(true);
     try {
-      await supabase.functions.invoke('whatsapp-instance', {
+      const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
         body: { action: 'reconfigure_webhook', context },
       });
+      if (error) throw new Error(getInvokeErrorMessage(error, data));
       toast({ title: '✅ Webhook reconfigurado!', description: 'As mensagens serão processadas corretamente.' });
     } catch (e: any) {
       toast({ title: 'Erro', description: e.message, variant: 'destructive' });
