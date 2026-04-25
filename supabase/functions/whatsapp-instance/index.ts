@@ -148,6 +148,18 @@ async function getEvolutionConnectionState(instanceName: string): Promise<string
   }
 }
 
+function extractQrImage(data: any): string | null {
+  return data?.base64 || data?.qrcode?.base64 || (typeof data?.qrcode === "string" ? data.qrcode : null) || null;
+}
+
+function extractQrPayload(data: any): string | null {
+  return data?.code || data?.qrcode?.code || null;
+}
+
+function extractQrValue(data: any): string | null {
+  return extractQrImage(data) || extractQrPayload(data);
+}
+
 async function requestEvolutionQrCode(instanceName: string): Promise<string | null> {
   try {
     const connResp = await fetch(
@@ -155,7 +167,7 @@ async function requestEvolutionQrCode(instanceName: string): Promise<string | nu
       { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
     );
     const connData = await connResp.json().catch(() => null);
-    return connData?.base64 || connData?.qrcode?.base64 || connData?.qrcode || null;
+    return extractQrValue(connData);
   } catch (e) {
     console.error("[whatsapp-instance] QR request error:", e);
     return null;
