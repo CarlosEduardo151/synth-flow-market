@@ -246,6 +246,7 @@ async function transcribeAudioBase64(b64: string, mime: string): Promise<string 
     console.error("[financial-whatsapp-webhook] transcribeAudioBase64 failed:", e instanceof Error ? e.message : e);
     return null;
   }
+}
 
 function unwrapMessageContainer(message: any): any {
   let current = message || {};
