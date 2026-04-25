@@ -148,7 +148,7 @@ export function SharedWhatsAppConnectTab({
 
       // Se a auto-reconexão devolveu um QR, mostramos imediatamente para re-scan
       if (data?.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         setConnected(false);
         toast({
           title: '📱 Escaneie o QR Code',
@@ -208,14 +208,14 @@ export function SharedWhatsAppConnectTab({
       }
 
       if (data.qrcode) {
-        setQrCode(data.qrcode);
+        setQrCode(await prepareQrForDisplay(data.qrcode));
         toast({ title: 'QR Code gerado!', description: 'Escaneie com o WhatsApp para conectar.' });
       } else {
         toast({ title: 'Aguarde…', description: 'Instância criada. Gerando QR Code…' });
         const qrResp = await supabase.functions.invoke('whatsapp-instance', {
           body: { action: 'qrcode', context },
         });
-        if (qrResp.data?.qrcode) setQrCode(qrResp.data.qrcode);
+        if (qrResp.data?.qrcode) setQrCode(await prepareQrForDisplay(qrResp.data.qrcode));
       }
     } catch (e: any) {
       toast({
