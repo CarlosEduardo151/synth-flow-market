@@ -136,13 +136,27 @@ export function SharedWhatsAppConnectTab({
         body: { action: 'force_reconnect', context },
       });
       if (error) throw new Error(getInvokeErrorMessage(error, data));
+
+      // Se a auto-reconexão devolveu um QR, mostramos imediatamente para re-scan
+      if (data?.qrcode) {
+        setQrCode(data.qrcode);
+        setConnected(false);
+        toast({
+          title: '📱 Escaneie o QR Code',
+          description: 'A sessão expirou. Escaneie o QR para reconectar.',
+        });
+        return;
+      }
+
       const result = await checkStatus();
       if (result?.connected) {
         toast({ title: '✅ Reconectado!', description: 'Sessão WhatsApp restabelecida.' });
       } else {
         toast({
           title: 'Reconexão em andamento',
-          description: 'O sistema continua tentando automaticamente. Mantenha o celular online.',
+          description: data?.state
+            ? `Estado atual: ${data.state}. O sistema continua tentando.`
+            : 'O sistema continua tentando automaticamente. Mantenha o celular online.',
         });
       }
     } catch (e: any) {
