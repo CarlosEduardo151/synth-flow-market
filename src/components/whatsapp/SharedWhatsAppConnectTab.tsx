@@ -317,10 +317,20 @@ export function SharedWhatsAppConnectTab({
               {instanceName} · estado atual: <strong>{rawState || 'desconhecido'}</strong>
             </p>
           </div>
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleCheckStatus} disabled={checking}>
               {checking ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
               Status
+            </Button>
+            <Button
+              variant="default"
+              size="sm"
+              className="h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700"
+              onClick={handleForceReconnect}
+              disabled={checking}
+            >
+              <Zap className="h-3 w-3" />
+              Reconectar agora
             </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleReconfigureWebhook} disabled={checking}>
               <Zap className="h-3 w-3" />
