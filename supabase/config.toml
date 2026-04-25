@@ -2,3 +2,6 @@ project_id = "lqduauyrwwlrbtnxkiev"
 
 [functions.financial-das-notifications]
 verify_jwt = false
+
+[functions.whatsapp-auto-reconnect]
+verify_jwt = false

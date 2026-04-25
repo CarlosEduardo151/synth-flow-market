@@ -1021,11 +1021,7 @@ serve(async (req) => {
         const state = data?.instance?.state || data?.state || "close";
         const connected = state === "open";
 
-        // ── Auto-healing: if our DB-tracked instance is NOT open, look for ANY
-        // other instance owned by this user that IS open on Evolution and
-        // adopt it. Solves the case where switching tabs / re-connecting
-        // killed the previous Baileys session and left the DB pointing to a
-        // dead instance.
+        // ── Auto-healing camada 1: adotar outra instância OPEN do mesmo usuário ──
         if (!connected) {
           const healed = await findUserOwnedInstance(sb, user.id);
           if (healed && healed !== dbInst.instance_name) {
@@ -1033,9 +1029,90 @@ serve(async (req) => {
             if (healedState === "open") {
               console.log("[whatsapp-instance] status auto-heal: switching from", dbInst.instance_name, "to", healed);
               await linkInstanceToAllUserProducts(sb, user.id, healed, EVOLUTION_URL(), EVOLUTION_KEY());
+              await sb.from("evolution_instances").update({
+                connection_state: "open",
+                last_health_check_at: new Date().toISOString(),
+                reconnect_attempts: 0,
+                next_reconnect_at: null,
+                last_reconnect_error: null,
+              }).eq("instance_name", healed);
               return json({ connected: true, state: "open", instanceName: healed, healed: true });
             }
           }
+
+          // ── Auto-healing camada 2: tentar reconectar a própria instância ──
+          // Respeitamos o backoff persistido para não martelar o Evolution.
+          try {
+            const { data: meta } = await sb
+              .from("evolution_instances")
+              .select("reconnect_attempts, next_reconnect_at")
+              .eq("instance_name", dbInst.instance_name)
+              .eq("is_active", true)
+              .limit(1)
+              .maybeSingle();
+
+            const dueAt = meta?.next_reconnect_at ? new Date(meta.next_reconnect_at as string).getTime() : 0;
+            if (dueAt <= Date.now()) {
+              console.log("[whatsapp-instance] status auto-heal: trying connect on", dbInst.instance_name);
+              try {
+                await fetch(
+                  `${EVOLUTION_URL()}/instance/connect/${encodeURIComponent(dbInst.instance_name)}`,
+                  { method: "GET", headers: { apikey: EVOLUTION_KEY() } },
+                );
+              } catch (_) { /* best effort */ }
+
+              await new Promise((r) => setTimeout(r, 1500));
+              const after = await getEvolutionConnectionState(dbInst.instance_name);
+              const attempts = (meta?.reconnect_attempts as number) || 0;
+              const backoff = [30, 60, 120, 300, 600, 1200, 1800];
+              const delay = backoff[Math.min(attempts, backoff.length - 1)];
+
+              if (after === "open" || after === "connecting") {
+                await sb.from("evolution_instances").update({
+                  connection_state: after,
+                  last_health_check_at: new Date().toISOString(),
+                  last_reconnect_attempt_at: new Date().toISOString(),
+                  reconnect_attempts: after === "open" ? 0 : Math.max(0, attempts - 1),
+                  next_reconnect_at: after === "open" ? null : new Date(Date.now() + 30_000).toISOString(),
+                  last_reconnect_error: null,
+                }).eq("instance_name", dbInst.instance_name);
+                return json({
+                  connected: after === "open",
+                  state: after,
+                  instanceName: dbInst.instance_name,
+                  healed: after === "open",
+                });
+              }
+
+              await sb.from("evolution_instances").update({
+                connection_state: after,
+                last_health_check_at: new Date().toISOString(),
+                last_reconnect_attempt_at: new Date().toISOString(),
+                reconnect_attempts: attempts + 1,
+                next_reconnect_at: new Date(Date.now() + delay * 1000).toISOString(),
+                last_reconnect_error: `state=${after}`,
+              }).eq("instance_name", dbInst.instance_name);
+
+              return json({
+                connected: false,
+                state: after,
+                instanceName: dbInst.instance_name,
+                retrying: true,
+                next_attempt_in_seconds: delay,
+              });
+            }
+          } catch (e) {
+            console.error("[whatsapp-instance] inline auto-heal error:", e instanceof Error ? e.message : e);
+          }
+        } else {
+          // Healthy → reseta backoff
+          await sb.from("evolution_instances").update({
+            connection_state: "open",
+            last_health_check_at: new Date().toISOString(),
+            reconnect_attempts: 0,
+            next_reconnect_at: null,
+            last_reconnect_error: null,
+          }).eq("instance_name", dbInst.instance_name);
         }
 
         return json({ connected, state, instanceName: dbInst.instance_name });
@@ -1101,6 +1178,27 @@ serve(async (req) => {
       });
       await resp.text();
       return json({ success: true });
+    }
+
+    if (action === "force_reconnect") {
+      // Forçar uma reconexão imediata da instância do usuário, ignorando backoff,
+      // delegando ao worker whatsapp-auto-reconnect (mesmo backoff/healing logic).
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      try {
+        const r = await fetch(`${supabaseUrl}/functions/v1/whatsapp-auto-reconnect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          body: JSON.stringify({ user_id: user.id, force: true }),
+        });
+        const data = await r.json().catch(() => ({}));
+        return json({ success: r.ok, ...data });
+      } catch (e) {
+        return json({ success: false, error: e instanceof Error ? e.message : String(e) }, 500);
+      }
     }
 
     return json({ error: "invalid action" }, 400);
