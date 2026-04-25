@@ -208,6 +208,45 @@ async function fetchMediaBase64(
   }
 }
 
+/**
+ * Transcreve um áudio (base64) usando OpenAI Whisper.
+ * Retorna o texto transcrito ou null em caso de falha.
+ */
+async function transcribeAudioBase64(b64: string, mime: string): Promise<string | null> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    console.warn("[financial-whatsapp-webhook] OPENAI_API_KEY missing — cannot transcribe audio");
+    return null;
+  }
+  try {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const ext = mime.includes("mp4") ? "m4a"
+      : mime.includes("mpeg") ? "mp3"
+      : mime.includes("wav") ? "wav"
+      : mime.includes("webm") ? "webm"
+      : "ogg";
+    const blob = new Blob([bin], { type: mime || "audio/ogg" });
+    const fd = new FormData();
+    fd.append("file", blob, `audio.${ext}`);
+    fd.append("model", "whisper-1");
+    fd.append("language", "pt");
+    const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: fd,
+    });
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => "");
+      console.error("[financial-whatsapp-webhook] whisper error:", resp.status, t.slice(0, 300));
+      return null;
+    }
+    const data = await resp.json();
+    return (data?.text || "").trim() || null;
+  } catch (e) {
+    console.error("[financial-whatsapp-webhook] transcribeAudioBase64 failed:", e instanceof Error ? e.message : e);
+    return null;
+  }
+
 function unwrapMessageContainer(message: any): any {
   let current = message || {};
   for (let i = 0; i < 5; i++) {
