@@ -448,13 +448,24 @@ serve(async (req) => {
       // Áudio (incluindo PTT/voice note): baixa e transcreve via Whisper
       attachmentType = "audio";
       const audioMime = msg?.audioMessage?.mimetype || msg?.pttMessage?.mimetype || "audio/ogg";
+      console.log("[financial-whatsapp-webhook] audio detected:", JSON.stringify({
+        audioMime,
+        hasAudioMsg: !!msg?.audioMessage,
+        hasPtt: !!msg?.pttMessage,
+        envelopeHasBase64: !!(data?.base64 || data?.message?.base64),
+      }));
       const creds = await loadEvolutionCredentials(supabase, cp.user_id, customerProductId);
-      if (creds) {
+      if (!creds) {
+        console.error("[financial-whatsapp-webhook] no evolution credentials — cannot fetch audio");
+      } else {
         const b64 = await fetchMediaBase64(creds, data);
-        if (b64) {
+        if (!b64) {
+          console.error("[financial-whatsapp-webhook] could not retrieve audio base64");
+        } else {
+          console.log("[financial-whatsapp-webhook] audio base64 retrieved, length:", b64.length);
           const transcript = await transcribeAudioBase64(b64, audioMime);
           if (transcript) {
-            // Injeta a transcrição como texto da mensagem para a IA processar normalmente
+            console.log("[financial-whatsapp-webhook] transcription ok:", transcript.slice(0, 120));
             (msg as any).__transcribedAudio = transcript;
           } else {
             console.warn("[financial-whatsapp-webhook] audio transcription returned empty");
