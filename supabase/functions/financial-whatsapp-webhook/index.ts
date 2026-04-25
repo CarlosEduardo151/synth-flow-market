@@ -208,6 +208,46 @@ async function fetchMediaBase64(
   }
 }
 
+/**
+ * Transcreve um áudio (base64) usando OpenAI Whisper.
+ * Retorna o texto transcrito ou null em caso de falha.
+ */
+async function transcribeAudioBase64(b64: string, mime: string): Promise<string | null> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) {
+    console.warn("[financial-whatsapp-webhook] OPENAI_API_KEY missing — cannot transcribe audio");
+    return null;
+  }
+  try {
+    const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const ext = mime.includes("mp4") ? "m4a"
+      : mime.includes("mpeg") ? "mp3"
+      : mime.includes("wav") ? "wav"
+      : mime.includes("webm") ? "webm"
+      : "ogg";
+    const blob = new Blob([bin], { type: mime || "audio/ogg" });
+    const fd = new FormData();
+    fd.append("file", blob, `audio.${ext}`);
+    fd.append("model", "whisper-1");
+    fd.append("language", "pt");
+    const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: fd,
+    });
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => "");
+      console.error("[financial-whatsapp-webhook] whisper error:", resp.status, t.slice(0, 300));
+      return null;
+    }
+    const data = await resp.json();
+    return (data?.text || "").trim() || null;
+  } catch (e) {
+    console.error("[financial-whatsapp-webhook] transcribeAudioBase64 failed:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
+
 function unwrapMessageContainer(message: any): any {
   let current = message || {};
   for (let i = 0; i < 5; i++) {
@@ -387,26 +427,50 @@ serve(async (req) => {
           }
         }
       }
+    } else if (msg?.audioMessage || msg?.pttMessage) {
+      // Áudio (incluindo PTT/voice note): baixa e transcreve via Whisper
+      attachmentType = "audio";
+      const audioMime = msg?.audioMessage?.mimetype || msg?.pttMessage?.mimetype || "audio/ogg";
+      const creds = await loadEvolutionCredentials(supabase, cp.user_id, customerProductId);
+      if (creds) {
+        const b64 = await fetchMediaBase64(creds, data);
+        if (b64) {
+          const transcript = await transcribeAudioBase64(b64, audioMime);
+          if (transcript) {
+            // Injeta a transcrição como texto da mensagem para a IA processar normalmente
+            (msg as any).__transcribedAudio = transcript;
+          } else {
+            console.warn("[financial-whatsapp-webhook] audio transcription returned empty");
+          }
+        }
+      }
     }
+
+    // Se transcrevemos áudio, usamos isso como conteúdo de texto
+    const transcribedAudio = (msg as any)?.__transcribedAudio as string | undefined;
+    const finalText = textContent || transcribedAudio || "";
 
     console.log("[financial-whatsapp-webhook] inbound message:", JSON.stringify({
       event,
       hasKey: !!key?.id,
       phone,
       fromMe,
-      textPreview: (textContent || "").slice(0, 120),
+      textPreview: (finalText || "").slice(0, 120),
       attachmentType,
+      transcribedAudio: !!transcribedAudio,
       messageKeys: Object.keys(msg || {}),
     }));
 
-    if (!textContent && !attachment) {
+    if (!finalText && !attachment) {
       // Nothing actionable
       await supabase.from("financial_whatsapp_logs").insert({
         customer_product_id: customerProductId,
         user_id: cp.user_id,
         direction: "in",
         phone,
-        message_text: "(mensagem sem conteúdo processável)",
+        message_text: attachmentType === "audio"
+          ? "(áudio recebido mas não foi possível transcrever)"
+          : "(mensagem sem conteúdo processável)",
         status: "ignored",
       });
       return json(200, { ok: true, skipped: "no_content" });
@@ -418,7 +482,9 @@ serve(async (req) => {
       user_id: cp.user_id,
       direction: "in",
       phone,
-      message_text: textContent || `(anexo ${attachmentType})`,
+      message_text: transcribedAudio
+        ? `🎤 ${transcribedAudio}`
+        : (finalText || `(anexo ${attachmentType})`),
       attachment_type: attachmentType,
       status: "ok",
     });
@@ -433,7 +499,7 @@ serve(async (req) => {
     const snapshot = await buildSnapshot(supabase, customerProductId);
     const systemPrompt = SYSTEM_PROMPT(snapshot);
 
-    const userTextForAI = textContent ||
+    const userTextForAI = finalText ||
       (attachment?.type === "pdf"
         ? "O usuário enviou um PDF. Extraia os dados financeiros relevantes e proponha a ação adequada."
         : "O usuário enviou uma imagem. Se for um comprovante/boleto/cupom, extraia valor, data e descrição e proponha lançar como transação.");
