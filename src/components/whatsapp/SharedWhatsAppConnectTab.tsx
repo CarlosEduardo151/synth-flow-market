@@ -232,7 +232,7 @@ export function SharedWhatsAppConnectTab({
     setChecking(true);
     try {
       const { data, error } = await supabase.functions.invoke('whatsapp-instance', {
-        body: { action: 'qrcode', context },
+        body: { action: 'qrcode', context, reset: true },
       });
       if (error) throw new Error(getInvokeErrorMessage(error, data));
       if (data?.qrcode) {
