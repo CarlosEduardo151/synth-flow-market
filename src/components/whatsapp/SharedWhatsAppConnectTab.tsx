@@ -306,7 +306,7 @@ export function SharedWhatsAppConnectTab({
             </Button>
             <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={handleReconfigureWebhook} disabled={checking}>
               <Zap className="h-3 w-3" />
-              Webhook
+              Reconfigurar Webhook
             </Button>
             <Button variant="ghost" size="sm" className="h-7 text-xs gap-1.5 text-destructive hover:text-destructive" onClick={handleDisconnect}>
               <XCircle className="h-3 w-3" />
