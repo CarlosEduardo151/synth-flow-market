@@ -67,12 +67,18 @@ function FinancialActivityLog({ customerProductId }: { customerProductId: string
     setLoading(true);
     try {
       // Lê os logs nativos do Agente Financeiro (gravados pelo edge financial-whatsapp-webhook)
-      const { data: rows } = await (supabase as any)
+      const { data: rows, error } = await (supabase as any)
         .from('financial_whatsapp_logs')
         .select('id, direction, phone, message_text, attachment_type, status, error_message, processing_ms, created_at')
         .eq('customer_product_id', customerProductId)
         .order('created_at', { ascending: false })
         .limit(50);
+
+      if (error) {
+        console.error('[FinancialActivityLog] fetch error:', error);
+      } else {
+        console.log('[FinancialActivityLog] fetched', rows?.length || 0, 'rows for cp', customerProductId);
+      }
 
       const merged: LogEntry[] = (rows as any[] || []).map((r) => ({
         id: r.id,
