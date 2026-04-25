@@ -184,11 +184,24 @@ async function callAI(opts: {
  */
 async function fetchMediaBase64(
   creds: { apiUrl: string; apiKey: string; instanceName: string },
-  message: any,
+  envelope: any,
 ): Promise<string | null> {
-  // If webhook was configured with base64:true, Evolution often includes it directly
-  const direct = message?.message?.base64 || message?.base64;
-  if (typeof direct === "string" && direct.length > 100) return direct;
+  // Evolution can deliver base64 in many places depending on webhook config.
+  // Try every known location before falling back to the API.
+  const candidates: any[] = [
+    envelope?.base64,
+    envelope?.message?.base64,
+    envelope?.message?.audioMessage?.base64,
+    envelope?.message?.imageMessage?.base64,
+    envelope?.message?.documentMessage?.base64,
+    envelope?.message?.message?.base64,
+    envelope?.data?.base64,
+    envelope?.media,
+    envelope?.mediaBase64,
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c.length > 100) return c;
+  }
 
   try {
     const resp = await fetch(
@@ -196,12 +209,16 @@ async function fetchMediaBase64(
       {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: creds.apiKey },
-        body: JSON.stringify({ message: { key: message.key, message: message.message } }),
+        body: JSON.stringify({ message: { key: envelope.key, message: envelope.message } }),
       },
     );
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      const t = await resp.text().catch(() => "");
+      console.warn("[financial-whatsapp-webhook] getBase64FromMediaMessage failed:", resp.status, t.slice(0, 200));
+      return null;
+    }
     const data = await resp.json().catch(() => null);
-    return data?.base64 || null;
+    return data?.base64 || data?.media || null;
   } catch (e) {
     console.warn("fetchMediaBase64 failed:", e instanceof Error ? e.message : e);
     return null;
