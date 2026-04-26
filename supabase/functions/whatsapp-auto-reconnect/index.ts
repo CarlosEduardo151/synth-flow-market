@@ -206,10 +206,26 @@ serve(async (req) => {
           reconnect_attempts: 0,
           next_reconnect_at: null,
           last_reconnect_error: null,
+          connecting_since: null,
           updated_at: nowIso,
         })
         .eq("instance_name", name);
       results.push({ instance: name, state, action: "healthy" });
+      continue;
+    }
+
+    // Connecting → estado intermediário. Não martelamos /connect:
+    // a Evolution já está tentando subir a sessão; chamar /connect de novo
+    // gera novo QR e quebra o pareamento que o usuário já fez.
+    if (state === "connecting") {
+      await sb.from("evolution_instances")
+        .update({
+          connection_state: "connecting",
+          last_health_check_at: nowIso,
+          updated_at: nowIso,
+        })
+        .eq("instance_name", name);
+      results.push({ instance: name, state, action: "waiting_handshake" });
       continue;
     }
 
@@ -218,7 +234,7 @@ serve(async (req) => {
       continue;
     }
 
-    // Tenta reconectar
+    // Tenta reconectar (apenas para estados close/unknown/etc.)
     const attempt = await tryReconnect(name);
     state = attempt.state;
 
@@ -239,20 +255,33 @@ serve(async (req) => {
       }
     }
 
-    if (state === "open" || state === "connecting") {
-      // Sucesso (ou pelo menos progresso) → meio-reset: zera attempts, mas marca probe agendado curto
+    if (state === "open") {
       await sb.from("evolution_instances")
         .update({
-          connection_state: state,
+          connection_state: "open",
           last_health_check_at: nowIso,
           last_reconnect_attempt_at: nowIso,
-          reconnect_attempts: state === "open" ? 0 : Math.max(0, attempts - 1),
-          next_reconnect_at: state === "open" ? null : new Date(Date.now() + 30_000).toISOString(),
+          reconnect_attempts: 0,
+          next_reconnect_at: null,
+          last_reconnect_error: null,
+          connecting_since: null,
+          updated_at: nowIso,
+        })
+        .eq("instance_name", name);
+      results.push({ instance: name, state, action: "reconnected", webhookOk });
+    } else if (state === "connecting") {
+      // Reconexão em andamento — não conta como sucesso ainda.
+      await sb.from("evolution_instances")
+        .update({
+          connection_state: "connecting",
+          last_health_check_at: nowIso,
+          last_reconnect_attempt_at: nowIso,
+          next_reconnect_at: new Date(Date.now() + 60_000).toISOString(),
           last_reconnect_error: null,
           updated_at: nowIso,
         })
         .eq("instance_name", name);
-      results.push({ instance: name, state, action: "reconnected", webhookOk, attempts });
+      results.push({ instance: name, state, action: "handshake_started", webhookOk });
     } else {
       const newAttempts = attempts + 1;
       const delay = nextDelaySeconds(newAttempts);
