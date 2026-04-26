@@ -708,11 +708,10 @@ serve(async (req) => {
           });
         }
 
-        try {
-          await fetch(`${evoUrl}/instance/logout/${encodeURIComponent(existingByPhone.instanceName)}`, {
-            method: "DELETE", headers: { apikey: evoKey },
-          });
-        } catch (_) { /* best effort */ }
+        // Não fazemos logout automático aqui — derrubar a sessão recém-pareada
+        // é justamente o que estava causando o "site diz que não está conectado".
+        // Apenas pedimos o QR atual; se a sessão ainda estiver válida no Baileys,
+        // a Evolution devolverá imediatamente o estado open na próxima checagem.
         const qrcode = await requestEvolutionQrCode(existingByPhone.instanceName);
         return json({
           success: true,
@@ -748,11 +747,9 @@ serve(async (req) => {
           });
         }
 
-        try {
-          await fetch(`${evoUrl}/instance/logout/${encodeURIComponent(ownedInstanceName)}`, {
-            method: "DELETE", headers: { apikey: evoKey },
-          });
-        } catch (_) { /* best effort */ }
+        // Sem logout automático: se a instância ainda existir no servidor,
+        // ela pode estar em "connecting" (subindo) — derrubá-la força um
+        // novo QR e quebra a sessão que o usuário acabou de escanear.
         const qrcode = await requestEvolutionQrCode(ownedInstanceName);
         return json({
           success: true,

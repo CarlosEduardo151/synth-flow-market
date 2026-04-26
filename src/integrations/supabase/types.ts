@@ -1244,6 +1244,7 @@ export type Database = {
       }
       evolution_instances: {
         Row: {
+          connecting_since: string | null
           connection_state: string | null
           created_at: string
           customer_product_id: string
@@ -1253,6 +1254,9 @@ export type Database = {
           id: string
           instance_name: string
           is_active: boolean
+          last_disconnect_at: string | null
+          last_disconnect_code: number | null
+          last_disconnect_reason: string | null
           last_health_check_at: string | null
           last_reconnect_attempt_at: string | null
           last_reconnect_error: string | null
@@ -1262,6 +1266,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          connecting_since?: string | null
           connection_state?: string | null
           created_at?: string
           customer_product_id: string
@@ -1271,6 +1276,9 @@ export type Database = {
           id?: string
           instance_name: string
           is_active?: boolean
+          last_disconnect_at?: string | null
+          last_disconnect_code?: number | null
+          last_disconnect_reason?: string | null
           last_health_check_at?: string | null
           last_reconnect_attempt_at?: string | null
           last_reconnect_error?: string | null
@@ -1280,6 +1288,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          connecting_since?: string | null
           connection_state?: string | null
           created_at?: string
           customer_product_id?: string
@@ -1289,6 +1298,9 @@ export type Database = {
           id?: string
           instance_name?: string
           is_active?: boolean
+          last_disconnect_at?: string | null
+          last_disconnect_code?: number | null
+          last_disconnect_reason?: string | null
           last_health_check_at?: string | null
           last_reconnect_attempt_at?: string | null
           last_reconnect_error?: string | null
