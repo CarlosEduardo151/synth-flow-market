@@ -386,12 +386,21 @@ async function linkInstanceToAllUserProducts(
     .eq("is_active", true)
     .in("product_slug", ["bots-automacao", "crm-simples", "agente-financeiro"]);
 
+  const productPriority: Record<string, number> = {
+    "bots-automacao": 0,
+    "crm-simples": 1,
+    "agente-financeiro": 2,
+  };
+  const productRows = [...(products || [])].sort(
+    (a, b) => (productPriority[a.product_slug] ?? 99) - (productPriority[b.product_slug] ?? 99),
+  );
+
   const linked: string[] = [];
   let primaryWebhookUrl: string | null = null;
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const nowIso = new Date().toISOString();
 
-  for (const p of products || []) {
+  for (const p of productRows) {
     let token = p.webhook_token;
     if (!token) {
       token = generateWebhookToken();
