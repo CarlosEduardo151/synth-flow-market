@@ -337,7 +337,11 @@ export function SharedWhatsAppConnectTab({
             ? 'border-green-500/30 bg-green-500/5 text-green-600 gap-1.5 px-3 py-1'
             : qrCode
               ? 'border-blue-500/30 bg-blue-500/5 text-blue-600 gap-1.5 px-3 py-1'
-              : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
+              : rawState === 'connecting'
+                ? 'border-yellow-500/30 bg-yellow-500/5 text-yellow-600 gap-1.5 px-3 py-1'
+                : rawState === 'service_unavailable'
+                  ? 'border-zinc-500/30 bg-zinc-500/5 text-zinc-600 gap-1.5 px-3 py-1'
+                  : 'border-orange-500/30 bg-orange-500/5 text-orange-600 gap-1.5 px-3 py-1'
           }
         >
           {isConnected ? <Wifi className="h-3 w-3" /> : qrCode ? <QrCode className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
@@ -345,7 +349,15 @@ export function SharedWhatsAppConnectTab({
             ? `Conectado${rawState ? ` · ${rawState}` : ''}`
             : qrCode
               ? 'Aguardando QR'
-              : `Desconectado${rawState ? ` · ${rawState}` : ''}`}
+              : rawState === 'connecting'
+                ? 'Conectando…'
+                : rawState === 'connecting_stalled'
+                  ? 'Sessão travada — gere um QR novo'
+                  : rawState === 'service_unavailable'
+                    ? 'Provedor indisponível'
+                    : rawState === 'not_provisioned'
+                      ? 'Não conectado'
+                      : `Desconectado${rawState ? ` · ${rawState}` : ''}`}
         </Badge>
       </div>
 
@@ -355,7 +367,13 @@ export function SharedWhatsAppConnectTab({
           <WifiOff className="h-5 w-5 text-orange-500 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-orange-700 dark:text-orange-400">
-              Instância encontrada mas não está em <code>open</code>
+              {rawState === 'connecting'
+                ? 'Conectando ao WhatsApp…'
+                : rawState === 'connecting_stalled'
+                  ? 'A conexão ficou travada — escaneie um QR Code novo'
+                  : rawState === 'service_unavailable'
+                    ? 'Provedor WhatsApp temporariamente indisponível'
+                    : 'Instância encontrada, mas não está em open'}
             </p>
             <p className="text-[11px] text-muted-foreground truncate">
               {instanceName} · estado atual: <strong>{rawState || 'desconhecido'}</strong>
@@ -371,7 +389,7 @@ export function SharedWhatsAppConnectTab({
               size="sm"
               className="h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700"
               onClick={handleForceReconnect}
-              disabled={checking}
+              disabled={checking || rawState === 'connecting'}
             >
               <Zap className="h-3 w-3" />
               Reconectar agora
