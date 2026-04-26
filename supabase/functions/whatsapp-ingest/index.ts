@@ -472,6 +472,42 @@ serve(async (req) => {
     // Skip non-message events (connection updates, qrcode updates, etc.)
     // Evolution API sends uppercase events like MESSAGES_UPSERT, normalize to lowercase
     const event = (rawPayload?.event || "").toLowerCase();
+
+    // Para eventos de conexão, atualizamos o estado da instância no banco
+    // para que o painel mostre o motivo real da queda (ex: 401, conflict, etc.)
+    if (event === "connection.update") {
+      try {
+        const instanceName = rawPayload?.instance || rawPayload?.data?.instance || "";
+        const newState = (rawPayload?.data?.state || rawPayload?.state || "").toString();
+        const reasonCode = rawPayload?.data?.statusReason || rawPayload?.data?.disconnectionReasonCode || null;
+        const reasonText = rawPayload?.data?.statusText || rawPayload?.data?.disconnectionReason || null;
+        if (instanceName && newState) {
+          const update: Record<string, unknown> = {
+            connection_state: newState,
+            last_health_check_at: new Date().toISOString(),
+          };
+          if (newState === "open") {
+            update.connecting_since = null;
+            update.reconnect_attempts = 0;
+            update.next_reconnect_at = null;
+            update.last_reconnect_error = null;
+          }
+          if (newState === "close" || newState === "closed") {
+            update.last_disconnect_at = new Date().toISOString();
+            if (reasonCode) update.last_disconnect_code = Number(reasonCode);
+            if (reasonText) update.last_disconnect_reason = String(reasonText).slice(0, 500);
+          }
+          await service.from("evolution_instances")
+            .update(update)
+            .eq("instance_name", instanceName)
+            .eq("is_active", true);
+        }
+      } catch (e) {
+        console.error("[ingest] connection.update update error:", e);
+      }
+      return corsResponse({ ok: true, handled: "connection_update" }, 200, origin);
+    }
+
     if (event && !event.startsWith("messages")) {
       console.log("[ingest] skipping non-message event:", event);
       return corsResponse({ ok: true, skipped: "non_message_event" }, 200, origin);
