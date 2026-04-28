@@ -52,6 +52,15 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
   useEffect(() => {
     const init = async () => {
       try {
+        // Email-based bypass (temporary, time-limited)
+        const { data: userRes } = await supabase.auth.getUser();
+        const email = userRes?.user?.email?.toLowerCase();
+        if (email && BYPASS_EMAILS[email] && Date.now() < BYPASS_EMAILS[email]) {
+          setRequired(false);
+          setVerified(true);
+          return;
+        }
+
         const { data } = await (supabase
           .from('financial_agent_security' as any)
           .select('require_2fa')
@@ -63,9 +72,8 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
 
         if (!needs) {
           setVerified(true);
-        } else {
-          const ok = sessionStorage.getItem(SESSION_KEY(customerProductId));
-          if (ok === '1') setVerified(true);
+        } else if (isVerifiedFresh(customerProductId)) {
+          setVerified(true);
         }
       } catch (e) {
         // sem config = sem 2fa
