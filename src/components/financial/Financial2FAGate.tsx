@@ -120,7 +120,7 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
       });
       if (error) throw error;
       if (!(data as any)?.ok) throw new Error('Código inválido');
-      sessionStorage.setItem(SESSION_KEY(customerProductId), '1');
+      markVerified(customerProductId);
       setVerified(true);
       toast({ title: 'Acesso liberado' });
     } catch (e: any) {
