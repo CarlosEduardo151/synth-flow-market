@@ -11,7 +11,33 @@ interface Props {
   children: React.ReactNode;
 }
 
-const SESSION_KEY = (cpid: string) => `fin2fa_ok_${cpid}`;
+// Persist 2FA verification for 12 hours across reloads / new sessions
+const VERIFY_TTL_MS = 12 * 60 * 60 * 1000;
+const STORAGE_KEY = (cpid: string) => `fin2fa_ok_${cpid}`;
+
+// Temporary email-based bypass (no 2FA prompt while active)
+const BYPASS_EMAILS: Record<string, number> = {
+  // wenio.ar@outlook.com — valid until 2026-04-28T04:03:46Z (2h window)
+  'wenio.ar@outlook.com': Date.parse('2026-04-28T04:03:46Z'),
+};
+
+function isVerifiedFresh(cpid: string): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY(cpid));
+    if (!raw) return false;
+    const ts = parseInt(raw, 10);
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() - ts < VERIFY_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markVerified(cpid: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY(cpid), String(Date.now()));
+  } catch {}
+}
 
 export function Financial2FAGate({ customerProductId, children }: Props) {
   const [checking, setChecking] = useState(true);
@@ -26,6 +52,15 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
   useEffect(() => {
     const init = async () => {
       try {
+        // Email-based bypass (temporary, time-limited)
+        const { data: userRes } = await supabase.auth.getUser();
+        const email = userRes?.user?.email?.toLowerCase();
+        if (email && BYPASS_EMAILS[email] && Date.now() < BYPASS_EMAILS[email]) {
+          setRequired(false);
+          setVerified(true);
+          return;
+        }
+
         const { data } = await (supabase
           .from('financial_agent_security' as any)
           .select('require_2fa')
@@ -37,9 +72,8 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
 
         if (!needs) {
           setVerified(true);
-        } else {
-          const ok = sessionStorage.getItem(SESSION_KEY(customerProductId));
-          if (ok === '1') setVerified(true);
+        } else if (isVerifiedFresh(customerProductId)) {
+          setVerified(true);
         }
       } catch (e) {
         // sem config = sem 2fa
@@ -86,7 +120,7 @@ export function Financial2FAGate({ customerProductId, children }: Props) {
       });
       if (error) throw error;
       if (!(data as any)?.ok) throw new Error('Código inválido');
-      sessionStorage.setItem(SESSION_KEY(customerProductId), '1');
+      markVerified(customerProductId);
       setVerified(true);
       toast({ title: 'Acesso liberado' });
     } catch (e: any) {
