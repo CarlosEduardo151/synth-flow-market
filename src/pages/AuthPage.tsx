@@ -25,6 +25,8 @@ export default function AuthPage() {
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
   const [pendingType, setPendingType] = useState<'signup' | 'email_change'>('signup');
   const [resendLoading, setResendLoading] = useState(false);
+  const [confirmCode, setConfirmCode] = useState('');
+  const [confirmLoading, setConfirmLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
