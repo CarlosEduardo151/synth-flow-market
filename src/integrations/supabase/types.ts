@@ -6054,6 +6054,39 @@ export type Database = {
           },
         ]
       }
+      security_blocklist: {
+        Row: {
+          first_seen_at: string
+          hit_count: number
+          id: string
+          ip_address: string
+          last_seen_at: string
+          notes: string | null
+          trigger_route: string
+          user_agent: string | null
+        }
+        Insert: {
+          first_seen_at?: string
+          hit_count?: number
+          id?: string
+          ip_address: string
+          last_seen_at?: string
+          notes?: string | null
+          trigger_route: string
+          user_agent?: string | null
+        }
+        Update: {
+          first_seen_at?: string
+          hit_count?: number
+          id?: string
+          ip_address?: string
+          last_seen_at?: string
+          notes?: string | null
+          trigger_route?: string
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       tutorial_completions: {
         Row: {
           completed: boolean
