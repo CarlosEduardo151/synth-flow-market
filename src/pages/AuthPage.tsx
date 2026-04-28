@@ -322,14 +322,73 @@ export default function AuthPage() {
                 <div className="space-y-4">
                   <div className="rounded-lg border border-border bg-muted/30 p-4">
                     <p className="text-sm text-foreground">
-                      Enviamos um e-mail de confirmação para <span className="font-medium">{pendingEmail}</span>. Clique no botão do e-mail
-                      para confirmar e então volte aqui para entrar.
+                      Enviamos um e-mail para <span className="font-medium">{pendingEmail}</span>. Você pode:
                     </p>
+                    <ul className="mt-2 text-xs text-muted-foreground list-disc pl-4 space-y-1">
+                      <li>Clicar no botão/link do e-mail, OU</li>
+                      <li>Digitar o código de 6 dígitos abaixo</li>
+                    </ul>
                     <p className="mt-2 text-xs text-muted-foreground">Dica: verifique Spam/Promoções.</p>
                   </div>
 
+                  <form
+                    onSubmit={async (e) => {
+                      e.preventDefault();
+                      if (!pendingEmail || confirmCode.length !== 6) {
+                        toast({
+                          title: 'Código inválido',
+                          description: 'Digite os 6 dígitos do e-mail.',
+                          variant: 'destructive',
+                        });
+                        return;
+                      }
+                      try {
+                        setConfirmLoading(true);
+                        const { error } = await supabase.auth.verifyOtp({
+                          email: pendingEmail,
+                          token: confirmCode,
+                          type: pendingType === 'email_change' ? 'email_change' : 'signup',
+                        });
+                        if (error) throw error;
+                        toast({
+                          title: 'E-mail confirmado!',
+                          description: 'Conta ativada com sucesso.',
+                        });
+                        setPendingEmail(null);
+                        setConfirmCode('');
+                      } catch (err: any) {
+                        toast({
+                          title: 'Código incorreto/expirado',
+                          description: err.message || 'Verifique o código e tente novamente.',
+                          variant: 'destructive',
+                        });
+                      } finally {
+                        setConfirmLoading(false);
+                      }
+                    }}
+                    className="space-y-3"
+                  >
+                    <Label>Código de confirmação (6 dígitos)</Label>
+                    <div className="flex justify-center">
+                      <InputOTP maxLength={6} value={confirmCode} onChange={setConfirmCode}>
+                        <InputOTPGroup>
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
+                        </InputOTPGroup>
+                      </InputOTP>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={confirmLoading}>
+                      {confirmLoading ? 'Confirmando...' : 'Confirmar código'}
+                    </Button>
+                  </form>
+
                   <Button
                     type="button"
+                    variant="outline"
                     className="w-full"
                     disabled={resendLoading}
                     onClick={async () => {
@@ -343,7 +402,7 @@ export default function AuthPage() {
                         if (error) throw error;
                         toast({
                           title: 'E-mail reenviado',
-                          description: 'Enviamos um novo link de confirmação.',
+                          description: 'Enviamos um novo código/link.',
                         });
                       } catch (err: any) {
                         toast({
@@ -356,17 +415,17 @@ export default function AuthPage() {
                       }
                     }}
                   >
-                    {resendLoading ? 'Reenviando...' : 'Reenviar e-mail de confirmação'}
+                    {resendLoading ? 'Reenviando...' : 'Reenviar e-mail'}
                   </Button>
 
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="ghost"
                     className="w-full"
                     onClick={() => {
                       setPendingEmail(null);
                       setPendingType('signup');
-                      // remove params if present
+                      setConfirmCode('');
                       if (location.search) navigate('/auth', { replace: true });
                     }}
                   >
