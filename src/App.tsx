@@ -35,6 +35,7 @@ import PlanosPage from "./pages/PlanosPage";
 import FreeTrialPage from "./pages/FreeTrialPage";
 import ProductReviewPage from "./pages/ProductReviewPage";
 import DemonstracaoPage from "./pages/DemonstracaoPage";
+import HoneypotPage from "./pages/HoneypotPage";
 
 import AdminDashboard from "./pages/AdminDashboard";
 import CustomerDashboard from "./pages/CustomerDashboard";
@@ -180,6 +181,15 @@ const App = () => (
               <Route path="/admin/workshop-review" element={<AdminWorkshopReviewPage />} />
               <Route path="/admin/monitoring" element={<AdminMonitoringPage />} />
               <Route path="/admin/logs" element={<AdminLogsPage />} />
+
+              {/* HONEYPOTS — rotas-isca: registram IPs de scanners/bots */}
+              <Route path="/wp-admin" element={<HoneypotPage />} />
+              <Route path="/wp-admin/*" element={<HoneypotPage />} />
+              <Route path="/wp-login.php" element={<HoneypotPage />} />
+              <Route path="/phpmyadmin" element={<HoneypotPage />} />
+              <Route path="/administrator" element={<HoneypotPage />} />
+              <Route path="/admin.php" element={<HoneypotPage />} />
+              <Route path="/cpanel" element={<HoneypotPage />} />
 
               {/* fallback */}
               <Route path="*" element={<NotFound />} />
