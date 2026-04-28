@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.auth-email-hook]
 verify_jwt = false
+
+[functions.honeypot]
+verify_jwt = false
