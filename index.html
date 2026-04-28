@@ -3,6 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- ====== SECURITY HEADERS (Beta launch hardening) ====== -->
+    <!-- Clickjacking protection: bloqueia o site de ser embutido em iframes -->
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <!-- MIME sniffing protection -->
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <!-- Referrer policy: não vaza URL completa em requisições cross-origin -->
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+    <!-- Permissions Policy: bloqueia APIs sensíveis por padrão -->
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(self), camera=(self), payment=(self), usb=()" />
+    <!-- Content Security Policy: mata XSS e injeção de scripts externos -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.supabase.co https://*.lovable.app https://*.lovableproject.com https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https: http:; media-src 'self' blob: data: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://api.groq.com https://api.resend.com https://api.fal.ai https://*.lovable.app https://*.lovableproject.com https://generativelanguage.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none';" />
+
     <title>NovaLink — Agentes de IA para Micro-Empresas</title>
     <meta name="description" content="Reduza inadimplência e automatize cobranças com Agentes de IA. Soluções prontas para micro-empresas sem precisar de equipe técnica." />
     <meta name="author" content="NovaLink" />

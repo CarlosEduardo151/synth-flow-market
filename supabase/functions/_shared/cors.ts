@@ -6,20 +6,28 @@
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:3000',
-  'https://agndhravgmcwpdjkozka.supabase.co',
   // Lovable preview domains (este projeto)
-  'https://id-preview--4b638d23-1bbd-400f-85e1-8df70617efd4.lovable.app',
-  'https://4b638d23-1bbd-400f-85e1-8df70617efd4.lovableproject.com',
   'https://id-preview--e36abe90-829b-426c-b93a-7bf13ba510e9.lovable.app',
   'https://e36abe90-829b-426c-b93a-7bf13ba510e9.lovableproject.com',
-  // Produção - StarAI
+  // Produção oficial
   'https://starai.com.br',
   'https://www.starai.com.br',
+  'https://novalink.com.br',
+  'https://www.novalink.com.br',
+];
+
+// Wildcard patterns para subdomínios autorizados (Lovable previews dinâmicos)
+const ALLOWED_PATTERNS = [
+  /^https:\/\/[a-z0-9-]+\.lovable\.app$/,
+  /^https:\/\/[a-z0-9-]+\.lovableproject\.com$/,
 ];
 
 export function getCorsHeaders(origin?: string | null): Record<string, string> {
-  // Verificar se a origem está na whitelist
-  const isAllowed = origin && ALLOWED_ORIGINS.includes(origin);
+  // Verificar se a origem está na whitelist (exato ou padrão)
+  const isAllowed = origin && (
+    ALLOWED_ORIGINS.includes(origin) ||
+    ALLOWED_PATTERNS.some((p) => p.test(origin))
+  );
   
   return {
     'Access-Control-Allow-Origin': isAllowed ? origin : ALLOWED_ORIGINS[0],
