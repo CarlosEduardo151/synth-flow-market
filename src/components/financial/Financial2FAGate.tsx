@@ -11,7 +11,33 @@ interface Props {
   children: React.ReactNode;
 }
 
-const SESSION_KEY = (cpid: string) => `fin2fa_ok_${cpid}`;
+// Persist 2FA verification for 12 hours across reloads / new sessions
+const VERIFY_TTL_MS = 12 * 60 * 60 * 1000;
+const STORAGE_KEY = (cpid: string) => `fin2fa_ok_${cpid}`;
+
+// Temporary email-based bypass (no 2FA prompt while active)
+const BYPASS_EMAILS: Record<string, number> = {
+  // wenio.ar@outlook.com — valid until 2026-04-28T04:03:46Z (2h window)
+  'wenio.ar@outlook.com': Date.parse('2026-04-28T04:03:46Z'),
+};
+
+function isVerifiedFresh(cpid: string): boolean {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY(cpid));
+    if (!raw) return false;
+    const ts = parseInt(raw, 10);
+    if (!Number.isFinite(ts)) return false;
+    return Date.now() - ts < VERIFY_TTL_MS;
+  } catch {
+    return false;
+  }
+}
+
+function markVerified(cpid: string) {
+  try {
+    localStorage.setItem(STORAGE_KEY(cpid), String(Date.now()));
+  } catch {}
+}
 
 export function Financial2FAGate({ customerProductId, children }: Props) {
   const [checking, setChecking] = useState(true);
