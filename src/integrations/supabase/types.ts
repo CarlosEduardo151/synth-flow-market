@@ -6312,6 +6312,27 @@ export type Database = {
         Args: { _customer_product_id: string; _ref_date?: string }
         Returns: number
       }
+      claim_message_buffers: {
+        Args: { _limit?: number }
+        Returns: {
+          created_at: string
+          customer_product_id: string
+          flush_at: string
+          id: string
+          items: Json
+          phone: string
+          processing: boolean
+          processing_started_at: string | null
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "whatsapp_message_buffer"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       deliver_order_products: {
         Args: { order_id_param: string }
         Returns: Json
