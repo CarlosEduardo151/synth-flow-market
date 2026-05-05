@@ -517,82 +517,62 @@ serve(async (req) => {
       status: "ok",
     });
 
-    // Show typing indicator while we process
+    // Quick presence ping so the user sees "typing..." while the buffer waits
     const creds = await loadEvolutionCredentials(supabase, cp.user_id, customerProductId);
     if (creds) {
-      evolutionSendPresence(creds, phone, "composing", 2000).catch(() => {});
+      evolutionSendPresence(creds, phone, "composing", 4000).catch(() => {});
     }
 
-    // Build context + call AI
-    const snapshot = await buildSnapshot(supabase, customerProductId);
-    const systemPrompt = SYSTEM_PROMPT(snapshot);
+    // ===== BUFFER (debounce 3s) =====
+    // Em vez de chamar a IA imediatamente, acumula esta mensagem em um buffer
+    // e empurra o flush_at para now()+3s. O cron `flush-message-buffer` processa
+    // todos os items juntos depois que o usuário para de enviar.
+    const FLUSH_DELAY_MS = 3000;
+    const MAX_ITEMS = 20;
+    const flushAt = new Date(Date.now() + FLUSH_DELAY_MS).toISOString();
 
-    const userTextForAI = finalText ||
-      (attachment?.type === "pdf"
-        ? "O usuário enviou um PDF. Extraia os dados financeiros relevantes e proponha a ação adequada."
-        : "O usuário enviou uma imagem. Se for um comprovante/boleto/cupom, extraia valor, data e descrição e proponha lançar como transação.");
+    const newItem = {
+      received_at: new Date().toISOString(),
+      text: finalText || null,
+      transcribed_audio: transcribedAudio || null,
+      attachment: attachment
+        ? { type: attachment.type, mime: attachment.mime, base64: attachment.base64 }
+        : null,
+    };
 
-    const ai = await callAI({ systemPrompt, userText: userTextForAI, attachment });
+    // Tenta achar buffer ATIVO (processing=false) já existente
+    const { data: existing } = await supabase
+      .from("whatsapp_message_buffer")
+      .select("id, items")
+      .eq("customer_product_id", customerProductId)
+      .eq("phone", phone)
+      .eq("processing", false)
+      .maybeSingle();
 
-    // Execute action if proposed and allowed
-    let executionNote = "";
-    if (ai.actionProposal?.action_type) {
-      const actionType = String(ai.actionProposal.action_type);
-      const payload = ai.actionProposal.payload || {};
-      const requiresApproval = ACTIONS_REQUIRING_APPROVAL.has(actionType);
-
-      if (requiresApproval) {
-        // Destructive — create a pending request (user must approve via site)
-        await supabase.from("financial_agent_action_requests").insert({
-          user_id: cp.user_id,
-          customer_product_id: customerProductId,
-          action_type: actionType,
-          payload,
-          status: "pending",
-        });
-        executionNote = "\n\n⏳ Ação de exclusão aguardando confirmação no painel web.";
-      } else {
-        try {
-          await executeFinancialAction(supabase, cp.user_id, customerProductId, actionType, payload);
-          executionNote = `\n\n✅ Feito: ${actionType}.`;
-          await supabase.from("financial_agent_action_requests").insert({
-            user_id: cp.user_id,
-            customer_product_id: customerProductId,
-            action_type: actionType,
-            payload,
-            status: "executed",
-          });
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : "erro";
-          executionNote = `\n\n❌ Não consegui executar: ${msg}`;
-        }
-      }
+    if (existing) {
+      const currentItems = Array.isArray(existing.items) ? existing.items : [];
+      const nextItems = [...currentItems, newItem].slice(-MAX_ITEMS);
+      // Se atingimos o teto, força flush imediato
+      const forcedFlush = nextItems.length >= MAX_ITEMS
+        ? new Date().toISOString()
+        : flushAt;
+      await supabase
+        .from("whatsapp_message_buffer")
+        .update({ items: nextItems, flush_at: forcedFlush })
+        .eq("id", existing.id);
+      console.log(`[financial-whatsapp-webhook] buffered (append) ${nextItems.length} items for ${phone}`);
+    } else {
+      await supabase.from("whatsapp_message_buffer").insert({
+        customer_product_id: customerProductId,
+        user_id: cp.user_id,
+        phone,
+        items: [newItem],
+        flush_at: flushAt,
+      });
+      console.log(`[financial-whatsapp-webhook] buffered (new) for ${phone}`);
     }
 
-    const finalReply = (ai.reply + executionNote).slice(0, 4000);
-    console.log("[financial-whatsapp-webhook] reply prepared:", JSON.stringify({
-      hasAction: !!ai.actionProposal?.action_type,
-      actionType: ai.actionProposal?.action_type || null,
-      replyPreview: finalReply.slice(0, 200),
-    }));
-
-    // Send reply back to WhatsApp
-    if (creds) {
-      await evolutionSendText(creds, phone, finalReply);
-    }
-
-    // Log outgoing
-    await supabase.from("financial_whatsapp_logs").insert({
-      customer_product_id: customerProductId,
-      user_id: cp.user_id,
-      direction: "out",
-      phone,
-      message_text: finalReply,
-      processing_ms: Date.now() - startedAt,
-      status: "ok",
-    });
-
-    return json(200, { ok: true });
+    return json(200, { ok: true, buffered: true });
   } catch (e) {
     const msg = e instanceof Error ? e.message : "unknown";
     const stack = e instanceof Error ? e.stack : undefined;
